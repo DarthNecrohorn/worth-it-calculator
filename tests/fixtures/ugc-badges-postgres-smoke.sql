@@ -36,12 +36,13 @@ select (public.save_worth_it_ugc_calculator(
 )->>'id') as calculator_id \gset
 
 select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid)->>'status') as publish_status \gset
+select set_config('test.ugc_calculator_id', :'calculator_id', false);
 do $owner_check$
 declare
     v_detail jsonb;
     v_mine jsonb;
 begin
-    v_detail:=public.get_worth_it_ugc_calculator(:'calculator_id'::uuid);
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if (v_detail->>'is_owner')::boolean is distinct from true then
         raise exception 'The calculator owner cannot open their own published calculator.';
     end if;
@@ -60,7 +61,7 @@ declare
     v_reaction jsonb;
     v_view jsonb;
 begin
-    v_detail:=public.get_worth_it_ugc_calculator(:'calculator_id'::uuid);
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if (v_detail->>'is_owner')::boolean is distinct from false then
         raise exception 'A different member was incorrectly treated as the calculator owner.';
     end if;
@@ -68,11 +69,11 @@ begin
     if jsonb_array_length(v_catalog)<1 then
         raise exception 'Published UGC calculator is missing from the latest catalogue.';
     end if;
-    v_reaction:=public.set_worth_it_ugc_reaction(:'calculator_id'::uuid,'like');
+    v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
     if v_reaction->>'reaction' is distinct from 'like' then
         raise exception 'The like reaction was not stored.';
     end if;
-    v_view:=public.record_worth_it_ugc_view(:'calculator_id'::uuid);
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
     if (v_view->>'success')::boolean is distinct from true then
         raise exception 'The calculator view could not be recorded.';
     end if;
