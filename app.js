@@ -11,11 +11,16 @@ window.$ = function (id) {
 SUPABASE AUTH
 ========================================================= */
 
-const SUPABASE_URL =
-    "https://diutcnylnubljvpezhmq.supabase.co";
+const SUPABASE_RUNTIME_CONFIG = window.WORTH_IT_SUPABASE_CONFIG || {};
+const SUPABASE_URL = String(SUPABASE_RUNTIME_CONFIG.url || "").trim().replace(/\/+$/, "");
+const SUPABASE_PUBLISHABLE_KEY = String(SUPABASE_RUNTIME_CONFIG.publishableKey || "").trim();
 
-const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_AzgPXyMrDpruSqGt-al9gg_9gsiCopw";
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error(
+        window.WORTH_IT_SUPABASE_CONFIG_ERROR ||
+        "Worth It could not load this deployment's Supabase configuration."
+    );
+}
 
 
 window.supabaseClient =

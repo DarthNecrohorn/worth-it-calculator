@@ -59,6 +59,9 @@ jobs:
       - name: Run UGC calculator and badge contract tests
         run: node --test tests/ugc-calculators.test.mjs
 
+      - name: Run deployment-specific Supabase configuration tests
+        run: node --test tests/runtime-config.test.mjs
+
       - name: Run CALC economy contract tests
         run: node --test tests/calc-economy.test.mjs
 
