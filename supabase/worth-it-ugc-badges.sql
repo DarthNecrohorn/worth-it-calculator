@@ -278,7 +278,7 @@ begin
     if v_deleted=0 then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
     return jsonb_build_object('success',true,'id',p_id);
 end;
-$;
+$$;
 
 create or replace function public.get_worth_it_ugc_catalog(
     p_sort text default 'latest',
