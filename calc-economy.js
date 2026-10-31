@@ -78,6 +78,22 @@
         const unit = $("worthItCalcWalletUnit");
         const wipButton = $("worthItWipWalletButton");
         const wipValue = $("worthItWipWalletValue");
+        const shopButton = $("worthItWebShopButton");
+        const guestView = state ? state.is_guest === true : !signedInAccount;
+
+        // Guests have a separate CALC Lite allowance, but no Web Shop access.
+        // Hide the shop entry entirely instead of showing a CALC shop beside
+        // the guest balance; the balance control can offer account creation.
+        if(shopButton){
+            shopButton.hidden = guestView;
+            shopButton.style.display = guestView ? "none" : "";
+            shopButton.setAttribute("aria-hidden",String(guestView));
+        }
+        if(button){
+            button.onclick = guestView
+                ? () => window.WorthItGuestLite?.showAccountPrompt?.()
+                : () => openWebShop("currency");
+        }
 
         if(wipButton){
             const showWip = state ? !state.is_guest : signedInAccount;
@@ -102,11 +118,11 @@
         if(!value || !button) return;
         if(!state){
             value.textContent = "—";
-            if(unit) unit.textContent = "CALC";
-            button.setAttribute("aria-label","CALC balance is unavailable");
+            if(unit) unit.textContent = signedInAccount ? "CALC" : "CALC Lite";
+            button.setAttribute("aria-label",signedInAccount ? "CALC balance is unavailable" : "CALC Lite balance is temporarily unavailable");
             button.title = signedInAccount
                 ? "Your account CALC balance is not available in this Preview until the CALC economy SQL migration is installed in a staging database."
-                : "Your CALC Lite balance is temporarily unavailable.";
+                : "Your Guest Lite CALC Lite balance is temporarily unavailable. The Web Shop is available only to signed-in accounts.";
             return;
         }
 
