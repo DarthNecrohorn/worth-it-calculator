@@ -35,12 +35,13 @@ select (public.save_worth_it_ugc_calculator(
  '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
 )->>'id') as calculator_id \gset
 
+select set_config('test.ugc_id', :'calculator_id', false);
 do $number_check$
 declare v_number bigint;
 begin
     select calculator_number into v_number
       from private.worth_it_user_calculators
-     where id=:'calculator_id'::uuid;
+     where id=current_setting('test.ugc_id')::uuid;
     if v_number<>51 then raise exception 'The first user calculator must receive public number 51, got %.',v_number; end if;
 end
 $number_check$;
@@ -75,9 +76,10 @@ select (public.save_worth_it_ugc_calculator(
  null,'Second savings calculator','','money',
  '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
 )->>'calculator_number') as second_calculator_number \gset
+select set_config('test.ugc_second_number', :'second_calculator_number', false);
 do $number_check$
 begin
-    if :'second_calculator_number'::bigint<>52 then raise exception 'Calculator numbers must be sequential from 51.'; end if;
+    if current_setting('test.ugc_second_number')::bigint<>52 then raise exception 'Calculator numbers must be sequential from 51.'; end if;
 end
 $number_check$;
 select set_config('test.ugc_calculator_id', :'calculator_id', false);
