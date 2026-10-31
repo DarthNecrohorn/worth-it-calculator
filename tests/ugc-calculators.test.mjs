@@ -251,7 +251,7 @@ test("UGC writes are owner-bound, capped and not directly accessible through pub
 });
 
 test("community creation quotas are enforced by SQL and public IDs begin at 51", () => {
-    assert.match(sql, /worth_it_user_calculator_number_seq[\\s\\S]*?start with 51/i);
+    assert.ok(sql.includes("create sequence if not exists private.worth_it_user_calculator_number_seq\\n    start with 51 increment by 1 minvalue 51"));
     assert.match(sql, /calculator_number bigint not null/);
     assert.match(sql, /get_worth_it_ugc_creation_quota/);
     assert.match(sql, /pedjasebez3545@gmail\\.com/);
