@@ -5,6 +5,11 @@ const sb = () => window.supabaseClient || null;
 const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
 const DEFAULT_THEME = {name:"Worth It",primary:"#7C5CFF",secondary:"#38BDF8"};
+const PREVIEW_REPORTS_KEY = "worthItPreviewReports:v1";
+const currentHost = String(window.location.hostname || "").toLowerCase();
+const COMMUNITY_PREVIEW_MODE = currentHost.endsWith(".worth-it-calculator.pages.dev") && currentHost !== "worth-it-calculator.pages.dev";
+window.worthItCommunityPreviewMode = COMMUNITY_PREVIEW_MODE;
+
 let favourites = new Set();
 let favouritesUserId = "";
 let favouritesRequest = 0;
@@ -200,7 +205,57 @@ async function toggleFavourite(key,button){
  }finally{button.disabled=false;}
 }
 
-function profileTargetId(){
+
+function getPreviewReports(){
+ if(!COMMUNITY_PREVIEW_MODE)return [];
+ try{
+  const rows=JSON.parse(readLocal(PREVIEW_REPORTS_KEY)||"[]");
+  return Array.isArray(rows)?rows.filter(row=>row&&row.preview_local===true):[];
+ }catch(_){return [];}
+}
+function savePreviewReports(rows){
+ if(!COMMUNITY_PREVIEW_MODE)return false;
+ try{writeLocal(PREVIEW_REPORTS_KEY,JSON.stringify(rows));return true;}catch(_){return false;}
+}
+window.getWorthItPreviewReports = getPreviewReports;
+window.moderateWorthItPreviewReport = async function(reportId,status,note){
+ if(!COMMUNITY_PREVIEW_MODE)return {success:false};
+ const allowed=["open","reviewing","resolved","dismissed"];
+ const id=Number(reportId);
+ if(!Number.isSafeInteger(id)||id>=0||!allowed.includes(String(status)))return {success:false};
+ const reports=getPreviewReports();
+ const index=reports.findIndex(row=>Number(row.id)===id);
+ if(index<0)return {success:false};
+ let session=null;
+ try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
+ if(!session?.user?.id||String(session.user.email||"").trim().toLowerCase()!=="pedjasebez3545@gmail.com")return {success:false};
+ reports[index]={...reports[index],status:String(status),admin_note:String(note||"").slice(0,1000),reviewed_by:session.user.id,reviewed_at:new Date().toISOString()};
+ return savePreviewReports(reports)?{success:true,report:reports[index]}:{success:false};
+};
+function submitPreviewReport(targetId,reason,details,session){
+ const reports=getPreviewReports();
+ const now=new Date();
+ const today=now.toISOString().slice(0,10);
+ const reporterId=String(session?.user?.id||"");
+ if(!reporterId)throw new Error("Sign in before reporting a profile.");
+ const todays=reports.filter(row=>row.reporter_user_id===reporterId&&String(row.created_at||"").slice(0,10)===today);
+ if(todays.some(row=>Number(row.reported_worth_it_id)===Number(targetId)))throw new Error("You have already reported this user today.");
+ if(todays.length>=5)throw new Error("Daily report limit reached. You can submit up to five reports per day.");
+ const id=-(Date.now()*1000+Math.floor(Math.random()*1000));
+ const username=String($("worthItProfileUsername")?.textContent||"").replace(/^@/,"").trim();
+ const displayName=String($("worthItProfileName")?.textContent||"Worth It member").trim();
+ const item={
+  id,preview_local:true,reporter_user_id:reporterId,reporter_worth_it_id:null,
+  reported_user_id:null,reported_worth_it_id:Number(targetId),
+  reported_username:username||displayName,reported_display_name:displayName,
+  reporter_label:"Preview test account",reason:String(reason),details:String(details||"").slice(0,1000),
+  status:"open",admin_note:"",reviewed_by:null,reviewed_at:null,created_at:now.toISOString()
+ };
+ reports.push(item);
+ if(!savePreviewReports(reports))throw new Error("The preview report could not be saved in this browser.");
+ return item;
+}
+\nfunction profileTargetId(){
  const href=$("worthItProfileLink")?.getAttribute("href")||"";
  const match=href.match(/\/profile\/([1-9][0-9]*)/);return match?Number(match[1]):0;
 }
@@ -252,12 +307,23 @@ async function submitProfileReport(event){
  const button=$("worthItReportSubmit");if(!targetId||!button||button.disabled)return;
  button.disabled=true;showReportStatus("Sending your report…",false);
  try{
-  const result=await sb().rpc("submit_worth_it_user_report",{p_target_worth_it_id:targetId,p_reason:reason,p_details:details});
-  if(result.error)throw result.error;
-  const payload=Array.isArray(result.data)?result.data[0]:result.data;
-  if(!payload?.success)throw new Error(payload?.error||"The report could not be submitted.");
-  showReportStatus("Thank you. Your report was submitted privately.",false);toast("Your profile report was submitted.");
-  setTimeout(()=>{const overlay=$("worthItReportOverlay");if(overlay)overlay.hidden=true;},800);
+  if(COMMUNITY_PREVIEW_MODE){
+   const auth=await sb().auth.getSession();
+   if(auth.error)throw auth.error;
+   const session=auth.data?.session;
+   if(!session?.user?.id)throw new Error("Sign in before reporting a profile.");
+   if(!session.user.email_confirmed_at&&!session.user.confirmed_at)throw new Error("Confirm your email before reporting users.");
+   submitPreviewReport(targetId,reason,details,session);
+   showReportStatus("Preview test report saved locally. It has not been sent to the live database.",false);
+   toast("Preview test report saved locally.");
+  }else{
+   const result=await sb().rpc("submit_worth_it_user_report",{p_target_worth_it_id:targetId,p_reason:reason,p_details:details});
+   if(result.error)throw result.error;
+   const payload=Array.isArray(result.data)?result.data[0]:result.data;
+   if(!payload?.success)throw new Error(payload?.error||"The report could not be submitted.");
+   showReportStatus("Thank you. Your report was submitted privately.",false);toast("Your profile report was submitted.");
+  }
+  setTimeout(()=>{const overlay=$("worthItReportOverlay");if(overlay)overlay.hidden=true;},1000);
  }catch(error){showReportStatus(error?.message||"The report could not be submitted. Please try again.",true);}
  finally{button.disabled=false;}
 }

@@ -54,6 +54,15 @@ test("Admin report list stays read-only when new moderation columns are absent",
  assert.ok(admin.includes("reviewed_at"));
  assert.ok(css.includes(".admin-user-report-readonly-note"));
 });
+test("Preview profile reports use local-only storage and can be moderated by the owner without DB writes",()=>{
+ assert.ok(js.includes("COMMUNITY_PREVIEW_MODE"));
+ assert.ok(js.includes("Preview test report saved locally"));
+ assert.ok(js.includes("worthItPreviewReports:v1"));
+ assert.ok(js.includes('session.user.email||"").trim().toLowerCase()!=="pedjasebez3545@gmail.com'));
+ assert.ok(admin.includes("getWorthItPreviewReports"));
+ assert.ok(admin.includes("moderateWorthItPreviewReport"));
+ assert.ok(admin.includes("Database reports are read-only in this Preview."));
+});
 test("community migration is designed for repeat execution and has postgres smoke coverage",()=>{
  assert.ok(sql.includes("add column if not exists admin_note"));
  assert.ok(setup.includes("create table if not exists public.worth_it_user_reports"));

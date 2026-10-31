@@ -158,9 +158,13 @@
                     .order('created_at',{ascending:false}).limit(100);
             }
             if(result.error) throw result.error;
-            const rows = Array.isArray(result.data) ? result.data : [];
+            const databaseRows = Array.isArray(result.data) ? result.data : [];
+            const previewRows = window.worthItCommunityPreviewMode && typeof window.getWorthItPreviewReports === 'function'
+                ? window.getWorthItPreviewReports().map(item=>({...item,_previewLocal:true})) : [];
+            const rows = [...previewRows,...databaseRows.map(item=>({...item,_previewLocal:false}))];
+            rows.sort((a,b)=>new Date(b.created_at||0).getTime()-new Date(a.created_at||0).getTime());
             const readOnlyNotice = migrationReady ? '' :
-                '<div class="admin-user-report-readonly-note"><strong>Preview is read-only for moderation.</strong><span>These reports are loaded from the current database. Status changes and private moderation notes will become available after the community migration is installed in the Preview database.</span></div>';
+                '<div class="admin-user-report-readonly-note"><strong>Database reports are read-only in this Preview.</strong><span>New Preview test reports are stored locally in this browser and can be moderated here. Existing database reports are never changed by Preview testing.</span></div>';
             if(!rows.length){
                 area.innerHTML = readOnlyNotice + '<div class="admin-panel-empty"><span>✓</span><strong>No user reports</strong><small>New profile reports will appear here after a member submits one.</small></div>';
                 return;
@@ -169,18 +173,19 @@
                 '<div class="admin-panel-list-head"><span>'+rows.length+' latest reports</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
                 '<div class="admin-user-reports-list">'+rows.map(item=>{
                     const date = item.created_at ? new Date(item.created_at).toLocaleString() : '—';
-                    const reporter = item.reporter_worth_it_id ? 'Worth It ID '+item.reporter_worth_it_id : 'Member';
+                    const reporter = item._previewLocal ? 'Preview test account' : (item.reporter_worth_it_id ? 'Worth It ID '+item.reporter_worth_it_id : 'Member');
                     const reported = item.reported_worth_it_id ? 'Worth It ID '+item.reported_worth_it_id : 'Unknown profile';
                     const options = ['open','reviewing','resolved','dismissed'].map(status=>'<option value="'+status+'"'+(item.status===status?' selected':'')+'>'+status.charAt(0).toUpperCase()+status.slice(1)+'</option>').join('');
-                    const moderation = migrationReady ?
+                    const canModerate = item._previewLocal || migrationReady;
+                    const moderation = canModerate ?
                         '<label>Status<select class="admin-user-report-status">'+options+'</select></label>'+
                         '<label>Private admin note<textarea class="admin-user-report-note" maxlength="1000" rows="2">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
                         '<button type="button" class="admin-panel-inline-button" onclick="moderateWorthItUserReport('+Number(item.id)+',this)">Save moderation update</button>'+
                         (item.reviewed_at?'<small>Last reviewed '+escapeHtml(new Date(item.reviewed_at).toLocaleString())+'</small>':'') :
-                        '<p class="admin-user-report-readonly-hint">Status: <strong>'+escapeHtml(item.status||'open')+'</strong> · Moderation controls are unavailable until the Preview database migration is installed.</p>';
+                        '<p class="admin-user-report-readonly-hint">Status: <strong>'+escapeHtml(item.status||'open')+'</strong> · Database report is read-only until its moderation migration is installed in a staging database.</p>';
                     return '<article class="admin-user-report-card" data-report-id="'+Number(item.id)+'">'+
-                        '<div class="admin-user-report-top"><div><strong>#'+Number(item.id)+' · '+escapeHtml(item.reason||'Other')+'</strong><small>'+escapeHtml(date)+'</small></div><span>'+escapeHtml(item.status||'open')+'</span></div>'+
-                        '<p><strong>Reported:</strong> '+escapeHtml(item.reported_username||'Worth It member')+' · '+escapeHtml(reported)+'</p>'+
+                        '<div class="admin-user-report-top"><div><strong>#'+Math.abs(Number(item.id))+' · '+escapeHtml(item.reason||'Other')+(item._previewLocal?' · Preview test':'')+'</strong><small>'+escapeHtml(date)+'</small></div><span>'+escapeHtml(item.status||'open')+'</span></div>'+
+                        '<p><strong>Reported:</strong> '+escapeHtml(item.reported_display_name||item.reported_username||'Worth It member')+' · '+escapeHtml(reported)+'</p>'+
                         '<p><strong>Submitted by:</strong> '+escapeHtml(reporter)+'</p>'+
                         '<p class="admin-user-report-details">'+escapeHtml(item.details||'No extra details provided.')+'</p>'+
                         moderation+
@@ -199,19 +204,26 @@
         const card = button?.closest('.admin-user-report-card');
         const status = card?.querySelector('.admin-user-report-status')?.value || '';
         const note = card?.querySelector('.admin-user-report-note')?.value || '';
-        if(!Number.isSafeInteger(Number(reportId)) || Number(reportId)<1 || !card || button.disabled) return;
+        const numericId = Number(reportId);
+        const isPreviewLocal = window.worthItCommunityPreviewMode === true && Number.isSafeInteger(numericId) && numericId < 0;
+        if((!isPreviewLocal && (!Number.isSafeInteger(numericId) || numericId<1)) || !card || button.disabled) return;
         button.disabled = true;
         try{
-            const result = await window.supabaseClient.rpc('admin_update_worth_it_user_report',{
-                p_report_id:Number(reportId),p_status:status,p_admin_note:note
-            });
-            if(result.error) throw result.error;
-            const payload = Array.isArray(result.data)?result.data[0]:result.data;
+            let payload = null;
+            if(isPreviewLocal){
+                payload = await window.moderateWorthItPreviewReport(numericId,status,note);
+            }else{
+                const result = await window.supabaseClient.rpc('admin_update_worth_it_user_report',{
+                    p_report_id:numericId,p_status:status,p_admin_note:note
+                });
+                if(result.error) throw result.error;
+                payload = Array.isArray(result.data)?result.data[0]:result.data;
+            }
             if(!payload?.success) throw new Error(payload?.code==='REPORT_NOT_FOUND'?'This report no longer exists.':'The moderation update was not saved.');
-            setStatus('Report #'+reportId+' updated.', 'success');
+            setStatus('Report #'+Math.abs(numericId)+' updated.', 'success');
             await loadUserReports();
         }catch(error){
-            setStatus(error?.message||'Could not update the report. Apply the community features SQL migration first.','error');
+            setStatus(error?.message||'Could not update the report.','error');
             button.disabled = false;
         }
     }
