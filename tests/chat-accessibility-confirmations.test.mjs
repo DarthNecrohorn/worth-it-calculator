@@ -61,5 +61,5 @@ test("Sign out requires an explicit Yes; No, Escape and backdrop clicks cancel",
     assert.match(handler, /if \(event\.target === overlay\)[\s\S]*?finish\(false\)/);
     assert.match(style, /\.worth-it-signout-confirm-dialog\s*\{[\s\S]*?z-index: 2147483646/);
     assert.match(style, /html\[data-theme="light"\] \.worth-it-signout-confirm-card/);
-    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
+    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a/);
 });
