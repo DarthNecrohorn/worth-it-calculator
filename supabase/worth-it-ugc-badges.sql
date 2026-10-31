@@ -6,8 +6,12 @@ create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 grant usage on schema private to postgres, service_role;
 
+create sequence if not exists private.worth_it_user_calculator_number_seq
+    start with 51 increment by 1 minvalue 51;
+
 create table if not exists private.worth_it_user_calculators (
     id uuid primary key default gen_random_uuid(),
+    calculator_number bigint not null default nextval('private.worth_it_user_calculator_number_seq'),
     owner_user_id uuid not null references auth.users(id) on delete cascade,
     title text not null check (char_length(btrim(title)) between 3 and 70),
     description text not null default '' check (char_length(description) <= 500),
@@ -18,6 +22,37 @@ create table if not exists private.worth_it_user_calculators (
     updated_at timestamptz not null default now(),
     published_at timestamptz
 );
+
+-- Backfill safely if this migration is reapplied to an environment with existing UGC rows.
+alter table private.worth_it_user_calculators
+    add column if not exists calculator_number bigint;
+do $calculator_number_backfill$
+declare v_max bigint;
+begin
+    select max(calculator_number) into v_max
+      from private.worth_it_user_calculators
+     where calculator_number is not null;
+    perform setval(
+        'private.worth_it_user_calculator_number_seq'::regclass,
+        greatest(50,coalesce(v_max,50)),
+        true
+    );
+    update private.worth_it_user_calculators
+       set calculator_number=nextval('private.worth_it_user_calculator_number_seq')
+     where calculator_number is null;
+    select max(calculator_number) into v_max from private.worth_it_user_calculators;
+    perform setval(
+        'private.worth_it_user_calculator_number_seq'::regclass,
+        greatest(50,coalesce(v_max,50)),
+        true
+    );
+end
+$calculator_number_backfill$;
+alter table private.worth_it_user_calculators
+    alter column calculator_number set default nextval('private.worth_it_user_calculator_number_seq'),
+    alter column calculator_number set not null;
+create unique index if not exists worth_it_user_calculators_number_uidx
+    on private.worth_it_user_calculators(calculator_number);
 create index if not exists worth_it_user_calculators_owner_idx
     on private.worth_it_user_calculators(owner_user_id, updated_at desc);
 create index if not exists worth_it_user_calculators_catalog_idx
@@ -74,6 +109,17 @@ create table if not exists private.worth_it_ugc_maker_daily_usage (
 );
 alter table private.worth_it_ugc_maker_daily_usage enable row level security;
 revoke all on private.worth_it_ugc_maker_daily_usage from public, anon, authenticated;
+
+create table if not exists private.worth_it_ugc_creation_daily_usage (
+    user_id uuid not null references auth.users(id) on delete cascade,
+    usage_date date not null,
+    creations_used smallint not null check (creations_used between 1 and 3),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    primary key(user_id,usage_date)
+);
+alter table private.worth_it_ugc_creation_daily_usage enable row level security;
+revoke all on private.worth_it_ugc_creation_daily_usage from public, anon, authenticated;
 
 create or replace function private.worth_it_validate_ugc_spec(p_spec jsonb)
 returns void
@@ -233,6 +279,49 @@ begin
 end;
 $$;
 
+create or replace function public.get_worth_it_ugc_creation_quota()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private, auth
+as $$
+declare
+    v_user_id uuid := auth.uid();
+    v_email text;
+    v_plan text;
+    v_limit integer;
+    v_used integer := 0;
+    v_today date := (now() at time zone 'utc')::date;
+begin
+    if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
+    select lower(coalesce(u.email,'')),
+           case
+             when lower(coalesce(u.email,''))='pedjasebez3545@gmail.com' then 'premium'
+             when w.premium_plan='premium' and w.premium_expires_at>now() then 'premium'
+             when w.premium_plan='premium_lite' and w.premium_expires_at>now() then 'premium_lite'
+             else 'free'
+           end
+      into v_email,v_plan
+      from auth.users u
+      left join private.worth_it_calc_wallets w on w.user_id=u.id
+     where u.id=v_user_id and u.email_confirmed_at is not null;
+    if not found then raise exception 'Verify your email before creating community calculators.' using errcode='42501'; end if;
+
+    v_limit := case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end;
+    select creations_used into v_used
+      from private.worth_it_ugc_creation_daily_usage
+     where user_id=v_user_id and usage_date=v_today;
+
+    v_used := coalesce(v_used,0);
+    return jsonb_build_object(
+        'success',true,'plan',v_plan,'usage_date',v_today,
+        'daily_limit',v_limit,'creations_used',v_used,
+        'remaining',greatest(0,v_limit-v_used)
+    );
+end;
+$$;
+
 create or replace function public.save_worth_it_ugc_calculator(
     p_id uuid,
     p_title text,
@@ -248,7 +337,12 @@ as $$
 declare
     v_user_id uuid := auth.uid();
     v_id uuid;
+    v_calculator_number bigint;
     v_count integer;
+    v_plan text;
+    v_daily_limit integer;
+    v_creations_used integer;
+    v_today date := (now() at time zone 'utc')::date;
     v_title text := btrim(coalesce(p_title,''));
     v_description text := btrim(coalesce(p_description,''));
     v_category text := lower(btrim(coalesce(p_category,'')));
@@ -260,26 +354,60 @@ begin
     if char_length(v_title) not between 3 and 70
        or char_length(v_description)>500
        or v_category not in ('cars','money','technology','home','other') then
-        raise exception 'Invalid calculator details.' using errcode='22023';
+        raise exception 'Invalid calculator details.' using errcode='22023');
     end if;
     perform private.worth_it_validate_ugc_spec(p_spec);
 
     if p_id is null then
-        -- Serialize concurrent creates for this user so the 10-calculator limit cannot be raced.
+        -- The user-row lock serializes total-slot and daily-quota checks for concurrent requests.
         perform 1 from auth.users where id=v_user_id for update;
-        select count(*) into v_count from private.worth_it_user_calculators where owner_user_id=v_user_id;
-        if v_count>=10 then raise exception 'You can create up to 10 community calculators.' using errcode='54000'; end if;
+        select count(*) into v_count
+          from private.worth_it_user_calculators
+         where owner_user_id=v_user_id;
+        if v_count>=10 then
+            raise exception 'You can create up to 10 community calculators.' using errcode='54000';
+        end if;
+
+        select case
+                 when lower(coalesce(u.email,''))='pedjasebez3545@gmail.com' then 'premium'
+                 when w.premium_plan='premium' and w.premium_expires_at>now() then 'premium'
+                 when w.premium_plan='premium_lite' and w.premium_expires_at>now() then 'premium_lite'
+                 else 'free'
+               end
+          into v_plan
+          from auth.users u
+          left join private.worth_it_calc_wallets w on w.user_id=u.id
+         where u.id=v_user_id;
+        v_daily_limit := case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end;
+
+        insert into private.worth_it_ugc_creation_daily_usage(user_id,usage_date,creations_used)
+        values(v_user_id,v_today,1)
+        on conflict(user_id,usage_date) do update
+           set creations_used=private.worth_it_ugc_creation_daily_usage.creations_used+1,
+               updated_at=now()
+         where private.worth_it_ugc_creation_daily_usage.creations_used<v_daily_limit
+        returning creations_used into v_creations_used;
+        if v_creations_used is null then
+            raise exception 'Daily calculator creation limit reached (% per UTC day).',v_daily_limit
+                using errcode='54000';
+        end if;
+
         insert into private.worth_it_user_calculators(owner_user_id,title,description,category,spec)
         values(v_user_id,v_title,v_description,v_category,p_spec)
-        returning id into v_id;
+        returning id,calculator_number into v_id,v_calculator_number;
     else
         update private.worth_it_user_calculators
            set title=v_title,description=v_description,category=v_category,spec=p_spec,updated_at=now()
          where id=p_id and owner_user_id=v_user_id
-        returning id into v_id;
+        returning id,calculator_number into v_id,v_calculator_number;
         if v_id is null then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
     end if;
-    return jsonb_build_object('success',true,'id',v_id);
+
+    return jsonb_build_object(
+        'success',true,'id',v_id,'calculator_number',v_calculator_number,
+        'daily_limit',v_daily_limit,'creations_used',v_creations_used,
+        'remaining',case when v_daily_limit is null then null else greatest(0,v_daily_limit-v_creations_used) end
+    );
 end;
 $$;
 
@@ -371,7 +499,7 @@ begin
     end;
 
     with ranked as (
-        select c.id,c.title,c.description,c.category,c.status,c.owner_user_id,c.spec,
+        select c.id,c.calculator_number,c.title,c.description,c.category,c.status,c.owner_user_id,c.spec,
                c.created_at,c.updated_at,c.published_at,
                p.worth_it_id,p.username,p.display_name,p.avatar_url,
                (select count(*)::integer from private.worth_it_calculator_views v
@@ -402,7 +530,7 @@ begin
          limit v_limit offset v_offset
     )
     select coalesce(jsonb_agg(jsonb_build_object(
-        'id',id,'title',title,'description',description,'category',category,'spec',spec,
+        'id',id,'calculator_number',calculator_number,'title',title,'description',description,'category',category,'spec',spec,
         'created_at',created_at,'updated_at',updated_at,'published_at',published_at,
         'owner_worth_it_id',worth_it_id,'owner_username',username,'owner_display_name',display_name,
         'owner_avatar_url',avatar_url,'views',views,'likes',likes,'dislikes',dislikes,
@@ -424,7 +552,7 @@ declare v_user_id uuid:=auth.uid(); v_result jsonb;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
     select jsonb_build_object(
-        'id',c.id,'title',c.title,'description',c.description,'category',c.category,'spec',c.spec,
+        'id',c.id,'calculator_number',c.calculator_number,'title',c.title,'description',c.description,'category',c.category,'spec',c.spec,
         'status',c.status,'is_owner',(c.owner_user_id=v_user_id),'owner_worth_it_id',p.worth_it_id,
         'owner_username',p.username,'owner_display_name',p.display_name,'owner_avatar_url',p.avatar_url,
         'created_at',c.created_at,'published_at',c.published_at,
@@ -498,7 +626,7 @@ declare v_user_id uuid:=auth.uid(); v_search text:=left(btrim(coalesce(p_search,
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
     select coalesce(jsonb_agg(jsonb_build_object(
-        'id',c.id,'title',c.title,'description',c.description,'category',c.category,
+        'id',c.id,'calculator_number',c.calculator_number,'title',c.title,'description',c.description,'category',c.category,
         'spec',c.spec,'status',c.status,'created_at',c.created_at,'updated_at',c.updated_at,
         'published_at',c.published_at,
         'views',(select count(*) from private.worth_it_calculator_views v where v.calculator_id=c.id),
@@ -536,7 +664,7 @@ begin
         ) then return '[]'::jsonb; end if;
     end if;
     select coalesce(jsonb_agg(jsonb_build_object(
-        'id',c.id,'title',c.title,'description',c.description,'category',c.category,
+        'id',c.id,'calculator_number',c.calculator_number,'title',c.title,'description',c.description,'category',c.category,
         'owner_worth_it_id',p.worth_it_id,'owner_display_name',p.display_name,
         'owner_username',p.username,'favorites',(select count(*) from public.worth_it_calculator_favorites x where x.calculator_key='ugc:'||c.id::text)
     ) order by f.created_at desc),'[]'::jsonb)
@@ -646,6 +774,7 @@ create policy "Users can remove their own calculator favourites"
     using ((select auth.uid())=user_id);
 
 revoke all on function public.reserve_worth_it_ugc_maker_generation() from public,anon;
+revoke all on function public.get_worth_it_ugc_creation_quota() from public,anon;
 revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) from public,anon;
 revoke all on function public.publish_worth_it_ugc_calculator(uuid) from public,anon;
 revoke all on function public.delete_worth_it_ugc_calculator(uuid) from public,anon;
@@ -659,6 +788,7 @@ revoke all on function public.get_worth_it_profile_badges(bigint) from public,an
 revoke all on function public.set_worth_it_profile_badge_equipped(text,boolean) from public,anon;
 
 grant execute on function public.reserve_worth_it_ugc_maker_generation() to authenticated;
+grant execute on function public.get_worth_it_ugc_creation_quota() to authenticated;
 grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) to authenticated;
 grant execute on function public.publish_worth_it_ugc_calculator(uuid) to authenticated;
 grant execute on function public.delete_worth_it_ugc_calculator(uuid) to authenticated;
