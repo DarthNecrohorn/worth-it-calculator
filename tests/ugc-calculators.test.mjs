@@ -52,7 +52,7 @@ function withFetch(mock, callback) {
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
     for (const id of [
         "ugcCommunitySection", "ugcCalculatorGrid", "ugcCreateButton", "ugcMakerModal",
-        "ugcMakerPrompt", "ugcMakerPreview", "ugcDetailSection", "ugcDetailCalculatorForm",
+        "ugcMakerPrompt", "ugcMakerPreview", "ugcMakerQuotaStatus", "ugcDetailSection", "ugcDetailKicker", "ugcDetailCalculatorForm",
         "worthItProfileFavouritesSection", "worthItProfileBadgesSection",
         "worthItProfileNameBadges", "worthItProfileFavouriteCalculators"
     ]) assert.ok(html.includes('id="' + id + '"'), id + " is present in the UI");
@@ -74,7 +74,9 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(guest.includes("openWorthItUGCCalculator"));
     assert.ok(maker.includes("const MAX_CALCULATORS=10;"));
     assert.ok(html.includes("You can create up to 10 community calculators"));
+    assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
     assert.ok(maker.includes("get_worth_it_my_ugc_calculators"));
+    assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
 });
 
 test("AI Maker requires a confirmed account and emits restricted declarative calculator definitions", async () => {
@@ -246,6 +248,23 @@ test("UGC writes are owner-bound, capped and not directly accessible through pub
     assert.match(sql, /'is_owner',\(c\.owner_user_id=v_user_id\)/);
     assert.match(read("tests/fixtures/ugc-badges-postgres-smoke.sql"), /Deleting a calculator left orphan favourite rows/);
     assert.doesNotMatch(sql, /'owner_user_id',c\.owner_user_id/);
+});
+
+test("community creation quotas are enforced by SQL and public IDs begin at 51", () => {
+    assert.match(sql, /worth_it_user_calculator_number_seq[\\s\\S]*?start with 51/i);
+    assert.match(sql, /calculator_number bigint not null/);
+    assert.match(sql, /get_worth_it_ugc_creation_quota/);
+    assert.match(sql, /when v_plan='premium' then 'premium'/);
+    assert.match(sql, /when 'premium' then 3 when 'premium_lite' then 2 else 1/);
+    assert.match(sql, /creations_used<v_daily_limit/);
+    assert.match(sql, /if p_id is null then/);
+    assert.match(sql, /returning id,calculator_number into v_id,v_calculator_number/);
+    assert.match(sql, /'calculator_number',calculator_number/);
+    assert.match(maker, /async function refreshCreationQuota/);
+    assert.match(maker, /ugcMakerQuotaStatus/);
+    assert.match(maker, /WORTH IT COMMUNITY · CALCULATOR #/);
+    assert.match(html, /id="ugcMakerQuotaStatus"/);
+    assert.match(html, /id="ugcDetailKicker"/);
 });
 
 test("profile favourites are account-owned and profile visibility is respected", () => {
