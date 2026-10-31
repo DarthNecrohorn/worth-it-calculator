@@ -113,11 +113,12 @@ async function call(db,method,body,cookie){
     return onRequest({request:request(method,body,cookie),env:{DB:db}});
 }
 
-test("a new guest receives a non-stackable 0.5 CALC wallet in an HttpOnly host-only cookie",async()=>{
+test("a new guest receives a non-stackable 0.5 CALC Lite wallet in an HttpOnly host-only cookie",async()=>{
     const db=new MockD1();
     const response=await call(db,"GET");
     assert.equal(response.status,200);
     const result=await response.json();
+    assert.equal(result.currency,"CALC_LITE");
     assert.equal(result.balance,0.5);
     assert.equal(result.balance_milli,500);
     assert.equal(result.is_guest,true);
@@ -141,6 +142,7 @@ test("guest calculation reservations debit once, settle, and refund unsuccessful
     assert.equal(response.status,200);
     let result=await response.json();
     assert.equal(result.ok,true);
+    assert.equal(result.currency,"CALC_LITE");
     assert.equal(result.balance,0.4);
 
     response=await call(db,"POST",{action:"reserve",request_id:id,calculator_type:"cars"},cookie);

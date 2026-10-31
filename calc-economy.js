@@ -5,6 +5,10 @@
 
     let walletState = null;
     let calculationBusy = false;
+    let calculatorLabelRevision = 0;
+    let calculatorLabelObserver = null;
+    let activeCalculatorBillingType = "";
+    let signedInAccount = false;
 
     const $ = id => document.getElementById(id);
     const client = () => window.supabaseClient || null;
@@ -34,9 +38,9 @@
             body:isRead ? undefined : JSON.stringify({action,request_id:requestId,...(action === "reserve" ? {calculator_type:calculatorType} : {})})
         });
         const result = await response.json().catch(()=>null);
-        if(!result || typeof result !== "object") throw new Error("Guest CALC service returned an invalid response.");
+        if(!result || typeof result !== "object") throw new Error("Guest CALC Lite service returned an invalid response.");
         if(!response.ok && result.code !== "INSUFFICIENT_CALC"){
-            throw new Error(result.error || "Guest CALC service is unavailable.");
+            throw new Error(result.error || "Guest CALC Lite service is unavailable.");
         }
         return result;
     }
@@ -68,17 +72,55 @@
             document.documentElement.dataset.worthItPremium = isPremium ? "true" : "false";
             document.documentElement.dataset.worthItSubscription = state?.premium_plan || "free";
         }
+
         const value = $("worthItCalcWalletValue");
         const button = $("worthItCalcWalletButton");
+        const unit = $("worthItCalcWalletUnit");
+        const wipButton = $("worthItWipWalletButton");
+        const wipValue = $("worthItWipWalletValue");
+
+        if(wipButton){
+            const showWip = state ? !state.is_guest : signedInAccount;
+            wipButton.hidden = !showWip;
+            wipButton.setAttribute("aria-hidden",String(!showWip));
+            if(showWip){
+                const wip = state ? (state.is_owner ? "∞" : Number(state.wip_balance || 0).toFixed(1)) : "—";
+                if(wipValue) wipValue.textContent = wip;
+                wipButton.title = !state
+                    ? "WIP rewards and balances are waiting for the CALC economy SQL migration in a staging database. No balance is being simulated."
+                    : state.is_owner
+                        ? "Owner access is unlimited; Premium Lite is not required."
+                        : "WIP is earned daily and used only to activate Premium Lite: 40 WIP for 15 days.";
+                wipButton.setAttribute("aria-label",!state
+                    ? "WIP balance unavailable until the economy database migration is installed."
+                    : state.is_owner
+                        ? "Unlimited owner WIP display. Premium Lite is not required."
+                        : wip + " WIP available. WIP is used only for Premium Lite, 40 WIP for 15 days.");
+            }
+        }
+
         if(!value || !button) return;
         if(!state){
             value.textContent = "—";
+            if(unit) unit.textContent = "CALC";
             button.setAttribute("aria-label","CALC balance is unavailable");
+            button.title = signedInAccount
+                ? "Your account CALC balance is not available in this Preview until the CALC economy SQL migration is installed in a staging database."
+                : "Your CALC Lite balance is temporarily unavailable.";
             return;
         }
+
         const label = state.is_owner ? "∞" : Number(state.balance || 0).toFixed(1);
+        const currency = state.is_guest ? "CALC Lite" : "CALC";
         value.textContent = label;
-        button.setAttribute("aria-label",state.is_owner ? "Unlimited owner CALC balance" : label + " CALC available");
+        if(unit) unit.textContent = currency;
+        button.setAttribute("aria-label",state.is_owner
+            ? "Unlimited owner CALC balance"
+            : label + " " + currency + " available");
+        button.title = state.is_guest
+            ? "Guest Lite has a separate 0.5 CALC Lite daily allowance. Each supported calculation costs 0.1 CALC Lite. Sign in to access account CALC and WIP balances."
+            : "CALC pays for supported calculator and successful AI use. Each paid calculation or successful AI reply costs 0.1 CALC. CALC cannot be used to buy Premium Lite.";
+        void updateCalculatorBillingLabels();
     }
 
     function setShopBalance(state){
@@ -104,13 +146,16 @@
     }
 
     async function refreshWallet(){
+        let session = null;
         try{
-            const session = await getSession();
+            session = await getSession();
+            signedInAccount = Boolean(session);
             if(!session){
                 const guest = await guestRpc("balance");
-                if(guest.ok !== true) throw new Error(guest.error || "Guest CALC wallet could not be loaded.");
+                if(guest.ok !== true) throw new Error(guest.error || "Guest CALC Lite wallet could not be loaded.");
                 walletState = {
                     ...guest,is_guest:true,is_owner:false,premium_plan:"guest_lite",
+                    currency:guest.currency || "CALC_LITE",
                     balance:Number(guest.balance)||0,
                     balance_milli:Number(guest.balance_milli)||0,
                     wip_balance:0,
@@ -285,9 +330,9 @@
                 if(!reservation.ok){
                     if(reservation.code === "INSUFFICIENT_CALC"){
                         await refreshWallet();
-                        showStatus("Your 0.5 Guest Lite CALC has been used. Your balance resets to 0.5 when you visit again on the next day.",true);
+                        showStatus("Your 0.5 CALC Lite daily allowance has been used. It resets to 0.5 on your next daily visit.",true);
                     }else{
-                        showStatus("The guest CALC allowance could not be authorised. Please try again.",true);
+                        showStatus("Your CALC Lite allowance could not be authorised. Please try again.",true);
                     }
                     return;
                 }
@@ -300,7 +345,7 @@
                         return;
                     }
                     const settled = await guestRpc("settle",requestId);
-                    if(!settled.ok) throw new Error("Guest CALC calculation could not be confirmed.");
+                    if(!settled.ok) throw new Error("Guest CALC Lite calculation could not be confirmed.");
                     await refreshWallet();
                 }catch(guestError){
                     try{ await guestRpc("refund",requestId); }catch(refundError){console.error("Guest CALC refund failed:",refundError);}
@@ -315,8 +360,7 @@
                 reservation = await reserveSpend("calculator");
             }catch(error){
                 if(isMissingEconomy(error)){
-                    original();
-                    showStatus("CALC is being configured. This calculation was not charged.",false);
+                    showStatus("CALC account billing is not available in this Preview database yet. No calculation was run and no currency was charged.",true);
                     return;
                 }
                 throw error;
@@ -325,7 +369,7 @@
                 const code = reservation.result?.code;
                 if(code === "INSUFFICIENT_CALC"){
                     await refreshWallet();
-                    showStatus("You do not have enough CALC. Open Web Shop to earn or purchase more.",true);
+                    showStatus("You do not have enough CALC. Open Web Shop to review your balance and available options.",true);
                     openWebShop("currency");
                 }else{
                     showStatus("The calculation could not be authorised. Please try again.",true);
@@ -355,6 +399,45 @@
         }
     }
 
+    async function updateCalculatorBillingLabels(){
+        const revision = ++calculatorLabelRevision;
+        const calculatorType = String(activeCalculatorBillingType || window.WorthItGuestLite?.getActiveCalculator?.() || "").toLowerCase();
+        if(!window.WorthItGuestLite?.isBillableCalculator?.(calculatorType)) return;
+
+        let session = null;
+        try{ session = await getSession(); }catch(_){}
+        if(revision !== calculatorLabelRevision) return;
+
+        const state = walletState;
+        const isGuest = state ? state.is_guest === true : !session;
+        const isOwner = state?.is_owner === true;
+        const currency = isGuest ? "CALC Lite" : "CALC";
+        const unavailableLabel = "Wallet unavailable · calculation disabled";
+        const genericLabel = !state ? unavailableLabel : isOwner ? "Calculate · Free (Owner)" : "Pay 0.1 " + currency + " to calculate";
+        const carsLabel = !state ? unavailableLabel : isOwner ? "Compare · Free (Owner)" : "Pay 0.1 " + currency + " to compare";
+        const root = calculatorType === "cars" ? $("carsApp") : $("genericApp");
+        if(!root) return;
+
+        const selector = calculatorType === "cars"
+            ? 'button[onclick*="calculateCars"]'
+            : 'button[onclick*="calculateGeneric"]';
+        root.querySelectorAll(selector).forEach(button=>{
+            button.classList.add("calc-billing-action");
+            const nextLabel = calculatorType === "cars" ? carsLabel : genericLabel;
+            if(button.textContent.trim() !== nextLabel) button.textContent = nextLabel;
+            button.setAttribute("aria-label",nextLabel);
+            button.title = !state
+                ? "This calculator is temporarily disabled because its server-side currency wallet is unavailable. No calculation can run without an authorised wallet."
+                : isOwner
+                    ? "Owner calculations are unlimited and do not deduct CALC."
+                    : "This successful calculation costs 0.1 " + currency + ". Failed calculations are refunded.";
+        });
+    }
+
+    function scheduleCalculatorBillingLabels(){
+        void updateCalculatorBillingLabels();
+    }
+
     function installCalculatorBilling(){
         if(typeof window.calculateGeneric === "function" && !window.calculateGeneric.__calcWalletWrapped){
             const original = window.calculateGeneric;
@@ -368,6 +451,33 @@
             wrapped.__calcWalletWrapped = true;
             window.calculateCars = wrapped;
         }
+
+        const genericApp = $("genericApp");
+        const carsApp = $("carsApp");
+        if(typeof MutationObserver === "function"){
+            if(genericApp){
+                calculatorLabelObserver = new MutationObserver(scheduleCalculatorBillingLabels);
+                calculatorLabelObserver.observe(genericApp,{subtree:true,childList:true});
+            }
+            if(carsApp){
+                const carsObserver = new MutationObserver(scheduleCalculatorBillingLabels);
+                carsObserver.observe(carsApp,{subtree:true,childList:true});
+            }
+        }
+
+        if(typeof window.openCalculator === "function" && !window.openCalculator.__calcBillingLabelUpdate){
+            const originalOpenCalculator = window.openCalculator;
+            const wrappedOpenCalculator = function(type,...args){
+                activeCalculatorBillingType = String(type == null ? "" : type).toLowerCase();
+                const result = originalOpenCalculator.apply(this,[type,...args]);
+                window.setTimeout(scheduleCalculatorBillingLabels,0);
+                return result;
+            };
+            wrappedOpenCalculator.__calcBillingLabelUpdate = true;
+            wrappedOpenCalculator.__calcBillingLabelOriginal = originalOpenCalculator;
+            window.openCalculator = wrappedOpenCalculator;
+        }
+        scheduleCalculatorBillingLabels();
     }
 
     async function refreshPremiumBadge(worthItId,target){

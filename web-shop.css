@@ -1,33 +1,45 @@
 /* CALC wallet and the separate Web Shop. The shop owns its own theme. */
 .calc-economy-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto;min-width:0}
-.calc-shop-nav,.calc-wallet-nav{
+.calc-shop-nav,.calc-wallet-nav,.calc-wip-nav{
     min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
     border:1px solid rgba(139,116,255,.42);border-radius:12px;
     color:var(--text);background:linear-gradient(135deg,rgba(124,92,255,.13),rgba(56,189,248,.10));
     padding:7px 10px;font:inherit;font-size:12px;font-weight:800;white-space:nowrap;
     box-shadow:0 5px 16px rgba(40,40,90,.10);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
 }
-.calc-shop-nav:hover,.calc-wallet-nav:hover{transform:translateY(-2px);border-color:rgba(139,116,255,.78);box-shadow:0 9px 22px rgba(79,70,229,.15)}
+.calc-shop-nav:hover,.calc-wallet-nav:hover,.calc-wip-nav:hover{transform:translateY(-2px);border-color:rgba(139,116,255,.78);box-shadow:0 9px 22px rgba(79,70,229,.15)}
 .calc-shop-nav-icon{font-size:16px;line-height:1}
 .calc-wallet-nav{gap:5px;background:rgba(124,92,255,.08);border-color:rgba(139,116,255,.28);padding-inline:9px}
 .calc-wallet-coin{width:19px;height:19px;display:inline-grid;place-items:center;border-radius:50%;font-size:12px;font-weight:900;color:#17152e;background:linear-gradient(135deg,#c4b5fd,#67d7ff);box-shadow:0 0 0 2px rgba(139,116,255,.15)}
 .calc-wallet-value{font-variant-numeric:tabular-nums;font-size:13px}
 .calc-wallet-unit{font-size:10px;letter-spacing:.04em;color:var(--muted)}
-html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-nav{color:#172033}
+.calc-wip-nav{display:inline-flex;align-items:center;justify-content:center;gap:2px 4px;flex-wrap:wrap;min-width:76px;padding:4px 8px;background:linear-gradient(135deg,rgba(52,211,153,.11),rgba(56,189,248,.09));border-color:rgba(52,211,153,.34)}
+.calc-wip-nav[hidden]{display:none!important}
+.calc-wip-icon{font-size:13px;line-height:1;color:#34d399}
+.calc-wip-value{font-size:13px;font-variant-numeric:tabular-nums}
+.calc-wip-unit{font-size:10px;letter-spacing:.04em;color:var(--muted)}
+.calc-wip-use{flex-basis:100%;margin:0 0 0 17px;color:var(--muted);font-size:8px;line-height:1.1;text-align:left}
+html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-nav,html[data-theme="light"] .calc-wip-nav{color:#172033}
 @media(max-width:900px){
     .calc-economy-nav{gap:4px}
-    .calc-shop-nav,.calc-wallet-nav{min-height:34px;padding:6px 8px;border-radius:10px}
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav{min-height:34px;padding:5px 7px;border-radius:10px}
 }
 @media(max-width:560px){
     .calc-shop-nav{width:35px;min-width:35px;padding:6px;font-size:16px}
     .calc-shop-nav-label{display:none}
     .calc-wallet-nav{gap:4px;padding-inline:6px;min-width:55px}
     .calc-wallet-unit{font-size:9px}
+    .calc-wip-nav{min-width:66px;gap:1px 3px;padding:4px 5px}
+    .calc-wip-value{font-size:11px}
+    .calc-wip-unit{font-size:9px}
+    .calc-wip-use{font-size:7.5px;margin-left:15px}
     .calc-economy-nav{gap:4px}
 }
 @media(max-width:380px){
     .calc-wallet-unit{display:none}
     .calc-wallet-nav{min-width:40px}
+    .calc-wip-use{display:none}
+    .calc-wip-nav{min-width:54px}
 }
 
 /* Web Shop surface is deliberately isolated from the site-wide theme. */
@@ -133,3 +145,15 @@ html[data-worth-it-premium="true"] .worth-it-ad-slot,
 html[data-worth-it-premium="true"] [data-worth-it-ad],
 html[data-worth-it-premium="true"] .worth-it-advertisement{display:none!important}
 .calc-wallet-coin svg,.web-shop-coin svg{display:block;width:100%;height:100%}
+
+
+/* Make the per-calculation price explicit without breaking narrow calculator layouts. */
+.calc-billing-action{
+    white-space:normal!important;
+    overflow-wrap:anywhere;
+    line-height:1.25;
+    min-width:0;
+}
+@media(max-width:600px){
+    .calc-billing-action{font-size:12px!important;padding-inline:10px!important}
+}

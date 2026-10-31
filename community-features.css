@@ -112,78 +112,103 @@
  }
 }
 
-/* Mobile Guest Lite: reserve separate scroll space for the limits list.
-   Consent and action buttons stay below the list instead of covering it. */
+/* Mobile Guest Lite: use explicit grid rows so consent and buttons can never
+   sit on top of the scrollable limits list. The height override also beats the
+   legacy 78dvh cap still present in the base stylesheet. */
 @media(max-width:650px){
  .worth-it-guest-overlay{
-  align-items:center !important;
-  justify-content:center !important;
-  padding:8px !important;
-  overflow-y:auto !important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:8px!important;
+  overflow-y:auto!important;
  }
- .worth-it-guest-card{
-  width:min(100%,540px) !important;
-  height:min(94dvh,760px) !important;
-  max-height:calc(100dvh - 16px) !important;
-  min-height:0 !important;
-  padding:14px !important;
-  display:flex !important;
-  flex-direction:column !important;
-  overflow:hidden !important;
+ html:not([data-ui-scale]) .worth-it-guest-card,
+ html[data-ui-scale] .worth-it-guest-card{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr) auto auto auto!important;
+  width:min(100%,540px)!important;
+  height:min(94dvh,720px)!important;
+  max-height:calc(100dvh - 16px)!important;
+  min-height:0!important;
+  padding:14px!important;
+  overflow:hidden!important;
+  align-content:stretch!important;
  }
  .worth-it-guest-head{
-  flex:0 0 auto !important;
-  gap:9px !important;
-  padding-bottom:11px !important;
+  min-width:0!important;
+  gap:9px!important;
+  padding-bottom:10px!important;
  }
- .worth-it-guest-head h2{font-size:20px !important;line-height:1.2}
- .worth-it-guest-head p{font-size:11.5px !important;line-height:1.45 !important}
+ .worth-it-guest-head h2{font-size:20px!important;line-height:1.2!important}
+ .worth-it-guest-head p{font-size:11.5px!important;line-height:1.42!important;margin-top:7px!important}
+ .worth-it-guest-close{flex:0 0 34px!important;width:34px!important;height:34px!important}
  .worth-it-guest-body{
-  display:flex !important;
-  flex:1 1 0 !important;
-  flex-direction:column !important;
-  gap:9px !important;
-  min-height:0 !important;
-  padding:11px 1px !important;
-  overflow-x:hidden !important;
-  overflow-y:auto !important;
-  overscroll-behavior:contain !important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-auto-rows:max-content!important;
+  align-content:start!important;
+  flex:none!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-height:none!important;
+  gap:9px!important;
+  padding:10px 1px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
  }
- .worth-it-guest-list{flex:0 0 auto !important;padding:12px !important}
- .worth-it-guest-list h3{font-size:12.5px !important;margin-bottom:7px !important}
- .worth-it-guest-list ul{font-size:11.5px !important;line-height:1.45 !important;gap:7px !important}
+ .worth-it-guest-list{
+  width:100%!important;
+  min-width:0!important;
+  padding:11px 12px!important;
+  flex:none!important;
+  box-sizing:border-box!important;
+ }
+ .worth-it-guest-list h3{font-size:12px!important;line-height:1.3!important;margin-bottom:7px!important}
+ .worth-it-guest-list ul{font-size:11px!important;line-height:1.42!important;gap:6px!important;padding-left:16px!important}
  .worth-it-guest-consent{
-  position:relative !important;
-  z-index:1 !important;
-  flex:0 0 auto !important;
-  padding:10px 11px !important;
-  gap:9px !important;
+  position:static!important;
+  display:flex!important;
+  align-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:9px 10px!important;
+  gap:9px!important;
+  flex:none!important;
+  box-sizing:border-box!important;
  }
- .worth-it-guest-consent strong{font-size:11.5px !important;line-height:1.4 !important}
- .worth-it-guest-consent small{font-size:10.5px !important;line-height:1.4 !important}
+ .worth-it-guest-consent input{flex:0 0 18px!important;width:18px!important;height:18px!important;margin-top:2px!important}
+ .worth-it-guest-consent strong{font-size:11px!important;line-height:1.35!important}
+ .worth-it-guest-consent small{font-size:10px!important;line-height:1.35!important;margin-top:3px!important}
  .worth-it-guest-consent-status{
-  flex:0 0 auto !important;
-  min-height:0 !important;
-  margin:6px 1px 8px !important;
-  font-size:10.5px !important;
-  line-height:1.4 !important;
+  min-height:0!important;
+  margin:5px 1px 7px!important;
+  font-size:10px!important;
+  line-height:1.35!important;
  }
  .worth-it-guest-actions{
-  flex:0 0 auto !important;
-  display:flex !important;
-  flex-direction:column-reverse !important;
-  align-items:stretch !important;
-  gap:8px !important;
-  padding-top:10px !important;
+  display:flex!important;
+  position:static!important;
+  width:100%!important;
+  min-width:0!important;
+  flex:none!important;
+  flex-direction:column-reverse!important;
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  padding-top:9px!important;
  }
- .worth-it-guest-actions button{width:100% !important;min-height:42px !important}
+ .worth-it-guest-actions button{width:100%!important;min-height:40px!important;padding:9px 12px!important}
 }
 @media(max-width:650px) and (max-height:560px){
- .worth-it-guest-card{height:calc(100dvh - 16px) !important}
- .worth-it-guest-head{padding-bottom:8px !important}
- .worth-it-guest-head h2{font-size:18px !important}
- .worth-it-guest-head p{margin-top:6px !important}
- .worth-it-guest-body{padding:8px 1px !important}
- .worth-it-guest-consent{padding:8px 10px !important}
- .worth-it-guest-actions button{min-height:38px !important}
+ .worth-it-guest-card{height:calc(100dvh - 16px)!important}
+ .worth-it-guest-head{padding-bottom:7px!important}
+ .worth-it-guest-head h2{font-size:18px!important}
+ .worth-it-guest-body{padding-top:7px!important;padding-bottom:7px!important}
+ .worth-it-guest-list{padding:9px 10px!important}
+ .worth-it-guest-consent{padding:7px 9px!important}
+ .worth-it-guest-actions button{min-height:36px!important}
 }

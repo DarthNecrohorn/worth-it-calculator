@@ -35,9 +35,9 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
     assert.match(html, /first 50 built-in Worth It calculators/);
     assert.match(html, /first 50 built-in Worth It calculators/);
-    assert.match(html, /Each calculation costs 0\.1 CALC/);
-    assert.match(html, /resets to exactly <strong>0\.5 CALC each day/);
-    assert.match(html, /Unused CALC does not roll over or accumulate/);
+    assert.match(html, /Each paid calculation costs 0\.1 CALC Lite/);
+    assert.match(html, /resets to exactly <strong>0\.5 CALC Lite each UTC day/);
+    assert.match(html, /Unused CALC Lite does not roll over or accumulate/);
     assert.match(guest, /const BUILT_IN_CALCULATORS = new Set/);
     assert.match(guest, /GUEST_BILLABLE_CALCULATORS/);
     assert.match(guest, /isBillableCalculator/);
@@ -46,6 +46,15 @@ test("Guest Lite explicitly lists the default calculator catalogue as the only a
     assert.match(guest, /window\.setupGeneric = wrapped/);
     assert.match(guest, /guestReturnFocus/);
     assert.match(guest, /User-created and community calculators require a Worth It account/);
+});
+
+test("the guest header clearly separates CALC Lite and gates both Web Shop entry points", () => {
+    assert.match(html, /id="worthItCalcWalletButton"[^>]*onclick="openWebShop\('currency'\)"/);
+    assert.match(html, /id="worthItWebShopButton"[^>]*onclick="openWebShop\('currency'\)"/);
+    assert.ok(guest.includes('["openWebShop"'));
+    assert.match(guest, /function showSignupForRestrictedFeature/);
+    assert.match(guest, /openAuthModal\("signup"\)/);
+    assert.match(html, /0\.5 CALC Lite per UTC day and no WIP/);
 });
 
 test("all requested website sections are account-gated", () => {
@@ -102,9 +111,11 @@ test("mobile calculator catalogue keeps three cards per row and Guest Lite conse
     const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
     assert.ok(communityCss.includes("grid-template-columns:repeat(3,minmax(0,1fr)) !important"));
     assert.match(communityCss, /\.calc-favorite-icon\s*\{[^}]*translateY\(-2px\)/);
-    assert.match(communityCss, /\.worth-it-guest-body\s*\{[\s\S]*?flex:1 1 0 !important[\s\S]*?overflow-y:auto !important/);
-    assert.match(communityCss, /\.worth-it-guest-consent\s*\{[\s\S]*?flex:0 0 auto !important/);
-    assert.match(html, /community-features\.css\?v=community-ugc-mobile-20261031a/);
+    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto auto auto!important"));
+    assert.ok(communityCss.includes("html[data-ui-scale] .worth-it-guest-card"));
+    assert.ok(communityCss.includes("overflow-y:auto!important"));
+    assert.ok(communityCss.includes("position:static!important"));
+    assert.match(html, /community-features\.css\?v=community-economy-modal-20261031b/);
     assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
 });
 

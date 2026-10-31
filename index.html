@@ -69,9 +69,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
-    <link rel="stylesheet" href="web-shop.css?v=calc-wip-shop-20261030b">
+    <link rel="stylesheet" href="web-shop.css?v=calc-wip-header-calclite-20261031a">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=community-ugc-mobile-20261031a">
+<link rel="stylesheet" href="community-features.css?v=community-economy-modal-20261031b">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -95,7 +95,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span>Worth It</span>
         </a>
 
-        <div class="calc-economy-nav" aria-label="CALC currency and Web Shop">
+        <div class="calc-economy-nav" aria-label="Web Shop, CALC Lite or CALC, and WIP currency">
             <button type="button" class="calc-shop-nav" id="worthItWebShopButton" onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
                 <span class="calc-shop-nav-icon" aria-hidden="true">🛍️</span>
                 <span class="calc-shop-nav-label">Web Shop</span>
@@ -103,7 +103,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
                 <span class="calc-wallet-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#calcCoinGradient)"/><path d="M11 8.5h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3Z" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zM11 16.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4zm-8.6 4.2h2.4v1H11zm4.3 0h2.4v1h-2.4zm4.3 0H22v1h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="calcCoinGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
                 <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
-                <span class="calc-wallet-unit">CALC</span>
+                <span class="calc-wallet-unit" id="worthItCalcWalletUnit">CALC</span>
+            </button>
+            <button type="button" class="calc-wip-nav" id="worthItWipWalletButton" onclick="openWebShop('subscriptions')" aria-label="WIP balance; used only for Premium Lite" title="WIP is earned daily and used only for Premium Lite: 40 WIP for 15 days." hidden>
+                <span class="calc-wip-icon" aria-hidden="true">✦</span>
+                <strong class="calc-wip-value" id="worthItWipWalletValue">—</strong>
+                <span class="calc-wip-unit">WIP</span>
+                <small class="calc-wip-use">Premium Lite</small>
             </button>
         </div>
 
@@ -2872,7 +2878,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <div>
                 <p class="web-shop-eyebrow">Worth It · Digital economy</p>
                 <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
-                <p class="web-shop-subtitle">CALC pays for supported calculator and AI use. Earn WIP through daily activity and save it for Premium Lite.</p>
+                <p class="web-shop-subtitle">CALC pays for supported calculators and successful AI replies. WIP is earned daily and is used only for Premium Lite. Guests use a separate 0.5 CALC Lite daily allowance.</p>
             </div>
             <div class="web-shop-tools">
                 <div class="web-shop-balance" aria-live="polite">
@@ -2889,7 +2895,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <div class="web-shop-notice">
             <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
-            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP every day. Premium Lite members receive 2 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 Guest Lite CALC and no WIP. CALC is used for supported calculator and AI features; WIP is earned through activity and can be saved for Premium Lite.</p>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP daily. Premium Lite members receive 2 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 CALC Lite per UTC day and no WIP. CALC pays for supported calculators and successful AI replies; WIP is reserved for Premium Lite.</p>
         </div>
 
         <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
@@ -2928,10 +2934,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">CALC is a closed-use digital credit for Worth It. It has no cash value, cannot be transferred, exchanged for WIP or withdrawn. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
+            <p class="web-shop-footnote">CALC is a closed-use Worth It credit for supported calculators and successful AI replies (0.1 CALC each). It has no cash value, cannot be transferred, exchanged for WIP or withdrawn, and <strong>cannot be used to buy Premium Lite</strong>. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
             <article class="web-shop-wip-note">
                 <strong>Worth It Points (WIP)</strong>
-                <p>WIP is a separate activity currency. Signed-in accounts earn 1 WIP per day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value, cannot be exchanged for CALC and is used only to activate Premium Lite.</p>
+                <p>WIP is a separate activity currency. Every signed-in account earns 1 WIP per UTC day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value and cannot be exchanged for CALC. <strong>WIP is the only currency used to activate Premium Lite: 40 WIP for 15 days.</strong> CALC is never deducted for Premium Lite.</p>
             </article>
         </section>
 
@@ -3177,7 +3183,7 @@ try{
             <div>
                 <span class="worth-it-guest-kicker">WORTH IT · GUEST LITE</span>
                 <h2 id="worthItGuestLimitsTitle">Continue with limited guest access</h2>
-                <p id="worthItGuestLimitsIntro">Guest Lite lets you try Worth It with a small daily CALC allowance. You can use only the first 50 built-in calculators provided by the site owner.</p>
+                <p id="worthItGuestLimitsIntro">Guest Lite lets you try Worth It with a small daily CALC Lite allowance. You can use only the first 50 built-in calculators provided by the site owner.</p>
             </div>
             <button type="button" class="worth-it-guest-close" id="worthItGuestCloseBtn" aria-label="Return to account creation">✕</button>
         </header>
@@ -3187,8 +3193,8 @@ try{
                 <h3><span aria-hidden="true">✓</span> Available as a guest</h3>
                 <ul>
                     <li>Use only the <strong>first 50 built-in Worth It calculators</strong> provided by the site owner. Search, filter, enter values and view results.</li>
-                    <li><strong>Each calculation costs 0.1 CALC.</strong> Your daily Guest Lite balance is 0.5 CALC.</li>
-                    <li>Your balance resets to exactly <strong>0.5 CALC each day</strong> when you visit Worth It. Unused CALC does not roll over or accumulate.</li>
+                    <li><strong>Each paid calculation costs 0.1 CALC Lite.</strong> Your daily Guest Lite balance is 0.5 CALC Lite.</li>
+                    <li>Your balance resets to exactly <strong>0.5 CALC Lite each UTC day</strong> when you visit Worth It. Unused CALC Lite does not roll over or accumulate.</li>
                 </ul>
             </section>
 
@@ -3320,7 +3326,7 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
-<script src="calc-economy.js?v=calc-wip-economy-20261030b"></script>
+<script src="calc-economy.js?v=calc-wip-calclite-labels-20261031a"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>

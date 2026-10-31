@@ -232,7 +232,7 @@ export async function onRequest(context){
     if(!["GET","POST"].includes(request.method)) return json({ok:false,error:"Method not allowed."},405,origin);
 
     const db = env.DB;
-    if(!db) return json({ok:false,error:"Guest CALC service is temporarily unavailable."},503,origin);
+    if(!db) return json({ok:false,error:"Guest CALC Lite service is temporarily unavailable."},503,origin);
 
     let token = cookieValue(request);
     const isNewSession = !token;
@@ -244,7 +244,7 @@ export async function onRequest(context){
         await ensureSchema(db);
         if(request.method === "GET"){
             const wallet = await loadWallet(db,sessionHash);
-            return json({ok:true,...wallet},200,origin,cookie);
+            return json({ok:true,currency:"CALC_LITE",...wallet},200,origin,cookie);
         }
         await loadWallet(db,sessionHash);
 
@@ -265,20 +265,20 @@ export async function onRequest(context){
 
         let result;
         if(action === "reserve" && !GUEST_CALCULATORS.has(calculatorType)){
-            return json({ok:false,code:"GUEST_CALCULATOR_NOT_ALLOWED",error:"Guest Lite can reserve CALC only for the first 50 built-in calculators."},403,origin,cookie);
+            return json({ok:false,code:"GUEST_CALCULATOR_NOT_ALLOWED",error:"Guest Lite can reserve CALC Lite only for the first 50 built-in calculators."},403,origin,cookie);
         }
         if(action === "reserve") result = await reserve(db,sessionHash,requestId);
         else if(action === "settle") result = await settle(db,sessionHash,requestId);
         else if(action === "refund") result = await refund(db,sessionHash,requestId);
-        else return json({ok:false,error:"Unsupported guest CALC action."},400,origin,cookie);
+        else return json({ok:false,error:"Unsupported guest CALC Lite action."},400,origin,cookie);
 
         if(action === "reserve" && !result.ok && result.code === "INSUFFICIENT_CALC"){
             result.balance = Number(result.balance_milli||0)/1000;
         }
         const wallet = await loadWallet(db,sessionHash);
-        return json({ok:result.ok,...result,balance:wallet.balance,balance_milli:wallet.balance_milli},result.ok?200:result.code==="INSUFFICIENT_CALC"?402:409,origin,cookie);
+        return json({ok:result.ok,currency:"CALC_LITE",...result,balance:wallet.balance,balance_milli:wallet.balance_milli},result.ok?200:result.code==="INSUFFICIENT_CALC"?402:409,origin,cookie);
     }catch(error){
         console.error("Guest CALC request failed:",error);
-        return json({ok:false,error:"Guest CALC service is temporarily unavailable."},503,origin,cookie);
+        return json({ok:false,error:"Guest CALC Lite service is temporarily unavailable."},503,origin,cookie);
     }
 }

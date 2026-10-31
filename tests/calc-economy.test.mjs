@@ -18,8 +18,12 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     const logo = html.indexOf('class="logo"');
     const webShop = html.indexOf('id="worthItWebShopButton"');
     const balance = html.indexOf('id="worthItCalcWalletButton"');
+    const wip = html.indexOf('id="worthItWipWalletButton"');
     const nav = html.indexOf('id="navLinks"');
-    assert.ok(logo >= 0 && logo < webShop && webShop < balance && balance < nav);
+    assert.ok(logo >= 0 && logo < webShop && webShop < balance && balance < wip && wip < nav);
+    assert.match(html, /id="worthItCalcWalletUnit">CALC/);
+    assert.match(html, /id="worthItWipWalletButton"[^>]*onclick="openWebShop\('subscriptions'\)"[^>]*hidden/);
+    assert.match(html, /class="calc-wip-use">Premium Lite/);
     assert.match(html, /id="webShopSection"/);
     assert.match(routes, /"\/shop": "openDiscounts"/);
     assert.match(economy, /"shipTrackingSection","profileSection","discountsSection","worthItProfileDescriptionSection"/);
@@ -27,9 +31,19 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.match(html, /data-webshop-category="subscriptions"/);
     assert.match(routes, /"\/web-shop": "openWebShop"/);
     assert.match(html, /Buying is completely optional/);
-    assert.match(html, /Free users receive 1 CALC and 1 WIP every day/);
+    assert.match(html, /Free users receive 1 CALC and 1 WIP daily/);
     assert.match(html, /40 <small>WIP \/ 15 days<\/small>/);
-    assert.match(html, /WIP is earned through activity/);
+    assert.match(html, /Every signed-in account earns 1 WIP per UTC day/);
+    assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
+    assert.match(economy, /wipButton\.hidden = !showWip/);
+    assert.match(economy, /WIP rewards and balances are waiting for the CALC economy SQL migration/);
+    assert.match(economy, /Wallet unavailable · calculation disabled/);
+    assert.match(economy, /CALC account billing is not available in this Preview database yet/);
+    assert.match(economy, /No calculation was run and no currency was charged/);
+    assert.match(economy, /Pay 0\.1 " \+ currency \+ " to calculate/);
+    assert.match(html, /0\.5 CALC Lite per UTC day/);
+    assert.match(html, /WIP is the only currency used to activate Premium Lite/);
+    assert.match(html, /CALC is never deducted for Premium Lite/);
 });
 
 test("the Web Shop has its own persistent dark and light themes", () => {
@@ -42,6 +56,7 @@ test("the Web Shop has its own persistent dark and light themes", () => {
 test("daily rewards, guest non-stacking and calculator costs use exact milli-CALC units", () => {
     const guestApi = read("functions/api/guest-calc.js");
     assert.match(guestApi, /DAILY_MILLI = 500/);
+    assert.match(guestApi, /currency:"CALC_LITE"/);
     assert.match(economy, /CALCULATOR_COST_MILLI = 100/);
     assert.match(economy, /guestRpc\("balance"\)/);
     assert.match(economy, /guestRpc\("reserve",requestId,calculatorType\)/);
