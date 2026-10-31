@@ -354,7 +354,7 @@ begin
     if char_length(v_title) not between 3 and 70
        or char_length(v_description)>500
        or v_category not in ('cars','money','technology','home','other') then
-        raise exception 'Invalid calculator details.' using errcode='22023');
+        raise exception 'Invalid calculator details.' using errcode='22023';
     end if;
     perform private.worth_it_validate_ugc_spec(p_spec);
 
