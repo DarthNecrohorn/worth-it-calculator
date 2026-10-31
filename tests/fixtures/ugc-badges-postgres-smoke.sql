@@ -35,7 +35,51 @@ select (public.save_worth_it_ugc_calculator(
  '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
 )->>'id') as calculator_id \gset
 
+do $number_check$
+declare v_number bigint;
+begin
+    select calculator_number into v_number
+      from private.worth_it_user_calculators
+     where id=:'calculator_id'::uuid;
+    if v_number<>51 then raise exception 'The first user calculator must receive public number 51, got %.',v_number; end if;
+end
+$number_check$;
+
 select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid)->>'status') as publish_status \gset
+
+-- Free accounts receive one successful new calculator per UTC day.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $free_quota$
+declare q jsonb; blocked boolean:=false;
+begin
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>1 or (q->>'creations_used')::integer<>1 or (q->>'remaining')::integer<>0 then
+        raise exception 'Free daily creation allowance is incorrect: %',q;
+    end if;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Free second draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when program_limit_exceeded then blocked:=true;
+    end;
+    if not blocked then raise exception 'Free account created more than one calculator in a UTC day.'; end if;
+end
+$free_quota$;
+
+-- Upgrade the fixture creator to Premium, verify the next sequential ID, and then test the lifetime cap.
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at)
+values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days')
+on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
+select (public.save_worth_it_ugc_calculator(
+ null,'Second savings calculator','','money',
+ '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+)->>'calculator_number') as second_calculator_number \gset
+do $number_check$
+begin
+    if :'second_calculator_number'::bigint<>52 then raise exception 'Calculator numbers must be sequential from 51.'; end if;
+end
+$number_check$;
 select set_config('test.ugc_calculator_id', :'calculator_id', false);
 do $owner_check$
 declare
@@ -124,12 +168,18 @@ begin
 end
 $test$;
 
--- The ten-calculator cap includes drafts and cannot be exceeded with a second call.
+-- The ten-calculator lifetime cap includes drafts; daily limits reset independently by UTC date.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 do $test$
-declare i integer; result jsonb; failed boolean:=false;
+declare i integer; failed boolean:=false; today_utc date:=(now() at time zone 'utc')::date;
 begin
-    for i in 1..9 loop
+    for i in 1..8 loop
+        if i in (1,4,7) then
+            update private.worth_it_ugc_creation_daily_usage
+               set usage_date=today_utc-i,updated_at=now()
+             where user_id='11111111-1111-4111-8111-111111111111'
+               and usage_date=today_utc;
+        end if;
         perform public.save_worth_it_ugc_calculator(
             null,'Creator draft '||i,'','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
@@ -140,12 +190,58 @@ begin
             null,'Eleventh calculator','','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when program_limit_exceeded then
-        failed:=true;
+    exception when program_limit_exceeded then failed:=true;
     end;
-    if not failed then raise exception 'The 10-calculator limit was not enforced.'; end if;
+    if not failed then raise exception 'The ten-calculator lifetime cap was not enforced.'; end if;
 end
 $test$;
+
+-- Premium allows three and Premium Lite allows two successful new calculators per UTC day.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $premium_quota$
+declare q jsonb; i integer; blocked boolean:=false;
+begin
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium quota must be three per day: %',q; end if;
+    for i in 1..3 loop
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium draft '||i,'','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    end loop;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium fourth draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when program_limit_exceeded then blocked:=true;
+    end;
+    if not blocked then raise exception 'Premium created more than three calculators in a UTC day.'; end if;
+end
+$premium_quota$;
+
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+do $lite_quota$
+declare q jsonb; i integer; blocked boolean:=false;
+begin
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>2 then raise exception 'Premium Lite quota must be two per day: %',q; end if;
+    for i in 1..2 loop
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium Lite draft '||i,'','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    end loop;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium Lite third draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when program_limit_exceeded then blocked:=true;
+    end;
+    if not blocked then raise exception 'Premium Lite created more than two calculators in a UTC day.'; end if;
+end
+$lite_quota$;
 
 -- AI Maker quota is enforced atomically per confirmed user and UTC day.
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
