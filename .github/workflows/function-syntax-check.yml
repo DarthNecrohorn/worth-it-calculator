@@ -24,6 +24,13 @@ on:
       - "shop.js"
       - "calc-economy.js"
       - "functions/api/guest-calc.js"
+      - "functions/api/ugc-maker.js"
+      - "ugc-calculators.js"
+      - "ugc-calculators.css"
+      - "supabase/worth-it-ugc-badges.sql"
+      - "tests/ugc-calculators.test.mjs"
+      - "tests/fixtures/ugc-badges-postgres-setup.sql"
+      - "tests/fixtures/ugc-badges-postgres-smoke.sql"
       - "tests/guest-calc.test.mjs"
       - "tests/guest-lite.test.mjs"
       - "tests/calc-economy.test.mjs"
@@ -49,6 +56,9 @@ jobs:
       - name: Run community features contract tests
         run: node --test tests/community-features.test.mjs
 
+      - name: Run UGC calculator and badge contract tests
+        run: node --test tests/ugc-calculators.test.mjs
+
       - name: Run CALC economy contract tests
         run: node --test tests/calc-economy.test.mjs
 
@@ -66,7 +76,7 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js calc-economy.js community-features.js ship-tracking-ui.js app.js settings.js admin-panel.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
+          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js calc-economy.js community-features.js ugc-calculators.js ship-tracking-ui.js app.js settings.js admin-panel.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
@@ -92,7 +102,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/worth-it-community-extras.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -110,7 +120,7 @@ jobs:
           import re
           from collections import Counter
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/calc-economy.sql", "supabase/worth-it-community-extras.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/calc-economy.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               # Count each dollar-quote delimiter independently. Function definitions may
@@ -267,3 +277,18 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/calc-economy-postgres-smoke.sql
+
+
+      - name: Create isolated database for UGC calculators and member badges
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_ugc_badges_test
+
+      - name: Apply, retry and smoke-test UGC calculators and member badges migration
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_ugc_badges_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-badges-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-badges-postgres-smoke.sql

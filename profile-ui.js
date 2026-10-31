@@ -176,10 +176,122 @@ const oldOpenInfo=window.openAccountInfo;
 window.openAccountInfo=function(section){if(!section||section==="profile"){closeAccountDropdown();return openOwnProfile();}if(typeof oldOpenInfo==="function")return oldOpenInfo.apply(this,arguments);};
 const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
+
+const profileBadgesCache=new Map();
+function clearWorthItProfileBadgeCache(id){
+ if(id==null)profileBadgesCache.clear();else profileBadgesCache.delete(String(id));
+}
+async function getWorthItProfileBadgeInfo(worthItId){
+ const key=String(worthItId||"");
+ if(!key)return {badges:[],is_own_profile:false};
+ if(profileBadgesCache.has(key))return profileBadgesCache.get(key);
+ const promise=(async()=>{
+  const result=await client().rpc("get_worth_it_profile_badges",{p_worth_it_id:Number(worthItId)});
+  if(result.error)throw result.error;
+  const data=normalizeRpcObject(result.data)||{};
+  return {badges:Array.isArray(data.badges)?data.badges:[],is_own_profile:data.is_own_profile===true};
+ })();
+ profileBadgesCache.set(key,promise);
+ try{return await promise;}catch(error){profileBadgesCache.delete(key);throw error;}
+}
+function createWorthItBadgeNode(badge,compact){
+ const node=document.createElement("span");
+ node.className="worth-it-member-badge"+(compact?" is-compact":"");
+ node.dataset.badge=String(badge.key||"");
+ node.title=String(badge.description||badge.label||"");
+ const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
+ const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
+ node.append(icon,label);return node;
+}
+function renderWorthItBadgeStrip(host,badges){
+ if(!host)return;host.replaceChildren();
+ (badges||[]).filter(badge=>badge&&badge.earned===true&&badge.equipped===true).forEach(badge=>host.appendChild(createWorthItBadgeNode(badge,true)));
+}
+async function loadWorthItPublicBadges(worthItId,host){
+ if(!host)return;
+ host.replaceChildren();
+ try{
+  const info=await getWorthItProfileBadgeInfo(worthItId);
+  renderWorthItBadgeStrip(host,info.badges);
+ }catch(error){console.warn("Worth It member badges are unavailable:",error);}
+}
+window.loadWorthItPublicBadges=loadWorthItPublicBadges;
+window.refreshWorthItProfileBadges=function(worthItId){
+ clearWorthItProfileBadgeCache(worthItId);
+ if(currentDisplayedProfileId===Number(worthItId))void loadWorthItProfileBadges(Number(worthItId),currentDisplayedProfileIsOwn);
+ window.dispatchEvent(new Event("worthit-badges-updated"));
+};
+async function loadWorthItProfileBadges(worthItId,isOwn){
+ const section=$("worthItProfileBadgesSection"),display=$("worthItProfileBadgesDisplay"),manage=$("worthItProfileBadgesManage"),status=$("worthItProfileBadgesStatus"),nameHost=$("worthItProfileNameBadges");
+ if(section)section.hidden=false;
+ if(status)status.textContent="Loading badges…";
+ try{
+  const info=await getWorthItProfileBadgeInfo(worthItId),badges=info.badges||[];
+  renderWorthItBadgeStrip(nameHost,badges);
+  renderWorthItBadgeStrip(display,badges);
+  if(manage){
+   manage.replaceChildren();manage.hidden=!isOwn;
+   if(isOwn){
+    const heading=document.createElement("h3");heading.textContent="Your badge collection";manage.appendChild(heading);
+    if(!badges.length)manage.appendChild(textBadgeMessage("No badges unlocked yet. Membership badges unlock automatically as your account gets older."));
+    badges.forEach(badge=>{
+     const row=document.createElement("div");row.className="worth-it-badge-equip-row";
+     const copy=document.createElement("div");copy.appendChild(createWorthItBadgeNode({...badge,equipped:false},false));
+     const description=document.createElement("small");description.textContent=badge.description||"";copy.appendChild(description);
+     const toggle=document.createElement("button");toggle.type="button";toggle.className="worth-it-badge-equip-toggle";toggle.textContent=badge.equipped?"Unequip":"Equip";
+     toggle.addEventListener("click",async()=>{
+      toggle.disabled=true;
+      try{
+       const result=await client().rpc("set_worth_it_profile_badge_equipped",{p_badge_key:badge.key,p_equipped:!badge.equipped});
+       if(result.error)throw result.error;
+       clearWorthItProfileBadgeCache(worthItId);
+       await loadWorthItProfileBadges(worthItId,true);
+       window.dispatchEvent(new Event("worthit-badges-updated"));
+      }catch(error){
+       if(status)status.textContent=error?.message||"Could not update this badge.";
+       toggle.disabled=false;
+      }
+     });
+     row.append(copy,toggle);manage.appendChild(row);
+    });
+   }
+  }
+  if(status)status.textContent=badges.some(b=>b.equipped)?"Equipped badges are shown beside the display name and in chat.":isOwn?"Equip an unlocked badge to show it beside your display name and in chat.":"No public badges are equipped.";
+ }catch(error){
+  if(section)section.hidden=true;
+  if(nameHost)nameHost.replaceChildren();
+  if(status)status.textContent="Badge collection is not available until the profile badge migration is installed.";
+  console.warn("Worth It profile badge collection could not be loaded:",error);
+ }
+}
+function textBadgeMessage(message){const node=document.createElement("p");node.className="ugc-detail-status";node.textContent=message;return node;}
+async function loadWorthItProfileFavorites(worthItId){
+ const section=$("worthItProfileFavouritesSection"),host=$("worthItProfileFavouriteCalculators"),empty=$("worthItProfileFavouritesEmpty");
+ if(!section||!host)return;
+ host.replaceChildren();section.hidden=true;if(empty)empty.hidden=true;
+ try{
+  const result=await client().rpc("get_worth_it_profile_favorite_calculators",{p_worth_it_id:Number(worthItId)});
+  if(result.error)throw result.error;
+  const rows=Array.isArray(result.data)?result.data:[];
+  if(!rows.length){section.hidden=false;if(empty)empty.hidden=false;return;}
+  rows.forEach(item=>{
+   const link=document.createElement("a");link.className="worth-it-profile-favourite-card";
+   link.href="/calculator/ugc/"+String(item.id||"");
+   const title=document.createElement("strong");title.textContent=String(item.title||"Community calculator");
+   const owner=document.createElement("small");owner.textContent="Created by "+String(item.owner_display_name||item.owner_username||"Worth It member");
+   link.append(title,owner);host.appendChild(link);
+  });
+  section.hidden=false;
+ }catch(error){
+  section.hidden=true;
+  console.warn("Favorite community calculators could not be loaded:",error);
+ }
+}
+
 function renderProfile(p,s,isOwn){
  const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);}
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");const premiumBadge=$("worthItProfilePremiumBadge");if(premiumBadge){premiumBadge.hidden=true;if(typeof window.getWorthItPremiumBadge==="function")window.getWorthItPremiumBadge(id,premiumBadge);}
+ renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");const premiumBadge=$("worthItProfilePremiumBadge");if(premiumBadge){premiumBadge.hidden=true;premiumBadge.textContent="";}
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  if(s.hidden){setText("worthItProfileFriends","Hidden");setText("worthItProfileFollowers","Hidden");setText("worthItProfileFollowing","Hidden");setText("worthItProfileFriendsMood","🔒");}else{setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);}
@@ -189,6 +301,8 @@ function renderProfile(p,s,isOwn){
  hideAllAssetLimitNotices();
  currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=Boolean(isOwn);
  renderProfileDescription(p.description,id,Boolean(isOwn));
+ void loadWorthItProfileBadges(id,Boolean(isOwn));
+ void loadWorthItProfileFavorites(id);
  const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=!isOwn;
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);

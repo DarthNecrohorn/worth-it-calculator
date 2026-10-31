@@ -71,7 +71,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=calc-wip-header-calclite-20261031a">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=community-economy-modal-20261031b">
+<link rel="stylesheet" href="community-features.css?v=community-ugc-badges-20261031a">
+<link rel="stylesheet" href="ugc-calculators.css?v=ugc-maker-badges-editor-20261031b">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -1407,6 +1408,103 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
     </section>
 
+
+    <section id="ugcCommunitySection" class="ugc-community-section" hidden aria-label="Worth It community calculators">
+      <div class="ugc-community-shell">
+        <header class="ugc-community-header">
+          <div>
+            <span class="ugc-community-kicker">WORTH IT COMMUNITY</span>
+            <h2>Community calculators</h2>
+            <p>Discover calculators created by Worth It members, or build your own with Worth It AI.</p>
+          </div>
+          <button type="button" id="ugcCreateButton" class="ugc-primary-button">✦ Create with AI</button>
+        </header>
+        <nav class="ugc-sort-tabs" aria-label="Community calculator sorting">
+          <button type="button" class="ugc-sort-tab active" data-ugc-sort="latest" aria-pressed="true">Latest</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="popular" aria-pressed="false">Most Popular</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="liked" aria-pressed="false">Most Liked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="favorited" aria-pressed="false">Most Favorited</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="disliked" aria-pressed="false">Most Disliked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="mine" aria-pressed="false">My Calculators</button>
+        </nav>
+        <div class="ugc-catalog-tools">
+          <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
+          <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="1m">Last month</option>
+            <option value="3m">Last 3 months</option>
+            <option value="6m">Last 6 months</option>
+            <option value="12m">Last 12 months</option>
+            <option value="3y">Last 3 years</option>
+            <option value="6y">Last 6 years</option>
+            <option value="12y" selected>Last 12 years</option>
+          </select>
+        </div>
+        <h3 id="ugcCatalogHeading">Latest calculators</h3>
+        <p id="ugcCatalogStatus" class="ugc-catalog-status" role="status" aria-live="polite">Sign in to browse, create and use community calculators.</p>
+        <div id="ugcCalculatorGrid" class="ugc-calculator-grid"></div>
+      </div>
+    </section>
+
+    <section id="ugcDetailSection" class="ugc-detail-section" hidden aria-label="Community calculator profile">
+      <div class="ugc-detail-shell">
+        <div class="ugc-detail-toolbar">
+          <button type="button" class="btn btn-secondary" id="ugcDetailBack">← Back to calculators</button>
+          <span class="ugc-community-kicker">COMMUNITY CALCULATOR</span>
+        </div>
+        <header class="ugc-detail-header">
+          <span class="ugc-detail-kicker">WORTH IT COMMUNITY</span>
+          <h1 id="ugcDetailTitle">Community calculator</h1>
+          <p id="ugcDetailDescription"></p>
+          <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Created by a Worth It member</a>
+          <div id="ugcDetailStats" class="ugc-detail-stats"></div>
+          <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
+        </header>
+        <section id="ugcDetailDescriptionEditor" class="ugc-detail-description-editor" hidden>
+          <label for="ugcDetailDescriptionInput">Your calculator description · optional · up to 500 characters</label>
+          <textarea id="ugcDetailDescriptionInput" rows="3" maxlength="500" placeholder="Explain what this calculator does and when people should use it."></textarea>
+          <button type="button" class="ugc-action-primary" id="ugcDetailSaveDescription">Save description</button>
+        </section>
+        <section class="ugc-detail-calculator-card" aria-label="Calculator inputs">
+          <h2>Enter your values</h2>
+          <div id="ugcDetailCalculatorForm" class="ugc-detail-calculator-form"></div>
+        </section>
+        <div id="ugcDetailResults"></div>
+        <div class="ugc-detail-actions">
+          <button type="button" id="ugcDetailLike" class="ugc-action-secondary">♥ Like</button>
+          <button type="button" id="ugcDetailDislike" class="ugc-action-secondary">▼ Dislike</button>
+        </div>
+        <p id="ugcDetailStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <div id="ugcMakerModal" class="ugc-maker-overlay" role="dialog" aria-modal="true" aria-labelledby="ugcMakerTitleHeading" aria-hidden="true" hidden>
+      <section id="ugcMakerOverlay" class="ugc-maker-card">
+        <header class="ugc-maker-head">
+          <div>
+            <span class="ugc-community-kicker">WORTH IT AI</span>
+            <h2 id="ugcMakerTitleHeading">Create a calculator with AI</h2>
+            <p>Describe the decision or calculation. AI creates a safe, editable calculator draft.</p>
+          </div>
+          <button type="button" class="ugc-maker-close" id="ugcMakerClose" aria-label="Close calculator maker">×</button>
+        </header>
+        <label for="ugcMakerPrompt">What should your calculator calculate?</label>
+        <textarea id="ugcMakerPrompt" name="prompt" maxlength="900" rows="5" placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance."></textarea>
+        <div class="ugc-maker-actions">
+          <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
+        </div>
+        <p id="ugcMakerStatus" class="ugc-maker-status" role="status" aria-live="polite">Describe your calculator in at least 10 characters.</p>
+        <div id="ugcMakerPreview" class="ugc-maker-preview" hidden></div>
+        <div class="ugc-maker-actions">
+          <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
+          <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
+        </div>
+        <p class="ugc-maker-status">You can create up to 10 community calculators per account. Only your own calculators can be edited or deleted. Published calculators use restricted formulas; custom JavaScript is never executed.</p>
+      </section>
+    </div>
+
     <section class="section">
         <div class="container">
             <div class="panel">
@@ -2316,6 +2414,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="worth-it-profile-heading">
             <div class="worth-it-profile-name-row">
               <h1 id="worthItProfileName">Profile</h1>
+              <span id="worthItProfileNameBadges" class="worth-it-profile-name-badges" aria-label="Equipped member badges"></span>
               <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
             </div>
             <div class="worth-it-profile-username-row"><p id="worthItProfileUsername" class="worth-it-profile-username"></p><span id="worthItProfilePremiumBadge" class="worth-it-premium-badge" hidden></span></div>
@@ -2379,6 +2478,17 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
       </section>
 
+      <section id="worthItProfileFavouritesSection" class="worth-it-profile-favourites" aria-label="Favorite calculators" hidden>
+        <h2>Favorite Calculators</h2>
+        <div id="worthItProfileFavouriteCalculators" class="worth-it-profile-favourite-grid"></div>
+        <p id="worthItProfileFavouritesEmpty" class="ugc-detail-status" hidden>No favourite community calculators yet.</p>
+      </section>
+      <section id="worthItProfileBadgesSection" class="worth-it-profile-badges" aria-label="Member badges" hidden>
+        <h2>Badges</h2>
+        <div id="worthItProfileBadgesDisplay" class="worth-it-profile-badge-list" aria-label="Equipped badges"></div>
+        <div id="worthItProfileBadgesManage" class="worth-it-profile-badge-manage" hidden></div>
+        <p id="worthItProfileBadgesStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
+      </section>
       <section id="worthItProfileFriendsPreview" class="worth-it-profile-friends-preview" aria-label="Friends preview">
         <div class="worth-it-profile-friends-title">
           <strong>Friends:</strong>
@@ -3326,7 +3436,7 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
-<script src="calc-economy.js?v=calc-wip-calclite-labels-20261031a"></script>
+<script src="calc-economy.js?v=calc-wip-calclite-badge-refresh-20261031b"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
@@ -5345,11 +5455,12 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a"></script>
+<script src="/profile-ui.js?v=profile-member-badges-favourites-20261031a"></script>
+<script src="/chat-ui.js?v=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a"></script>
-<script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
+<script src="/guest-mode.js?v=guest-ugc-detail-guard-20261031b"></script>
+<script src="/ugc-calculators.js?v=ugc-maker-badges-editor-20261031b"></script>
+<script src="/routing.js?v=ugc-calculator-profile-route-20261031a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
         <div class="worth-it-chat-call-card">
@@ -5375,6 +5486,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=community-ugc-only-20261031a"></script>
+<script src="/community-features.js?v=community-ugc-favourites-20261031b"></script>
 </body>
 </html>

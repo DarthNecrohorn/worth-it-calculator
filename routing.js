@@ -124,6 +124,12 @@
         const id = Number(worthItId);
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
     });
+    patchRouteFunction("openWorthItUGCCalculator", function (calculatorId) {
+        const id = String(calculatorId || "").toLowerCase();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
+            ? "/calculator/ugc/" + id
+            : null;
+    });
 
     // Return to the exact route that opened this profile. Directly opened
     // profiles have no recorded in-app predecessor and safely fall back to Home.
@@ -269,6 +275,9 @@
             return null;
         }
 
+        const ugcCalculatorMatch = path.match(/^\/calculator\/ugc\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+        if (ugcCalculatorMatch) return { kind: "ugc-calculator", id: ugcCalculatorMatch[1].toLowerCase() };
+
         const calculatorMatch = path.match(/^\/calculator\/(\d+)$/);
         if (calculatorMatch) {
             const id = Number(calculatorMatch[1]);
@@ -316,6 +325,13 @@
 
             if (route.kind === "anchor") {
                 showHomeAndScroll(route.target, options && options.initial ? "auto" : "smooth");
+                return;
+            }
+
+            if (route.kind === "ugc-calculator") {
+                if (typeof window.openWorthItUGCCalculator === "function") {
+                    window.openWorthItUGCCalculator(route.id, { fromUrl: true });
+                }
                 return;
             }
 

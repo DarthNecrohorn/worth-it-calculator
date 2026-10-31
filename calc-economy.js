@@ -196,6 +196,8 @@
         }
     }
 
+    window.refreshWorthItCalcWallet = refreshWallet;
+
     function setCalcShopCategory(category){
         const selected = category === "subscriptions" ? "subscriptions" : "currency";
         document.querySelectorAll("[data-webshop-category]").forEach(button=>{
@@ -509,7 +511,7 @@
             const badge = await rpc("calc_profile_badge",{p_worth_it_id:Number(worthItId)});
             if(badgeTarget && badgeTarget.dataset.worthItId === userId){
                 badgeTarget.textContent = badge === "premium" ? "✧ PREMIUM" :
-                    badge === "premium_lite" ? "✦ LITE" :
+                    badge === "premium_lite" ? "✦ PREMIUM LITE" :
                     badge === "owner" ? "◆ OWNER" : "";
                 badgeTarget.hidden = !badge;
                 badgeTarget.dataset.badge = badge || "";

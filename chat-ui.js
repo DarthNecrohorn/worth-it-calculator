@@ -1741,6 +1741,14 @@ function makeWorthItChatMessageAvatar(message) {
     return wrapper;
 }
 
+window.addEventListener("worthit-badges-updated",function(){
+    if(typeof window.loadWorthItPublicBadges!=="function")return;
+    document.querySelectorAll(".worth-it-chat-member-badges[data-worth-it-badge-id]").forEach(function(host){
+        const id=Number(host.dataset.worthItBadgeId);
+        if(Number.isSafeInteger(id)&&id>0)window.loadWorthItPublicBadges(id,host);
+    });
+});
+
 function createWorthItChatMessageRow(message) {
     const mine = message.sender_user_id === chatUser.id;
     const signature = chatMessageRenderSignature(message);
@@ -1756,14 +1764,14 @@ function createWorthItChatMessageRow(message) {
         const authorLine = document.createElement("span");
         authorLine.className = "worth-it-chat-message-author-line";
         authorLine.appendChild(name);
-        const premiumBadge = document.createElement("span");
-        premiumBadge.className = "worth-it-premium-badge worth-it-chat-premium-badge";
-        premiumBadge.hidden = true;
-        authorLine.appendChild(premiumBadge);
+        const memberBadges = document.createElement("span");
+        memberBadges.className = "worth-it-chat-member-badges";
+        memberBadges.dataset.worthItBadgeId = String(message.worth_it_id || "");
+        authorLine.appendChild(memberBadges);
         stack.appendChild(authorLine);
         const badgeId = Number(message.worth_it_id);
-        if (Number.isSafeInteger(badgeId) && badgeId > 0 && typeof window.getWorthItPremiumBadge === "function") {
-            window.getWorthItPremiumBadge(badgeId,premiumBadge);
+        if (Number.isSafeInteger(badgeId) && badgeId > 0 && typeof window.loadWorthItPublicBadges === "function") {
+            window.loadWorthItPublicBadges(badgeId,memberBadges);
         }
     }
 

@@ -157,7 +157,7 @@ function decorateCard(card){
 }
 function updateFavouritesToggle(){
  const button=$("favoriteCalculatorsToggle");if(!button)return;
- const hasUGC=Array.from(document.querySelectorAll("#calculatorGrid .calc-card")).some(isUGCCalculatorCard);
+ const hasUGC=Array.from(document.querySelectorAll("#calculatorGrid .calc-card, #ugcCalculatorGrid .calc-card")).some(isUGCCalculatorCard);
  button.hidden=!favouritesUserId||!hasUGC;
  if(button.hidden&&favouritesOnly){
   favouritesOnly=false;
@@ -169,20 +169,23 @@ function updateFavouritesToggle(){
  button.textContent=favouritesOnly?"★ Showing favourites":"☆ Favourites";
 }
 function refreshFavouriteFilter(){
- const grid=$("calculatorGrid");if(!grid)return;updateFavouritesToggle();
- grid.querySelectorAll(".calc-card").forEach(card=>{
-  const key=calculatorKey(card),button=card.querySelector(".calc-favorite-toggle");
-  if(button&&key)updateFavouriteButton(button,key);
-  if(favouritesOnly&&(!key||!favourites.has(key)))card.style.display="none";
+ const grids=[$("calculatorGrid"),$("ugcCalculatorGrid")].filter(Boolean);if(!grids.length)return;updateFavouritesToggle();
+ grids.forEach(grid=>{
+  grid.querySelectorAll(".calc-card").forEach(card=>{
+   const key=calculatorKey(card),button=card.querySelector(".calc-favorite-toggle");
+   if(button&&key)updateFavouriteButton(button,key);
+   if(favouritesOnly)card.style.display=key&&favourites.has(key)?"":"none";
+    else if(grid.id==="ugcCalculatorGrid")card.style.display="";
+  });
+  if(favouritesOnly){
+   const visible=Array.from(grid.querySelectorAll(".calc-card")).some(card=>card.style.display!=="none");
+   grid.querySelector(".ugc-favourites-empty")?.remove();
+   if(!visible&&grid.id==="ugcCalculatorGrid"){const empty=document.createElement("p");empty.className="calc-empty ugc-favourites-empty";empty.textContent="You have no favourite community calculators yet. Tap the star on a calculator to save it here.";grid.appendChild(empty);}
+  }else{grid.querySelector(".ugc-favourites-empty")?.remove();}
  });
- if(favouritesOnly){
-  const visible=Array.from(grid.querySelectorAll(".calc-card")).some(card=>card.style.display!=="none");
-  grid.querySelector(".calc-empty")?.remove();
-  if(!visible){const empty=document.createElement("div");empty.className="calc-empty";empty.textContent="You have no favourite calculators yet. Tap the star on a calculator to save it here.";grid.appendChild(empty);}
- }
 }
 function decorateCards(root){
- (root||document).querySelectorAll?.("#calculatorGrid .calc-card")?.forEach(decorateCard);
+ (root||document).querySelectorAll?.("#calculatorGrid .calc-card, #ugcCalculatorGrid .calc-card")?.forEach(decorateCard);
  refreshFavouriteFilter();
 }
 function installFavouriteFilter(){
@@ -388,10 +391,11 @@ function init(){
   if(ownEdit)observer.observe(ownEdit,{attributes:true,attributeFilter:["hidden"]});
  }
  decorateCards();
- const grid=$("calculatorGrid");
- if(grid&&typeof MutationObserver==="function")new MutationObserver(records=>{
-  if(records.some(record=>record.addedNodes.length))decorateCards(grid);
- }).observe(grid,{childList:true});
+ [$("calculatorGrid"),$("ugcCalculatorGrid")].filter(Boolean).forEach(grid=>{
+  if(typeof MutationObserver==="function")new MutationObserver(records=>{
+   if(records.some(record=>record.addedNodes.length))decorateCards(grid);
+  }).observe(grid,{childList:true});
+ });
  void loadFavouritesForSession();void loadThemeForSession();
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(()=>{
   setTimeout(()=>{void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();},0);

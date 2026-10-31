@@ -19,7 +19,8 @@
         /^\/water-levels\/?$/,
         /^\/ship-tracking\/?$/,
         /^\/profile(?:\/|$)/,
-        /^\/chat(?:\/|$)/
+        /^\/chat(?:\/|$)/,
+        /^\/calculator\/ugc(?:\/|$)/
     ];
 
     const BUILT_IN_CALCULATORS = new Set([
@@ -478,6 +479,7 @@
         ["sendAIChatMessage", "Worth It AI Chat requires a Worth It account."],
         ["openWorthItUserSearch", "Searching for people requires a Worth It account."],
         ["openWorthItProfile", "User profiles and social features require a Worth It account."],
+        ["openWorthItUGCCalculator", "Community calculators require a Worth It account."],
         ["openWorthItProfileConnections", "Friends, followers and following lists require a Worth It account."],
         ["openWorthItProfileConnectionsForCurrent", "Friends, followers and following lists require a Worth It account."],
         ["performWorthItSocialAction", "Friend requests and following require a Worth It account."],
