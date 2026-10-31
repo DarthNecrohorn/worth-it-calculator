@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
 const shopCss = read("web-shop.css");
+const ugcCss = read("ugc-calculators.css");
 const economy = read("calc-economy.js");
 const sql = read("supabase/calc-economy.sql");
 const ai = read("functions/api/ai-chat.js");
@@ -135,14 +136,18 @@ test("chat media limits are enforced server-side and dynamically validated in th
     assert.match(sql, /image_bytes',26214400/);
 });
 
-test("Premium Lite, Premium and owner badges are rendered beside profile and chat usernames", () => {
-    assert.match(html, /id="worthItProfilePremiumBadge"/);
-    assert.match(profile, /getWorthItPremiumBadge/);
+test("Premium Lite, Premium, owner and member badges are rendered beside profile and chat usernames", () => {
+    assert.match(html, /id="worthItProfileNameBadges"/);
+    assert.match(profile, /get_worth_it_profile_badges/);
+    assert.match(profile, /set_worth_it_profile_badge_equipped/);
+    assert.match(profile, /loadWorthItProfileBadges/);
     assert.match(chat, /worth-it-chat-message-author-line/);
-    assert.match(chat, /getWorthItPremiumBadge/);
+    assert.match(chat, /worth-it-chat-member-badges/);
+    assert.match(chat, /loadWorthItPublicBadges/);
     assert.match(shopCss, /\.worth-it-premium-badge\[hidden\]\{display:none!important\}/);
-    assert.match(shopCss, /data-badge="premium"/);
-    assert.match(shopCss, /data-badge="owner"/);
+    assert.match(ugcCss, /data-badge="premium"/);
+    assert.match(ugcCss, /data-badge="premium_lite"/);
+    assert.match(ugcCss, /data-badge="owner"/);
 });
 
 test("transaction reporting is exposed only through the existing owner-verified Admin Panel", () => {
