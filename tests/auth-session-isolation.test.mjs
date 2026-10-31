@@ -41,7 +41,7 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
     assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
-    assert.match(html, /guest-mode\.js\?v=guest-lite-first-50-20261030a/);
+    assert.match(html, /guest-mode\\.js\\?v=guest-webshop-ugc-guards-20261031a/);
 });
 
 
