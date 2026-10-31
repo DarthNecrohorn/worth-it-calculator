@@ -19961,19 +19961,21 @@ html[data-theme="light"] .worth-it-guest-card{
 html[data-theme="light"] .worth-it-guest-allowed h3>span{color:#059669}
 html[data-theme="light"] .worth-it-guest-consent{background:#f4f1ff;border-color:#d8ccff}
 @media(max-width:650px){
-    .worth-it-guest-overlay{align-items:center;padding:8px}
-    .worth-it-guest-card{max-height:calc(100dvh - 16px);padding:15px;border-radius:17px}
+    .worth-it-guest-overlay{align-items:center;padding:8px;overflow-y:auto}
+    .worth-it-guest-card{width:100%;max-height:calc(100dvh - 16px);padding:15px;border-radius:17px;overflow:hidden}
     .worth-it-guest-head{gap:9px;padding-bottom:12px}
     .worth-it-guest-head h2{font-size:21px}
-    .worth-it-guest-head p{font-size:11px;line-height:1.5}
-    .worth-it-guest-body{grid-template-columns:minmax(0,1fr);gap:9px;padding:12px 1px}
-    .worth-it-guest-list{padding:12px}
-    .worth-it-guest-list h3{font-size:12px;margin-bottom:8px}
-    .worth-it-guest-list ul{font-size:10px;gap:7px}
-    .worth-it-guest-consent{padding:11px;gap:9px}
-    .worth-it-guest-consent strong{font-size:11px}
-    .worth-it-guest-actions{align-items:stretch;flex-direction:column-reverse}
-    .worth-it-guest-actions button{width:100%;min-height:40px}
+    .worth-it-guest-head p{font-size:12px;line-height:1.5}
+    .worth-it-guest-body{grid-template-columns:minmax(0,1fr);gap:9px;padding:12px 1px;overflow-y:auto;min-height:0}
+    .worth-it-guest-list{padding:13px}
+    .worth-it-guest-list h3{font-size:13px;margin-bottom:8px}
+    .worth-it-guest-list ul{font-size:12px;gap:8px;line-height:1.5}
+    .worth-it-guest-consent{padding:12px;gap:10px}
+    .worth-it-guest-consent strong{font-size:12px}
+    .worth-it-guest-consent small{font-size:11px}
+    .worth-it-guest-actions{align-items:stretch;flex-direction:column-reverse;gap:9px}
+    .worth-it-guest-actions button{width:100%;min-height:44px}
+    .worth-it-guest-consent-status{font-size:11px;line-height:1.45}
 }
 
 

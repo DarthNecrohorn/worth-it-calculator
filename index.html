@@ -69,7 +69,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
+    <link rel="stylesheet" href="web-shop.css?v=calc-wip-shop-20261030b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
+<link rel="stylesheet" href="community-features.css?v=community-ugc-mobile-20261031a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -92,6 +94,18 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
         </a>
+
+        <div class="calc-economy-nav" aria-label="CALC currency and Web Shop">
+            <button type="button" class="calc-shop-nav" id="worthItWebShopButton" onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
+                <span class="calc-shop-nav-icon" aria-hidden="true">🛍️</span>
+                <span class="calc-shop-nav-label">Web Shop</span>
+            </button>
+            <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
+                <span class="calc-wallet-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#calcCoinGradient)"/><path d="M11 8.5h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3Z" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zM11 16.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4zm-8.6 4.2h2.4v1H11zm4.3 0h2.4v1h-2.4zm4.3 0H22v1h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="calcCoinGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
+                <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
+                <span class="calc-wallet-unit">CALC</span>
+            </button>
+        </div>
 
 <div class="nav-links" id="navLinks">
     <div class="nav-scroll-content" id="navScrollContent">
@@ -1221,6 +1235,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <option value="technology">Technology</option>
                     <option value="home">Home Costs</option>
                 </select>
+                <button type="button" class="calculator-favourites-toggle" id="favoriteCalculatorsToggle" aria-pressed="false">☆ Favourites</button>
                 <button type="button" class="btn btn-secondary filter-clear" id="clearCalculatorFilters">Clear</button>
             </div>
 
@@ -2297,7 +2312,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <h1 id="worthItProfileName">Profile</h1>
               <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
             </div>
-            <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
+            <div class="worth-it-profile-username-row"><p id="worthItProfileUsername" class="worth-it-profile-username"></p><span id="worthItProfilePremiumBadge" class="worth-it-premium-badge" hidden></span></div>
             <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
             <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
               <div class="worth-it-profile-avatar-actions">
@@ -2336,6 +2351,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <button type="button" id="worthItProfileFriendSecondary" class="worth-it-profile-social-button quiet" onclick="performWorthItSocialAction('secondary')" hidden>Cancel request</button>
               <p id="worthItProfileSocialHint" class="worth-it-profile-social-hint" hidden></p>
             </div>
+            <div class="worth-it-profile-report-wrap"><button type="button" id="worthItProfileReportButton" class="worth-it-profile-report-button" hidden>⚑ Report profile</button></div>
           </div>
         </div>
       </div>
@@ -2786,6 +2802,21 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
       </div>
+      <div class="worth-it-settings-control-group">
+        <h3>Custom theme colours</h3>
+        <p>Choose your own accent gradient. The selected colours affect Worth It buttons and highlights without changing your light or dark appearance setting.</p>
+        <div class="worth-it-theme-editor">
+          <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
+          <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Theme preview"></div>
+          <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
+          <div class="worth-it-theme-fields">
+            <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
+            <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+          </div>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
+          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
       <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
         <h3>How to zoom in</h3>
         <div class="worth-it-settings-zoom-method">
@@ -2833,6 +2864,118 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </div>
   </div>
 </div>
+
+
+<section class="app web-shop-section" id="webShopSection" data-ws-theme="dark" style="display:none" aria-labelledby="webShopTitle">
+    <div class="web-shop-shell">
+        <header class="web-shop-topline">
+            <div>
+                <p class="web-shop-eyebrow">Worth It · Digital economy</p>
+                <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
+                <p class="web-shop-subtitle">CALC pays for supported calculator and AI use. Earn WIP through daily activity and save it for Premium Lite.</p>
+            </div>
+            <div class="web-shop-tools">
+                <div class="web-shop-balance" aria-live="polite">
+                    <span class="web-shop-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#shopCalcCoinGradient)"/><rect x="8" y="8.5" width="16" height="15" rx="3" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zm0 5.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="shopCalcCoinGradient" x1="4" y1="4" x2="28" y2="28"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
+                    <div class="web-shop-balance-currencies">
+                        <div><strong id="webShopBalanceValue">—</strong><small>CALC</small></div>
+                        <div><strong id="webShopWipBalanceValue">—</strong><small>WIP</small></div>
+                    </div>
+                    <small class="web-shop-balance-tier" id="webShopBalanceTier">BALANCE</small>
+                </div>
+                <button type="button" class="web-shop-theme-btn" id="webShopThemeToggle" onclick="toggleWebShopTheme()">☀️ Light theme</button>
+            </div>
+        </header>
+
+        <div class="web-shop-notice">
+            <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP every day. Premium Lite members receive 2 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 Guest Lite CALC and no WIP. CALC is used for supported calculator and AI features; WIP is earned through activity and can be saved for Premium Lite.</p>
+        </div>
+
+        <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
+            <button type="button" class="web-shop-tab active" data-webshop-category="currency" id="webShopCurrencyTab" role="tab" aria-selected="true" aria-controls="webShopCurrencyPanel">◈ CALC currency</button>
+            <button type="button" class="web-shop-tab" data-webshop-category="subscriptions" id="webShopSubscriptionsTab" role="tab" aria-selected="false" aria-controls="webShopSubscriptionsPanel">✦ Subscriptions</button>
+        </div>
+
+        <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
+            <div class="web-shop-category-heading">
+                <div><h3>CALC currency</h3><p>Digital credits for supported calculator and AI features. Each paid calculation costs 0.1 CALC.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">◈</div>
+                    <h4>Starter Pack</h4>
+                    <p class="web-shop-description">A small balance top-up for occasional calculator and AI use.</p>
+                    <p class="web-shop-price">10 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Cannot be transferred or withdrawn</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">POPULAR SIZE</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Plus Pack</h4>
+                    <p class="web-shop-description">More CALC for regular use of Worth It tools.</p>
+                    <p class="web-shop-price">30 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports continued development</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Supporter Pack</h4>
+                    <p class="web-shop-description">A larger balance for people who want to support the project.</p>
+                    <p class="web-shop-price">75 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports the website and its owner</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">CALC is a closed-use digital credit for Worth It. It has no cash value, cannot be transferred, exchanged for WIP or withdrawn. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
+            <article class="web-shop-wip-note">
+                <strong>Worth It Points (WIP)</strong>
+                <p>WIP is a separate activity currency. Signed-in accounts earn 1 WIP per day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value, cannot be exchanged for CALC and is used only to activate Premium Lite.</p>
+            </article>
+        </section>
+
+        <section id="webShopSubscriptionsPanel" role="tabpanel" hidden>
+            <div class="web-shop-category-heading">
+                <div><h3>Subscriptions</h3><p>Choose a short trial-style tier or the full Premium experience.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">15 DAYS · WIP</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Premium Lite</h4>
+                    <p class="web-shop-description">A lower-cost introduction to Premium benefits, paid with your saved Worth It Points.</p>
+                    <p class="web-shop-price">40 <small>WIP / 15 days</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li><li>2 CALC and 1 WIP daily reward</li>
+                        <li>Premium Lite profile and chat badge</li>
+                        <li>Higher image, GIF and video upload limits</li>
+                        <li>Extra profile and chat customisation</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 40 WIP</button>
+                </article>
+                <article class="web-shop-card">
+                    <span class="web-shop-ribbon">30 DAYS · REAL MONEY</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Premium</h4>
+                    <p class="web-shop-description">The full Premium tier, with the highest limits and the full set of member benefits.</p>
+                    <p class="web-shop-price">€4.99 <small>/ 30 days · proposed</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li><li>3 CALC and 1 WIP daily reward</li>
+                        <li>Exclusive Premium profile and chat badge</li>
+                        <li>Highest image, GIF and video upload limits</li>
+                        <li>More personalisation and future member features</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">Premium Lite costs 40 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+        </section>
+
+        <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="web-shop-back" onclick="showHome()">← Back to Worth It</button>
+    </div>
+</section>
 
 </main>
 
@@ -3034,7 +3177,7 @@ try{
             <div>
                 <span class="worth-it-guest-kicker">WORTH IT · GUEST LITE</span>
                 <h2 id="worthItGuestLimitsTitle">Continue with limited guest access</h2>
-                <p id="worthItGuestLimitsIntro">Guest Lite is a trial experience. You can use the default calculators provided by the Worth It owner, while account-based and community features stay locked.</p>
+                <p id="worthItGuestLimitsIntro">Guest Lite lets you try Worth It with a small daily CALC allowance. You can use only the first 50 built-in calculators provided by the site owner.</p>
             </div>
             <button type="button" class="worth-it-guest-close" id="worthItGuestCloseBtn" aria-label="Return to account creation">✕</button>
         </header>
@@ -3043,17 +3186,17 @@ try{
             <section class="worth-it-guest-list worth-it-guest-allowed">
                 <h3><span aria-hidden="true">✓</span> Available as a guest</h3>
                 <ul>
-                    <li>Use the built-in Worth It calculators configured by the site owner.</li>
-                    <li>Explore the default calculator catalogue, search and filter calculators, enter values and view calculation results.</li>
-                    <li>Use basic calculator tools such as car, savings, investment, loan, purchase, salary, technology and home-cost calculators that are part of the standard catalogue.</li>
+                    <li>Use only the <strong>first 50 built-in Worth It calculators</strong> provided by the site owner. Search, filter, enter values and view results.</li>
+                    <li><strong>Each calculation costs 0.1 CALC.</strong> Your daily Guest Lite balance is 0.5 CALC.</li>
+                    <li>Your balance resets to exactly <strong>0.5 CALC each day</strong> when you visit Worth It. Unused CALC does not roll over or accumulate.</li>
                 </ul>
             </section>
 
             <section class="worth-it-guest-list worth-it-guest-restricted">
                 <h3><span aria-hidden="true">🔒</span> Requires a Worth It account</h3>
                 <ul>
-                    <li><strong>Website sections:</strong> Weather, News, Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking.</li>
-                    <li><strong>User-generated calculators:</strong> creating, editing, publishing, opening or using calculators made by users or the community.</li>
+                    <li><strong>Website sections:</strong> Weather, News, Shop, Web Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking.</li>
+                    <li><strong>User-generated calculators:</strong> creating, editing, publishing, opening, using, favouriting, liking, disliking or reporting any calculator made by another user or the community. Those social actions are reserved for signed-in members and UGC calculators only. Only the first 50 site-owner calculators are available to guests.</li>
                     <li><strong>Worth It AI:</strong> opening or sending messages to Worth It AI Chat.</li>
                     <li><strong>People and social features:</strong> searching for users, opening user profiles, sending or receiving friend requests, following or being followed, and accessing friends, followers or following lists. Guest users do not have a public Worth It profile.</li>
                     <li><strong>Community chat:</strong> Global Chat, private one-to-one chats, group chats, sending messages, joining groups and using group invitations.</li>
@@ -3064,7 +3207,7 @@ try{
 
         <label class="worth-it-guest-consent" for="worthItGuestConsentCheck">
             <input type="checkbox" id="worthItGuestConsentCheck">
-            <span><strong>I agree with these limitations and wish to continue, remind me again in 24 hours.</strong><small>If you remain signed out, Worth It will show the account creation prompt again after 24 hours. Signing in stops the guest reminder.</small></span>
+            <span><strong>I agree to these Guest Lite limits and want to continue.</strong><small>We may remind you to create an account again after 24 hours. Signing in removes the guest restrictions.</small></span>
         </label>
         <p class="worth-it-guest-consent-status" id="worthItGuestConsentStatus" role="status" aria-live="polite">Review the available features and limitations, then check the box to continue.</p>
 
@@ -3177,6 +3320,7 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
+<script src="calc-economy.js?v=calc-wip-economy-20261030b"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
@@ -5198,7 +5342,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
+<script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
@@ -5225,5 +5369,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
+<script src="/community-features.js?v=community-ugc-only-20261031a"></script>
 </body>
 </html>

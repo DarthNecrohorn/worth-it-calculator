@@ -179,7 +179,7 @@ window.toggleAccountPanel=function(event){const result=typeof oldToggle==="funct
 function renderProfile(p,s,isOwn){
  const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);}
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
+ renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");const premiumBadge=$("worthItProfilePremiumBadge");if(premiumBadge){premiumBadge.hidden=true;if(typeof window.getWorthItPremiumBadge==="function")window.getWorthItPremiumBadge(id,premiumBadge);}
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  if(s.hidden){setText("worthItProfileFriends","Hidden");setText("worthItProfileFollowers","Hidden");setText("worthItProfileFollowing","Hidden");setText("worthItProfileFriendsMood","🔒");}else{setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);}

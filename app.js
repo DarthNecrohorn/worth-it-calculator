@@ -610,6 +610,7 @@ const SUPABASE_TURNSTILE_SITE_KEY =
 let authTurnstileWidgetId = null;
 let authTurnstileToken = "";
 let authModalOpenedAt = 0;
+let authModalReturnFocus = null;
 let authTurnstileScriptPromise = null;
 
 function isTurnstileConfigured() {
@@ -651,6 +652,20 @@ function resetAuthTurnstile() {
             );
         }
     }
+}
+
+function removeAuthTurnstile() {
+    authTurnstileToken = "";
+    if (window.turnstile && authTurnstileWidgetId !== null) {
+        try {
+            window.turnstile.remove(authTurnstileWidgetId);
+        } catch (error) {
+            console.warn("Worth It Turnstile cleanup failed:", error);
+        }
+    }
+    authTurnstileWidgetId = null;
+    const holder = $("authTurnstile");
+    if (holder) holder.replaceChildren();
 }
 
 function loadAuthTurnstileScript() {
@@ -1060,6 +1075,10 @@ function openAuthModal(mode = "signin") {
 
     if (!overlay) return;
 
+    if (!overlay.classList.contains("open")) {
+        authModalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+
     authModalMode =
         ["signin", "signup", "reset", "forgot", "mfa"].includes(mode)
             ? mode
@@ -1107,7 +1126,7 @@ function closeAuthModal(force) {
     }
 
 
-    resetAuthTurnstile();
+    removeAuthTurnstile();
 
     const legalCheck =
         $("authLegalCheck");
@@ -1122,6 +1141,9 @@ function closeAuthModal(force) {
 
     if (!overlay) return;
 
+    if (overlay.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
     overlay.classList.remove("open");
 
     overlay.setAttribute(
@@ -1130,6 +1152,12 @@ function closeAuthModal(force) {
     );
 
     setAuthStatus("");
+
+    const returnTarget = authModalReturnFocus;
+    authModalReturnFocus = null;
+    if (returnTarget?.isConnected && !returnTarget.closest("[hidden]") && !returnTarget.closest('[aria-hidden="true"]')) {
+        setTimeout(() => returnTarget.focus(), 0);
+    }
 
 }
 

@@ -1752,7 +1752,20 @@ function createWorthItChatMessageRow(message) {
     const stack = document.createElement("div");
     stack.className = "worth-it-chat-message-stack";
     const name = makeChatProfileLink(message, "worth-it-chat-message-name", message.display_name || message.username || "Worth It member");
-    if (!message.is_deleted && !message.is_hidden_by_me) stack.appendChild(name);
+    if (!message.is_deleted && !message.is_hidden_by_me) {
+        const authorLine = document.createElement("span");
+        authorLine.className = "worth-it-chat-message-author-line";
+        authorLine.appendChild(name);
+        const premiumBadge = document.createElement("span");
+        premiumBadge.className = "worth-it-premium-badge worth-it-chat-premium-badge";
+        premiumBadge.hidden = true;
+        authorLine.appendChild(premiumBadge);
+        stack.appendChild(authorLine);
+        const badgeId = Number(message.worth_it_id);
+        if (Number.isSafeInteger(badgeId) && badgeId > 0 && typeof window.getWorthItPremiumBadge === "function") {
+            window.getWorthItPremiumBadge(badgeId,premiumBadge);
+        }
+    }
 
     if (message.is_deleted || message.is_hidden_by_me) {
         row.classList.add("is-tombstone");
@@ -2747,8 +2760,11 @@ async function uploadPendingMedia(file = pendingMediaFile, conversationId = acti
     const allowed = {"image/png":"image","image/jpeg":"image","image/webp":"image","image/gif":"gif","video/mp4":"video","video/webm":"video","audio/webm":"audio","audio/ogg":"audio","audio/mp4":"audio","audio/mpeg":"audio","audio/wav":"audio","audio/x-wav":"audio"};
     const type = allowed[mime];
     if (!type) throw new Error("Choose a supported image, GIF, video or recorded voice message.");
-    const maxBytes = type === "audio" ? 10 * 1024 * 1024 : type === "gif" ? 20 * 1024 * 1024 : type === "video" ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-    if (file.size > maxBytes) throw new Error(type === "audio" ? "Voice messages must be 10 MB or smaller." : type === "gif" ? "GIFs must be 20 MB or smaller." : type === "video" ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller.");
+    const limits = type === "audio" ? null : (typeof window.getWorthItChatMediaLimits === "function" ? await window.getWorthItChatMediaLimits() : {image_bytes:5242880,gif_bytes:8388608,video_bytes:15728640});
+    const maxBytes = type === "audio" ? 10 * 1024 * 1024 : type === "gif" ? Number(limits.gif_bytes) : type === "video" ? Number(limits.video_bytes) : Number(limits.image_bytes);
+    const maxLabel = Math.round(maxBytes / (1024 * 1024)) + " MB";
+    if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new Error("Could not verify your chat upload limit. Please try again.");
+    if (file.size > maxBytes) throw new Error(type === "audio" ? "Voice messages must be 10 MB or smaller." : (type === "gif" ? "GIFs" : type === "video" ? "Videos" : "Images") + " must be " + maxLabel + " or smaller on your current plan.");
     await validateChatMediaSignature(file, mime);
     const client = sb();
     if (!client || !userId) throw new Error("Sign in again before uploading media.");
@@ -3868,8 +3884,11 @@ async function selectWorthItChatGif(item) {
     try {
         const asset = await getWorthItChatGifAsset(item);
         if (targetDraftKey !== worthItChatDraftKey()) return;
-        if (!asset.blob.size || asset.blob.size > 20 * 1024 * 1024) {
-            throw new Error("The selected animation must be a valid file of 20 MB or smaller.");
+        const limits = typeof window.getWorthItChatMediaLimits === "function" ? await window.getWorthItChatMediaLimits() : {gif_bytes:8388608};
+        const gifLimit = Number(limits.gif_bytes);
+        if (!Number.isSafeInteger(gifLimit) || gifLimit <= 0) throw new Error("Could not verify your chat upload limit. Please try again.");
+        if (!asset.blob.size || asset.blob.size > gifLimit) {
+            throw new Error("The selected animation must be a valid file of " + Math.round(gifLimit / (1024 * 1024)) + " MB or smaller on your current plan.");
         }
         const file = new File([asset.blob], "worth-it-" + item.id + ".gif", { type: "image/gif" });
         await validateChatMediaSignature(file, "image/gif");
@@ -4012,7 +4031,7 @@ function setupChatUI() {
     $("worthItChatGifSearch")?.addEventListener("input", event => {
         loadWorthItChatGifResults(event.currentTarget.value);
     });
-    $("worthItChatFileInput")?.addEventListener("change", function () {
+    $("worthItChatFileInput")?.addEventListener("change", async function () {
         const file = this.files?.[0];
         this.value = "";
         const target = pendingFilePickerTarget;
@@ -4031,8 +4050,17 @@ function setupChatUI() {
         }
         const isGif = file.type === "image/gif";
         const isVideo = file.type.startsWith("video/");
-        const maxBytes = isGif ? 20 * 1024 * 1024 : isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-        const maxLabel = isGif ? "20 MB" : isVideo ? "50 MB" : "15 MB";
+        let limits;
+        try{
+            limits = typeof window.getWorthItChatMediaLimits === "function"
+                ? await window.getWorthItChatMediaLimits()
+                : {image_bytes:5242880,gif_bytes:8388608,video_bytes:15728640};
+        }catch(error){
+            setStatus("Could not verify your chat upload limit. Please try again.",true);
+            return;
+        }
+        const maxBytes = isGif ? Number(limits.gif_bytes) : isVideo ? Number(limits.video_bytes) : Number(limits.image_bytes);
+        const maxLabel = Number.isSafeInteger(maxBytes) && maxBytes > 0 ? Math.round(maxBytes / (1024 * 1024)) + " MB" : "the plan limit";
         if (!file.size || file.size > maxBytes) {
             if (targetIsActive) setPendingMedia(null, "", "");
             setStatus("Choose a non-empty " + (isGif ? "GIF" : isVideo ? "video" : "image") + " that is " + maxLabel + " or smaller.", true);

@@ -25,6 +25,7 @@
         "/weather": "openWeather",
         "/news": "openNews",
         "/shop": "openDiscounts",
+        "/web-shop": "openWebShop",
         "/compare-cars": "openCars",
         "/markets": "openMarkets",
         "/currencies": "openMoney",

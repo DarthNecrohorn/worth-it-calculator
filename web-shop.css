@@ -1,0 +1,135 @@
+/* CALC wallet and the separate Web Shop. The shop owns its own theme. */
+.calc-economy-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto;min-width:0}
+.calc-shop-nav,.calc-wallet-nav{
+    min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    border:1px solid rgba(139,116,255,.42);border-radius:12px;
+    color:var(--text);background:linear-gradient(135deg,rgba(124,92,255,.13),rgba(56,189,248,.10));
+    padding:7px 10px;font:inherit;font-size:12px;font-weight:800;white-space:nowrap;
+    box-shadow:0 5px 16px rgba(40,40,90,.10);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.calc-shop-nav:hover,.calc-wallet-nav:hover{transform:translateY(-2px);border-color:rgba(139,116,255,.78);box-shadow:0 9px 22px rgba(79,70,229,.15)}
+.calc-shop-nav-icon{font-size:16px;line-height:1}
+.calc-wallet-nav{gap:5px;background:rgba(124,92,255,.08);border-color:rgba(139,116,255,.28);padding-inline:9px}
+.calc-wallet-coin{width:19px;height:19px;display:inline-grid;place-items:center;border-radius:50%;font-size:12px;font-weight:900;color:#17152e;background:linear-gradient(135deg,#c4b5fd,#67d7ff);box-shadow:0 0 0 2px rgba(139,116,255,.15)}
+.calc-wallet-value{font-variant-numeric:tabular-nums;font-size:13px}
+.calc-wallet-unit{font-size:10px;letter-spacing:.04em;color:var(--muted)}
+html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-nav{color:#172033}
+@media(max-width:900px){
+    .calc-economy-nav{gap:4px}
+    .calc-shop-nav,.calc-wallet-nav{min-height:34px;padding:6px 8px;border-radius:10px}
+}
+@media(max-width:560px){
+    .calc-shop-nav{width:35px;min-width:35px;padding:6px;font-size:16px}
+    .calc-shop-nav-label{display:none}
+    .calc-wallet-nav{gap:4px;padding-inline:6px;min-width:55px}
+    .calc-wallet-unit{font-size:9px}
+    .calc-economy-nav{gap:4px}
+}
+@media(max-width:380px){
+    .calc-wallet-unit{display:none}
+    .calc-wallet-nav{min-width:40px}
+}
+
+/* Web Shop surface is deliberately isolated from the site-wide theme. */
+#webShopSection{
+    --ws-bg:#0b1020;--ws-panel:#121a2d;--ws-card:#172238;--ws-card-hover:#1c2b46;
+    --ws-text:#f1f5ff;--ws-muted:#9aa9c2;--ws-border:rgba(148,163,184,.19);
+    --ws-accent:#9b8cff;--ws-accent2:#5ed7ef;--ws-shadow:0 18px 45px rgba(0,0,0,.23);
+    min-height:calc(100vh - 114px);padding:34px 0 58px;background:
+        radial-gradient(ellipse at 6% 0%,rgba(124,92,255,.16),transparent 38%),
+        radial-gradient(ellipse at 96% 10%,rgba(56,189,248,.11),transparent 32%),var(--ws-bg);
+    color:var(--ws-text);transition:background .2s ease,color .2s ease;
+}
+#webShopSection[data-ws-theme="light"]{
+    --ws-bg:#f4f7fc;--ws-panel:#fff;--ws-card:#fff;--ws-card-hover:#f7f8ff;
+    --ws-text:#172033;--ws-muted:#64748b;--ws-border:rgba(30,41,59,.12);
+    --ws-accent:#6d50d8;--ws-accent2:#087d9c;--ws-shadow:0 15px 36px rgba(15,23,42,.08);
+    background:radial-gradient(ellipse at 5% 0%,rgba(124,92,255,.10),transparent 38%),
+        radial-gradient(ellipse at 98% 8%,rgba(14,165,233,.08),transparent 34%),var(--ws-bg);
+}
+#webShopSection .web-shop-shell{width:min(1120px,calc(100% - 34px));margin:0 auto}
+#webShopSection .web-shop-topline{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:28px}
+#webShopSection .web-shop-eyebrow{margin:0 0 8px;color:var(--ws-accent);font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+#webShopSection .web-shop-title{margin:0;color:var(--ws-text);font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.04em}
+#webShopSection .web-shop-subtitle{max-width:700px;margin:10px 0 0;color:var(--ws-muted);line-height:1.65}
+#webShopSection .web-shop-tools{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#webShopSection .web-shop-theme-btn{border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-panel);color:var(--ws-text);padding:10px 12px;font-weight:800}
+#webShopSection .web-shop-balance{display:flex;align-items:center;gap:8px;border:1px solid var(--ws-border);border-radius:14px;padding:9px 13px;background:var(--ws-panel);box-shadow:var(--ws-shadow)}
+#webShopSection .web-shop-balance-currencies{display:flex;align-items:center;gap:12px}
+#webShopSection .web-shop-balance-currencies>div{display:grid;gap:1px}
+#webShopSection .web-shop-balance strong{font-size:16px;font-variant-numeric:tabular-nums}
+#webShopSection .web-shop-balance small{display:block;color:var(--ws-muted);font-size:10px;font-weight:800;letter-spacing:.08em}
+#webShopSection .web-shop-balance-tier{margin-left:3px;color:var(--ws-muted);font-size:9px;font-weight:850;letter-spacing:.07em;white-space:nowrap}
+#webShopSection .web-shop-wip-note{margin-top:16px;padding:16px 18px;border:1px solid color-mix(in srgb,var(--ws-accent2) 35%,var(--ws-border));border-radius:16px;background:var(--ws-panel);color:var(--ws-text)}
+#webShopSection .web-shop-wip-note p{margin:6px 0 0;color:var(--ws-muted);font-size:13px;line-height:1.6}
+#webShopSection .web-shop-coin{width:29px;height:29px;display:grid;place-items:center;border-radius:10px;color:#15152b;background:linear-gradient(135deg,#c4b5fd,#57d8f1);font-weight:1000}
+#webShopSection .web-shop-notice{display:flex;align-items:flex-start;gap:12px;border:1px solid color-mix(in srgb,var(--ws-accent) 32%,var(--ws-border));border-radius:17px;background:color-mix(in srgb,var(--ws-panel) 88%,var(--ws-accent) 12%);padding:15px 17px;margin:0 0 24px;color:var(--ws-text)}
+#webShopSection .web-shop-notice-icon{font-size:20px;flex:0 0 auto}
+#webShopSection .web-shop-notice p{margin:0;color:var(--ws-muted);line-height:1.55}
+#webShopSection .web-shop-notice strong{color:var(--ws-text)}
+#webShopSection .web-shop-tabs{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 20px}
+#webShopSection .web-shop-tab{border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-panel);color:var(--ws-muted);padding:11px 16px;font-weight:850;transition:background .16s ease,border-color .16s ease,color .16s ease}
+#webShopSection .web-shop-tab[aria-selected="true"]{background:linear-gradient(135deg,color-mix(in srgb,var(--ws-accent) 22%,var(--ws-panel)),color-mix(in srgb,var(--ws-accent2) 14%,var(--ws-panel)));border-color:var(--ws-accent);color:var(--ws-text);box-shadow:0 7px 20px color-mix(in srgb,var(--ws-accent) 15%,transparent)}
+#webShopSection .web-shop-category-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 15px}
+#webShopSection .web-shop-category-heading h3{margin:0;color:var(--ws-text);font-size:22px;letter-spacing:-.025em}
+#webShopSection .web-shop-category-heading p{margin:5px 0 0;color:var(--ws-muted);font-size:13px}
+#webShopSection .web-shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+#webShopSection .web-shop-card{position:relative;display:flex;flex-direction:column;min-width:0;border:1px solid var(--ws-border);border-radius:20px;padding:21px;background:var(--ws-card);box-shadow:var(--ws-shadow);transition:transform .18s ease,border-color .18s ease,background .18s ease}
+#webShopSection .web-shop-card:hover{transform:translateY(-3px);background:var(--ws-card-hover);border-color:color-mix(in srgb,var(--ws-accent) 50%,var(--ws-border))}
+#webShopSection .web-shop-card-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;margin-bottom:17px;background:linear-gradient(135deg,color-mix(in srgb,var(--ws-accent) 26%,var(--ws-panel)),color-mix(in srgb,var(--ws-accent2) 18%,var(--ws-panel)));font-size:24px}
+#webShopSection .web-shop-card h4{margin:0;color:var(--ws-text);font-size:18px}
+#webShopSection .web-shop-card .web-shop-description{min-height:43px;margin:8px 0 17px;color:var(--ws-muted);font-size:13px;line-height:1.55}
+#webShopSection .web-shop-price{margin:0 0 16px;color:var(--ws-text);font-size:25px;font-weight:950;letter-spacing:-.04em}
+#webShopSection .web-shop-price small{font-size:12px;color:var(--ws-muted);font-weight:750;letter-spacing:0}
+#webShopSection .web-shop-feature-list{display:grid;gap:9px;list-style:none;padding:0;margin:0 0 20px;color:var(--ws-muted);font-size:13px;line-height:1.4}
+#webShopSection .web-shop-feature-list li:before{content:"✓";color:var(--ws-accent2);font-weight:950;margin-right:8px}
+#webShopSection .web-shop-action{margin-top:auto;min-height:43px;border:1px solid color-mix(in srgb,var(--ws-accent) 55%,var(--ws-border));border-radius:12px;padding:10px 13px;background:linear-gradient(120deg,color-mix(in srgb,var(--ws-accent) 32%,var(--ws-panel)),color-mix(in srgb,var(--ws-accent2) 20%,var(--ws-panel)));color:var(--ws-text);font-weight:900}
+#webShopSection .web-shop-action:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+#webShopSection .web-shop-action:disabled{opacity:.53;cursor:not-allowed;filter:saturate(.55)}
+#webShopSection .web-shop-card-featured{border-color:color-mix(in srgb,var(--ws-accent) 65%,var(--ws-border));box-shadow:0 18px 48px color-mix(in srgb,var(--ws-accent) 12%,transparent),var(--ws-shadow)}
+#webShopSection .web-shop-ribbon{position:absolute;right:14px;top:14px;border-radius:999px;background:color-mix(in srgb,var(--ws-accent) 19%,var(--ws-panel));border:1px solid color-mix(in srgb,var(--ws-accent) 50%,var(--ws-border));color:var(--ws-text);padding:5px 9px;font-size:10px;font-weight:900;letter-spacing:.06em}
+#webShopSection .web-shop-footnote{margin:19px 0 0;color:var(--ws-muted);font-size:12px;line-height:1.6}
+#webShopSection .web-shop-status{min-height:22px;margin:13px 0 0;color:var(--ws-muted);font-size:13px}
+#webShopSection .web-shop-back{display:inline-flex;align-items:center;gap:8px;margin-top:24px;border:0;background:transparent;color:var(--ws-muted);font-weight:800;padding:8px 0}
+#webShopSection .web-shop-back:hover{color:var(--ws-text)}
+#webShopSection [hidden]{display:none!important}
+@media(max-width:820px){#webShopSection .web-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+    #webShopSection{padding-top:24px}
+    #webShopSection .web-shop-shell{width:min(100% - 22px,1120px)}
+    #webShopSection .web-shop-topline{align-items:flex-start;flex-direction:column;margin-bottom:20px}
+    #webShopSection .web-shop-tools{width:100%;justify-content:space-between}
+    #webShopSection .web-shop-grid{grid-template-columns:1fr}
+    #webShopSection .web-shop-card .web-shop-description{min-height:0}
+    #webShopSection .web-shop-card{padding:18px}
+    #webShopSection .web-shop-category-heading{align-items:flex-start;flex-direction:column}
+}
+
+/* Shared subscription identity badges beside user names. */
+.worth-it-premium-badge[hidden]{display:none!important}
+.worth-it-premium-badge{
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;
+    vertical-align:middle;white-space:nowrap;padding:3px 7px;border-radius:999px;
+    border:1px solid rgba(139,116,255,.45);background:linear-gradient(125deg,rgba(124,92,255,.16),rgba(56,189,248,.10));
+    color:#b9a8ff;font-size:9px;font-weight:950;line-height:1.2;letter-spacing:.045em;
+    box-shadow:0 2px 10px rgba(124,92,255,.10);
+}
+.worth-it-premium-badge[data-badge="premium"]{
+    color:#8bd9ff;border-color:rgba(103,215,255,.5);
+    background:linear-gradient(110deg,rgba(103,215,255,.18),rgba(245,207,117,.13));
+    box-shadow:0 2px 12px rgba(103,215,255,.12);
+}
+.worth-it-premium-badge[data-badge="owner"]{
+    color:#f6d58c;border-color:rgba(246,213,140,.55);
+    background:linear-gradient(110deg,rgba(246,213,140,.20),rgba(167,139,250,.14));
+}
+.worth-it-profile-username-row{display:flex;align-items:center;flex-wrap:wrap;gap:7px;min-width:0}
+.worth-it-profile-username-row .worth-it-profile-username{margin:0}
+.worth-it-chat-message-author-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}
+.worth-it-chat-premium-badge{font-size:8px;padding:2px 6px}
+
+/* Premium subscriptions suppress any Worth It ad placements that use the shared hook. */
+html[data-worth-it-premium="true"] .worth-it-ad-slot,
+html[data-worth-it-premium="true"] [data-worth-it-ad],
+html[data-worth-it-premium="true"] .worth-it-advertisement{display:none!important}
+.calc-wallet-coin svg,.web-shop-coin svg{display:block;width:100%;height:100%}
