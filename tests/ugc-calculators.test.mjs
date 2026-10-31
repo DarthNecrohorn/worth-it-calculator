@@ -254,7 +254,7 @@ test("community creation quotas are enforced by SQL and public IDs begin at 51",
     assert.ok(sql.includes("create sequence if not exists private.worth_it_user_calculator_number_seq") && sql.includes("start with 51 increment by 1 minvalue 51"));
     assert.match(sql, /calculator_number bigint not null/);
     assert.match(sql, /get_worth_it_ugc_creation_quota/);
-    assert.match(sql, /pedjasebez3545@gmail\\.com/);
+    assert.ok(sql.includes("pedjasebez3545@gmail.com"));
     assert.match(sql, /when 'premium' then 3 when 'premium_lite' then 2 else 1/);
     assert.match(sql, /creations_used<v_daily_limit/);
     assert.match(sql, /if p_id is null then/);
