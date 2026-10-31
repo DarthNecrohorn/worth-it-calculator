@@ -52,3 +52,8 @@
 .admin-user-report-card select,.admin-user-report-card textarea{width:100%;min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font:inherit}
 .admin-user-report-card textarea{resize:vertical}
 @media(max-width:560px){.admin-user-report-card{padding:12px}.admin-user-report-top{flex-direction:column}}
+
+.admin-user-report-readonly-note{display:grid;gap:4px;margin:0 0 14px;padding:13px 15px;border:1px solid color-mix(in srgb,var(--warning) 40%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--warning) 8%,var(--card2));color:var(--text);font-size:13px}
+.admin-user-report-readonly-note span,.admin-user-report-readonly-hint{color:var(--muted);font-size:12px}
+.admin-user-report-readonly-hint{padding:10px;border-radius:9px;background:var(--card2)}
+.admin-user-report-readonly-hint strong{color:var(--text);text-transform:capitalize}

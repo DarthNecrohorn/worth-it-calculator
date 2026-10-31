@@ -11,6 +11,9 @@ let favouritesRequest = 0;
 let favouritesOnly = false;
 let themeUserId = "";
 let themeRequest = 0;
+let themeRemoteAvailable = null;
+let favouritesRemoteAvailable = null;
+let favouritesLocalNoticeShown = false;
 let reportVisibilityTimer = null;
 let reportVisibilitySequence = 0;
 
@@ -20,6 +23,13 @@ function writeLocal(key,value){ try{localStorage.setItem(key,value);}catch(_){} 
 function removeLocal(key){ try{localStorage.removeItem(key);}catch(_){} }
 function scopedKey(prefix,userId){return prefix+(userId||"guest");}
 function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||""));}
+
+function isMissingCommunitySchema(error){
+ const code=String(error?.code||"");
+ const message=String(error?.message||error?.details||"").toLowerCase();
+ return ["42P01","42703","PGRST202","PGRST204","PGRST205"].includes(code) ||
+  /schema cache|could not find the table|could not find the function|does not exist|unknown column/.test(message);
+}
 function cleanTheme(value){
  const theme=value&&typeof value==="object"?value:{};
  return {
@@ -49,7 +59,7 @@ function setThemeStatus(message,isError){
 async function loadThemeForSession(){
  const request=++themeRequest;let session=null;
  try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
- const userId=session?.user?.id||"";themeUserId=userId;
+ const userId=session?.user?.id||"";themeUserId=userId;themeRemoteAvailable=userId?null:false;
  try{const raw=readLocal(scopedKey(THEME_KEY,userId));applyTheme(raw?cleanTheme(JSON.parse(raw)):DEFAULT_THEME);}
  catch(_){applyTheme(DEFAULT_THEME);}
  if(!userId)return;
@@ -61,7 +71,7 @@ async function loadThemeForSession(){
    const theme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color});
    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(theme));applyTheme(theme);
   }
- }catch(error){console.warn("Worth It custom theme could not be synchronised:",error);}
+ }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your custom theme is saved on this device and will sync after the community migration is installed.",false);}else{console.warn("Worth It custom theme could not be synchronised:",error);}}
 }
 async function saveCustomTheme(){
  const rawPrimary=$("worthItThemePrimary")?.value||"",rawSecondary=$("worthItThemeSecondary")?.value||"";
@@ -69,6 +79,7 @@ async function saveCustomTheme(){
  const theme=cleanTheme({name:$("worthItThemeName")?.value,primary:rawPrimary,secondary:rawSecondary});
  applyTheme(theme);writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
  if(!themeUserId){setThemeStatus("Theme saved on this device. Sign in to sync it to your Worth It account.",false);return;}
+ if(themeRemoteAvailable===false){setThemeStatus("Preview-only: your theme is saved locally for this account. Database sync will activate after the community migration is installed.",false);return;}
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
  try{
   const result=await sb().from("worth_it_user_themes").upsert({
@@ -77,18 +88,19 @@ async function saveCustomTheme(){
   if(result.error)throw result.error;
   setThemeStatus("Your custom theme is saved to your Worth It account.",false);
  }catch(error){
-  setThemeStatus("The theme is active on this device, but account sync failed. Apply the community features SQL migration before syncing.",true);
-  console.error("Could not save Worth It custom theme:",error);
+  if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your theme is saved locally for this account. Database sync will activate after the community migration is installed.",false);}
+  else{setThemeStatus("The theme is active on this device, but account sync failed.",true);console.error("Could not save Worth It custom theme:",error);}
  }finally{if(button)button.disabled=false;}
 }
 async function resetCustomTheme(){
  applyTheme(DEFAULT_THEME);writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(DEFAULT_THEME));
  if(!themeUserId){setThemeStatus("Default Worth It colours restored on this device.",false);return;}
+ if(themeRemoteAvailable===false){removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Preview-only: default colours restored for this account on this device.",false);return;}
  try{
   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",themeUserId);
   if(result.error)throw result.error;
   removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Default Worth It colours restored on this account.",false);
- }catch(error){setThemeStatus("Default colours are active here, but the saved account theme could not be reset.",true);console.error("Could not reset Worth It custom theme:",error);}
+ }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Preview-only: default colours restored for this account on this device.",false);}else{setThemeStatus("Default colours are active here, but the saved account theme could not be reset.",true);console.error("Could not reset Worth It custom theme:",error);}}
 }
 
 function calculatorKey(card){
@@ -152,7 +164,7 @@ function installFavouriteFilter(){
 async function loadFavouritesForSession(){
  const request=++favouritesRequest;let session=null;
  try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
- const userId=session?.user?.id||"";favouritesUserId=userId;
+ const userId=session?.user?.id||"";if(userId!==favouritesUserId)favouritesLocalNoticeShown=false;favouritesUserId=userId;favouritesRemoteAvailable=userId?null:false;
  try{
   const raw=readLocal(scopedKey(FAVOURITES_KEY,userId));
   const saved=raw?JSON.parse(raw):[];
@@ -163,8 +175,8 @@ async function loadFavouritesForSession(){
    const result=await sb().from("worth_it_calculator_favorites").select("calculator_key").eq("user_id",userId);
    if(result.error)throw result.error;
    if(request!==favouritesRequest||userId!==favouritesUserId)return;
-   favourites=new Set((result.data||[]).map(row=>String(row.calculator_key)));saveLocalFavourites();
-  }catch(error){console.warn("Worth It favourite calculators could not be synchronised:",error);}
+   favouritesRemoteAvailable=true;favourites=new Set((result.data||[]).map(row=>String(row.calculator_key)));saveLocalFavourites();
+  }catch(error){if(isMissingCommunitySchema(error)){favouritesRemoteAvailable=false;saveLocalFavourites();}else{console.warn("Worth It favourite calculators could not be synchronised:",error);}}
  }
  decorateCards();
 }
@@ -172,12 +184,15 @@ async function toggleFavourite(key,button){
  const had=favourites.has(key);if(had)favourites.delete(key);else favourites.add(key);
  updateFavouriteButton(button,key);saveLocalFavourites();refreshFavouriteFilter();
  if(!favouritesUserId)return;
+ if(favouritesRemoteAvailable===false){if(!favouritesLocalNoticeShown){toast("Preview-only: favourites are saved locally for this account until the community database migration is installed.");favouritesLocalNoticeShown=true;}return;}
  button.disabled=true;
  try{
   const query=sb().from("worth_it_calculator_favorites");
   const result=had?await query.delete().eq("user_id",favouritesUserId).eq("calculator_key",key):await query.insert({user_id:favouritesUserId,calculator_key:key});
   if(result.error)throw result.error;
+  favouritesRemoteAvailable=true;
  }catch(error){
+  if(isMissingCommunitySchema(error)){favouritesRemoteAvailable=false;if(!favouritesLocalNoticeShown){toast("Preview-only: favourites are saved locally for this account until the community database migration is installed.");favouritesLocalNoticeShown=true;}return;}
   if(had)favourites.add(key);else favourites.delete(key);
   saveLocalFavourites();updateFavouriteButton(button,key);refreshFavouriteFilter();
   toast("Could not sync this favourite. Apply the community features SQL migration first.");
@@ -257,8 +272,14 @@ function init(){
   });
  });
  $("worthItProfileReportButton")?.addEventListener("click",openProfileReport);
- const profileCard=$("worthItProfileCard");
- if(profileCard&&typeof MutationObserver==="function")new MutationObserver(scheduleReportButtonUpdate).observe(profileCard,{subtree:true,childList:true,attributes:true,attributeFilter:["href"]});
+ const profileCard=$("worthItProfileCard"),profileSection=$("profileSection"),profileLink=$("worthItProfileLink"),ownEdit=$("worthItProfileDisplayNameEdit");
+ if(typeof MutationObserver==="function"){
+  const observer=new MutationObserver(scheduleReportButtonUpdate);
+  if(profileCard)observer.observe(profileCard,{subtree:true,childList:true});
+  if(profileSection)observer.observe(profileSection,{attributes:true,attributeFilter:["style"]});
+  if(profileLink)observer.observe(profileLink,{attributes:true,attributeFilter:["href"]});
+  if(ownEdit)observer.observe(ownEdit,{attributes:true,attributeFilter:["hidden"]});
+ }
  decorateCards();
  const grid=$("calculatorGrid");
  if(grid&&typeof MutationObserver==="function")new MutationObserver(records=>{

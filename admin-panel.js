@@ -134,6 +134,12 @@
     }
 
 
+    function isCommunityReportMigrationMissing(error){
+        const code = String(error?.code || '');
+        const message = String(error?.message || error?.details || '').toLowerCase();
+        return ['42703','PGRST204','PGRST205'].includes(code) ||
+            /admin_note|reviewed_at|schema cache|could not find the table|does not exist/.test(message);
+    }
     async function loadUserReports(){
         const area = $('adminUserReportsArea');
         if(!area) return;
@@ -141,34 +147,47 @@
         try{
             const session = await getSession();
             if(!session?.access_token || !(await isAdmin())) throw new Error('Admin access required.');
-            const result = await window.supabaseClient.from('worth_it_user_reports')
+            let migrationReady = true;
+            let result = await window.supabaseClient.from('worth_it_user_reports')
                 .select('id,created_at,reporter_worth_it_id,reported_worth_it_id,reported_username,reason,details,status,admin_note,reviewed_at')
                 .order('created_at',{ascending:false}).limit(100);
+            if(result.error && isCommunityReportMigrationMissing(result.error)){
+                migrationReady = false;
+                result = await window.supabaseClient.from('worth_it_user_reports')
+                    .select('id,created_at,reporter_worth_it_id,reported_worth_it_id,reported_username,reason,details,status')
+                    .order('created_at',{ascending:false}).limit(100);
+            }
             if(result.error) throw result.error;
             const rows = Array.isArray(result.data) ? result.data : [];
+            const readOnlyNotice = migrationReady ? '' :
+                '<div class="admin-user-report-readonly-note"><strong>Preview is read-only for moderation.</strong><span>These reports are loaded from the current database. Status changes and private moderation notes will become available after the community migration is installed in the Preview database.</span></div>';
             if(!rows.length){
-                area.innerHTML = '<div class="admin-panel-empty"><span>✓</span><strong>No user reports</strong><small>New profile reports will appear here after a member submits one.</small></div>';
+                area.innerHTML = readOnlyNotice + '<div class="admin-panel-empty"><span>✓</span><strong>No user reports</strong><small>New profile reports will appear here after a member submits one.</small></div>';
                 return;
             }
-            area.innerHTML = '<div class="admin-panel-list-head"><span>'+rows.length+' latest reports</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
+            area.innerHTML = readOnlyNotice +
+                '<div class="admin-panel-list-head"><span>'+rows.length+' latest reports</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
                 '<div class="admin-user-reports-list">'+rows.map(item=>{
                     const date = item.created_at ? new Date(item.created_at).toLocaleString() : '—';
                     const reporter = item.reporter_worth_it_id ? 'Worth It ID '+item.reporter_worth_it_id : 'Member';
                     const reported = item.reported_worth_it_id ? 'Worth It ID '+item.reported_worth_it_id : 'Unknown profile';
                     const options = ['open','reviewing','resolved','dismissed'].map(status=>'<option value="'+status+'"'+(item.status===status?' selected':'')+'>'+status.charAt(0).toUpperCase()+status.slice(1)+'</option>').join('');
+                    const moderation = migrationReady ?
+                        '<label>Status<select class="admin-user-report-status">'+options+'</select></label>'+
+                        '<label>Private admin note<textarea class="admin-user-report-note" maxlength="1000" rows="2">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
+                        '<button type="button" class="admin-panel-inline-button" onclick="moderateWorthItUserReport('+Number(item.id)+',this)">Save moderation update</button>'+
+                        (item.reviewed_at?'<small>Last reviewed '+escapeHtml(new Date(item.reviewed_at).toLocaleString())+'</small>':'') :
+                        '<p class="admin-user-report-readonly-hint">Status: <strong>'+escapeHtml(item.status||'open')+'</strong> · Moderation controls are unavailable until the Preview database migration is installed.</p>';
                     return '<article class="admin-user-report-card" data-report-id="'+Number(item.id)+'">'+
                         '<div class="admin-user-report-top"><div><strong>#'+Number(item.id)+' · '+escapeHtml(item.reason||'Other')+'</strong><small>'+escapeHtml(date)+'</small></div><span>'+escapeHtml(item.status||'open')+'</span></div>'+
                         '<p><strong>Reported:</strong> '+escapeHtml(item.reported_username||'Worth It member')+' · '+escapeHtml(reported)+'</p>'+
                         '<p><strong>Submitted by:</strong> '+escapeHtml(reporter)+'</p>'+
                         '<p class="admin-user-report-details">'+escapeHtml(item.details||'No extra details provided.')+'</p>'+
-                        '<label>Status<select class="admin-user-report-status">'+options+'</select></label>'+
-                        '<label>Private admin note<textarea class="admin-user-report-note" maxlength="1000" rows="2">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
-                        '<button type="button" class="admin-panel-inline-button" onclick="moderateWorthItUserReport('+Number(item.id)+',this)">Save moderation update</button>'+
-                        (item.reviewed_at?'<small>Last reviewed '+escapeHtml(new Date(item.reviewed_at).toLocaleString())+'</small>':'')+
+                        moderation+
                     '</article>';
                 }).join('')+'</div>';
         }catch(error){
-            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load user reports</strong><span>'+escapeHtml(error?.message||'Please apply the community features SQL migration and try again.')+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">Try again</button></div>';
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load user reports</strong><span>'+escapeHtml(error?.message||'Please check the report table setup and try again.')+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">Try again</button></div>';
         }
     }
     async function refreshAdminUserReports(){

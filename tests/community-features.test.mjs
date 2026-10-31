@@ -41,6 +41,19 @@ test("existing chat soft-delete keeps tombstones and per-user history behaviour"
  assert.ok(actions.includes("set body = ''"));
  assert.ok(actions.includes("'is_deleted', m.deleted_at is not null"));
 });
+test("Preview uses account-scoped local fallbacks when community tables are not installed",()=>{
+ assert.ok(js.includes("isMissingCommunitySchema"));
+ assert.ok(js.includes("favouritesRemoteAvailable===false"));
+ assert.ok(js.includes("themeRemoteAvailable===false"));
+ assert.ok(js.includes("scopedKey(FAVOURITES_KEY,userId)"));
+ assert.ok(js.includes("scopedKey(THEME_KEY,userId)"));
+});
+test("Admin report list stays read-only when new moderation columns are absent",()=>{
+ assert.ok(admin.includes("isCommunityReportMigrationMissing"));
+ assert.ok(admin.includes("Preview is read-only for moderation"));
+ assert.ok(admin.includes("reviewed_at"));
+ assert.ok(css.includes(".admin-user-report-readonly-note"));
+});
 test("community migration is designed for repeat execution and has postgres smoke coverage",()=>{
  assert.ok(sql.includes("add column if not exists admin_note"));
  assert.ok(setup.includes("create table if not exists public.worth_it_user_reports"));
