@@ -72,7 +72,8 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(routing.includes("ugc-calculator"));
     assert.ok(guest.includes("/calculator\\/ugc"));
     assert.ok(guest.includes("openWorthItUGCCalculator"));
-    assert.ok(maker.includes("You can create up to 10 community calculators"));
+    assert.ok(maker.includes("const MAX_CALCULATORS=10;"));
+    assert.ok(html.includes("You can create up to 10 community calculators"));
     assert.ok(maker.includes("get_worth_it_my_ugc_calculators"));
 });
 
