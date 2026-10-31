@@ -34,8 +34,8 @@ begin
      where calculator_number is not null;
     perform setval(
         'private.worth_it_user_calculator_number_seq'::regclass,
-        greatest(50,coalesce(v_max,50)),
-        true
+        greatest(51,coalesce(v_max,51)),
+        v_max is not null
     );
     update private.worth_it_user_calculators
        set calculator_number=nextval('private.worth_it_user_calculator_number_seq')
@@ -43,8 +43,8 @@ begin
     select max(calculator_number) into v_max from private.worth_it_user_calculators;
     perform setval(
         'private.worth_it_user_calculator_number_seq'::regclass,
-        greatest(50,coalesce(v_max,50)),
-        true
+        greatest(51,coalesce(v_max,51)),
+        v_max is not null
     );
 end
 $calculator_number_backfill$;
