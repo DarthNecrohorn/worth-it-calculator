@@ -1455,7 +1455,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <span class="ugc-community-kicker">COMMUNITY CALCULATOR</span>
         </div>
         <header class="ugc-detail-header">
-          <span class="ugc-detail-kicker">WORTH IT COMMUNITY</span>
+          <span class="ugc-detail-kicker" id="ugcDetailKicker">WORTH IT COMMUNITY</span>
           <h1 id="ugcDetailTitle">Community calculator</h1>
           <p id="ugcDetailDescription"></p>
           <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Created by a Worth It member</a>
@@ -1496,12 +1496,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
         </div>
         <p id="ugcMakerStatus" class="ugc-maker-status" role="status" aria-live="polite">Describe your calculator in at least 10 characters.</p>
+        <p id="ugcMakerQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's creation allowance loads when the maker opens.</p>
         <div id="ugcMakerPreview" class="ugc-maker-preview" hidden></div>
         <div class="ugc-maker-actions">
           <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
           <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
         </div>
-        <p class="ugc-maker-status">You can create up to 10 community calculators per account. Only your own calculators can be edited or deleted. Published calculators use restricted formulas; custom JavaScript is never executed.</p>
+        <p class="ugc-maker-status">You can create up to 10 community calculators per account. New calculator limits per UTC day: Guest 0, Free 1, Premium Lite 2, Premium 3. Editing a saved calculator does not use a daily creation slot. Only your own calculators can be edited or deleted. Published calculators use restricted formulas; custom JavaScript is never executed.</p>
       </section>
     </div>
 
