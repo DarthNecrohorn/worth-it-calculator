@@ -1,1 +1,2 @@
 Temporary marker to trigger a separate Cloudflare Pages Preview deployment for the isolated Analytics probe. No production Worth It code is changed.
+Preview trigger: 2026-11-03.
