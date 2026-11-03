@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Worth It — Analytics Isolation Probe</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #101426; color: #f5f6ff; }
+    main { width: min(100%, 640px); padding: 28px; border: 1px solid #59618b; border-radius: 18px; background: #1a2038; }
+    h1 { margin-top: 0; font-size: clamp(1.5rem, 4vw, 2rem); }
+    code { overflow-wrap: anywhere; color: #c9baff; }
+    .note { color: #bdc5de; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Worth It — Analytics isolation probe</h1>
+    <p class="note">Temporary, static test page used to verify Cloudflare Pages Web Analytics independently of the production Worth It project. It contains no application code, user data, API calls, or credentials.</p>
+    <p>Current hostname: <code id="hostname">Loading…</code></p>
+    <p>Page status: <strong>Ready</strong></p>
+  </main>
+  <script>
+    document.getElementById("hostname").textContent = window.location.hostname;
+  </script>
+</body>
+</html>
