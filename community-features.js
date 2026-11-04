@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const sb = () => window.supabaseClient || null;
 const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
-const DEFAULT_THEME = {name:"Worth It",primary:"#7C5CFF",secondary:"#38BDF8"};
+const DEFAULT_THEME = {name:"Worth It",primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6"};
 const PREVIEW_REPORTS_KEY = "worthItPreviewReports:v1";
 const currentHost = String(window.location.hostname || "").toLowerCase();
 const COMMUNITY_PREVIEW_MODE = currentHost.endsWith(".worth-it-calculator.pages.dev") && currentHost !== "worth-it-calculator.pages.dev";
@@ -40,22 +40,53 @@ function cleanTheme(value){
  return {
   name:String(theme.name||DEFAULT_THEME.name).trim().slice(0,24)||DEFAULT_THEME.name,
   primary:validHex(theme.primary)?theme.primary.toUpperCase():DEFAULT_THEME.primary,
-  secondary:validHex(theme.secondary)?theme.secondary.toUpperCase():DEFAULT_THEME.secondary
+  secondary:validHex(theme.secondary)?theme.secondary.toUpperCase():DEFAULT_THEME.secondary,
+  hover:validHex(theme.hover)?theme.hover.toUpperCase():DEFAULT_THEME.hover
  };
+}
+function isCustomTheme(value){
+ const theme=cleanTheme(value);
+ return theme.primary!==DEFAULT_THEME.primary || theme.secondary!==DEFAULT_THEME.secondary || theme.hover!==DEFAULT_THEME.hover;
+}
+function updateAppearanceModeControls(){
+ const custom=Boolean(document.documentElement?.hasAttribute("data-worth-it-custom-theme"));
+ ["themeDarkBtn","themeLightBtn","settingsPageThemeDarkBtn","settingsPageThemeLightBtn"].forEach(id=>{
+  const button=$(id);if(!button)return;
+  button.disabled=custom;
+  button.setAttribute("aria-disabled",String(custom));
+  button.title=custom?"Reset settings to return to the standard Dark or Light appearance.":"Choose the standard Dark or Light appearance.";
+ });
 }
 function applyTheme(value){
  const theme=cleanTheme(value);
  const root=document.documentElement;
- root.style.setProperty("--primary",theme.primary);
- root.style.setProperty("--primary2",theme.secondary);
- root.style.setProperty("--worth-it-theme-gradient","linear-gradient(120deg,"+theme.primary+","+theme.secondary+")");
- root.dataset.worthItCustomTheme=theme.name;
- const primary=$("worthItThemePrimary"),secondary=$("worthItThemeSecondary"),name=$("worthItThemeName");
+ if(isCustomTheme(theme)){
+  root.style.setProperty("--primary",theme.primary);
+  root.style.setProperty("--primary2",theme.secondary);
+  root.style.setProperty("--worth-it-hover-glow",theme.hover);
+  root.style.setProperty("--worth-it-theme-gradient","linear-gradient(120deg,"+theme.primary+","+theme.secondary+")");
+  root.dataset.worthItCustomTheme=theme.name||"Custom";
+ }else{
+  root.style.removeProperty("--primary");
+  root.style.removeProperty("--primary2");
+  root.style.removeProperty("--worth-it-hover-glow");
+  root.style.removeProperty("--worth-it-theme-gradient");
+  root.removeAttribute("data-worth-it-custom-theme");
+ }
+ const primary=$("worthItThemePrimary"),secondary=$("worthItThemeSecondary"),hover=$("worthItThemeHover"),name=$("worthItThemeName");
  if(primary)primary.value=theme.primary;
  if(secondary)secondary.value=theme.secondary;
+ if(hover)hover.value=theme.hover;
  if(name)name.value=theme.name;
  const preview=$("worthItThemePreview");
- if(preview)preview.style.background="linear-gradient(110deg,"+theme.primary+","+theme.secondary+")";
+ if(preview){
+  preview.style.background=isCustomTheme(theme)
+   ?"linear-gradient(120deg,"+theme.primary+","+theme.secondary+")"
+   :"linear-gradient(120deg,#7c5cff,#38bdf8)";
+  preview.style.setProperty("--preview-hover",theme.hover);
+  preview.classList.toggle("is-custom",isCustomTheme(theme));
+ }
+ updateAppearanceModeControls();
  return theme;
 }
 function setThemeStatus(message,isError){
@@ -71,26 +102,27 @@ async function loadThemeForSession(){
  catch(_){applyTheme(DEFAULT_THEME);}
  if(!userId)return;
  try{
-  const result=await sb().from("worth_it_user_themes").select("theme_name,primary_color,secondary_color").eq("user_id",userId).maybeSingle();
+  const result=await sb().from("worth_it_user_themes").select("theme_name,primary_color,secondary_color,hover_color").eq("user_id",userId).maybeSingle();
   if(request!==themeRequest||themeUserId!==userId)return;
   if(result.error)throw result.error;
   if(result.data){
-   const theme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color});
+   const theme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,hover:result.data.hover_color});
    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(theme));applyTheme(theme);
   }
  }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your custom theme is saved on this device and will sync after the community migration is installed.",false);}else{console.warn("Worth It custom theme could not be synchronised:",error);}}
 }
 async function saveCustomTheme(){
- const rawPrimary=$("worthItThemePrimary")?.value||"",rawSecondary=$("worthItThemeSecondary")?.value||"";
- if(!validHex(rawPrimary)||!validHex(rawSecondary)){setThemeStatus("Choose valid colours before saving.",true);return;}
- const theme=cleanTheme({name:$("worthItThemeName")?.value,primary:rawPrimary,secondary:rawSecondary});
+ const rawPrimary=$("worthItThemePrimary")?.value||"",rawSecondary=$("worthItThemeSecondary")?.value||"",rawHover=$("worthItThemeHover")?.value||"";
+ if(!validHex(rawPrimary)||!validHex(rawSecondary)||!validHex(rawHover)){setThemeStatus("Choose valid colours before saving.",true);return;}
+ const theme=cleanTheme({name:$("worthItThemeName")?.value,primary:rawPrimary,secondary:rawSecondary,hover:rawHover});
+ if(!isCustomTheme(theme)){setThemeStatus("Choose at least one colour that differs from the default palette before saving a custom theme.",true);return;}
  applyTheme(theme);writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
  if(!themeUserId){setThemeStatus("Theme saved on this device. Sign in to sync it to your Worth It account.",false);return;}
  if(themeRemoteAvailable===false){setThemeStatus("Preview-only: your theme is saved locally for this account. Database sync will activate after the community migration is installed.",false);return;}
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
  try{
   const result=await sb().from("worth_it_user_themes").upsert({
-   user_id:themeUserId,theme_name:theme.name,primary_color:theme.primary,secondary_color:theme.secondary,updated_at:new Date().toISOString()
+   user_id:themeUserId,theme_name:theme.name,primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
   if(result.error)throw result.error;
   setThemeStatus("Your custom theme is saved to your Worth It account.",false);
@@ -377,10 +409,10 @@ function init(){
  installFavouriteFilter();
  $("worthItThemeSaveButton")?.addEventListener("click",saveCustomTheme);
  $("worthItThemeResetButton")?.addEventListener("click",resetCustomTheme);
- ["worthItThemePrimary","worthItThemeSecondary","worthItThemeName"].forEach(id=>{
+ ["worthItThemePrimary","worthItThemeSecondary","worthItThemeHover","worthItThemeName"].forEach(id=>{
   $(id)?.addEventListener("input",()=>{
-   applyTheme({name:$("worthItThemeName")?.value,primary:$("worthItThemePrimary")?.value,secondary:$("worthItThemeSecondary")?.value});
-   setThemeStatus("Preview only — save your theme to keep it.",false);
+   applyTheme({name:$("worthItThemeName")?.value,primary:$("worthItThemePrimary")?.value,secondary:$("worthItThemeSecondary")?.value,hover:$("worthItThemeHover")?.value});
+   setThemeStatus("Live preview only — save your custom palette to keep it. Dark and Light are paused while Custom is active.",false);
   });
  });
  $("worthItProfileReportButton")?.addEventListener("click",openProfileReport);
@@ -404,5 +436,7 @@ function init(){
  });
 }
 window.refreshWorthItCommunityFeatures=function(){void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();};
+window.resetWorthItCustomTheme=resetCustomTheme;
+window.isWorthItCustomThemeActive=()=>Boolean(document.documentElement?.hasAttribute("data-worth-it-custom-theme"));
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
 })();
