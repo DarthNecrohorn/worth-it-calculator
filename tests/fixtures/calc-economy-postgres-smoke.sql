@@ -69,17 +69,25 @@ begin
     v := public.calc_buy_premium_lite('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
     if v->>'ok' <> 'true' or v->>'premium_plan' <> 'premium_lite'
        or (v->>'balance')::numeric <> 100
-       or (v->>'wip_balance')::numeric <> 10 then
-        raise exception 'Premium Lite should cost 40 WIP, preserve CALC and activate 15 days: %', v;
+       or (v->>'wip_balance')::numeric <> 0 then
+        raise exception 'Premium Lite should cost 50 WIP, preserve CALC and activate 15 days: %', v;
     end if;
     if not exists (
         select 1 from private.worth_it_calc_transactions
         where user_id = auth.uid()
           and kind = 'premium_lite_purchase'
           and currency = 'WIP'
-          and amount_milli = -40000
+          and amount_milli = -50000
     ) then
         raise exception 'Premium Lite WIP transaction was not recorded correctly.';
+    end if;
+
+    -- Even with enough WIP, a member cannot buy a second Lite term before the current one expires.
+    update private.worth_it_calc_wallets set wip_balance_milli=50000 where user_id=auth.uid();
+    v := public.calc_buy_premium_lite('abababab-abab-4bab-8bab-abababababab');
+    if v->>'ok'<>'false' or v->>'code'<>'ACTIVE_SUBSCRIPTION'
+       or (select wip_balance_milli from private.worth_it_calc_wallets where user_id=auth.uid())<>50000 then
+        raise exception 'An active Premium Lite subscription must block another Lite purchase without spending WIP: %',v;
     end if;
 
     v := public.calc_chat_media_limits();
@@ -99,10 +107,10 @@ begin
            last_wip_reward_on = ((now() at time zone 'UTC')::date - 1)
      where user_id = auth.uid();
     v := public.calc_wallet_summary();
-    if (v->>'daily_reward')::numeric <> 2
+    if (v->>'daily_reward')::numeric <> 1.5
        or (v->>'daily_wip_reward')::numeric <> 1
-       or (v->>'wip_balance')::numeric <> 11 then
-        raise exception 'Premium Lite should receive 2 CALC and 1 WIP daily: %', v;
+       or (v->>'wip_balance')::numeric <> 51 then
+        raise exception 'Premium Lite should receive 1.5 CALC and 1 WIP daily: %', v;
     end if;
 
     update private.worth_it_calc_wallets
@@ -114,7 +122,7 @@ begin
      where user_id = auth.uid();
     v := public.calc_buy_premium_lite('99999999-9999-4999-8999-999999999999');
     if v->>'ok' <> 'false' or v->>'code' <> 'INSUFFICIENT_WIP'
-       or (select balance_milli from private.worth_it_calc_wallets where user_id = auth.uid()) <> 102000 then
+       or (select balance_milli from private.worth_it_calc_wallets where user_id = auth.uid()) <> 101500 then
         raise exception 'Premium Lite must reject insufficient WIP without charging CALC: %', v;
     end if;
 
@@ -167,8 +175,18 @@ begin
        raise exception 'Premium upload limits are incorrect: %',v;
     end if;
     if public.calc_profile_badge(303) <> 'premium' then raise exception 'Premium badge is missing.'; end if;
+
+    -- A paid Premium member with 50 WIP still cannot activate Premium Lite while Premium is active.
+    update private.worth_it_calc_wallets
+       set wip_balance_milli=50000,last_wip_reward_on=(now() at time zone 'UTC')::date
+     where user_id=auth.uid();
+    v:=public.calc_buy_premium_lite('abababab-abab-4bab-8bab-abababababac');
+    if v->>'ok'<>'false' or v->>'code'<>'ACTIVE_SUBSCRIPTION'
+       or (select wip_balance_milli from private.worth_it_calc_wallets where user_id=auth.uid())<>50000 then
+        raise exception 'An active Premium subscription must block Premium Lite without spending WIP: %',v;
+    end if;
 end
-$$;
+$;
 
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","email":"pedjasebez3545@gmail.com"}',false);
@@ -200,9 +218,11 @@ insert into private.worth_it_calc_transactions(
 
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","email":"free@example.test"}',false);
-do $$
+do $
 declare
     v jsonb;
+    v_own_id bigint;
+    v_other_id bigint;
 begin
     v := public.calc_wallet_history(100);
     if not (v @> '[{"description":"history-visible-free-marker"}]'::jsonb) then
@@ -220,8 +240,30 @@ begin
     if not has_function_privilege('authenticated','public.calc_wallet_history(integer)','EXECUTE') then
         raise exception 'Authenticated users must be able to read their own transaction history.';
     end if;
+    if has_function_privilege('anon','public.calc_wallet_hide_transaction(bigint)','EXECUTE')
+       or not has_function_privilege('authenticated','public.calc_wallet_hide_transaction(bigint)','EXECUTE') then
+        raise exception 'Transaction history hiding must only be available to signed-in accounts.';
+    end if;
+
+    select id into v_own_id from private.worth_it_calc_transactions
+     where user_id=auth.uid() and description='history-visible-free-marker';
+    select id into v_other_id from private.worth_it_calc_transactions
+     where description='history-hidden-other-user-marker';
+    v:=public.calc_wallet_hide_transaction(v_own_id);
+    if v->>'ok'<>'true' then raise exception 'The account could not hide its own history row: %',v; end if;
+    v:=public.calc_wallet_hide_transaction(v_other_id);
+    if v->>'ok'<>'false' or v->>'code'<>'TRANSACTION_NOT_FOUND' then
+        raise exception 'A user must not hide another account transaction: %',v;
+    end if;
+    if exists(select 1 from public.calc_wallet_history(100) row_data where row_data->>'description'='history-visible-free-marker') then
+        raise exception 'A hidden transaction is still visible in account history.';
+    end if;
+    if not exists(select 1 from private.worth_it_calc_transactions where id=v_own_id and hidden_at is not null)
+       or not exists(select 1 from private.worth_it_calc_transactions where id=v_other_id and hidden_at is null) then
+        raise exception 'Hiding a history row must be a reversible visibility flag, not a ledger delete.';
+    end if;
 end
-$$;
+$;
 
 select set_config('request.jwt.claim.sub','',false);
 select set_config('request.jwt.claims','{}',false);
