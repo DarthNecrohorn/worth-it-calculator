@@ -79,8 +79,10 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(maker.includes("const MAX_CALCULATORS=10;"));
     assert.ok(html.includes("You can save up to 10 community calculators"));
     assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
-    assert.ok(maker.includes("get_worth_it_my_ugc_calculators"));
-    assert.ok(maker.includes("get_worth_it_my_favorite_ugc_calculators"));
+    assert.ok(maker.includes("get_worth_it_ugc_catalog_page"));
+    assert.ok(maker.includes("p_sort:state.sort"));
+    assert.ok(maker.includes("p_category:state.category"));
+    assert.ok(maker.includes("p_page:currentCatalogPage()"));
     assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
     assert.ok(maker.includes("switchCalculatorExploreView"));
     assert.ok(html.includes("ugcBackToBasicButton"));
