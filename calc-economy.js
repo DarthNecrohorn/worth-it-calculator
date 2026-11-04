@@ -118,17 +118,17 @@
                     ? "WIP rewards and balances are waiting for the CALC economy SQL migration in a staging database. No balance is being simulated."
                     : state.is_owner
                         ? "Owner access is unlimited; Premium Lite is not required."
-                        : "WIP is earned daily and used only to activate Premium Lite: 40 WIP for 15 days.";
+                        : "WIP is earned daily and used only to activate Premium Lite: 50 WIP for 15 days.";
                 wipButton.onclick = () => {
                     const balance = state?.is_owner ? "Owner access is unlimited; Premium Lite is not required." :
-                        "You currently have " + Number(state?.wip_balance || 0).toFixed(1) + " WIP. Earn 1 WIP daily; 40 WIP activates Premium Lite for 15 days.";
+                        "You currently have " + Number(state?.wip_balance || 0).toFixed(1) + " WIP. Earn 1 WIP daily; 50 WIP activates Premium Lite for 15 days.";
                     if(typeof window.showToast === "function") window.showToast(balance + " Open Web Shop using the separate Web Shop button.");
                 };
                 wipButton.setAttribute("aria-label",!state
                     ? "WIP balance unavailable until the economy database migration is installed."
                     : state.is_owner
                         ? "Unlimited owner WIP display. Premium Lite is not required."
-                        : wip + " WIP available. WIP is used only for Premium Lite, 40 WIP for 15 days.");
+                        : wip + " WIP available. WIP is used only for Premium Lite, 50 WIP for 15 days.");
             }
         }
 
