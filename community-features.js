@@ -177,6 +177,7 @@ function setThemeStatus(message,isError){
 }
 async function loadThemeForSession(){
  const request=++themeRequest;let session=null,wallet=null;
+ const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
  try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
  const userId=session?.user?.id||"";themeUserId=userId;themeRemoteAvailable=userId?null:false;
  try{wallet=await window.refreshWorthItCalcWallet?.()||null;}catch(error){console.warn("Could not verify Premium access for Custom Themes:",error);}
@@ -186,15 +187,15 @@ async function loadThemeForSession(){
  savedTheme=DEFAULT_THEME;
  updateThemeAccessUI();
  if(!themeEntitled){
-  applyTheme(DEFAULT_THEME);
+  applyTheme(livePreview||DEFAULT_THEME);
   setThemeStatus("Try every colour below. Your preview lasts while Settings is open; saving and keeping it active across Worth It is a Premium Lite and Premium benefit.",false);
   return;
  }
  try{
   const raw=readLocal(scopedKey(THEME_KEY,userId));
   savedTheme=raw?cleanTheme(JSON.parse(raw)):DEFAULT_THEME;
-  applyTheme(savedTheme);
- }catch(_){savedTheme=DEFAULT_THEME;applyTheme(DEFAULT_THEME);}
+  applyTheme(livePreview||savedTheme);
+ }catch(_){savedTheme=DEFAULT_THEME;applyTheme(livePreview||DEFAULT_THEME);}
  if(!userId)return;
  try{
   const result=await sb().from("worth_it_user_themes").select("theme_name,primary_color,secondary_color,hover_color,header_color").eq("user_id",userId).maybeSingle();
@@ -202,11 +203,11 @@ async function loadThemeForSession(){
   if(result.error)throw result.error;
   if(result.data){
    savedTheme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,hover:result.data.hover_color,header:result.data.header_color});
-   writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));applyTheme(savedTheme);
+   writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));applyTheme(livePreview||savedTheme);
   }else{
    savedTheme=DEFAULT_THEME;
    removeLocal(scopedKey(THEME_KEY,userId));
-   applyTheme(DEFAULT_THEME);
+   applyTheme(livePreview||DEFAULT_THEME);
   }
  }catch(error){
   if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your saved Premium theme is stored on this device and will sync after the community migration is installed.",false);}
@@ -581,7 +582,7 @@ function init(){
   });
   settingsObserver.observe(settingsPage,{attributes:true,attributeFilter:["style","hidden"]});
  }
- window.addEventListener("worthitsettingspanelchange",event=>{if(event.detail?.open===false)window.setWorthItCustomThemeSettingsOpen(false);});
+ window.addEventListener("worthitsettingspanelchange",event=>{if(event.detail?.open===false){const page=$("settingsPage");if(!page||page.style.display==="none")window.setWorthItCustomThemeSettingsOpen(false);}});
  const profileCard=$("worthItProfileCard"),profileSection=$("profileSection"),profileLink=$("worthItProfileLink"),ownEdit=$("worthItProfileDisplayNameEdit");
  if(typeof MutationObserver==="function"){
   const observer=new MutationObserver(scheduleReportButtonUpdate);
