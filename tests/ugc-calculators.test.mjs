@@ -464,7 +464,7 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(maker,/function switchCalculatorExploreView\(target\)/);
     assert.match(maker,/to\.style\.transform="translateX\("\+\(direction\*100\)\+"%\)"/);
     assert.match(maker,/from\.style\.transform="translateX\("\+\(-direction\*100\)\+"%\)"/);
-    assert.match(css,/\.calculator-explore-stage>\.calculator-explore-panel\[hidden\]\s*\{display:none!important\}/);
+    assert.match(paginationCss,/\.calculator-explore-stage>\.calculator-explore-panel\[hidden\]\s*\{display:none!important\}/);
     assert.ok(html.indexOf('id="calculators"')<html.indexOf('id="ugcCommunitySection"'));
     assert.match(paginationSql,/v_page_size integer := 30/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
