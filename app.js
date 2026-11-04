@@ -1079,7 +1079,7 @@ function getAuthMailboxProvider(email) {
     return "other";
 }
 
-function appendAuthInboxLink(status, provider, label, url) {
+function appendAuthInboxLink(status, label, url) {
     const link = document.createElement("a");
     link.className = "auth-email-inbox-link";
     link.href = url;
@@ -1090,7 +1090,7 @@ function appendAuthInboxLink(status, provider, label, url) {
     return link;
 }
 
-function setAuthEmailConfirmationStatus(provider = "other") {
+function setAuthEmailConfirmationStatus(provider = "other", correctCredentials = false) {
     const status = $("authModalStatus");
     if (!status) return;
 
@@ -1098,7 +1098,9 @@ function setAuthEmailConfirmationStatus(provider = "other") {
     status.className = "auth-modal-status error";
 
     const message = document.createElement("span");
-    message.textContent = "Your username and password are correct, but you must confirm your email address before signing in. Check your inbox: ";
+    message.textContent = correctCredentials
+        ? "Your username and password are correct, but you must confirm your email address before signing in. Check your inbox: "
+        : "Your Worth It account has been created. Confirm your email address to finish signing up. Check your inbox: ";
     status.appendChild(message);
 
     const inboxes = {
@@ -1909,7 +1911,7 @@ async function submitAuthForm(event) {
             }
 
 
-            setAuthEmailConfirmationStatus(getAuthMailboxProvider(email));
+            setAuthEmailConfirmationStatus(getAuthMailboxProvider(email), false);
             $("authModalStatus").classList.remove("error");
             $("authModalStatus").classList.add("success");
 
@@ -2072,7 +2074,7 @@ async function submitAuthForm(event) {
 
 
         if (error?.code === "EMAIL_NOT_CONFIRMED") {
-            setAuthEmailConfirmationStatus(error.emailProvider || "other");
+            setAuthEmailConfirmationStatus(error.emailProvider || "other", true);
         } else {
             setAuthStatus(
                 message,
