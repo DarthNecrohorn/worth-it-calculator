@@ -98,57 +98,6 @@ test("community migration is designed for repeat execution and has postgres smok
  assert.ok(smoke.includes("ordinary built-in calculator was allowed"));
  assert.ok(sql.includes("drop constraint if exists worth_it_calculator_favorites_ugc_key_check"));
 });
-"));
- assert.ok(sql.includes("secondary_color ~ '^#[0-9A-Fa-f]{6}
-test("existing chat soft-delete keeps tombstones and per-user history behaviour",()=>{
- assert.ok(actions.includes("deleted_at = now()"));
- assert.ok(actions.includes("set body = ''"));
- assert.ok(actions.includes("'is_deleted', m.deleted_at is not null"));
-});
-test("Preview uses account-scoped local fallbacks when community tables are not installed",()=>{
- assert.ok(js.includes("isMissingCommunitySchema"));
- assert.ok(js.includes("favouritesRemoteAvailable===false"));
- assert.ok(js.includes("themeRemoteAvailable===false"));
- assert.ok(js.includes("scopedKey(FAVOURITES_KEY,userId)"));
- assert.ok(js.includes("scopedKey(THEME_KEY,userId)"));
-});
-test("Admin report list stays read-only when new moderation columns are absent",()=>{
- assert.ok(admin.includes("isCommunityReportMigrationMissing"));
- assert.ok(admin.includes("Database reports are read-only in this Preview."));
- assert.ok(admin.includes("reviewed_at"));
- assert.ok(css.includes(".admin-user-report-readonly-note"));
-});
-test("Preview profile reports use local-only storage and can be moderated by the owner without DB writes",()=>{
- assert.ok(js.includes("COMMUNITY_PREVIEW_MODE"));
- assert.ok(js.includes("Preview test report saved locally"));
- assert.ok(js.includes("worthItPreviewReports:v1"));
- assert.ok(js.includes('session.user.email||"").trim().toLowerCase()!=="pedjasebez3545@gmail.com'));
- assert.ok(admin.includes("getWorthItPreviewReports"));
- assert.ok(admin.includes("moderateWorthItPreviewReport"));
- assert.ok(admin.includes("Database reports are read-only in this Preview."));
-});
-test("community migration is designed for repeat execution and has postgres smoke coverage",()=>{
- assert.ok(sql.includes("add column if not exists admin_note"));
- assert.ok(setup.includes("create table if not exists public.worth_it_user_reports"));
- assert.ok(smoke.includes("unauthorised attempt"));
- assert.ok(smoke.includes("admin_update_worth_it_user_report"));
- assert.ok(smoke.includes("ordinary built-in calculator was allowed"));
- assert.ok(sql.includes("drop constraint if exists worth_it_calculator_favorites_ugc_key_check"));
-});
-"));
- assert.ok(themeHoverMigration.includes("add column if not exists hover_color"));
- assert.ok(themeHoverMigration.includes("worth_it_user_themes_hover_color_check"));
- assert.ok(smoke.includes("hover_color"));
- assert.ok(smoke.includes("#FF8C42"));
- assert.ok(smoke.includes("invalid hover colour"));
- assert.ok(siteCss.includes("html[data-worth-it-custom-theme]{"));
- assert.ok(siteCss.includes("html[data-worth-it-custom-theme] button:hover:not(:disabled)"));
-});
-test("existing chat soft-delete keeps tombstones and per-user history behaviour",()=>{
- assert.ok(actions.includes("deleted_at = now()"));
- assert.ok(actions.includes("set body = ''"));
- assert.ok(actions.includes("'is_deleted', m.deleted_at is not null"));
-});
 test("Preview uses account-scoped local fallbacks when community tables are not installed",()=>{
  assert.ok(js.includes("isMissingCommunitySchema"));
  assert.ok(js.includes("favouritesRemoteAvailable===false"));
