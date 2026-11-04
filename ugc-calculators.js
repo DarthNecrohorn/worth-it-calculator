@@ -111,13 +111,13 @@ function renderPagination(payload){
  const pages=Math.max(1,Number(payload?.total_pages)||1);
  const page=Math.min(pages,Math.max(1,Number(payload?.page)||1));
  state.totalPages=pages;state.totalCount=total;state.pages[catalogPageKey()]=page;
- nav.hidden=total<=30;
+ nav.hidden=total===0;
  if(pageNumber)pageNumber.textContent=String(page);
  if(pageTotal)pageTotal.textContent=pages>100?"100+":String(pages);
- if(input){input.value=String(page);input.max=String(pages);input.min="1";}
- if(prev)prev.disabled=page<=1||total<=30;
- if(next)next.disabled=page>=pages||total<=30;
- if(go)go.disabled=total<=30;
+ if(input){input.value=String(page);input.max=String(pages);input.min="1";input.disabled=pages<=1;}
+ if(prev)prev.disabled=page<=1;
+ if(next)next.disabled=page>=pages;
+ if(go)go.disabled=pages<=1;
  if(summary){
   const first=total?((page-1)*30+1):0, last=Math.min(total,page*30);
   summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page."):"";
