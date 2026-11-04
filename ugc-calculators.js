@@ -11,7 +11,7 @@ const PERIODS=[
  {value:"12y",label:"Last 12 years"}
 ];
 const SORTS=["latest","popular","liked","favorited","disliked","mine","my-favorites"];
-let state={userId:"",session:null,sort:"latest",period:"12y",search:"",catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
 const button=(label,className,handler)=>{const node=text("button",className,label);node.type="button";node.addEventListener("click",handler);return node;};
@@ -96,44 +96,78 @@ function renderCatalog(rows){
  });
  window.refreshWorthItCommunityFeatures?.();
 }
+function catalogPageKey(){
+ return [state.sort,state.category,state.period,state.search.toLocaleLowerCase()].join("|");
+}
+function currentCatalogPage(){
+ return Math.max(1,Math.trunc(Number(state.pages[catalogPageKey()]||1)));
+}
+function renderPagination(payload){
+ const nav=$("ugcPagination"),prev=$("ugcPagePrevious"),next=$("ugcPageNext");
+ const pageNumber=$("ugcPageNumber"),pageTotal=$("ugcPageTotal"),input=$("ugcPageInput");
+ const go=$("ugcPageGo"),summary=$("ugcPaginationStatus");
+ if(!nav)return;
+ const total=Number(payload?.total_count)||0;
+ const pages=Math.max(1,Number(payload?.total_pages)||1);
+ const page=Math.min(pages,Math.max(1,Number(payload?.page)||1));
+ state.totalPages=pages;state.totalCount=total;state.pages[catalogPageKey()]=page;
+ nav.hidden=total<=30;
+ if(pageNumber)pageNumber.textContent=String(page);
+ if(pageTotal)pageTotal.textContent=pages>100?"100+":String(pages);
+ if(input){input.value=String(page);input.max=String(pages);input.min="1";}
+ if(prev)prev.disabled=page<=1||total<=30;
+ if(next)next.disabled=page>=pages||total<=30;
+ if(go)go.disabled=total<=30;
+ if(summary){
+  const first=total?((page-1)*30+1):0, last=Math.min(total,page*30);
+  summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page."):"";
+ }
+}
+function goToCatalogPage(value){
+ const requested=Number.parseInt(String(value||""),10);
+ if(!Number.isFinite(requested)||requested<1){status("Enter a page number from 1 to "+state.totalPages+".",true);return;}
+ const target=Math.min(state.totalPages,requested);
+ state.pages[catalogPageKey()]=target;
+ void loadCatalog();
+}
 async function loadCatalog(){
- if(!state.userId){status("Sign in to browse community-created calculators.");renderCatalog([]);return;}
+ if(!state.userId){status("Sign in to browse community-created calculators.");renderCatalog([]);renderPagination({total_count:0,total_pages:1,page:1});return;}
  const request=++state.catalogRequest;
  status("Loading community calculators…");
  updateCatalogHeading();
  try{
-  if(state.sort==="mine"){
-   const result=await sb().rpc("get_worth_it_my_ugc_calculators",{p_search:state.search});
-   if(result.error)throw result.error;
-   if(request!==state.catalogRequest)return;
-   state.myCalculators=Array.isArray(result.data)?result.data:[];
-   renderCatalog(state.myCalculators);
-   status(state.myCalculators.length+" of "+MAX_CALCULATORS+" personal calculator slots used.");
-   return;
-  }
-  if(state.sort==="my-favorites"){
-   const result=await sb().rpc("get_worth_it_my_favorite_ugc_calculators",{p_search:state.search});
-   if(result.error)throw result.error;
-   if(request!==state.catalogRequest)return;
-   state.catalog=Array.isArray(result.data)?result.data:[];
-   renderCatalog(state.catalog);
-   status(state.catalog.length+" calculator"+(state.catalog.length===1?"":"s")+" in your private favourites list. Only you can see this list.");
-   return;
-  }
-  const result=await sb().rpc("get_worth_it_ugc_catalog",{
-   p_sort:state.sort,p_period:state.period,p_search:state.search,p_limit:40,p_offset:0
+  const result=await sb().rpc("get_worth_it_ugc_catalog_page",{
+   p_sort:state.sort,
+   p_period:state.period,
+   p_search:state.search,
+   p_category:state.category,
+   p_page:currentCatalogPage()
   });
   if(result.error)throw result.error;
   if(request!==state.catalogRequest)return;
-  state.catalog=Array.isArray(result.data)?result.data:[];
-  renderCatalog(state.catalog);
-  status(state.catalog.length+" community calculator"+(state.catalog.length===1?"":"s")+" found.");
+  const payload=normalizeObject(result.data);
+  const rows=Array.isArray(payload?.items)?payload.items:[];
+  state.catalog=rows;
+  if(state.sort==="mine")state.myCalculators=rows;
+  renderCatalog(rows);
+  renderPagination(payload||{});
+  const total=Number(payload?.total_count)||0;
+  const page=Number(payload?.page)||1;
+  const pages=Number(payload?.total_pages)||1;
+  if(state.sort==="mine"){
+   status(state.myCalculators.length+" shown · "+total+" saved community calculators across "+pages+" page"+(pages===1?"":"s")+". Maximum "+MAX_CALCULATORS+" active slots.");
+  }else if(state.sort==="my-favorites"){
+   status(total+" private favourite community calculator"+(total===1?"":"s")+" · page "+page+" of "+pages+". Only you can see this list.");
+  }else{
+   status(total+" community calculator"+(total===1?"":"s")+" found · page "+page+" of "+pages+".");
+  }
  }catch(error){
   if(request!==state.catalogRequest)return;
   renderCatalog([]);
+  renderPagination({total_count:0,total_pages:1,page:1});
   const message=String(error?.message||error?.details||"");
-  if(/get_worth_it_ugc_catalog|get_worth_it_my_ugc_calculators|get_worth_it_my_favorite_ugc_calculators|schema cache|does not exist|could not find/i.test(message)){
-   status("The UGC database migration is not installed in this Preview environment yet.",true);
+  if(/get_worth_it_ugc_catalog_page|schema cache|does not exist|could not find/i.test(message)){
+   status("The UGC pagination migration is not installed in this Preview environment yet.",true);
   }else{status("Could not load community calculators. Please try again.",true);}
   console.warn("UGC catalogue load failed:",error);
  }
@@ -658,6 +692,11 @@ async function init(){
  $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
  document.querySelectorAll("[data-ugc-sort]").forEach(node=>node.addEventListener("click",()=>{setActiveSort(node.dataset.ugcSort);void loadCatalog();}));
  $("ugcPeriodFilter")?.addEventListener("change",event=>{state.period=event.target.value;void loadCatalog();});
+ $("ugcCategoryFilter")?.addEventListener("change",event=>{state.category=String(event.target.value||"all");void loadCatalog();});
+ $("ugcPagePrevious")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()-1));
+ $("ugcPageNext")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()+1));
+ $("ugcPageGo")?.addEventListener("click",()=>goToCatalogPage($("ugcPageInput")?.value));
+ $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
@@ -673,7 +712,7 @@ async function init(){
   try{await getSession();}catch(_){state.userId="";state.session=null;}
   const gallery=$("ugcCommunitySection");if(gallery)gallery.hidden=!state.userId;
   const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
-  if(!state.userId)setExploreInitialView("basic");
+  if(!state.userId){setExploreInitialView("basic");state.pages={};}
   state.catalogRequest++;
   if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
