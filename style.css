@@ -408,6 +408,12 @@ html[data-theme="light"] .account-panel{background:rgba(255,255,255,.98)}
 }
 .auth-modal-status.error{color:var(--danger)}
 .auth-modal-status.success{color:#22c55e}
+.auth-modal-status .auth-email-inbox-link{
+    display:inline;color:var(--primary2);font-weight:850;text-decoration:underline;
+    text-underline-offset:2px;overflow-wrap:anywhere;
+}
+.auth-modal-status .auth-email-inbox-link:hover{color:var(--primary);text-decoration-thickness:2px}
+.auth-modal-status .auth-email-inbox-link:focus-visible{outline:2px solid var(--primary2);outline-offset:2px;border-radius:3px}
 .auth-modal-mode{
     margin-top:14px;
     text-align:center;
