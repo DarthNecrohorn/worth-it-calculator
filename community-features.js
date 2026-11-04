@@ -100,8 +100,9 @@ function updateThemeAccessUI(){
  if(editor)editor.hidden=false;
  if(locked)locked.hidden=themeEntitled;
  if(miniPromo)miniPromo.hidden=themeEntitled;
- const save=$("worthItThemeSaveButton"),reset=$("worthItThemeResetButton");
+ const save=$("worthItThemeSaveButton"),reset=$("worthItThemeResetButton"),previewLabel=$("worthItThemePreviewLabel");
  if(save)save.textContent=themeEntitled?"Save my theme":"Unlock to save →";
+ if(previewLabel)previewLabel.textContent=themeEntitled?"Live preview · Save to keep it active":"Free live preview · Save with Premium";
  if(reset)reset.textContent=themeEntitled?"Restore default colours":"Reset preview colours";
  ["worthItThemePrimary","worthItThemeSecondary","worthItThemeHover","worthItThemeHeader","worthItThemeName","worthItThemeResetButton"].forEach(id=>{
   const node=$(id);if(node)node.disabled=false;
