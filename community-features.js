@@ -108,6 +108,9 @@ async function loadThemeForSession(){
   if(result.data){
    const theme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,hover:result.data.hover_color});
    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(theme));applyTheme(theme);
+  }else{
+   removeLocal(scopedKey(THEME_KEY,userId));
+   applyTheme(DEFAULT_THEME);
   }
  }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your custom theme is saved on this device and will sync after the community migration is installed.",false);}else{console.warn("Worth It custom theme could not be synchronised:",error);}}
 }
@@ -132,14 +135,25 @@ async function saveCustomTheme(){
  }finally{if(button)button.disabled=false;}
 }
 async function resetCustomTheme(){
- applyTheme(DEFAULT_THEME);writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(DEFAULT_THEME));
- if(!themeUserId){setThemeStatus("Default Worth It colours restored on this device.",false);return;}
- if(themeRemoteAvailable===false){removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Preview-only: default colours restored for this account on this device.",false);return;}
+ applyTheme(DEFAULT_THEME);
+ removeLocal(scopedKey(THEME_KEY,themeUserId));
+ if(!themeUserId){setThemeStatus("Default Worth It colours restored on this device.",false);return true;}
+ if(themeRemoteAvailable===false){setThemeStatus("Preview-only: default colours restored for this account on this device.",false);return true;}
  try{
   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",themeUserId);
   if(result.error)throw result.error;
-  removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Default Worth It colours restored on this account.",false);
- }catch(error){if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;removeLocal(scopedKey(THEME_KEY,themeUserId));setThemeStatus("Preview-only: default colours restored for this account on this device.",false);}else{setThemeStatus("Default colours are active here, but the saved account theme could not be reset.",true);console.error("Could not reset Worth It custom theme:",error);}}
+  setThemeStatus("Default Worth It colours restored on this account.",false);
+  return true;
+ }catch(error){
+  if(isMissingCommunitySchema(error)){
+   themeRemoteAvailable=false;
+   setThemeStatus("Preview-only: default colours restored for this account on this device.",false);
+   return true;
+  }
+  setThemeStatus("Default colours are active on this device, but the saved account theme could not be reset. Check your connection and try again.",true);
+  console.error("Could not reset Worth It custom theme:",error);
+  return false;
+ }
 }
 
 // UGC cards must opt in explicitly. Built-in calculators do not get social actions.
