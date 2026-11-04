@@ -11,7 +11,7 @@ const PERIODS=[
  {value:"12y",label:"Last 12 years"}
 ];
 const SORTS=["latest","popular","liked","favorited","disliked","mine","my-favorites"];
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
 const button=(label,className,handler)=>{const node=text("button",className,label);node.type="button";node.addEventListener("click",handler);return node;};
@@ -100,7 +100,8 @@ function catalogPageKey(){
  return [state.sort,state.category,state.period,state.search.toLocaleLowerCase()].join("|");
 }
 function currentCatalogPage(){
- return Math.max(1,Math.trunc(Number(state.pages[catalogPageKey()]||1)));
+ const remembered=state.pages[catalogPageKey()];
+ return Math.max(1,Math.trunc(Number(remembered||state.lastPage||1)));
 }
 function renderPagination(payload){
  const nav=$("ugcPagination"),prev=$("ugcPagePrevious"),next=$("ugcPageNext");
@@ -110,7 +111,7 @@ function renderPagination(payload){
  const total=Number(payload?.total_count)||0;
  const pages=Math.max(1,Number(payload?.total_pages)||1);
  const page=Math.min(pages,Math.max(1,Number(payload?.page)||1));
- state.totalPages=pages;state.totalCount=total;state.pages[catalogPageKey()]=page;
+ state.totalPages=pages;state.totalCount=total;state.pages[catalogPageKey()]=page;state.lastPage=page;
  nav.hidden=total===0;
  if(pageNumber)pageNumber.textContent=String(page);
  if(pageTotal)pageTotal.textContent=pages>100?"100+":String(pages);
@@ -128,6 +129,7 @@ function goToCatalogPage(value){
  if(!Number.isFinite(requested)||requested<1){status("Enter a page number from 1 to "+state.totalPages+".",true);return;}
  const target=Math.min(state.totalPages,requested);
  state.pages[catalogPageKey()]=target;
+ state.lastPage=target;
  void loadCatalog();
 }
 async function loadCatalog(){
