@@ -161,7 +161,7 @@ begin
 
     if v_wallet.last_daily_reward_on is distinct from v_today then
         v_reward := case v_wallet.premium_plan
-            when 'premium_lite' then 2000
+            when 'premium_lite' then 1500
             when 'premium' then 3000
             else 1000
         end;
@@ -430,7 +430,7 @@ declare
     v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
     v_wallet private.worth_it_calc_wallets%rowtype;
     v_existing private.worth_it_calc_transactions%rowtype;
-    v_cost integer := 40000;
+    v_cost integer := 50000;
     v_expiry timestamptz;
 begin
     if v_user_id is null then raise exception 'Authentication required' using errcode = '28000'; end if;
@@ -458,14 +458,18 @@ begin
     where user_id = v_user_id
     for update;
 
-    if v_wallet.premium_plan = 'premium'
+    if v_wallet.premium_plan in ('premium','premium_lite')
        and v_wallet.premium_expires_at > now() then
-        return jsonb_build_object('ok', false, 'code', 'ALREADY_PREMIUM');
+        return jsonb_build_object(
+            'ok', false, 'code', 'ACTIVE_SUBSCRIPTION',
+            'premium_plan', v_wallet.premium_plan,
+            'premium_expires_at', v_wallet.premium_expires_at
+        );
     end if;
     if v_wallet.wip_balance_milli < v_cost then
         return jsonb_build_object(
             'ok', false, 'code', 'INSUFFICIENT_WIP',
-            'required', 40,
+            'required', 50,
             'wip_balance', round(v_wallet.wip_balance_milli::numeric / 1000, 3),
             'wip_balance_milli', v_wallet.wip_balance_milli
         );
