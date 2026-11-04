@@ -155,7 +155,20 @@ async function getOwnProfileRow(user,force){
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{let r=await sb.rpc("get_worth_it_own_profile");let profile=Array.isArray(r.data)?r.data[0]:r.data;if(r.error){const message=String(r.error.message||r.error);if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist/i.test(message))throw r.error;r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;profile=r.data;}if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;})();
+ const promise=(async()=>{
+  let r;
+  try{r=await sb.rpc("get_worth_it_own_profile");}catch(error){r={error};}
+  let profile=Array.isArray(r?.data)?r.data[0]:r?.data;
+  if(r?.error){
+   const message=String(r.error.message||r.error.details||r.error);
+   if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist|function .*not found/i.test(message))throw r.error;
+   r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();
+   if(r.error)throw r.error;
+   profile=r.data;
+  }
+  if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");
+  currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;
+ })();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
@@ -181,6 +194,21 @@ async function openOwnProfile(){
  }
 }
 window.openWorthItOwnProfile=openOwnProfile;
+window.openWorthItOwnProfileConnections=async function(category){
+ const type=String(category||"").toLowerCase();
+ if(!["friends","followers","following"].includes(type))return;
+ try{
+  const user=await getCurrentUser();
+  if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}
+  const profile=await getOwnProfileRow(user,false);
+  if(!profile?.worth_it_id)throw new Error("Your Worth It profile is not ready yet.");
+  closeAccountDropdown();
+  await window.openWorthItProfileConnections(profile.worth_it_id,type);
+ }catch(error){
+  console.error("Could not open your profile connections.",error);
+  if(typeof window.showToast==="function")window.showToast(error?.message||"Could not open this list. Please try again.");
+ }
+};
 const oldOpenInfo=window.openAccountInfo;
 window.openAccountInfo=function(section){if(!section||section==="profile"){closeAccountDropdown();return openOwnProfile();}if(typeof oldOpenInfo==="function")return oldOpenInfo.apply(this,arguments);};
 const oldToggle=window.toggleAccountPanel;

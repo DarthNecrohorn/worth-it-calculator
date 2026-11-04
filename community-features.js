@@ -45,9 +45,11 @@ function cleanTheme(value){
 }
 function applyTheme(value){
  const theme=cleanTheme(value);
- document.documentElement.style.setProperty("--primary",theme.primary);
- document.documentElement.style.setProperty("--primary2",theme.secondary);
- document.documentElement.dataset.worthItCustomTheme=theme.name;
+ const root=document.documentElement;
+ root.style.setProperty("--primary",theme.primary);
+ root.style.setProperty("--primary2",theme.secondary);
+ root.style.setProperty("--worth-it-theme-gradient","linear-gradient(120deg,"+theme.primary+","+theme.secondary+")");
+ root.dataset.worthItCustomTheme=theme.name;
  const primary=$("worthItThemePrimary"),secondary=$("worthItThemeSecondary"),name=$("worthItThemeName");
  if(primary)primary.value=theme.primary;
  if(secondary)secondary.value=theme.secondary;

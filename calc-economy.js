@@ -9,6 +9,7 @@
     let calculatorLabelObserver = null;
     let activeCalculatorBillingType = "";
     let signedInAccount = false;
+    let authResolved = Boolean(window.worthItAuthStateResolved);
     let walletHistory = [];
     let historyFilter = "all";
 
@@ -92,8 +93,10 @@
             shopButton.setAttribute("aria-hidden",String(guestView));
         }
         if(button){
-            // Keep the wallet hidden until the correct guest/account state is known.
-            button.hidden = !state && !signedInAccount;
+            // Keep CALC Lite visible for guests even while the balance is loading
+            // or the guest-wallet endpoint is temporarily unavailable. Hide only
+            // while a confirmed signed-in account's own wallet is unresolved.
+            button.hidden = !state && (!authResolved || signedInAccount);
             button.onclick = guestView
                 ? () => window.WorthItGuestLite?.showAccountPrompt?.()
                 : () => {
@@ -271,6 +274,7 @@
         let session = null;
         try{
             session = await getSession();
+            authResolved = true;
             signedInAccount = Boolean(session);
             if(!session){
                 const guest = await guestRpc("balance");
