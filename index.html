@@ -1110,7 +1110,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     <div class="settings-section settings-custom-theme-promo" id="settingsCustomThemePromo" role="note" hidden>
         <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Try Custom Themes</strong><span class="settings-custom-theme-premium">SAVE WITH PREMIUM</span></div>
         <p>Experiment with the header background, page accents and button hover colour for free. Your preview lasts while Settings is open. Save your design and keep it active across Worth It with Premium Lite or Premium.</p>
-        <button type="button" class="settings-option" onclick="openFullSettings()">Try Custom Themes →</button>
+        <button type="button" class="settings-option" onclick="openSettingsAppearance()">Try Custom Themes →</button>
     </div>
 
     <div class="settings-section settings-zoom-help">
@@ -2971,7 +2971,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
         <div>
           <h2 id="settingsAppearanceTitle">Appearance &amp; Accessibility</h2>
-          <p>Personalise the way Worth It looks. Changes are saved automatically.</p>
+          <p>Personalise the way Worth It looks. Standard appearance settings save automatically; Custom Theme previews are temporary until saved with Premium.</p>
         </div>
       </div>
       <div class="worth-it-settings-control-group">
@@ -2980,22 +2980,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="settings-option" id="settingsPageThemeDarkBtn" onclick="setTheme('dark')">🌙 Dark</button>
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
-      </div>
-      <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
-        <h3>How to zoom in</h3>
-        <div class="worth-it-settings-zoom-method">
-          <strong>Computer with a mouse</strong>
-          <p>Hold <kbd>Ctrl</kbd> and scroll the mouse wheel up to zoom in or down to zoom out.</p>
-        </div>
-        <div class="worth-it-settings-zoom-method">
-          <strong>Keyboard only (no mouse)</strong>
-          <p>Press <kbd>Ctrl</kbd> + <kbd>+</kbd> to zoom in, <kbd>Ctrl</kbd> + <kbd>−</kbd> to zoom out, or <kbd>Ctrl</kbd> + <kbd>0</kbd> to reset zoom.</p>
-        </div>
-        <div class="worth-it-settings-zoom-method">
-          <strong>Phone or tablet</strong>
-          <p>Place two fingers on the screen and pinch apart to zoom in, or pinch together to zoom out.</p>
-        </div>
-        <p class="settings-note">Zoom is controlled by your browser or device. On some devices, pinch zoom may need to be enabled in browser settings.</p>
       </div>
       <div class="worth-it-settings-control-group worth-it-custom-theme-group" id="worthItCustomThemeSettingsGroup">
         <h3>Custom Themes</h3>
@@ -3021,7 +3005,24 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite">Change the colours above to preview your own Worth It look. Free previews are temporary; Premium Lite and Premium members can save them.</p>
         </div>
       </div>
-      <div class="worth-it-settings-reset">
+ 
+      <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
+        <h3>How to zoom in</h3>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Computer with a mouse</strong>
+          <p>Hold <kbd>Ctrl</kbd> and scroll the mouse wheel up to zoom in or down to zoom out.</p>
+        </div>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Keyboard only (no mouse)</strong>
+          <p>Press <kbd>Ctrl</kbd> + <kbd>+</kbd> to zoom in, <kbd>Ctrl</kbd> + <kbd>−</kbd> to zoom out, or <kbd>Ctrl</kbd> + <kbd>0</kbd> to reset zoom.</p>
+        </div>
+        <div class="worth-it-settings-zoom-method">
+          <strong>Phone or tablet</strong>
+          <p>Place two fingers on the screen and pinch apart to zoom in, or pinch together to zoom out.</p>
+        </div>
+        <p class="settings-note">Zoom is controlled by your browser or device. On some devices, pinch zoom may need to be enabled in browser settings.</p>
+      </div>
+     <div class="worth-it-settings-reset">
         <div>
           <strong>Reset appearance settings</strong>
           <p>Restore the default dark theme and standard text size.</p>
