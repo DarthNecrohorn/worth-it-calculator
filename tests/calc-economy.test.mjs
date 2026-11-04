@@ -8,6 +8,7 @@ const shopCss = read("web-shop.css");
 const ugcCss = read("ugc-calculators.css");
 const economy = read("calc-economy.js");
 const sql = read("supabase/calc-economy.sql");
+const economyFollowup = read("supabase/calc-economy-followup.sql");
 const ai = read("functions/api/ai-chat.js");
 const mediaApi = read("functions/api/chat-media.js");
 const chat = read("chat-ui.js");
@@ -71,7 +72,7 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
     assert.doesNotMatch(economy, /worthItGuestCalcWalletV1|function guestWallet\(/);
     assert.match(guestApi, /balance_milli=500/);
     assert.match(guestApi, /status='reserved'/);
-    assert.match(sql, /when 'premium_lite' then 2000/);
+    assert.match(sql, /when 'premium_lite' then 1500/);
     assert.match(sql, /when 'premium' then 3000/);
     assert.match(sql, /v_wip_reward := 1000/);
     assert.match(sql, /wip_balance_milli = wip_balance_milli \+ v_wip_added/);
@@ -79,10 +80,10 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
     assert.match(sql, /else 1000/);
     assert.match(sql, /v_added := v_reward/);
     assert.match(sql, /interval '15 days'/);
-    assert.match(sql, /v_cost integer := 40000/);
+    assert.match(sql, /v_cost integer := 50000/);
     assert.match(sql, /'INSUFFICIENT_WIP'/);
     assert.match(sql, /'WIP', -v_cost, v_wallet\.wip_balance_milli/);
-    assert.match(economy, /40 WIP to activate Premium Lite/);
+    assert.match(economy, /50 WIP to activate Premium Lite/);
     assert.match(sql, /Automatic refund for an abandoned operation/);
 });
 
@@ -177,5 +178,16 @@ test("Web Shop transaction history is account-scoped in the database and UI", ()
     assert.doesNotMatch(historySql, /p_user_id|p_worth_it_id/);
     assert.match(historySql, /revoke all on function public\.calc_wallet_history\(integer\) from public, anon/);
     assert.match(historySql, /grant execute on function public\.calc_wallet_history\(integer\) to authenticated/);
+    assert.match(economyFollowup,/hidden_at is null/);
+    assert.match(economyFollowup,/create or replace function public\.calc_wallet_hide_transaction\(p_transaction_id bigint\)/);
+    assert.match(economyFollowup,/where id = p_transaction_id[\s\S]*?and user_id = v_user_id/);
+    assert.match(economyFollowup,/revoke all on function public\.calc_wallet_hide_transaction\(bigint\) from public,anon/);
+    assert.match(economyFollowup,/grant execute on function public\.calc_wallet_hide_transaction\(bigint\) to authenticated/);
+    assert.match(economy,/historyFilter === "purchases"/);
+    assert.match(economy,/isPurchaseTransaction/);
+    assert.match(economy,/calc_wallet_hide_transaction/);
+    assert.match(economy,/financial record and account balance were not deleted or changed/i);
+    assert.match(html,/option value="purchases">Your purchases/);
+    assert.match(html,/id="buyPremiumLiteButton"[^>]*50 WIP/);
     assert.match(read("tests/fixtures/calc-economy-postgres-smoke.sql"), /history-hidden-other-user-marker/);
 });
