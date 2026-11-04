@@ -57,3 +57,24 @@ test("username login allows production and only the Worth It Pages preview origi
     assert.match(usernameLogin, /jsonResponse\(\s*\{\},\s*204,\s*origin \|\| SITE_ORIGIN\s*\)/);
     assert.match(usernameLogin, /"Access-Control-Allow-Origin":\s*origin/);
 });
+
+
+test("username login distinguishes only Supabase's explicit unconfirmed-email error and never returns the email", () => {
+    assert.match(usernameLogin, /authErrorCode === "email_not_confirmed"/);
+    assert.match(usernameLogin, /code: "EMAIL_NOT_CONFIRMED"/);
+    assert.match(usernameLogin, /emailProvider: getMailboxProvider\(email\)/);
+    assert.match(usernameLogin, /"Incorrect username or password\."/);
+    assert.doesNotMatch(usernameLogin, /email:\s*email,/);
+});
+
+test("email confirmation guidance gives safe provider-specific inbox links without injecting HTML", () => {
+    assert.match(app, /function setAuthEmailConfirmationStatus\(provider = "other"\)/);
+    assert.match(app, /Your username and password are correct, but you must confirm your email address/);
+    assert.match(app, /https:\/\/mail\.google\.com\/mail\/u\/0\/#inbox/);
+    assert.match(app, /https:\/\/outlook\.live\.com\/mail\/0\/inbox/);
+    assert.match(app, /https:\/\/outlook\.office\.com\/mail\//);
+    assert.match(app, /document\.createElement\("a"\)/);
+    assert.match(app, /link\.rel = "noopener noreferrer"/);
+    assert.match(app, /error\?\.code === "EMAIL_NOT_CONFIRMED"/);
+    assert.match(css, /\.auth-modal-status \.auth-email-inbox-link/);
+});
