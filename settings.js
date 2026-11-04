@@ -188,7 +188,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
             }
             return false;
         }
-        root.dataset.theme = value;
+        document.documentElement.dataset.theme = value;
         localStorage.setItem(THEME_KEY, value);
         updateSettingsUI();
         notifySettingsChange();
