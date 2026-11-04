@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html=read("index.html"), js=read("community-features.js"), css=read("community-features.css");
 const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras.sql");
+const profileUi=read("profile-ui.js");
 const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const siteCss=read("style.css");
@@ -88,6 +89,15 @@ test("custom palettes use four validated colours and persist the header-controls
  assert.ok(js.includes("removeLocal(scopedKey(THEME_KEY,userId))"));
  assert.ok(js.includes("return false;"));
 
+});
+test("custom themes are suspended on public profile routes and restored after leaving",()=>{
+ assert.ok(html.includes('root.classList.add("worth-it-profile-theme-isolated")'));
+ assert.ok(js.includes("let activeTheme = DEFAULT_THEME"));
+ assert.ok(js.includes('root.classList.contains("worth-it-profile-theme-isolated")?DEFAULT_THEME:selectedTheme'));
+ assert.ok(js.includes("window.setWorthItProfileThemeIsolation=function(isolated)"));
+ assert.ok(js.includes("applyTheme(activeTheme)"));
+ assert.ok(profileUi.includes("window.setWorthItProfileThemeIsolation(true)"));
+ assert.ok(profileUi.includes("window.setWorthItProfileThemeIsolation(false)"));
 });
 test("existing chat soft-delete keeps tombstones and per-user history behaviour",()=>{
  assert.ok(actions.includes("deleted_at = now()"));
