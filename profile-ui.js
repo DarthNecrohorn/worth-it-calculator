@@ -169,9 +169,18 @@ async function refreshAccountPanelCounts(force){
 }
 function closeAccountDropdown(){const n=$("accountPanel");if(n){n.classList.remove("open");n.setAttribute("aria-hidden","true");}}
 async function openOwnProfile(){
- try{const user=await getCurrentUser();if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}const p=await getOwnProfileRow(user,true);window.openWorthItProfile(p.worth_it_id);}
- catch(e){console.error("Could not open Worth It profile.",e);if(typeof window.showToast==="function")window.showToast("Profile setup is not finished yet. Run the Worth It profile SQL setup in Supabase and try again.");}
+ try{
+  const user=await getCurrentUser();
+  if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}
+  const p=await getOwnProfileRow(user,true);
+  if(!p?.worth_it_id||typeof window.openWorthItProfile!=="function")throw new Error("Your Worth It profile is not ready yet.");
+  await window.openWorthItProfile(p.worth_it_id);
+ }catch(e){
+  console.error("Could not open Worth It profile.",e);
+  if(typeof window.showToast==="function")window.showToast(e?.message||"Could not open your profile. Please try again.");
+ }
 }
+window.openWorthItOwnProfile=openOwnProfile;
 const oldOpenInfo=window.openAccountInfo;
 window.openAccountInfo=function(section){if(!section||section==="profile"){closeAccountDropdown();return openOwnProfile();}if(typeof oldOpenInfo==="function")return oldOpenInfo.apply(this,arguments);};
 const oldToggle=window.toggleAccountPanel;
