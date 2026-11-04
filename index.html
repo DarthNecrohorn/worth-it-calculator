@@ -72,7 +72,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=custom-economy-header-background-20261104b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a">
+<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;free-preview=20261104a">
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -1108,9 +1108,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
     </div>
     <div class="settings-section settings-custom-theme-promo" id="settingsCustomThemePromo" role="note">
-        <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Custom Themes</strong><span class="settings-custom-theme-premium">PREMIUM</span></div>
-        <p>Make Worth It your own with custom colours for the header, buttons and page accents. Custom Themes are a Premium Lite and Premium benefit. Find them near the bottom of View more settings → Appearance &amp; Accessibility.</p>
-        <button type="button" class="settings-option" onclick="openFullSettings()">Find Custom Themes →</button>
+        <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Try Custom Themes</strong><span class="settings-custom-theme-premium">SAVE WITH PREMIUM</span></div>
+        <p>Experiment with the header background, page accents and button hover colour for free. Your preview lasts while Settings is open. Save your design and keep it active across Worth It with Premium Lite or Premium.</p>
+        <button type="button" class="settings-option" onclick="openFullSettings()">Try Custom Themes →</button>
     </div>
 
     <div class="settings-section settings-zoom-help">
@@ -2999,16 +2999,16 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
       <div class="worth-it-settings-control-group worth-it-custom-theme-group" id="worthItCustomThemeSettingsGroup">
         <h3>Custom Themes</h3>
-        <div id="worthItThemeLocked" class="worth-it-theme-locked" role="note">
-          <div class="worth-it-theme-locked-icon" aria-hidden="true">🔒</div>
+        <div id="worthItThemeLocked" class="worth-it-theme-locked" role="note" hidden>
+          <div class="worth-it-theme-locked-icon" aria-hidden="true">✨</div>
           <div>
             <strong>Make Worth It yours</strong>
-            <p>Custom Themes are an exclusive benefit for active Premium Lite and Premium members. Choose the header background, page accents and button hover colour, and make the whole website match your style.</p>
+            <p>Try every colour for free and see your custom look instantly. Your preview lasts while Settings is open. Save your design and keep it active across the whole website with an active Premium Lite or Premium subscription.</p>
           </div>
-          <button type="button" class="settings-option" onclick="openWorthItThemeUpgrade()">Explore Premium benefits →</button>
+          <button type="button" class="settings-option" onclick="openWorthItThemeUpgrade()">Unlock theme saving →</button>
         </div>
-        <div class="worth-it-theme-editor" id="worthItThemeEditor" hidden>
-          <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
+        <div class="worth-it-theme-editor" id="worthItThemeEditor">
+          <div class="worth-it-theme-editor-head"><strong>Build your theme</strong><span class="settings-note" id="worthItThemePreviewLabel">Free live preview · Save with Premium</span></div>
           <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Preview of your Worth It header and custom colours"></div>
           <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
           <div class="worth-it-theme-fields">
@@ -3017,8 +3017,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <label class="worth-it-theme-field" for="worthItThemeHover">Button hover background, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
             <label class="worth-it-theme-field" for="worthItThemeHeader">Background behind Web Shop and wallet buttons<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
           </div>
-          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
-          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton" onclick="void 0">Unlock to save →</button><button type="button" class="settings-option" id="worthItThemeResetButton">Reset preview colours</button></div>
+          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite">Change the colours above to preview your own Worth It look. Free previews are temporary; Premium Lite and Premium members can save them.</p>
         </div>
       </div>
       <div class="worth-it-settings-reset">
@@ -3540,7 +3540,7 @@ try{
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopswitchrender-20261030a"></script>
-<script src="settings.js?v=appearance-custom-reset-direct-theme-20261104e"></script>
+<script src="settings.js?v=custom-theme-free-preview-premium-save-20261104a"></script>
 <script src="admin-panel.js?v=admin-overlays-stay-open-20261030a"></script>
 <script src="markets-ui.js?v=markets-detail-controls-20261030a"></script>
 <script src="crypto-ui.js?v=cryptoswitch-focus-20261030a"></script>
@@ -5552,12 +5552,12 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a"></script>
+<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a&amp;free-preview=20261104a"></script>
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
 <script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a"></script>
-<script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a"></script>
+<script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
         <div class="worth-it-chat-call-card">
@@ -5583,6 +5583,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;free-preview=20261104a"></script>
 </body>
 </html>
