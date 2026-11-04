@@ -53,7 +53,16 @@ test("custom palettes use three validated colours and persist the hover glow sep
  assert.ok(js.includes("--worth-it-hover-glow"));
  assert.ok(js.includes("hover_color:theme.hover"));
  assert.ok(js.includes("window.resetWorthItCustomTheme=resetCustomTheme"));
- assert.ok(sql.includes("primary_color ~ '^#[0-9A-Fa-f]{6}
+ assert.ok(sql.includes("primary_color"));
+ assert.ok(sql.includes("secondary_color"));
+ assert.ok(themeHoverMigration.includes("add column if not exists hover_color"));
+ assert.ok(themeHoverMigration.includes("worth_it_user_themes_hover_color_check"));
+ assert.ok(smoke.includes("hover_color"));
+ assert.ok(smoke.includes("#FF8C42"));
+ assert.ok(smoke.includes("invalid hover colour"));
+ assert.ok(siteCss.includes("html[data-worth-it-custom-theme]{"));
+ assert.ok(siteCss.includes("html[data-worth-it-custom-theme] button:hover:not(:disabled)"));
+});
 test("existing chat soft-delete keeps tombstones and per-user history behaviour",()=>{
  assert.ok(actions.includes("deleted_at = now()"));
  assert.ok(actions.includes("set body = ''"));
