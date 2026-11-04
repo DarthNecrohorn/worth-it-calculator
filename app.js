@@ -1912,8 +1912,8 @@ async function submitAuthForm(event) {
 
 
             setAuthEmailConfirmationStatus(getAuthMailboxProvider(email), false);
-            $("authModalStatus").classList.remove("error");
-            $("authModalStatus").classList.add("success");
+            $("authModalStatus")?.classList.remove("error");
+            $("authModalStatus")?.classList.add("success");
 
 
         } else if (authModalMode === "reset") {
