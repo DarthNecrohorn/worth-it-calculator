@@ -226,31 +226,30 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-card-actions{gap:6px}
 .ugc-card-actions button{min-width:0;flex:1 1 auto}
 .ugc-pagination{
-    display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;
-    margin:24px auto 8px;padding:14px 16px;width:fit-content;max-width:100%;
+    display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;
+    margin:24px auto 8px;padding:12px 14px;width:fit-content;max-width:100%;
     border:1px solid var(--border);border-radius:16px;
     background:var(--card);box-shadow:0 10px 26px rgba(0,0,0,.09);
 }
 .ugc-pagination[hidden]{display:none!important}
-.ugc-page-step,.ugc-page-go{
-    min-width:42px;min-height:42px;border:1px solid var(--border);border-radius:11px;
-    background:var(--surface-soft);color:var(--text);font-weight:850;
+.ugc-page-step{
+    flex:0 0 42px;width:42px;min-width:42px;min-height:42px;
+    border:1px solid var(--border);border-radius:11px;
+    background:var(--surface-soft);color:var(--text);font-size:22px;font-weight:850;line-height:1;
 }
-.ugc-page-step:disabled,.ugc-page-go:disabled{opacity:.38;cursor:not-allowed}
+.ugc-page-step:disabled{opacity:.38;cursor:not-allowed}
 .ugc-page-current{
-    min-width:106px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:9px;
-    border:1px solid var(--primary);border-radius:12px;padding:6px 12px;
+    flex:0 0 auto;min-width:100px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:1px solid var(--primary);border-radius:12px;padding:6px 10px;
     background:color-mix(in srgb,var(--primary) 11%,var(--card-solid));
     color:var(--text);font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;
 }
 .ugc-page-divider{color:var(--muted);font-weight:500}
-.ugc-page-go-label{margin-left:6px;color:var(--muted);font-size:11px;font-weight:750}
 .ugc-page-input{
-    width:76px!important;min-width:76px!important;height:44px;padding:6px 8px!important;
+    flex:0 0 68px;width:68px!important;min-width:68px!important;height:42px;padding:6px 7px!important;
     border:1px solid var(--border);border-radius:11px;background:var(--card-solid);color:var(--text);
-    text-align:center;font-size:17px;font-weight:850;font-variant-numeric:tabular-nums;
+    text-align:center;font-size:16px;font-weight:850;font-variant-numeric:tabular-nums;
 }
-.ugc-page-go{min-width:54px;padding:0 12px;background:linear-gradient(120deg,var(--primary),var(--primary2));color:#fff;border-color:transparent}
 .ugc-pagination-status{text-align:center;min-height:18px;color:var(--muted);font-size:11px;margin:0 0 12px}
 .ugc-catalog-tools #ugcCategoryFilter{max-width:190px}
 .ugc-catalog-tools #ugcPeriodFilter{max-width:210px}
@@ -264,9 +263,9 @@ body.ugc-maker-open{overflow:hidden}
     .ugc-card-actions{flex-direction:column}
     .ugc-card-actions button{width:100%;font-size:10px;padding:7px 5px}
     .ugc-card-stats{gap:6px;font-size:9px}
-    .ugc-page-current{min-width:92px;font-size:15px}
-    .ugc-page-input{width:66px!important;min-width:66px!important}
-    .ugc-page-go-label{flex-basis:100%;text-align:center;margin:2px 0 -4px}
-    .ugc-pagination{gap:7px;padding:11px 9px}
+    .ugc-page-step{flex-basis:36px;width:36px;min-width:36px;min-height:38px;font-size:20px}
+    .ugc-page-current{min-width:82px;min-height:38px;gap:6px;padding:5px 8px;font-size:15px}
+    .ugc-page-input{flex-basis:56px;width:56px!important;min-width:56px!important;height:38px;font-size:15px}
+    .ugc-pagination{gap:6px;padding:10px 8px}
     .ugc-catalog-tools #ugcCategoryFilter,.ugc-catalog-tools #ugcPeriodFilter{max-width:none}
 }
