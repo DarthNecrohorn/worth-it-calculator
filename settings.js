@@ -220,18 +220,22 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     window.setTheme = setTheme;
     window.setUIScale = setUIScale;
     window.updateSettingsUI = updateSettingsUI;
-    window.resetSettings = function(){
-        // Restore the original Dark appearance and clear every custom palette colour
-        // before applying the standard theme, so the custom mode cannot leak through.
+    window.resetSettings = async function(){
+        // Wait for the account theme row to be removed before declaring the reset complete.
+        let customThemeReset = true;
         if (typeof window.resetWorthItCustomTheme === "function") {
-            void window.resetWorthItCustomTheme();
+            try { customThemeReset = await window.resetWorthItCustomTheme(); }
+            catch (_) { customThemeReset = false; }
         }
         localStorage.removeItem(THEME_KEY);
         localStorage.removeItem(UI_SCALE_KEY);
         document.documentElement?.removeAttribute("data-worth-it-custom-theme");
         setTheme("dark");
         setUIScale("normal");
-        showToast("Settings reset. Your original Worth It colours have been restored.");
+        showToast(customThemeReset
+            ? "Settings reset. Your original Dark appearance and Worth It colours have been restored."
+            : "Local settings were reset, but the saved custom theme could not be removed from your account. Reconnect and try again.");
+        return customThemeReset;
     };
 
     let accountUsernameStatus = null;
