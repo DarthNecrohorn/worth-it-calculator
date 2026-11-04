@@ -7,6 +7,7 @@ const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras
 const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const siteCss=read("style.css");
+const webShopCss=read("web-shop.css");
 const ugcCss=read("ugc-calculators.css");
 const ugcJs=read("ugc-calculators.js");
 const setup=read("tests/fixtures/community-features-postgres-setup.sql");
@@ -72,8 +73,10 @@ test("custom palettes use four validated colours and persist the header-controls
  assert.ok(smoke.includes("#FF8C42"));
  assert.ok(smoke.includes("invalid hover colour"));
  assert.ok(siteCss.includes("html[data-worth-it-custom-theme]{"));
- assert.ok(siteCss.includes(".nav-right-stack"));
- assert.ok(siteCss.includes("--worth-it-header-foreground"));
+ assert.ok(webShopCss.includes(".calc-economy-nav"));
+ assert.ok(webShopCss.includes("--worth-it-header-foreground"));
+ assert.ok(webShopCss.includes(".calc-wip-nav"));
+ assert.ok(!siteCss.includes("html[data-worth-it-custom-theme] .nav-right-stack{"));
  assert.ok(siteCss.includes(".worth-it-settings-kicker"));
  assert.ok(siteCss.includes("#profileNavBtn .auth-avatar"));
  assert.ok(siteCss.includes("#settingsPanel"));
