@@ -129,6 +129,9 @@ test("community migration is designed for repeat execution and has postgres smok
 "));
  assert.ok(themeHoverMigration.includes("add column if not exists hover_color"));
  assert.ok(themeHoverMigration.includes("worth_it_user_themes_hover_color_check"));
+ assert.ok(smoke.includes("hover_color"));
+ assert.ok(smoke.includes("#FF8C42"));
+ assert.ok(smoke.includes("invalid hover colour"));
  assert.ok(siteCss.includes("html[data-worth-it-custom-theme]{"));
  assert.ok(siteCss.includes("html[data-worth-it-custom-theme] button:hover:not(:disabled)"));
 });
