@@ -120,7 +120,7 @@ function renderPagination(payload){
  if(next)next.disabled=page>=pages;
  if(summary){
   const first=total?((page-1)*30+1):0, last=Math.min(total,page*30);
-  summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page."):"";
+  summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page. This is not a 30-calculator total limit — use the page controls to browse more."):"";
  }
 }
 function goToCatalogPage(value){
