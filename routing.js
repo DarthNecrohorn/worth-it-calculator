@@ -103,6 +103,7 @@
         originalFunctions[name] = original;
         window[name] = function () {
             if (name !== "openFullSettings") {
+                if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
                 const settingsPage = document.getElementById("settingsPage");
                 if (settingsPage) settingsPage.style.display = "none";
             }
