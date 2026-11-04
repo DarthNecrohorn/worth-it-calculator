@@ -49,12 +49,16 @@ function isCustomTheme(value){
  return theme.primary!==DEFAULT_THEME.primary || theme.secondary!==DEFAULT_THEME.secondary || theme.hover!==DEFAULT_THEME.hover;
 }
 function updateAppearanceModeControls(){
- const custom=Boolean(document.documentElement?.hasAttribute("data-worth-it-custom-theme"));
+ const root=document.documentElement;
+ const custom=Boolean(root?.hasAttribute("data-worth-it-custom-theme"));
+ const currentTheme=root?.dataset?.theme==="light"?"light":"dark";
  ["themeDarkBtn","themeLightBtn","settingsPageThemeDarkBtn","settingsPageThemeLightBtn"].forEach(id=>{
   const button=$(id);if(!button)return;
+  const buttonTheme=id.toLowerCase().includes("light")?"light":"dark";
   button.disabled=custom;
   button.setAttribute("aria-disabled",String(custom));
-  button.title=custom?"Reset settings to return to the standard Dark or Light appearance.":"Choose the standard Dark or Light appearance.";
+  button.classList.toggle("active",!custom&&buttonTheme===currentTheme);
+  button.title=custom?"Custom appearance is active. Reset settings before returning to Dark or Light.":"Choose the standard "+(buttonTheme==="dark"?"Dark":"Light")+" appearance.";
  });
 }
 function applyTheme(value){
