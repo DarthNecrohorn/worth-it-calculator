@@ -99,6 +99,7 @@ function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":Strin
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
 function setStatus(msg,isError){const n=$("worthItProfileStatus");if(!n)return;n.textContent=msg||"";n.hidden=!msg;n.classList.toggle("is-error",Boolean(msg&&isError));}
 function showProfileSection(){
+ if(typeof window.setWorthItCustomThemeSettingsOpen==="function")window.setWorthItCustomThemeSettingsOpen(false);
  if(typeof window.setWorthItProfileThemeIsolation==="function")window.setWorthItProfileThemeIsolation(true);else document.documentElement.classList.add("worth-it-profile-theme-isolated");
  if(typeof window.hideCarsNavigationUi==="function")window.hideCarsNavigationUi();
  if(typeof window.hideWaterLevelsSection==="function")window.hideWaterLevelsSection();
