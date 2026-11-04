@@ -513,6 +513,9 @@ async function saveMakerDraft(publish){
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
  const section=$("ugcCommunitySection");if(section)section.hidden=!state.userId;
+ const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
+ $("ugcCatalogJumpButton")?.addEventListener("click",()=>{if(section){section.scrollIntoView({behavior:"smooth",block:"start"});}});
+ $("ugcMakerJumpButton")?.addEventListener("click",()=>{if(section){section.scrollIntoView({behavior:"smooth",block:"start"});window.setTimeout(()=>$("ugcCreateButton")?.click(),180);}});
  document.querySelectorAll("[data-ugc-sort]").forEach(node=>node.addEventListener("click",()=>{setActiveSort(node.dataset.ugcSort);void loadCatalog();}));
  $("ugcPeriodFilter")?.addEventListener("change",event=>{state.period=event.target.value;void loadCatalog();});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
@@ -529,6 +532,7 @@ async function init(){
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(async()=>{
   try{await getSession();}catch(_){state.userId="";state.session=null;}
   const gallery=$("ugcCommunitySection");if(gallery)gallery.hidden=!state.userId;
+  const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
   state.catalogRequest++;
   if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
