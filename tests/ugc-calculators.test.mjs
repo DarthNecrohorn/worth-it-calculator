@@ -448,15 +448,20 @@ test("migration and browser scripts are included in CI parsing and regression ch
 
 
 test("community calculators use secure 30-item server pagination for every view and category", () => {
-    for (const id of ["ugcCategoryFilter","ugcPagination","ugcPagePrevious","ugcPageNext","ugcPageNumber","ugcPageTotal","ugcPageInput","ugcPageGo"]) {
+    for (const id of ["ugcCategoryFilter","ugcPagination","ugcPagePrevious","ugcPageNext","ugcPageNumber","ugcPageTotal","ugcPageInput"]) {
         assert.ok(html.includes('id="' + id + '"'), id + " exists in the catalogue UI");
     }
+    const paginationMarkup = html.match(/<nav id="ugcPagination"[\s\S]*?<\/nav>/)?.[0] || "";
+    assert.match(paginationMarkup,/id="ugcPagePrevious"[\s\S]*id="ugcPageNumber"[\s\S]*id="ugcPageTotal"[\s\S]*id="ugcPageNext"[\s\S]*id="ugcPageInput"/);
+    assert.doesNotMatch(paginationMarkup,/ugcPageGo|Go to page/);
     assert.match(maker,/function catalogPageKey\(\)/);
     assert.match(maker,/state\.pages\[catalogPageKey\(\)\]/);
     assert.match(maker,/state\.lastPage/);
     assert.match(maker,/function currentCatalogPage\(\)[\s\S]*?remembered\|\|state\.lastPage/);
     assert.match(maker,/nav\.hidden=total===0/);
     assert.match(maker,/input\.disabled=pages<=1/);
+    assert.match(maker,/ugcPageInput.*addEventListener\("change"/);
+    assert.match(paginationCss,/\.ugc-pagination\{[\s\S]*?flex-wrap:nowrap/);
     assert.match(maker,/get_worth_it_ugc_catalog_page/);
     assert.match(maker,/p_category:state\.category/);
     assert.match(maker,/p_page:currentCatalogPage\(\)/);
