@@ -132,7 +132,7 @@ async function loadCatalog(){
   if(request!==state.catalogRequest)return;
   renderCatalog([]);
   const message=String(error?.message||error?.details||"");
-  if(/get_worth_it_ugc_catalog|get_worth_it_my_ugc_calculators|schema cache|does not exist|could not find/i.test(message)){
+  if(/get_worth_it_ugc_catalog|get_worth_it_my_ugc_calculators|get_worth_it_my_favorite_ugc_calculators|schema cache|does not exist|could not find/i.test(message)){
    status("The UGC database migration is not installed in this Preview environment yet.",true);
   }else{status("Could not load community calculators. Please try again.",true);}
   console.warn("UGC catalogue load failed:",error);
