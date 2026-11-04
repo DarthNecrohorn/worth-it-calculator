@@ -157,3 +157,35 @@ html[data-worth-it-premium="true"] .worth-it-advertisement{display:none!importan
 @media(max-width:600px){
     .calc-billing-action{font-size:12px!important;padding-inline:10px!important}
 }
+
+/* Respect startup visibility until authentication and the correct wallet resolve. */
+.calc-shop-nav[hidden],.calc-wallet-nav[hidden],.calc-wip-nav[hidden]{display:none!important}
+
+/* Private, account-scoped transaction history. */
+#webShopSection .web-shop-history{margin-top:30px;padding:22px;border:1px solid var(--ws-border);border-radius:18px;background:var(--ws-panel);box-shadow:var(--ws-shadow)}
+#webShopSection .web-shop-history-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+#webShopSection .web-shop-history-header h3{margin:0;color:var(--ws-text);font-size:20px}
+#webShopSection .web-shop-history-header p{margin:6px 0 0;color:var(--ws-muted);font-size:12px;line-height:1.5}
+#webShopSection .web-shop-history-tools{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#webShopSection .web-shop-history-tools select,#webShopSection .web-shop-history-refresh{min-height:36px;padding:7px 10px;border:1px solid var(--ws-border);border-radius:10px;background:var(--ws-card);color:var(--ws-text);font:inherit;font-size:12px;font-weight:750}
+#webShopSection .web-shop-history-refresh{cursor:pointer}
+#webShopSection .web-shop-history-refresh:hover{border-color:var(--ws-accent)}
+#webShopSection .web-shop-history-status{min-height:20px;margin:8px 0 12px;color:var(--ws-muted);font-size:12px}
+#webShopSection .web-shop-history-status.is-error{color:#fb7185}
+#webShopSection .web-shop-history-table-wrap{width:100%;overflow-x:auto}
+#webShopSection .web-shop-history-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
+#webShopSection .web-shop-history-table th{padding:10px 12px;color:var(--ws-muted);font-size:10px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--ws-border);white-space:nowrap}
+#webShopSection .web-shop-history-table td{padding:12px;border-bottom:1px solid var(--ws-border);color:var(--ws-text);vertical-align:middle}
+#webShopSection .web-shop-history-table tbody tr:last-child td{border-bottom:0}
+#webShopSection .web-shop-history-table td strong,#webShopSection .web-shop-history-table td small{display:block}
+#webShopSection .web-shop-history-table td small{margin-top:3px;color:var(--ws-muted);font-size:10px;line-height:1.4;max-width:320px}
+#webShopSection .web-shop-history-table td.is-positive{color:#34d399;font-weight:850;white-space:nowrap}
+#webShopSection .web-shop-history-table td.is-negative{color:#fb7185;font-weight:850;white-space:nowrap}
+#webShopSection .web-shop-history-table td.web-shop-history-empty{text-align:center;color:var(--ws-muted);padding:24px}
+@media(max-width:700px){
+ #webShopSection .web-shop-history{padding:15px}
+ #webShopSection .web-shop-history-header{flex-direction:column}
+ #webShopSection .web-shop-history-tools{width:100%}
+ #webShopSection .web-shop-history-tools select{flex:1;min-width:0}
+ #webShopSection .web-shop-history-table{min-width:620px}
+}
