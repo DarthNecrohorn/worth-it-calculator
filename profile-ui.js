@@ -99,6 +99,7 @@ function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":Strin
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
 function setStatus(msg,isError){const n=$("worthItProfileStatus");if(!n)return;n.textContent=msg||"";n.hidden=!msg;n.classList.toggle("is-error",Boolean(msg&&isError));}
 function showProfileSection(){
+ if(typeof window.setWorthItProfileThemeIsolation==="function")window.setWorthItProfileThemeIsolation(true);else document.documentElement.classList.add("worth-it-profile-theme-isolated");
  if(typeof window.hideCarsNavigationUi==="function")window.hideCarsNavigationUi();
  if(typeof window.hideWaterLevelsSection==="function")window.hideWaterLevelsSection();
  if(typeof window.hideShipTrackingSection==="function")window.hideShipTrackingSection();
@@ -109,7 +110,7 @@ function showProfileSection(){
  const nav=$("navLinks");if(nav&&typeof window.closeNavMenuUnlessPreserved==="function")window.closeNavMenuUnlessPreserved(nav);else if(typeof window.closeMoreMenu==="function")window.closeMoreMenu();
  document.documentElement.classList.remove("settings-open");document.documentElement.style.overflowY="auto";document.body.style.overflowY="auto";window.scrollTo({top:0,behavior:"auto"});
 }
-window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);};
+window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);if(typeof window.setWorthItProfileThemeIsolation==="function")window.setWorthItProfileThemeIsolation(false);else document.documentElement.classList.remove("worth-it-profile-theme-isolated");};
 function fallbackAvatar(name){const n=document.createElement("div");n.className="worth-it-profile-avatar-fallback";n.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";return n;}
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
 function renderAvatar(url,name,person){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe)host.appendChild(fallbackAvatar(name));else{const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren(fallbackAvatar(name));appendWorthItPresenceIndicator(host,person);},{once:true});host.appendChild(img);}appendWorthItPresenceIndicator(host,person);}
