@@ -276,6 +276,8 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-extras.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-hover.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-hover.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-header.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-header.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/community-features-postgres-smoke.sql
 
       - name: Create isolated database for CALC economy tests
