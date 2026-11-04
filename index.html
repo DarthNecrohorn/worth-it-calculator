@@ -106,7 +106,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
                 <span class="calc-wallet-unit" id="worthItCalcWalletUnit">CALC</span>
             </button>
-            <button type="button" class="calc-wip-nav" id="worthItWipWalletButton" onclick="openWebShop('subscriptions')" aria-label="WIP balance; used only for Premium Lite" title="WIP is earned daily and used only for Premium Lite: 40 WIP for 15 days." hidden>
+            <button type="button" class="calc-wip-nav" id="worthItWipWalletButton" onclick="openWebShop('subscriptions')" aria-label="WIP balance; used only for Premium Lite" title="WIP is earned daily and used only for Premium Lite: 50 WIP for 15 days." hidden>
                 <span class="calc-wip-icon" aria-hidden="true">✦</span>
                 <strong class="calc-wip-value" id="worthItWipWalletValue">—</strong>
                 <span class="calc-wip-unit">WIP</span>
@@ -1448,6 +1448,14 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </nav>
         <div class="ugc-catalog-tools">
           <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
+          <select id="ugcCategoryFilter" aria-label="Filter community calculators by category">
+            <option value="all">All categories</option>
+            <option value="cars">Cars</option>
+            <option value="money">Money</option>
+            <option value="technology">Technology</option>
+            <option value="home">Home Costs</option>
+            <option value="other">Other</option>
+          </select>
           <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
             <option value="today">Today</option>
             <option value="7d">Last 7 days</option>
@@ -1463,7 +1471,16 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <h3 id="ugcCatalogHeading">Latest calculators</h3>
         <p id="ugcCatalogStatus" class="ugc-catalog-status" role="status" aria-live="polite">Sign in to browse, create and use community calculators.</p>
-        <div id="ugcCalculatorGrid" class="ugc-calculator-grid"></div>
+        <div id="ugcCalculatorGrid" class="ugc-calculator-grid" aria-live="polite"></div>
+        <nav id="ugcPagination" class="ugc-pagination" aria-label="Community calculator pages" hidden>
+          <button type="button" id="ugcPagePrevious" class="ugc-page-step" aria-label="Previous page" disabled>←</button>
+          <div class="ugc-page-current"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
+          <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
+          <label class="ugc-page-go-label" for="ugcPageInput">Go to page</label>
+          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Page number">
+          <button type="button" id="ugcPageGo" class="ugc-page-go">Go</button>
+        </nav>
+        <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
       </div>
     </section>
 </div>
@@ -1584,37 +1601,55 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Are the calculators free?
+                        Are the built-in calculators free?
                     </button>
                     <div class="faq-answer">
-                        Yes. All calculators on Worth It are designed to be free to use.
+                        Yes. The Basic, Advanced and Scientific tools and the 50 owner-maintained calculators are free to open. Some supported calculations in account-based tools, including community calculators, use 0.1 CALC per successful calculation. Guest Lite has a separate daily allowance.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Are the results financial advice?
+                        What are CALC and WIP?
                     </button>
                     <div class="faq-answer">
-                        No. Results are estimates based on the values you provide. Real-world costs can vary.
+                        CALC is Worth It's in-app credit for supported calculations and successful AI replies. WIP is a separate activity point earned by signed-in accounts once per UTC day and can only be used to activate Premium Lite. Neither currency is cash, transferable or withdrawable.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Can I use the calculators on my phone?
+                        What does Premium Lite include?
                     </button>
                     <div class="faq-answer">
-                        Yes. The interface is responsive and designed to work on desktop and mobile devices.
+                        Premium Lite lasts 15 days and costs 50 WIP. While active it removes ads, provides 1.5 CALC and 1 WIP daily, adds its profile and chat badge, and increases media upload limits. You cannot activate it while another subscription is active.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Does the website save my calculations?
+                        Can I use Worth It on my phone?
                     </button>
                     <div class="faq-answer">
-                        Calculations happen directly in your browser. This version does not require an account or server.
+                        Yes. The site adapts to phone, tablet and desktop screens. Community calculators show three cards per row on phones and six per row on wider desktop screens.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        Does Worth It save my calculations?
+                    </button>
+                    <div class="faq-answer">
+                        Calculator inputs and results are normally processed for the current session. Wallet transactions, saved community calculators, favourites and account settings are stored with your account where those features are enabled. Worth It does not automatically create a personal history of every calculation result.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        Can guests use community calculators?
+                    </button>
+                    <div class="faq-answer">
+                        No. Community calculators, the AI Maker and the Web Shop require a signed-in account. Guest Lite can use the first 50 built-in calculators with its separate 0.5 CALC Lite daily allowance.
                     </div>
                 </div>
 
@@ -2943,7 +2978,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
       </div>
       <div class="worth-it-settings-control-group">
         <h3>Custom theme colours</h3>
-        <p>Choose your own accent gradient. The selected colours affect Worth It buttons and highlights without changing your light or dark appearance setting.</p>
+        <p>Choose your own accent gradient. A saved custom palette becomes its own appearance mode. To return to Dark or Light, first use Reset settings.</p>
         <div class="worth-it-theme-editor">
           <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
           <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Theme preview"></div>
@@ -2951,6 +2986,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="worth-it-theme-fields">
             <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
             <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+            <label class="worth-it-theme-field" for="worthItThemeHover">Button hover border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
           </div>
           <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
           <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
@@ -3070,7 +3106,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <p class="web-shop-footnote">CALC is a closed-use Worth It credit for supported calculators and successful AI replies (0.1 CALC each). It has no cash value, cannot be transferred, exchanged for WIP or withdrawn, and <strong>cannot be used to buy Premium Lite</strong>. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
             <article class="web-shop-wip-note">
                 <strong>Worth It Points (WIP)</strong>
-                <p>WIP is a separate activity currency. Every signed-in account earns 1 WIP per UTC day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value and cannot be exchanged for CALC. <strong>WIP is the only currency used to activate Premium Lite: 40 WIP for 15 days.</strong> CALC is never deducted for Premium Lite.</p>
+                <p>WIP is a separate activity currency. Every signed-in account earns 1 WIP per UTC day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value and cannot be exchanged for CALC. <strong>WIP is the only currency used to activate Premium Lite: 50 WIP for 15 days.</strong> CALC is never deducted for Premium Lite.</p>
             </article>
         </section>
 
@@ -3083,15 +3119,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <span class="web-shop-ribbon">15 DAYS · WIP</span>
                     <div class="web-shop-card-icon" aria-hidden="true">✦</div>
                     <h4>Premium Lite</h4>
-                    <p class="web-shop-description">A lower-cost introduction to Premium benefits, paid with your saved Worth It Points.</p>
-                    <p class="web-shop-price">40 <small>WIP / 15 days</small></p>
+                    <p class="web-shop-description">A 15-day introduction to Premium benefits, activated with your saved Worth It Points.</p>
+                    <p class="web-shop-price">50 <small>WIP / 15 days</small></p>
                     <ul class="web-shop-feature-list">
-                        <li>No ads while active</li><li>2 CALC and 1 WIP daily reward</li>
+                        <li>No ads while active</li><li>1.5 CALC and 1 WIP daily reward</li>
                         <li>Premium Lite profile and chat badge</li>
                         <li>Higher image, GIF and video upload limits</li>
                         <li>Extra profile and chat customisation</li>
                     </ul>
-                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 40 WIP</button>
+                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 50 WIP</button>
                 </article>
                 <article class="web-shop-card">
                     <span class="web-shop-ribbon">30 DAYS · REAL MONEY</span>
@@ -3108,7 +3144,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">Premium Lite costs 40 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+            <p class="web-shop-footnote">Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
         </section>
 
         <section class="web-shop-history" id="webShopHistory" hidden aria-labelledby="webShopHistoryTitle">
@@ -3123,6 +3159,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <option value="all">All currencies</option>
                         <option value="CALC">CALC</option>
                         <option value="WIP">WIP</option>
+                        <option value="purchases">Your purchases</option>
                     </select>
                     <button type="button" id="webShopHistoryRefresh" class="web-shop-history-refresh">↻ Refresh</button>
                 </div>
@@ -3130,7 +3167,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <p class="web-shop-history-status" id="webShopHistoryStatus" role="status" aria-live="polite">Your latest transactions will appear here.</p>
             <div class="web-shop-history-table-wrap">
                 <table class="web-shop-history-table">
-                    <thead><tr><th>Date</th><th>Transaction</th><th>Change</th><th>Balance after</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Transaction</th><th>Change</th><th>Balance after</th><th>Status</th><th aria-label="Transaction actions"></th></tr></thead>
                     <tbody id="webShopHistoryRows"></tbody>
                 </table>
             </div>
