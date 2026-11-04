@@ -190,3 +190,48 @@ end
 $$;
 
 select 'CALC economy smoke tests passed' as result;
+
+-- Verify the transaction history can return only the authenticated user's rows.
+insert into private.worth_it_calc_transactions(
+    user_id,kind,currency,amount_milli,balance_after_milli,status,description
+) values
+    ('11111111-1111-4111-8111-111111111111','manual_adjustment','CALC',123,123,'completed','history-visible-free-marker'),
+    ('22222222-2222-4222-8222-222222222222','manual_adjustment','CALC',456,456,'completed','history-hidden-other-user-marker');
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","email":"free@example.test"}',false);
+do $$
+declare
+    v jsonb;
+begin
+    v := public.calc_wallet_history(100);
+    if not (v @> '[{"description":"history-visible-free-marker"}]'::jsonb) then
+        raise exception 'The caller must be able to see their own transaction.';
+    end if;
+    if v @> '[{"description":"history-hidden-other-user-marker"}]'::jsonb then
+        raise exception 'The caller must never see another account transaction.';
+    end if;
+    if jsonb_array_length(public.calc_wallet_history(1)) <> 1 then
+        raise exception 'The requested history limit must be applied and clamped.';
+    end if;
+    if has_function_privilege('anon','public.calc_wallet_history(integer)','EXECUTE') then
+        raise exception 'Anonymous users must not execute transaction history.';
+    end if;
+    if not has_function_privilege('authenticated','public.calc_wallet_history(integer)','EXECUTE') then
+        raise exception 'Authenticated users must be able to read their own transaction history.';
+    end if;
+end
+$$;
+
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{}',false);
+do $$
+begin
+    begin
+        perform public.calc_wallet_history(50);
+        raise exception 'Unauthenticated transaction history access must be rejected.';
+    exception when insufficient_privilege then
+        null;
+    end;
+end
+$$;
