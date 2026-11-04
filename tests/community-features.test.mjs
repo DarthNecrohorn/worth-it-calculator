@@ -5,6 +5,7 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const html=read("index.html"), js=read("community-features.js"), css=read("community-features.css");
 const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras.sql");
 const profileUi=read("profile-ui.js");
+const settings=read("settings.js"), routing=read("routing.js");
 const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const siteCss=read("style.css");
@@ -89,6 +90,25 @@ test("custom palettes use four validated colours and persist the header-controls
  assert.ok(js.includes("removeLocal(scopedKey(THEME_KEY,userId))"));
  assert.ok(js.includes("return false;"));
 
+});
+test("everyone can preview Custom Themes in Settings, but only Premium can save them",()=>{
+ assert.ok(html.includes('id="worthItThemeEditor">'));
+ assert.ok(html.includes('id="settingsCustomThemePromo" role="note" hidden'));
+ assert.ok(html.includes("Try every colour for free"));
+ assert.ok(html.includes("Your preview lasts while Settings is open"));
+ assert.ok(html.includes("Save your design and keep it active across the whole website"));
+ assert.ok(js.includes("if(editor)editor.hidden=false"));
+ assert.ok(js.includes("if(locked)locked.hidden=themeEntitled"));
+ assert.ok(js.includes("if(miniPromo)miniPromo.hidden=themeEntitled"));
+ assert.ok(js.includes("Free live preview. Your colours reset when you leave Settings."));
+ assert.ok(js.includes("if(!themeEntitlementResolved||!themeEntitled)"));
+ assert.ok(js.includes("window.openWorthItThemeUpgrade?.()"));
+ assert.ok(js.includes("let savedTheme = DEFAULT_THEME"));
+ assert.ok(js.includes("let themePreviewActive = false"));
+ assert.ok(js.includes("window.setWorthItCustomThemeSettingsOpen=function(isOpen)"));
+ assert.ok(js.includes("applyTheme(savedTheme)"));
+ assert.ok(settings.includes("window.setWorthItCustomThemeSettingsOpen(true)"));
+ assert.ok(routing.includes("window.setWorthItCustomThemeSettingsOpen(false)"));
 });
 test("custom themes are suspended on public profile routes and restored after leaving",()=>{
  assert.ok(html.includes('root.classList.add("worth-it-profile-theme-isolated")'));
