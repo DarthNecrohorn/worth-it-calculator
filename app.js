@@ -1069,6 +1069,59 @@ function setAuthStatus(message = "", type = "") {
 
 }
 
+function getAuthMailboxProvider(email) {
+    const domain = String(email || "").trim().toLowerCase().split("@").pop() || "";
+    if (["gmail.com", "googlemail.com"].includes(domain)) return "gmail";
+    if (["outlook.com", "outlook.co.uk", "hotmail.com", "hotmail.co.uk", "live.com", "live.co.uk", "msn.com"].includes(domain)) return "microsoft";
+    if (["yahoo.com", "yahoo.co.uk", "ymail.com"].includes(domain)) return "yahoo";
+    if (["icloud.com", "me.com", "mac.com"].includes(domain)) return "icloud";
+    if (["proton.me", "protonmail.com"].includes(domain)) return "proton";
+    return "other";
+}
+
+function appendAuthInboxLink(status, provider, label, url) {
+    const link = document.createElement("a");
+    link.className = "auth-email-inbox-link";
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    status.appendChild(link);
+    return link;
+}
+
+function setAuthEmailConfirmationStatus(provider = "other") {
+    const status = $("authModalStatus");
+    if (!status) return;
+
+    status.replaceChildren();
+    status.className = "auth-modal-status error";
+
+    const message = document.createElement("span");
+    message.textContent = "Your username and password are correct, but you must confirm your email address before signing in. Check your inbox: ";
+    status.appendChild(message);
+
+    const inboxes = {
+        gmail: ["Gmail inbox", "https://mail.google.com/mail/u/0/#inbox"],
+        microsoft: ["Outlook / Microsoft inbox", "https://outlook.live.com/mail/0/inbox"],
+        yahoo: ["Yahoo Mail inbox", "https://mail.yahoo.com/"],
+        icloud: ["iCloud Mail inbox", "https://www.icloud.com/mail/"],
+        proton: ["Proton Mail inbox", "https://mail.proton.me/"]
+    };
+
+    if (inboxes[provider]) {
+        appendAuthInboxLink(status, inboxes[provider][0], inboxes[provider][1]);
+        return;
+    }
+
+    // Work/school domains cannot reliably reveal their mailbox provider.
+    // Offer the two common hosted inboxes without guessing the user's provider.
+    appendAuthInboxLink(status, "Gmail", "https://mail.google.com/mail/u/0/#inbox");
+    const separator = document.createTextNode(" or ");
+    status.appendChild(separator);
+    appendAuthInboxLink(status, "Outlook / Microsoft Mail", "https://outlook.office.com/mail/");
+}
+
 
 function openAuthModal(mode = "signin") {
 
@@ -1856,10 +1909,9 @@ async function submitAuthForm(event) {
             }
 
 
-            setAuthStatus(
-                "Account created. Check your email to confirm your account.",
-                "success"
-            );
+            setAuthEmailConfirmationStatus(getAuthMailboxProvider(email));
+            $("authModalStatus").classList.remove("error");
+            $("authModalStatus").classList.add("success");
 
 
         } else if (authModalMode === "reset") {
@@ -1928,6 +1980,8 @@ async function submitAuthForm(event) {
 
                 authError.status =
                     response.status;
+                authError.code = payload?.code || "";
+                authError.emailProvider = payload?.emailProvider || "other";
 
                 throw authError;
             }
@@ -2017,10 +2071,14 @@ async function submitAuthForm(event) {
         }
 
 
-        setAuthStatus(
-            message,
-            "error"
-        );
+        if (error?.code === "EMAIL_NOT_CONFIRMED") {
+            setAuthEmailConfirmationStatus(error.emailProvider || "other");
+        } else {
+            setAuthStatus(
+                message,
+                "error"
+            );
+        }
 
 
     } finally {
