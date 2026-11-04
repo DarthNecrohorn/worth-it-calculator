@@ -254,9 +254,7 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-pagination-status{text-align:center;min-height:18px;color:var(--muted);font-size:11px;margin:0 0 12px}
 .ugc-catalog-tools #ugcCategoryFilter{max-width:190px}
 .ugc-catalog-tools #ugcPeriodFilter{max-width:210px}
-@media(max-width:1100px) and (min-width:701px){
-    .ugc-calculator-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-}
+/* All desktop/tablet widths keep the requested six-column catalogue layout. */
 @media(max-width:700px){
     .calculator-explore-stage{height:calc(100svh - 78px)!important;min-height:520px!important}
     .ugc-calculator-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
