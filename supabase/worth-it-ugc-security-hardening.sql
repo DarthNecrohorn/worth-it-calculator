@@ -9,8 +9,6 @@ revoke execute on function private.worth_it_guard_ugc_calculator_update()
 revoke execute on function private.worth_it_validate_ugc_spec(jsonb)
     from public, anon, authenticated, service_role;
 
--- Keep future private helper functions closed by default when created as postgres.
-alter default privileges for role postgres in schema private
-    revoke execute on functions from public, anon, authenticated, service_role;
-
+-- PostgreSQL's schema-specific default ACL cannot revoke the global PUBLIC EXECUTE grant.
+-- Keep every new private helper's EXECUTE privilege explicitly revoked in its own migration.
 commit;
