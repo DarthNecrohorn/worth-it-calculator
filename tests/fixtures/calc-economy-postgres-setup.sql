@@ -44,6 +44,38 @@ create table if not exists public.worth_it_profiles (
     username text not null unique
 );
 
+-- Minimal Custom Theme table fixture used to test the Premium-only RLS migration.
+create table if not exists public.worth_it_user_themes (
+    user_id uuid primary key references auth.users(id) on delete cascade,
+    theme_name text not null default 'My theme',
+    primary_color text not null default '#7C5CFF',
+    secondary_color text not null default '#38BDF8',
+    hover_color text not null default '#8B5CF6',
+    header_color text not null default '#0B1120',
+    updated_at timestamptz not null default now()
+);
+alter table public.worth_it_user_themes enable row level security;
+revoke all on public.worth_it_user_themes from public, anon, authenticated;
+grant select, insert, update, delete on public.worth_it_user_themes to authenticated;
+
+drop policy if exists "Users can view their own custom theme" on public.worth_it_user_themes;
+create policy "Users can view their own custom theme"
+    on public.worth_it_user_themes for select to authenticated
+    using ((select auth.uid()) = user_id);
+drop policy if exists "Users can create their own custom theme" on public.worth_it_user_themes;
+create policy "Users can create their own custom theme"
+    on public.worth_it_user_themes for insert to authenticated
+    with check ((select auth.uid()) = user_id);
+drop policy if exists "Users can update their own custom theme" on public.worth_it_user_themes;
+create policy "Users can update their own custom theme"
+    on public.worth_it_user_themes for update to authenticated
+    using ((select auth.uid()) = user_id)
+    with check ((select auth.uid()) = user_id);
+drop policy if exists "Users can remove their own custom theme" on public.worth_it_user_themes;
+create policy "Users can remove their own custom theme"
+    on public.worth_it_user_themes for delete to authenticated
+    using ((select auth.uid()) = user_id);
+
 insert into auth.users(id,email) values
     ('11111111-1111-4111-8111-111111111111','free@example.test'),
     ('22222222-2222-4222-8222-222222222222','pedjasebez3545@gmail.com')
