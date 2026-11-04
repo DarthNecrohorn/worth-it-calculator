@@ -711,10 +711,12 @@ async function init(){
  $("ugcDetailLike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"like"));
  $("ugcDetailDislike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"dislike"));
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(async()=>{
+  const previousUserId=state.userId;
   try{await getSession();}catch(_){state.userId="";state.session=null;}
   const gallery=$("ugcCommunitySection");if(gallery)gallery.hidden=!state.userId;
   const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
-  if(!state.userId){setExploreInitialView("basic");state.pages={};}
+  if(previousUserId!==state.userId){state.pages={};state.lastPage=1;}
+  if(!state.userId)setExploreInitialView("basic");
   state.catalogRequest++;
   if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
