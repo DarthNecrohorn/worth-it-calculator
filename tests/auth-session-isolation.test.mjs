@@ -68,7 +68,7 @@ test("username login distinguishes only Supabase's explicit unconfirmed-email er
 });
 
 test("email confirmation guidance gives safe provider-specific inbox links without injecting HTML", () => {
-    assert.match(app, /function setAuthEmailConfirmationStatus\(provider = "other"\)/);
+    assert.match(app, /function setAuthEmailConfirmationStatus\(provider = "other", correctCredentials = false\)/);
     assert.match(app, /Your username and password are correct, but you must confirm your email address/);
     assert.match(app, /Your Worth It account has been created\. Confirm your email address to finish signing up/);
     assert.match(app, /https:\/\/mail\.google\.com\/mail\/u\/0\/#inbox/);
