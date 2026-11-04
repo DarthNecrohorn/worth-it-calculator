@@ -212,3 +212,61 @@
  .worth-it-guest-consent{padding:7px 9px!important}
  .worth-it-guest-actions button{min-height:36px!important}
 }
+
+
+/* Loaded after section theme presets so the saved custom palette remains the active appearance. */
+html[data-worth-it-custom-theme]{
+    color-scheme:dark!important;
+    --bg:color-mix(in srgb,var(--primary) 7%,#070b14);
+    --bg2:color-mix(in srgb,var(--primary2) 9%,#0b1120);
+    --card:color-mix(in srgb,var(--primary) 5%,rgba(17,25,42,.96));
+    --card-solid:color-mix(in srgb,var(--primary) 7%,#11192a);
+    --card2:color-mix(in srgb,var(--primary2) 8%,#151f33);
+    --border:color-mix(in srgb,var(--worth-it-hover-glow) 24%,rgba(148,163,184,.2));
+    --text:#f7f8ff;--muted:#b6bfd1;--muted2:#8490a7;
+    --surface-soft:color-mix(in srgb,var(--primary) 9%,rgba(255,255,255,.045));
+}
+html[data-worth-it-custom-theme] body{
+    color-scheme:dark!important;color:var(--text)!important;
+    background:
+      radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--primary) 23%,transparent),transparent 36%),
+      radial-gradient(ellipse at 94% 8%,color-mix(in srgb,var(--primary2) 20%,transparent),transparent 34%),
+      linear-gradient(135deg,var(--bg),var(--bg2))!important;
+}
+html[data-worth-it-custom-theme] .nav,
+html[data-worth-it-custom-theme] .settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-card,
+html[data-worth-it-custom-theme] .panel,
+html[data-worth-it-custom-theme] .stat,
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .metric,
+html[data-worth-it-custom-theme] .chart-card,
+html[data-worth-it-custom-theme] .faq-item,
+html[data-worth-it-custom-theme] .feedback-modal-card{
+    color:var(--text)!important;
+    background-color:var(--card-solid);
+    border-color:color-mix(in srgb,var(--worth-it-hover-glow) 28%,var(--border))!important;
+}
+html[data-worth-it-custom-theme] button:hover:not(:disabled),
+html[data-worth-it-custom-theme] button:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--worth-it-hover-glow) 50%,transparent),
+               0 0 18px color-mix(in srgb,var(--worth-it-hover-glow) 42%,transparent)!important;
+}
+html[data-worth-it-custom-theme] input:focus-visible,
+html[data-worth-it-custom-theme] select:focus-visible,
+html[data-worth-it-custom-theme] textarea:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--worth-it-hover-glow) 28%,transparent)!important;
+}
+.worth-it-theme-preview{
+    position:relative;overflow:hidden;min-height:72px;border:1px solid var(--border);
+    border-radius:14px;box-shadow:0 0 0 1px color-mix(in srgb,var(--preview-hover,#8b5cf6) 22%,transparent);
+}
+.worth-it-theme-preview.is-custom:after{
+    content:"CUSTOM APPEARANCE";position:absolute;right:10px;bottom:8px;
+    padding:4px 8px;border:1px solid color-mix(in srgb,var(--preview-hover,#8b5cf6) 70%,transparent);
+    border-radius:999px;background:rgba(7,11,20,.55);color:#fff;font-size:9px;font-weight:900;letter-spacing:.08em;
+}
+.worth-it-theme-field input[type="color"]{width:100%;min-height:42px;cursor:pointer}
