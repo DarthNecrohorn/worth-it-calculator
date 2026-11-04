@@ -19,6 +19,7 @@ let themeRequest = 0;
 let themeRemoteAvailable = null;
 let themeEntitled = false;
 let themeEntitlementResolved = false;
+let activeTheme = DEFAULT_THEME;
 let favouritesRemoteAvailable = null;
 let favouritesLocalNoticeShown = false;
 let reportVisibilityTimer = null;
@@ -114,8 +115,12 @@ function updateAppearanceModeControls(){
  });
 }
 function applyTheme(value){
- const theme=cleanTheme(value);
+ const selectedTheme=cleanTheme(value);
+ activeTheme=selectedTheme;
  const root=document.documentElement;
+ // Public profile pages own their full-width banner and avatar styling. Keep the
+ // saved palette in memory, but expose only the standard site palette on profiles.
+ const theme=root.classList.contains("worth-it-profile-theme-isolated")?DEFAULT_THEME:selectedTheme;
  if(isCustomTheme(theme)){
   root.style.setProperty("--primary",theme.primary);
   root.style.setProperty("--primary2",theme.secondary);
@@ -133,24 +138,30 @@ function applyTheme(value){
   root.removeAttribute("data-worth-it-custom-theme");
  }
  const primary=$("worthItThemePrimary"),secondary=$("worthItThemeSecondary"),hover=$("worthItThemeHover"),header=$("worthItThemeHeader"),name=$("worthItThemeName");
- if(primary)primary.value=theme.primary;
- if(secondary)secondary.value=theme.secondary;
- if(hover)hover.value=theme.hover;
- if(header)header.value=theme.header;
- if(name)name.value=theme.name;
+ if(primary)primary.value=selectedTheme.primary;
+ if(secondary)secondary.value=selectedTheme.secondary;
+ if(hover)hover.value=selectedTheme.hover;
+ if(header)header.value=selectedTheme.header;
+ if(name)name.value=selectedTheme.name;
  const preview=$("worthItThemePreview");
  if(preview){
-  preview.style.background=isCustomTheme(theme)
-   ?"linear-gradient(120deg,"+theme.primary+","+theme.secondary+")"
+  preview.style.background=isCustomTheme(selectedTheme)
+   ?"linear-gradient(120deg,"+selectedTheme.primary+","+selectedTheme.secondary+")"
    :"linear-gradient(120deg,#7c5cff,#38bdf8)";
-  preview.style.setProperty("--preview-hover",theme.hover);
-  preview.style.setProperty("--preview-header",theme.header);
-  preview.style.setProperty("--preview-header-foreground",contrastForeground(theme.header));
-  preview.classList.toggle("is-custom",isCustomTheme(theme));
+  preview.style.setProperty("--preview-hover",selectedTheme.hover);
+  preview.style.setProperty("--preview-header",selectedTheme.header);
+  preview.style.setProperty("--preview-header-foreground",contrastForeground(selectedTheme.header));
+  preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
  }
  updateAppearanceModeControls();
- return theme;
+ return selectedTheme;
 }
+window.setWorthItProfileThemeIsolation=function(isolated){
+ const root=document.documentElement;
+ if(!root)return;
+ root.classList.toggle("worth-it-profile-theme-isolated",Boolean(isolated));
+ applyTheme(activeTheme);
+};
 function setThemeStatus(message,isError){
  const node=$("worthItThemeStatus");if(!node)return;
  node.textContent=String(message||"");
