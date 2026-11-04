@@ -71,8 +71,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=transaction-history-hide-premium-lite-20261104c">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=custom-theme-header-access-20261104a&amp;rev=header-colour-contrast-premium-gate-20261104a">
-<link rel="stylesheet" href="ugc-calculators.css?v=ugc-opaque-community-panel-20261104a&amp;rev=hide-basic-background-under-community-20261104a">
+<link rel="stylesheet" href="community-features.css?v=custom-theme-header-controls-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a">
+<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -1483,6 +1483,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
           <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Jump to page" title="Enter a page number and press Enter">
         </nav>
+        <p class="ugc-pagination-note">The catalogue shows up to 30 calculators per page, not 30 in total. Use the arrows or enter a page number to browse the rest.</p>
         <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
       </div>
     </section>
@@ -3013,7 +3014,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
             <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
             <label class="worth-it-theme-field" for="worthItThemeHover">Button hover background, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
-            <label class="worth-it-theme-field" for="worthItThemeHeader">Header background behind navigation buttons<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
+            <label class="worth-it-theme-field" for="worthItThemeHeader">Header controls background<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
           </div>
           <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
           <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
@@ -5554,7 +5555,7 @@ if($("carResults")){
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
-<script src="/ugc-calculators.js?v=ugc-empty-status-30-limit-20261104a&amp;rev=page-count-description-20261104a"></script>
+<script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
@@ -5581,6 +5582,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=custom-theme-header-access-20261104a&amp;rev=header-colour-contrast-premium-gate-20261104a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a"></script>
 </body>
 </html>
