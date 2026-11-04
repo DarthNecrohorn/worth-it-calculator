@@ -255,7 +255,7 @@ begin
     if v->>'ok'<>'false' or v->>'code'<>'TRANSACTION_NOT_FOUND' then
         raise exception 'A user must not hide another account transaction: %',v;
     end if;
-    if exists(select 1 from public.calc_wallet_history(100) row_data where row_data->>'description'='history-visible-free-marker') then
+    if public.calc_wallet_history(100) @> '[{"description":"history-visible-free-marker"}]'::jsonb then
         raise exception 'A hidden transaction is still visible in account history.';
     end if;
     if not exists(select 1 from private.worth_it_calc_transactions where id=v_own_id and hidden_at is not null)
