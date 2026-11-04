@@ -215,3 +215,39 @@ html[data-worth-it-premium="true"] .worth-it-advertisement{display:none!importan
     border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.13);color:#fb7185;
 }
 #webShopSection .web-shop-history-confirm-button:disabled{opacity:.45;cursor:wait}
+
+
+/* PR #194 — the fourth custom colour is the surface behind Web Shop / CALC / WIP. */
+html[data-worth-it-custom-theme] .calc-economy-nav:has(>button:not([hidden])){
+    color:var(--worth-it-header-foreground);
+    background:var(--worth-it-header-background);
+    border:1px solid color-mix(in srgb,var(--worth-it-header-foreground) 22%,transparent);
+    border-radius:14px;
+    padding:4px 6px;
+    box-shadow:0 7px 20px color-mix(in srgb,var(--worth-it-header-background) 26%,transparent);
+}
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-shop-nav,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wallet-nav,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav{
+    color:var(--worth-it-header-foreground)!important;
+    border-color:color-mix(in srgb,var(--worth-it-header-foreground) 30%,transparent)!important;
+    background:color-mix(in srgb,var(--worth-it-header-foreground) 9%,transparent)!important;
+}
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wallet-unit,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-unit,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-use{
+    color:var(--worth-it-header-foreground)!important;
+    opacity:.88;
+}
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-shop-nav:hover,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wallet-nav:hover,
+html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
+    background:color-mix(in srgb,var(--worth-it-header-foreground) 17%,transparent)!important;
+    border-color:var(--worth-it-header-foreground)!important;
+}
+@media(max-width:900px){
+    html[data-worth-it-custom-theme] .calc-economy-nav:has(>button:not([hidden])){padding:3px 4px;border-radius:12px}
+}
+@media(max-width:560px){
+    html[data-worth-it-custom-theme] .calc-economy-nav:has(>button:not([hidden])){padding:2px 3px;border-radius:10px}
+}
