@@ -27,15 +27,27 @@ begin
 end
 $test$;
 
-insert into public.worth_it_user_themes(user_id,theme_name,primary_color,secondary_color)
-values('00000000-0000-4000-8000-000000000002','Ocean','#176B87','#64CCC5')
+insert into public.worth_it_user_themes(user_id,theme_name,primary_color,secondary_color,hover_color)
+values('00000000-0000-4000-8000-000000000002','Ocean','#176B87','#64CCC5','#FF8C42')
 on conflict(user_id) do update set theme_name=excluded.theme_name,
-  primary_color=excluded.primary_color,secondary_color=excluded.secondary_color;
+  primary_color=excluded.primary_color,secondary_color=excluded.secondary_color,
+  hover_color=excluded.hover_color;
 do $test$
 begin
-  if not exists(select 1 from public.worth_it_user_themes where user_id='00000000-0000-4000-8000-000000000002' and primary_color='#176B87') then
-    raise exception 'The account theme was not saved.';
+  if not exists(
+    select 1 from public.worth_it_user_themes
+     where user_id='00000000-0000-4000-8000-000000000002'
+       and primary_color='#176B87' and secondary_color='#64CCC5' and hover_color='#FF8C42'
+  ) then
+    raise exception 'The account theme colours and separate hover glow were not saved.';
   end if;
+  begin
+    update public.worth_it_user_themes set hover_color='not-a-colour'
+     where user_id='00000000-0000-4000-8000-000000000002';
+    raise exception 'The custom theme accepted an invalid hover colour.';
+  exception when check_violation then
+    null;
+  end;
 end
 $test$;
 rollback;
