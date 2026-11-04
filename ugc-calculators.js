@@ -106,7 +106,7 @@ function currentCatalogPage(){
 function renderPagination(payload){
  const nav=$("ugcPagination"),prev=$("ugcPagePrevious"),next=$("ugcPageNext");
  const pageNumber=$("ugcPageNumber"),pageTotal=$("ugcPageTotal"),input=$("ugcPageInput");
- const go=$("ugcPageGo"),summary=$("ugcPaginationStatus");
+ const summary=$("ugcPaginationStatus");
  if(!nav)return;
  const total=Number(payload?.total_count)||0;
  const pages=Math.max(1,Number(payload?.total_pages)||1);
@@ -118,7 +118,6 @@ function renderPagination(payload){
  if(input){input.value=String(page);input.max=String(pages);input.min="1";input.disabled=pages<=1;}
  if(prev)prev.disabled=page<=1;
  if(next)next.disabled=page>=pages;
- if(go)go.disabled=pages<=1;
  if(summary){
   const first=total?((page-1)*30+1):0, last=Math.min(total,page*30);
   summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page."):"";
@@ -697,7 +696,7 @@ async function init(){
  $("ugcCategoryFilter")?.addEventListener("change",event=>{state.category=String(event.target.value||"all");void loadCatalog();});
  $("ugcPagePrevious")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()-1));
  $("ugcPageNext")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()+1));
- $("ugcPageGo")?.addEventListener("click",()=>goToCatalogPage($("ugcPageInput")?.value));
+ $("ugcPageInput")?.addEventListener("change",event=>goToCatalogPage(event.target.value));
  $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
