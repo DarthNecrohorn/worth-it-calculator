@@ -24123,34 +24123,6 @@ html[data-worth-it-custom-theme] textarea:focus-visible{
 }
 
 
-/* PR #194 — custom theme's fourth colour belongs to the surface behind header controls. */
-html[data-worth-it-custom-theme] .nav-right-stack{
-    color:var(--worth-it-header-foreground);
-    background:var(--worth-it-header-background);
-    border:1px solid color-mix(in srgb,var(--worth-it-header-foreground) 19%,transparent);
-    border-radius:16px;
-    padding:6px 8px;
-    box-shadow:0 8px 24px color-mix(in srgb,var(--worth-it-header-background) 24%,transparent);
-}
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-user-search-btn,
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-notification-bell,
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-chat-nav-btn,
-html[data-worth-it-custom-theme] .nav-right-stack .profile-nav-btn,
-html[data-worth-it-custom-theme] .nav-right-stack .ai-chat-nav-btn,
-html[data-worth-it-custom-theme] .nav-right-stack .nav-secondary-row>button{
-    color:var(--worth-it-header-foreground)!important;
-    border-color:color-mix(in srgb,var(--worth-it-header-foreground) 28%,transparent)!important;
-    background:color-mix(in srgb,var(--worth-it-header-foreground) 8%,transparent)!important;
-}
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-user-search-btn:hover,
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-notification-bell:hover,
-html[data-worth-it-custom-theme] .nav-right-stack .worth-it-chat-nav-btn:hover,
-html[data-worth-it-custom-theme] .nav-right-stack .profile-nav-btn:hover,
-html[data-worth-it-custom-theme] .nav-right-stack .ai-chat-nav-btn:hover,
-html[data-worth-it-custom-theme] .nav-right-stack .nav-secondary-row>button:hover{
-    background:color-mix(in srgb,var(--worth-it-header-foreground) 15%,transparent)!important;
-    border-color:var(--worth-it-header-foreground)!important;
-}
 /* Keep the Settings kicker readable even when the selected secondary accent is very dark. */
 html[data-worth-it-custom-theme] .worth-it-settings-kicker{
     color:var(--worth-it-secondary-readable)!important;
