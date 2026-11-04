@@ -72,7 +72,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     <link rel="stylesheet" href="web-shop.css?v=transaction-history-hide-premium-lite-20261104c">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
 <link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=dark-light-section-palette-20261104e">
-<link rel="stylesheet" href="ugc-calculators.css?v=ugc-30-items-per-page-20261104c&amp;rev=category-pagination-six-by-three-20261104c">
+<link rel="stylesheet" href="ugc-calculators.css?v=ugc-inline-page-controls-20261104a&amp;rev=arrow-counter-input-single-row-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -1474,11 +1474,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div id="ugcCalculatorGrid" class="ugc-calculator-grid" aria-live="polite"></div>
         <nav id="ugcPagination" class="ugc-pagination" aria-label="Community calculator pages" hidden>
           <button type="button" id="ugcPagePrevious" class="ugc-page-step" aria-label="Previous page" disabled>←</button>
-          <div class="ugc-page-current"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
+          <div class="ugc-page-current" aria-live="polite"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
           <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
-          <label class="ugc-page-go-label" for="ugcPageInput">Go to page</label>
-          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Page number">
-          <button type="button" id="ugcPageGo" class="ugc-page-go">Go</button>
+          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Jump to page" title="Enter a page number and press Enter">
         </nav>
         <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
       </div>
@@ -5543,7 +5541,7 @@ if($("carResults")){
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
-<script src="/ugc-calculators.js?v=ugc-page-global-memory-20261104d&amp;rev=sort-category-current-page-20261104d"></script>
+<script src="/ugc-calculators.js?v=ugc-inline-page-controls-20261104a&amp;rev=arrow-counter-input-single-row-20261104a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
