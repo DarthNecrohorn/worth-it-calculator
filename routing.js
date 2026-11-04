@@ -302,6 +302,10 @@
         const route = resolveRoute(normalized);
         if (!route) return;
 
+        if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
+        const settingsPage = document.getElementById("settingsPage");
+        if (settingsPage) settingsPage.style.display = "none";
+
         const rawPath = window.location.pathname;
         if (rawPath !== normalized && (options && options.initial)) {
             window.history.replaceState(
