@@ -156,3 +156,26 @@ test("transaction reporting is exposed only through the existing owner-verified 
     assert.match(admin, /calc_admin_overview/);
     assert.match(sql, /if auth\.uid\(\) is null or v_email <>/);
 });
+
+
+test("Guest Lite header never flashes Web Shop or an account CALC balance before wallet resolution", () => {
+    assert.match(html, /id="worthItWebShopButton" hidden/);
+    assert.match(html, /id="worthItCalcWalletButton" hidden/);
+    assert.match(economy, /button\.hidden = !state && !signedInAccount/);
+    assert.match(economy, /shopButton\.hidden = guestView/);
+    assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
+    assert.match(shopCss, /\.calc-shop-nav\[hidden\],\.calc-wallet-nav\[hidden\]/);
+});
+
+test("Web Shop transaction history is account-scoped in the database and UI", () => {
+    const historySql = read("supabase/calc-wallet-history.sql");
+    assert.match(html, /id="webShopHistory"/);
+    assert.match(html, /Only transactions belonging to your signed-in Worth It account/);
+    assert.match(economy, /rpc\("calc_wallet_history",\{p_limit:50\}\)/);
+    assert.match(historySql, /v_user_id uuid := auth\.uid\(\)/);
+    assert.match(historySql, /where user_id = v_user_id/);
+    assert.doesNotMatch(historySql, /p_user_id|p_worth_it_id/);
+    assert.match(historySql, /revoke all on function public\.calc_wallet_history\(integer\) from public, anon/);
+    assert.match(historySql, /grant execute on function public\.calc_wallet_history\(integer\) to authenticated/);
+    assert.match(f["tests/fixtures/calc-economy-postgres-smoke.sql"].content, /history-hidden-other-user-marker/);
+});
