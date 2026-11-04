@@ -340,7 +340,7 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(sqlEnhancements,/private\.worth_it_guard_ugc_calculator_update/);
     assert.match(makerApi,/CALCULATOR_IDENTITY_CHANGED/);
     assert.match(makerApi,/NOT_CALCULATOR_OWNER/);
-    assert.match(html,/Free 2 \/ Premium Lite 3 \/ Premium 4/);
+    assert.match(html,/Free 2, Premium Lite 3, Premium 4/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
