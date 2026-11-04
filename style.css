@@ -1494,6 +1494,10 @@ footer{
 
 /* MOBILE */
     
+@media(min-width:1200px){
+    .calculator-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+
 @media(max-width:900px){
     .calculator-grid{grid-template-columns:repeat(2,1fr)}
     .result-top{grid-template-columns:1fr}
@@ -23836,3 +23840,19 @@ html:has(
 #worthItVehicleDetailsModal.is-open {
     isolation:isolate;
 }
+
+
+/* Signed-in shortcuts for the community calculator catalogue and AI maker. */
+.community-calculator-navigation{
+    display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin:0 0 18px;
+}
+.community-calculator-navigation[hidden]{display:none!important}
+.community-calculator-nav-button{
+    min-height:40px;padding:9px 14px;border:1px solid rgba(139,116,255,.42);
+    border-radius:12px;background:linear-gradient(130deg,rgba(124,92,255,.12),rgba(56,189,248,.08));
+    color:var(--text);font:inherit;font-size:12px;font-weight:850;cursor:pointer;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.community-calculator-nav-button:hover{transform:translateY(-2px);border-color:rgba(139,116,255,.8);box-shadow:0 8px 20px rgba(79,70,229,.14)}
+.community-calculator-nav-primary{border-color:rgba(139,116,255,.65);background:linear-gradient(120deg,rgba(124,92,255,.25),rgba(56,189,248,.16))}
+@media(max-width:700px){.community-calculator-navigation{justify-content:stretch}.community-calculator-nav-button{flex:1 1 100%}}
