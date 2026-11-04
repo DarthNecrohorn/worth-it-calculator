@@ -589,4 +589,43 @@ begin
 end
 $test$;
 
+
+-- Private UGC helper routines must not be directly executable by API roles.
+do $ugc_private_helper_privileges$
+declare
+    v_role text;
+    v_function text;
+begin
+    foreach v_function in array array[
+        'private.worth_it_badge_is_earned(uuid,text)',
+        'private.worth_it_guard_ugc_calculator_update()',
+        'private.worth_it_validate_ugc_spec(jsonb)'
+    ] loop
+        foreach v_role in array array['anon','authenticated','service_role'] loop
+            if has_function_privilege(v_role,v_function,'execute') then
+                raise exception '% can execute internal UGC helper %.',v_role,v_function;
+            end if;
+        end loop;
+    end loop;
+    if has_schema_privilege('anon','private','usage')
+       or has_schema_privilege('authenticated','private','usage') then
+        raise exception 'An API role can use the private schema.';
+    end if;
+end
+$ugc_private_helper_privileges$;
+
+-- Default privileges must also protect any future helper created in private by postgres.
+create function private.__ugc_default_acl_probe()
+returns boolean language sql as $ select true $;
+do $ugc_default_acl$
+begin
+    if has_function_privilege('anon','private.__ugc_default_acl_probe()','execute')
+       or has_function_privilege('authenticated','private.__ugc_default_acl_probe()','execute')
+       or has_function_privilege('service_role','private.__ugc_default_acl_probe()','execute') then
+        raise exception 'Future private helper functions inherit PUBLIC EXECUTE.';
+    end if;
+end
+$ugc_default_acl$;
+drop function private.__ugc_default_acl_probe();
+
 rollback;
