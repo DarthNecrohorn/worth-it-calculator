@@ -70,9 +70,12 @@ test("dedicated section URLs support direct navigation and browser back/forward"
 
 test("only the selected detail section appears; Appearance remains on the overview", () => {
     assert.match(css, /\.worth-it-settings-page \[hidden\][^{]*\{display:none!important\}/);
+    assert.match(css, /\.worth-it-settings-panel\[hidden\]/);
     assert.match(settings, /if \(hero\) hero\.hidden = !overview/);
     assert.match(settings, /if \(grid\) grid\.hidden = !overview/);
-    assert.match(settings, /if \(panel\) panel\.hidden = section \? key !== section : key !== "appearance"/);
+    assert.match(settings, /const shouldShow = section \? key === section : key === "appearance"/);
+    assert.match(settings, /panel\.hidden = !shouldShow/);
+    assert.match(settings, /panel\.style\.display = shouldShow \? "" : "none"/);
     assert.match(settings, /if \(roadmap\) roadmap\.hidden = !overview/);
 });
 
@@ -105,4 +108,14 @@ test("direct route refreshes rely on automatic SPA fallback without proxying thr
     assert.match(routing, /"\/settings\/privacy": "openSettingsPrivacy"/);
     assert.match(routing, /const initialPath = normalizePath\(window\.location\.pathname\)/);
     assert.match(routing, /applyRoute\(initialPath, \{ initial: true \}\)/);
+});
+
+
+test("custom appearance cannot be mixed with standard Dark/Light until a full reset", () => {
+    const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
+    assert.match(settings, /root\?\.hasAttribute\("data-worth-it-custom-theme"\)/);
+    assert.match(settings, /window\.resetWorthItCustomTheme/);
+    assert.match(settings, /removeAttribute\("data-worth-it-custom-theme"\)/);
+    assert.match(community, /window\.resetWorthItCustomTheme=resetCustomTheme/);
+    assert.match(community, /root\.removeAttribute\("data-worth-it-custom-theme"\)/);
 });
