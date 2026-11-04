@@ -81,7 +81,7 @@ test("only the selected detail section appears; Appearance remains on the overvi
 
 test("the navigation assets are cache-busted together", () => {
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /settings\.js\?v=feedback-overlay-stay-open-20261030a/);
+    assert.match(html, /settings\.js\?v=appearance-hidden-custom-reset-await-20261104d/);
     assert.match(html, /routing\.js\?v=profile-navigation-hardening-20261028b/);
 });
 
