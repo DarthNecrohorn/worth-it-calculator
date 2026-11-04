@@ -40,7 +40,7 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=auth-email-confirmation-inbox-links-20261104a/);
+    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a/);
     assert.ok(html.includes("guest-mode.js?v=guest-webshop-ugc-guards-20261031a"));
 });
 
