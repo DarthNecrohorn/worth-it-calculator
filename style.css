@@ -23862,3 +23862,190 @@ html:has(
 .community-calculator-nav-button:hover{transform:translateY(-2px);border-color:rgba(139,116,255,.8);box-shadow:0 8px 20px rgba(79,70,229,.14)}
 .community-calculator-nav-primary{border-color:rgba(139,116,255,.65);background:linear-gradient(120deg,rgba(124,92,255,.25),rgba(56,189,248,.16))}
 @media(max-width:700px){.community-calculator-navigation{justify-content:stretch}.community-calculator-nav-button{flex:1 1 100%}}
+
+
+/* Worth It's built-in calculators use compact square cards on desktop and mobile. */
+.calculator-grid{
+    grid-template-columns:repeat(auto-fill,minmax(188px,1fr));
+    gap:14px;
+}
+.calculator-grid .calc-card{
+    aspect-ratio:1 / 1;
+    min-width:0;
+    min-height:0;
+    padding:clamp(12px,1.2vw,17px);
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+}
+.calculator-grid .calc-icon{
+    flex:0 0 auto;
+    width:34px;
+    height:34px;
+    margin:0 0 7px;
+    font-size:25px;
+}
+.calculator-grid .calc-card h3{
+    flex:0 0 auto;
+    min-height:2.25em;
+    margin:0 0 5px;
+    font-size:clamp(14px,1.15vw,17px);
+    line-height:1.15;
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    overflow:hidden;
+}
+.calculator-grid .calc-card p{
+    flex:1 1 auto;
+    min-height:0;
+    margin:0 0 7px;
+    font-size:clamp(11px,.9vw,12.5px);
+    line-height:1.35;
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:3;
+    overflow:hidden;
+}
+.calculator-grid .calc-card .open-calc{
+    flex:0 0 auto;
+    width:100%;
+    min-height:31px;
+    margin-top:auto;
+    padding:7px 8px;
+    font-size:11px;
+    line-height:1.15;
+    white-space:normal;
+}
+@media(max-width:900px){
+    .calculator-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .calculator-grid .calc-card{padding:13px}
+    .calculator-grid .calc-card h3{font-size:15px}
+    .calculator-grid .calc-card p{font-size:11.5px}
+}
+@media(max-width:480px){
+    .calculator-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .calculator-grid .calc-card{padding:10px}
+    .calculator-grid .calc-icon{width:29px;height:29px;font-size:22px;margin-bottom:5px}
+    .calculator-grid .calc-card h3{font-size:13px;min-height:2.2em}
+    .calculator-grid .calc-card p{font-size:10.5px;line-height:1.3}
+    .calculator-grid .calc-card .open-calc{font-size:10px;min-height:29px;padding:6px 5px}
+}
+
+/* Built-in calculator heading and community entry points share one responsive row. */
+.section-header:has(#ugcNavigationActions){
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:22px;
+}
+.section-header-copy{min-width:0}
+.community-calculator-navigation{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    flex:0 0 auto;
+    gap:9px;
+    margin:0 0 0 auto;
+}
+.community-calculator-nav-button{
+    min-height:42px;
+    border:1px solid color-mix(in srgb,var(--primary) 38%,var(--border));
+    border-radius:12px;
+    padding:9px 13px;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--primary) 15%,var(--card-solid)),color-mix(in srgb,var(--primary2) 12%,var(--card-solid)));
+    color:var(--text);
+    font:inherit;
+    font-size:12px;
+    font-weight:850;
+    white-space:nowrap;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.community-calculator-nav-button:hover{
+    transform:translateY(-2px);
+    border-color:var(--primary);
+    box-shadow:0 8px 20px color-mix(in srgb,var(--primary) 18%,transparent);
+}
+.community-calculator-nav-primary{
+    color:#fff;
+    border-color:transparent;
+    background:linear-gradient(120deg,var(--primary),var(--primary2));
+}
+@media(max-width:780px){
+    .section-header:has(#ugcNavigationActions){
+        display:flex;
+        flex-direction:column;
+        align-items:stretch;
+        gap:12px;
+    }
+    .section-header #ugcNavigationActions{order:-1;justify-content:stretch;margin:0 0 2px}
+    .section-header #ugcNavigationActions .community-calculator-nav-button{flex:1;white-space:normal}
+}
+@media(max-width:420px){
+    .section-header #ugcNavigationActions{flex-direction:column}
+    .section-header #ugcNavigationActions .community-calculator-nav-button{width:100%}
+}
+
+/* The account drop-down connection counters are real navigation controls. */
+.social-preview-item{
+    border:1px solid var(--border);
+    color:var(--text);
+    font:inherit;
+    cursor:pointer;
+}
+.social-preview-item:hover{
+    border-color:var(--primary);
+    background:color-mix(in srgb,var(--primary) 10%,var(--surface-soft));
+}
+
+/* Custom theme accents carry through the site shell, cards and primary controls. */
+html[data-worth-it-custom-theme] body{
+    background:
+      radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 34%),
+      radial-gradient(ellipse at 94% 8%,color-mix(in srgb,var(--primary2) 16%,transparent),transparent 31%),
+      linear-gradient(135deg,var(--bg),var(--bg2));
+}
+html[data-worth-it-custom-theme] .nav,
+html[data-worth-it-custom-theme] .settings-panel,
+html[data-worth-it-custom-theme] .panel,
+html[data-worth-it-custom-theme] .stat,
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .metric,
+html[data-worth-it-custom-theme] .chart-card,
+html[data-worth-it-custom-theme] .faq-item,
+html[data-worth-it-custom-theme] .feedback-modal-card{
+    border-color:color-mix(in srgb,var(--primary) 24%,var(--border));
+}
+html[data-worth-it-custom-theme] .panel,
+html[data-worth-it-custom-theme] .settings-panel,
+html[data-worth-it-custom-theme] .stat,
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .metric,
+html[data-worth-it-custom-theme] .chart-card{
+    box-shadow:0 10px 28px color-mix(in srgb,var(--primary) 8%,transparent);
+}
+html[data-worth-it-custom-theme] .btn-primary,
+html[data-worth-it-custom-theme] .open-calc,
+html[data-worth-it-custom-theme] .settings-option.active,
+html[data-worth-it-custom-theme] .community-calculator-nav-primary,
+html[data-worth-it-custom-theme] .ugc-primary-button,
+html[data-worth-it-custom-theme] .ugc-action-primary,
+html[data-worth-it-custom-theme] .worth-it-profile-copy{
+    border-color:transparent;
+    background:linear-gradient(120deg,var(--primary),var(--primary2));
+    color:#fff;
+}
+html[data-worth-it-custom-theme] .nav-links button:hover,
+html[data-worth-it-custom-theme] .settings-option:hover,
+html[data-worth-it-custom-theme] .filter-clear:hover,
+html[data-worth-it-custom-theme] .calculator-favourites-toggle:hover{
+    border-color:color-mix(in srgb,var(--primary) 65%,var(--border));
+    background:color-mix(in srgb,var(--primary) 12%,var(--card-solid));
+}
+html[data-worth-it-custom-theme] body.worth-it-chat-open{
+    background:
+      radial-gradient(ellipse at 8% 0%,rgba(124,92,255,.12),transparent 34%),
+      radial-gradient(ellipse at 94% 8%,rgba(56,189,248,.10),transparent 31%),
+      linear-gradient(135deg,#0b1020,#111a2d);
+}
+#aiChatOverlay{--primary:#7C5CFF;--primary2:#38BDF8;}
