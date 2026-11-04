@@ -615,4 +615,56 @@ end
 $ugc_private_helper_privileges$;
 
 
+
+-- The paginated catalogue always returns at most 30 items and preserves category filtering.
+insert into private.worth_it_user_calculators(
+    owner_user_id,title,description,category,spec,status,published_at
+)
+select
+    '33333333-3333-4333-8333-333333333333'::uuid,
+    'Pagination fixture calculator '||g,
+    'Disposable row used to verify thirty-item community pages.',
+    case when g%2=0 then 'money' else 'cars' end,
+    '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10}],"results":[{"label":"Total","expression":"amount"}]}'::jsonb,
+    'published',
+    now()-make_interval(secs=>g)
+from generate_series(1,31) g;
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $ugc_pagination$
+declare
+    first_page jsonb;
+    second_page jsonb;
+    cars_page jsonb;
+    count_first integer;
+    count_second integer;
+begin
+    first_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
+    second_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',2);
+    count_first:=jsonb_array_length(first_page->'items');
+    count_second:=jsonb_array_length(second_page->'items');
+
+    if (first_page->>'page_size')::integer<>30 or count_first<>30 then
+        raise exception 'The first UGC page must contain exactly 30 items: %',first_page;
+    end if;
+    if (second_page->>'page')::integer<>2 or count_second<1 or count_second>30 then
+        raise exception 'Page two must return the remaining UGC items: %',second_page;
+    end if;
+    if (first_page->>'total_count')::integer<31 or (first_page->>'total_pages')::integer<2 then
+        raise exception 'UGC pagination total counts are incomplete: %',first_page;
+    end if;
+
+    cars_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','cars',1);
+    if cars_page->>'category'<>'cars' or
+       exists(select 1 from jsonb_array_elements(cars_page->'items') item where item->>'category'<>'cars') then
+        raise exception 'UGC category filtering leaked calculators from another category: %',cars_page;
+    end if;
+
+    if (public.get_worth_it_ugc_catalog_page('mine','12y','','all',1)->>'page_size')::integer<>30
+       or (public.get_worth_it_ugc_catalog_page('my-favorites','12y','','all',1)->>'page_size')::integer<>30 then
+        raise exception 'Personal UGC catalogue views must use the same 30-item page size.';
+    end if;
+end
+$ugc_pagination$;
+
 rollback;
