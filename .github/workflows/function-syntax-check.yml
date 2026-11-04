@@ -105,7 +105,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -279,6 +279,8 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/calc-economy-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-wallet-history.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-wallet-history.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/calc-economy-postgres-smoke.sql
 
 
