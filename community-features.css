@@ -270,3 +270,59 @@ html[data-worth-it-custom-theme] textarea:focus-visible{
     border-radius:999px;background:rgba(7,11,20,.55);color:#fff;font-size:9px;font-weight:900;letter-spacing:.08em;
 }
 .worth-it-theme-field input[type="color"]{width:100%;min-height:42px;cursor:pointer}
+
+
+/* Custom appearance overrides the section-specific Dark/Light surface presets as well. */
+html[data-worth-it-custom-theme] #marketsSection,
+html[data-worth-it-custom-theme] #cryptoSection,
+html[data-worth-it-custom-theme] #waterLevelsSection,
+html[data-worth-it-custom-theme] #moneySection,
+html[data-worth-it-custom-theme] #carsSection,
+html[data-worth-it-custom-theme] #weatherSection,
+html[data-worth-it-custom-theme] #newsSection,
+html[data-worth-it-custom-theme] #shipTrackingSection,
+html[data-worth-it-custom-theme] #shopSection{
+    --wt-section-accent:var(--primary);
+    --wt-section-accent-strong:var(--primary2);
+    --wt-section-card:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--card-solid) 86%,var(--primary) 14%),
+        color-mix(in srgb,var(--card-solid) 92%,var(--primary2) 8%)
+    );
+    --wt-section-card-hover:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--card-solid) 78%,var(--primary) 22%),
+        color-mix(in srgb,var(--card-solid) 86%,var(--primary2) 14%)
+    );
+    --wt-section-soft:color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%);
+    --wt-section-control:color-mix(in srgb,var(--card-solid) 91%,var(--primary2) 9%);
+    --wt-section-border:color-mix(in srgb,var(--worth-it-hover-glow) 38%,var(--border));
+    --wt-section-shadow:0 11px 30px rgba(0,0,0,.23),inset 0 1px 0 rgba(255,255,255,.035);
+    --wt-section-hover-shadow:0 14px 32px rgba(0,0,0,.27),
+        0 0 0 1px color-mix(in srgb,var(--worth-it-hover-glow) 34%,transparent);
+    color:var(--text)!important;
+}
+html[data-worth-it-custom-theme] #marketsSection .market-card,
+html[data-worth-it-custom-theme] #cryptoSection .crypto-stat-card,
+html[data-worth-it-custom-theme] #cryptoSection .crypto-card,
+html[data-worth-it-custom-theme] #waterLevelsSection .water-level-card,
+html[data-worth-it-custom-theme] #moneySection .money-card,
+html[data-worth-it-custom-theme] #carsSection .car-card,
+html[data-worth-it-custom-theme] #weatherSection .weather-card,
+html[data-worth-it-custom-theme] #newsSection .news-card,
+html[data-worth-it-custom-theme] #shipTrackingSection .ship-card,
+html[data-worth-it-custom-theme] #shopSection .shop-card{
+    color:var(--text)!important;
+    border-color:var(--wt-section-border)!important;
+}
+html[data-worth-it-custom-theme] #marketsSection *,
+html[data-worth-it-custom-theme] #cryptoSection *,
+html[data-worth-it-custom-theme] #waterLevelsSection *,
+html[data-worth-it-custom-theme] #moneySection *,
+html[data-worth-it-custom-theme] #carsSection *,
+html[data-worth-it-custom-theme] #weatherSection *,
+html[data-worth-it-custom-theme] #newsSection *,
+html[data-worth-it-custom-theme] #shipTrackingSection *,
+html[data-worth-it-custom-theme] #shopSection *{
+    scrollbar-color:var(--worth-it-hover-glow) var(--card-solid);
+}
