@@ -232,72 +232,235 @@ export async function onRequestOptions(context){
         "Vary":"Origin"
     }});
 }
+
+async function userRpc(env,token,functionName,payload){
+    const base=String(env.SUPABASE_URL||"").trim().replace(/\/$/,"");
+    const key=String(env.SUPABASE_PUBLISHABLE_KEY||"").trim();
+    if(!base||!key)throw new Error("The account service is not configured.");
+    const response=await fetch(base+"/rest/v1/rpc/"+encodeURIComponent(functionName),{
+        method:"POST",
+        headers:{apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json",Accept:"application/json"},
+        body:JSON.stringify(payload||{}),
+        cache:"no-store"
+    });
+    const data=await response.json().catch(()=>null);
+    if(!response.ok){
+        const detail=String(data?.message||data?.details||data?.hint||"");
+        const error=new Error(detail||"The account service could not complete this request.");
+        error.status=response.status;
+        error.code=data?.code||"";
+        throw error;
+    }
+    return data;
+}
+
+function normalizeRpcObject(value){
+    return Array.isArray(value)&&value.length===1&&value[0]&&typeof value[0]==="object"?value[0]:value;
+}
+
+function sameArray(left,right){
+    return Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((value,index)=>value===right[index]);
+}
+
 export async function onRequestPost(context){
     const request=context.request,env=context.env,origin=allowedOrigin(request);
-    if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
+    let editRequestId="";
+    let editQuotaSettled=false;
+    let editQuotaRefunded=false;
     const token=tokenFrom(request);
-    if(!token)return json({success:false,code:"AUTH_REQUIRED",error:"Sign in to create a community calculator."},401,origin);
+    const refundEditQuota=async()=>{
+        if(!editRequestId||editQuotaSettled||editQuotaRefunded)return;
+        try{
+            const result=await userRpc(env,token,"refund_worth_it_ugc_ai_edit",{p_request_id:editRequestId});
+            if(result?.ok===true)editQuotaRefunded=true;
+        }catch(error){
+            console.error("Could not refund a failed UGC AI edit reservation:",error);
+        }
+    };
     try{
+        if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
+        if(!token)return json({success:false,code:"AUTH_REQUIRED",error:"Sign in to create or improve a community calculator."},401,origin);
+
         const user=await verifyUser(env,token);
         if(!user)return json({success:false,code:"AUTH_REQUIRED",error:"Your session has expired. Please sign in again."},401,origin);
-        if(!user.email_confirmed_at&&!user.confirmed_at)return json({success:false,code:"EMAIL_VERIFICATION_REQUIRED",error:"Verify your email before creating or publishing community calculators."},403,origin);
+        if(!user.email_confirmed_at&&!user.confirmed_at)return json({success:false,code:"EMAIL_VERIFICATION_REQUIRED",error:"Verify your email before creating or improving community calculators."},403,origin);
+
         let body;
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
+        const mode=body?.mode==="refine"?"refine":"create";
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
-        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the calculator in 1 to 900 characters."},400,origin);
+        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 900 characters."},400,origin);
+
         const geminiKey=String(env.GEMINI_API_KEY||"").trim();
         const groqKey=String(env.GROQ_API_KEY||"").trim();
-        if(!geminiKey&&!groqKey)return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"The AI calculator maker is temporarily unavailable."},503,origin);
-        let usage;
-        try{usage=await reserveMakerGeneration(env,token);}
-        catch(error){
-            console.error("UGC maker usage reservation failed:",error);
-            return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator usage limit is temporarily unavailable. Please try again later."},503,origin);
+        if(!geminiKey&&!groqKey)return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"Worth It AI is temporarily unavailable. No calculator was changed."},503,origin);
+
+        let existingCalculator=null;
+        if(mode==="refine"){
+            const calculatorId=String(body?.calculator_id||"").trim().toLowerCase();
+            if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(calculatorId)){
+                return json({success:false,code:"INVALID_CALCULATOR",error:"Choose a valid saved community calculator to improve."},400,origin);
+            }
+            let current;
+            try{current=normalizeRpcObject(await userRpc(env,token,"get_worth_it_ugc_calculator",{p_id:calculatorId}));}
+            catch(error){
+                console.warn("UGC AI edit could not load the saved calculator:",error);
+                return json({success:false,code:"CALCULATOR_UNAVAILABLE",error:"This calculator could not be loaded. Only your own saved calculators can be improved."},404,origin);
+            }
+            if(!current?.id||current.is_owner!==true){
+                return json({success:false,code:"NOT_CALCULATOR_OWNER",error:"Only the owner of a saved community calculator can improve it with AI."},403,origin);
+            }
+            if(!current.spec||!Array.isArray(current.spec.inputs)||!Array.isArray(current.spec.results)){
+                return json({success:false,code:"INVALID_CALCULATOR",error:"This calculator definition cannot be safely improved."},422,origin);
+            }
+            existingCalculator=current;
+            editRequestId=crypto.randomUUID();
+            let reservation;
+            try{
+                reservation=normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_ai_edit",{
+                    p_id:calculatorId,p_request_id:editRequestId
+                }));
+            }catch(error){
+                console.error("UGC AI edit quota reservation failed:",error);
+                editRequestId="";
+                return json({success:false,code:"EDIT_QUOTA_UNAVAILABLE",error:"The daily AI improvement allowance could not be checked. Please try again later."},503,origin);
+            }
+            if(reservation?.ok!==true){
+                editRequestId="";
+                if(reservation?.code==="DAILY_LIMIT"){
+                    return json({success:false,code:"DAILY_AI_EDIT_LIMIT",daily_limit:reservation.daily_limit,edits_used:reservation.edits_used,remaining:0,
+                        error:"You have used all your AI improvements for today. Free accounts can improve 2 saved calculators per UTC day, Premium Lite 3 and Premium 4."},429,origin);
+                }
+                return json({success:false,code:reservation?.code||"EDIT_QUOTA_UNAVAILABLE",error:"The AI improvement could not be reserved. Please try again."},503,origin);
+            }
+        }else{
+            let usage;
+            try{usage=await reserveMakerGeneration(env,token);}
+            catch(error){
+                console.error("UGC Maker usage reservation failed:",error);
+                return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance could not be checked. Please try again later."},503,origin);
+            }
+            if(usage?.ok!==true){
+                if(usage?.code==="DAILY_LIMIT")return json({success:false,code:"DAILY_AI_LIMIT",error:"You have reached the daily AI calculator creation limit of 10 generations. Try again after the UTC daily reset.",daily_limit:10,requests_used:10},429,origin);
+                return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance is temporarily unavailable. Please try again later."},503,origin);
+            }
         }
-        if(usage?.ok!==true){
-            if(usage?.code==="DAILY_LIMIT")return json({success:false,code:"DAILY_AI_LIMIT",error:"You have reached the daily AI calculator limit of 10 generations. Try again after the UTC daily reset.",daily_limit:10,requests_used:10},429,origin);
-            return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator usage limit is temporarily unavailable. Please try again later."},503,origin);
-        }
-        const system=[
-            "You design calculator definitions for the Worth It website.",
+
+        const commonRules=[
             "Return only one valid JSON object with keys title, description, category, inputs, results.",
             "Never return HTML, Markdown, JavaScript, SQL, code, scripts, event handlers, URLs or executable content.",
             "The result is a declarative calculator schema only. Formula expressions are evaluated by a restricted arithmetic parser.",
             "Allowed categories: cars, money, technology, home, other.",
-            "Create 2 to 8 useful number inputs where possible (minimum 1, maximum 12). Each input has key, label, min, max, default, step, unit.",
-            "Keys must match ^[a-z][a-z0-9_]{0,31}$ and be unique. All numeric values must be finite and min <= default <= max.",
-            "Create 1 to 4 result rows (maximum 6), each with label, expression, format, currency, prefix, suffix.",
+            "Each input has key, label, min, max, default, step, unit. Keys must match ^[a-z][a-z0-9_]{0,31}$ and be unique.",
+            "All numeric values must be finite and min <= default <= max. Keep input ranges realistic and bounded.",
+            "Each result has label, expression, format, currency, prefix, suffix.",
             "Expressions may use only input keys, decimal numbers, + - * / ^, parentheses, comma, and functions min,max,abs,round,floor,ceil,sqrt,pow; constants pi and e are allowed.",
             "Do not use assignment, comparisons, strings, arrays, object syntax, property access, or any other function.",
-            "Choose sensible defaults and bounded input ranges. Use clear labels, short units and realistic example values.",
             "For percent values, express percentages in their ordinary human scale (e.g. 5 means 5 percent) and divide by 100 in the formula.",
-            "For currency outputs, set format to currency and choose a sensible ISO 4217 currency code. If the user does not name one, use EUR.",
-            "Keep title within 70 characters and description within 500 characters."
-        ].join(" ");
+            "For currency outputs, set format to currency and use a valid ISO 4217 code. If the user does not name one, use EUR.",
+            "Keep the title within 70 characters and description within 500 characters."
+        ];
+        let system;
+        let userPrompt=prompt;
+        if(mode==="refine"){
+            system=[
+                "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
+                "Preserve the exact title, category, description, underlying subject, comparison and purpose from the existing calculator.",
+                "Preserve every existing input key in its original order. Do not add, remove, rename or repurpose input keys.",
+                "Preserve the exact number, order and labels of all result rows. Improve only input labels, sensible bounds/defaults/steps/units and the formula expressions where useful.",
+                "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
+                "Keep all assumptions explicit and do not invent factual prices, interest rates, tariffs or current market values.",
+                ...commonRules
+            ].join(" ");
+            userPrompt=[
+                "Existing saved calculator (its identity and structure must remain fixed):",
+                JSON.stringify({
+                    title:existingCalculator.title,
+                    description:existingCalculator.description||"",
+                    category:existingCalculator.category,
+                    inputs:existingCalculator.spec.inputs,
+                    results:existingCalculator.spec.results
+                }),
+                "Requested improvement:",
+                prompt,
+                "Return the improved full calculator definition. Keep title, description and category exactly unchanged; keep input keys and result labels exactly unchanged."
+            ].join("\n");
+        }else{
+            system=[
+                "You design new calculator definitions for the Worth It website.",
+                "Create a useful calculator that directly matches the user's described decision or calculation.",
+                "Create 2 to 8 useful number inputs where possible (minimum 1, maximum 12), and 1 to 4 result rows (maximum 6).",
+                ...commonRules
+            ].join(" ");
+        }
+
         let content="";
         if(geminiKey){
-            try{content=await generateWithGemini(geminiKey,system,prompt);}
-            catch(error){console.warn("Gemini UGC calculator generation failed:",error);}
+            try{content=await generateWithGemini(geminiKey,system,userPrompt);}
+            catch(error){console.warn("Gemini UGC calculator request failed:",error);}
         }
         if(!content&&groqKey){
-            try{content=await generateWithGroq(groqKey,system,prompt);}
-            catch(error){console.error("Groq UGC calculator generation failed:",error);}
+            try{content=await generateWithGroq(groqKey,system,userPrompt);}
+            catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
         if(!content){
-            return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"The AI could not generate this calculator right now. Please try again."},503,origin);
+            await refundEditQuota();
+            return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used."},503,origin);
         }
+
         let parsed;
-        try{parsed=JSON.parse(content);}catch(_){return json({success:false,error:"The AI returned an invalid calculator definition. Please adjust your description and try again."},502,origin);}
+        try{parsed=JSON.parse(content);}
+        catch(_){
+            await refundEditQuota();
+            return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
+        }
         let definition;
-        try{definition=normalizeDefinition(parsed);}catch(error){return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);}
-        return json({success:true,calculator:{
+        try{definition=normalizeDefinition(parsed);}
+        catch(error){
+            await refundEditQuota();
+            return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
+        }
+
+        if(mode==="refine"){
+            const originalKeys=existingCalculator.spec.inputs.map(item=>String(item.key));
+            const refinedKeys=definition.inputs.map(item=>String(item.key));
+            const originalLabels=existingCalculator.spec.results.map(item=>String(item.label));
+            const refinedLabels=definition.results.map(item=>String(item.label));
+            const identityIsPreserved=
+                String(parsed.title||"").trim()===String(existingCalculator.title||"").trim()&&
+                String(parsed.description||"").trim()===String(existingCalculator.description||"").trim()&&
+                String(parsed.category||"").toLowerCase()===String(existingCalculator.category||"").toLowerCase()&&
+                sameArray(refinedKeys,originalKeys)&&sameArray(refinedLabels,originalLabels);
+            if(!identityIsPreserved){
+                await refundEditQuota();
+                return json({success:false,code:"CALCULATOR_IDENTITY_CHANGED",
+                    error:"Worth It AI tried to change the calculator's identity. That update was rejected; your saved calculator is unchanged and the AI edit was refunded."},422,origin);
+            }
+            let settled;
+            try{settled=normalizeRpcObject(await userRpc(env,token,"settle_worth_it_ugc_ai_edit",{p_request_id:editRequestId}));}
+            catch(error){console.error("Could not settle the UGC AI edit quota:",error);settled=null;}
+            if(settled?.ok!==true){
+                await refundEditQuota();
+                return json({success:false,code:"EDIT_QUOTA_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; please refresh and try again."},503,origin);
+            }
+            editQuotaSettled=true;
+            return json({success:true,mode:"refine",calculator:{
+                title:existingCalculator.title,
+                description:existingCalculator.description||"",
+                category:existingCalculator.category,
+                spec:definition
+            }},200,origin);
+        }
+
+        return json({success:true,mode:"create",calculator:{
             title:String(parsed.title).trim().slice(0,70),
             description:String(parsed.description||"").trim().slice(0,500),
             category:String(parsed.category).toLowerCase(),
             spec:definition
         }},200,origin);
     }catch(error){
-        console.error("UGC calculator generation failed:",error);
-        return json({success:false,error:"The AI calculator maker is temporarily unavailable."},503,origin);
+        await refundEditQuota();
+        console.error("UGC calculator request failed:",error);
+        return json({success:false,error:"The AI calculator service is temporarily unavailable. Please try again."},503,origin||SITE_ORIGIN);
     }
 }
