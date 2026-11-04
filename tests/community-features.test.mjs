@@ -5,7 +5,10 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const html=read("index.html"), js=read("community-features.js"), css=read("community-features.css");
 const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras.sql");
 const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
+const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const siteCss=read("style.css");
+const ugcCss=read("ugc-calculators.css");
+const ugcJs=read("ugc-calculators.js");
 const setup=read("tests/fixtures/community-features-postgres-setup.sql");
 const smoke=read("tests/fixtures/community-features-postgres-smoke.sql");
 const actions=read("supabase/worth-it-chat-message-actions.sql");
@@ -44,10 +47,12 @@ test("calculator favourites are stored per account with row-level ownership poli
  assert.ok(sql.includes("^ugc:[a-z0-9][a-z0-9_-]{0,62}$"));
  assert.ok(sql.includes("worth_it_calculator_favorites_ugc_key_check"));
 });
-test("custom palettes use three validated colours and persist the hover glow separately",()=>{
+test("custom palettes use four validated colours and persist the header-controls background separately",()=>{
  assert.ok(html.includes('id="worthItThemePrimary"'));
  assert.ok(html.includes('id="worthItThemeSecondary"'));
  assert.ok(html.includes('id="worthItThemeHover"'));
+ assert.ok(html.includes('id="worthItThemeHeader"'));
+ assert.ok(html.includes("Header controls background"));
  assert.ok(js.includes("function validHex"));
  assert.ok(js.includes("function isCustomTheme"));
  assert.ok(js.includes("--worth-it-hover-glow"));
@@ -57,10 +62,22 @@ test("custom palettes use three validated colours and persist the hover glow sep
  assert.ok(sql.includes("secondary_color"));
  assert.ok(themeHoverMigration.includes("add column if not exists hover_color"));
  assert.ok(themeHoverMigration.includes("worth_it_user_themes_hover_color_check"));
+ assert.ok(themeHeaderMigration.includes("add column if not exists header_color"));
+ assert.ok(themeHeaderMigration.includes("worth_it_user_themes_header_color_check"));
+ assert.ok(js.includes("header_color:theme.header"));
+ assert.ok(js.includes("--worth-it-header-background"));
  assert.ok(smoke.includes("hover_color"));
+ assert.ok(smoke.includes("header_color"));
+ assert.ok(smoke.includes("#18243A"));
  assert.ok(smoke.includes("#FF8C42"));
  assert.ok(smoke.includes("invalid hover colour"));
  assert.ok(siteCss.includes("html[data-worth-it-custom-theme]{"));
+ assert.ok(siteCss.includes(".nav-right-stack"));
+ assert.ok(siteCss.includes("--worth-it-header-foreground"));
+ assert.ok(siteCss.includes(".worth-it-settings-kicker"));
+ assert.ok(siteCss.includes("#profileNavBtn .auth-avatar"));
+ assert.ok(siteCss.includes("#settingsPanel"));
+ assert.ok(css.includes(".worth-it-theme-preview::before"));
  assert.ok(css.includes("html[data-worth-it-custom-theme] #marketsSection"));
  assert.ok(css.includes("--wt-section-card:linear-gradient"));
  assert.ok(css.includes("--wt-section-control:color-mix"));
@@ -133,4 +150,12 @@ test("community migration is designed for repeat execution and has postgres smok
  assert.ok(smoke.includes("admin_update_worth_it_user_report"));
  assert.ok(smoke.includes("ordinary built-in calculator was allowed"));
  assert.ok(sql.includes("drop constraint if exists worth_it_calculator_favorites_ugc_key_check"));
+});
+
+
+test("community slide and calculator pagination surfaces stay opaque and clearly paginated",()=>{
+ assert.ok(html.includes("The catalogue shows up to 30 calculators per page, not 30 in total."));
+ assert.ok(ugcCss.includes("#ugcCommunitySection.calculator-explore-panel"));
+ assert.ok(ugcCss.includes("background-color:var(--bg)"));
+ assert.ok(ugcJs.includes("This is not a 30-calculator total limit"));
 });
