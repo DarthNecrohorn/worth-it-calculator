@@ -453,10 +453,19 @@ test("community calculators use secure 30-item server pagination for every view 
     }
     assert.match(maker,/function catalogPageKey\(\)/);
     assert.match(maker,/state\.pages\[catalogPageKey\(\)\]/);
+    assert.match(maker,/state\.lastPage/);
+    assert.match(maker,/function currentCatalogPage\(\)[\s\S]*?remembered\|\|state\.lastPage/);
+    assert.match(maker,/nav\.hidden=total===0/);
+    assert.match(maker,/input\.disabled=pages<=1/);
     assert.match(maker,/get_worth_it_ugc_catalog_page/);
     assert.match(maker,/p_category:state\.category/);
     assert.match(maker,/p_page:currentCatalogPage\(\)/);
     assert.match(maker,/function goToCatalogPage\(value\)/);
+    assert.match(maker,/function switchCalculatorExploreView\(target\)/);
+    assert.match(maker,/to\.style\.transform="translateX\("\+\(direction\*100\)\+"%\)"/);
+    assert.match(maker,/from\.style\.transform="translateX\("\+\(-direction\*100\)\+"%\)"/);
+    assert.match(css,/\.calculator-explore-stage>\.calculator-explore-panel\[hidden\]\s*\{display:none!important\}/);
+    assert.ok(html.indexOf('id="calculators"')<html.indexOf('id="ugcCommunitySection"'));
     assert.match(paginationSql,/v_page_size integer := 30/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
     assert.match(paginationSql,/v_category='all' or c\.category=v_category/);
