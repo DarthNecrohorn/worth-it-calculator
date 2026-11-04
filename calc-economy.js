@@ -12,6 +12,7 @@
     let authResolved = Boolean(window.worthItAuthStateResolved);
     let walletHistory = [];
     let historyFilter = "all";
+    let pendingHideTransactionId = null;
 
     const $ = id => document.getElementById(id);
     const client = () => window.supabaseClient || null;
@@ -158,6 +159,17 @@
     function setShopBalance(state){
         const value = $("webShopBalanceValue");
         const tier = $("webShopBalanceTier");
+        const buyButton = $("buyPremiumLiteButton");
+        const activeSubscription = Boolean(state && !state.is_owner &&
+            ["premium","premium_lite"].includes(String(state.premium_plan||"")) &&
+            state.premium_expires_at && new Date(state.premium_expires_at).getTime()>Date.now());
+        if(buyButton){
+            buyButton.disabled = !state || Boolean(state.is_owner) || activeSubscription;
+            buyButton.title = activeSubscription
+                ? "Your current subscription is active. Premium Lite becomes available after it expires."
+                : state?.is_owner ? "Owner access is unlimited; Premium Lite is not required."
+                : "Activate Premium Lite for 50 WIP and 15 days.";
+        }
         if(!value) return;
         value.textContent = state ? (state.is_owner ? "∞" : Number(state.balance || 0).toFixed(1)) : "—";
         const wipValue = $("webShopWipBalanceValue");
@@ -204,17 +216,26 @@
         return labels[String(kind || "")] || String(kind || "Wallet transaction").replace(/_/g," ");
     }
 
+    function isPurchaseTransaction(item){
+        const kind=String(item?.kind||"").toLowerCase();
+        return kind.endsWith("_purchase") || kind==="purchase";
+    }
+
     function renderTransactionHistory(){
         const host = $("webShopHistoryRows");
         if(!host) return;
         host.replaceChildren();
-        const selected = historyFilter === "all" ? walletHistory : walletHistory.filter(row=>String(row.currency || "CALC").toUpperCase() === historyFilter);
+        const selected = historyFilter === "all" ? walletHistory :
+            historyFilter === "purchases" ? walletHistory.filter(isPurchaseTransaction) :
+            walletHistory.filter(row=>String(row.currency || "CALC").toUpperCase() === historyFilter);
         if(!selected.length){
             const row = document.createElement("tr");
             const cell = document.createElement("td");
-            cell.colSpan = 5;
+            cell.colSpan = 6;
             cell.className = "web-shop-history-empty";
-            cell.textContent = historyFilter === "all" ? "No transactions yet." : "No " + historyFilter + " transactions yet.";
+            cell.textContent = historyFilter === "purchases"
+                ? "You have no purchases in your visible transaction history."
+                : historyFilter === "all" ? "No transactions yet." : "No " + historyFilter + " transactions yet.";
             row.appendChild(cell);
             host.appendChild(row);
             return;
@@ -237,9 +258,57 @@
             balance.textContent = Number(item.balance_after || 0).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:3}) + " " + String(item.currency || "CALC");
             const status = document.createElement("td");
             status.textContent = ({completed:"Completed",reserved:"Pending",refunded:"Refunded",failed:"Failed"}[String(item.status || "")] || String(item.status || "—"));
-            row.append(date,description,amount,balance,status);
+            const actions = document.createElement("td");
+            actions.className = "web-shop-history-actions";
+            const hideButton = document.createElement("button");
+            hideButton.type = "button";
+            hideButton.className = "web-shop-history-hide";
+            hideButton.textContent = "×";
+            hideButton.setAttribute("aria-label","Hide this transaction from your history");
+            hideButton.title = "Hide this transaction from your personal history";
+            hideButton.addEventListener("click",()=>{
+                pendingHideTransactionId = String(item.id);
+                renderTransactionHistory();
+            });
+            if(pendingHideTransactionId === String(item.id)){
+                const confirmation = document.createElement("div");
+                confirmation.className = "web-shop-history-confirm";
+                const prompt = document.createElement("span");
+                prompt.textContent = "Hide this transaction from your history? The financial record and balance will not be deleted.";
+                const controls = document.createElement("div");
+                controls.className = "web-shop-history-confirm-actions";
+                const cancel = document.createElement("button");
+                cancel.type = "button";cancel.className = "web-shop-history-cancel";cancel.textContent = "Cancel";
+                cancel.addEventListener("click",()=>{pendingHideTransactionId=null;renderTransactionHistory();});
+                const confirm = document.createElement("button");
+                confirm.type = "button";confirm.className = "web-shop-history-confirm-button";confirm.textContent = "Hide";
+                confirm.addEventListener("click",()=>void hideTransaction(item.id,confirm));
+                controls.append(cancel,confirm);
+                confirmation.append(prompt,controls);
+                actions.appendChild(confirmation);
+            }else{
+                actions.appendChild(hideButton);
+            }
+            row.append(date,description,amount,balance,status,actions);
             host.appendChild(row);
         });
+    }
+
+    async function hideTransaction(id,button){
+        if(button)button.disabled=true;
+        try{
+            const result=await rpc("calc_wallet_hide_transaction",{p_transaction_id:Number(id)});
+            if(!result||result.ok!==true)throw new Error(result?.code==="TRANSACTION_NOT_FOUND"
+                ?"That transaction is no longer available in your history."
+                :"Could not hide this transaction.");
+            walletHistory=walletHistory.filter(item=>String(item.id)!==String(id));
+            pendingHideTransactionId=null;
+            renderTransactionHistory();
+            setHistoryStatus("The transaction was hidden from your personal history. The financial record and account balance were not deleted or changed.",false);
+        }catch(error){
+            if(button)button.disabled=false;
+            setHistoryStatus(error?.message||"Could not hide this transaction. Please try again.",true);
+        }
     }
 
     async function loadTransactionHistory(){
@@ -250,15 +319,17 @@
             if(!session){
                 section.hidden = true;
                 walletHistory = [];
+                pendingHideTransactionId=null;
                 return;
             }
             section.hidden = false;
             setHistoryStatus("Loading your latest transactions…",false);
-            const result = await client().rpc("calc_wallet_history",{p_limit:50});
+            const result = await client().rpc("calc_wallet_history",{p_limit:100});
             if(result.error) throw result.error;
             walletHistory = Array.isArray(result.data) ? result.data : [];
+            pendingHideTransactionId=null;
             renderTransactionHistory();
-            setHistoryStatus(walletHistory.length ? "Showing your latest " + walletHistory.length + " transactions." : "No transactions have been recorded for this account yet.",false);
+            setHistoryStatus(walletHistory.length ? "Showing "+walletHistory.length+" visible transactions. Use × to hide a row from this personal view; this never deletes the financial record." : "No visible transactions have been recorded for this account yet.",false);
         }catch(error){
             walletHistory = [];
             renderTransactionHistory();
@@ -388,21 +459,24 @@
             const result = await rpc("calc_buy_premium_lite",{p_request_id:uuid()});
             if(!result || result.ok !== true){
                 const message = result?.code === "INSUFFICIENT_WIP"
-                    ? "You need 40 WIP to activate Premium Lite."
-                    : result?.code === "ALREADY_PREMIUM"
-                        ? "Your full Premium subscription is already active."
+                    ? "You need 50 WIP to activate Premium Lite."
+                    : result?.code === "ACTIVE_SUBSCRIPTION"
+                        ? "Your current subscription is still active. Premium Lite can be activated after it expires."
                         : "Premium Lite could not be activated. Please try again.";
                 showStatus(message,true);
                 return;
             }
             await refreshWallet();
             await loadTransactionHistory();
-            showStatus("Premium Lite is active for 15 days. 40 WIP was used; your CALC balance was not changed.",false);
+            showStatus("Premium Lite is active for 15 days. 50 WIP was used; your CALC balance was not changed.",false);
         }catch(error){
             showStatus(isMissingEconomy(error) ? "The CALC wallet database setup is still pending." : "Premium Lite could not be activated. Please try again.",true);
             console.error("Premium Lite purchase failed:",error);
         }finally{
-            if(button) button.disabled = false;
+            if(button){
+                const active=walletState&&!walletState.is_owner&&["premium","premium_lite"].includes(String(walletState.premium_plan||""))&&walletState.premium_expires_at&&new Date(walletState.premium_expires_at).getTime()>Date.now();
+                button.disabled=!walletState||Boolean(walletState.is_owner)||Boolean(active);
+            }
         }
     }
     window.buyPremiumLite = buyPremiumLite;
@@ -660,7 +734,7 @@
                 button.addEventListener("click",()=>setCalcShopCategory(button.getAttribute("data-webshop-category")));
             });
             $("webShopHistoryCurrency")?.addEventListener("change",event=>{
-                historyFilter = ["CALC","WIP"].includes(event.target.value) ? event.target.value : "all";
+                historyFilter = ["CALC","WIP","purchases"].includes(event.target.value) ? event.target.value : "all";
                 renderTransactionHistory();
             });
             $("webShopHistoryRefresh")?.addEventListener("click",()=>void loadTransactionHistory());
