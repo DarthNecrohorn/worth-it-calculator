@@ -9,6 +9,8 @@
     let calculatorLabelObserver = null;
     let activeCalculatorBillingType = "";
     let signedInAccount = false;
+    let walletHistory = [];
+    let historyFilter = "all";
 
     const $ = id => document.getElementById(id);
     const client = () => window.supabaseClient || null;
@@ -90,6 +92,8 @@
             shopButton.setAttribute("aria-hidden",String(guestView));
         }
         if(button){
+            // Keep the wallet hidden until the correct guest/account state is known.
+            button.hidden = !state && !signedInAccount;
             button.onclick = guestView
                 ? () => window.WorthItGuestLite?.showAccountPrompt?.()
                 : () => {
@@ -169,6 +173,99 @@
         }
         if(typeof window.showToast === "function" && message) window.showToast(String(message));
     }
+
+    function setHistoryStatus(message,error){
+        const status = $("webShopHistoryStatus");
+        if(status){
+            status.textContent = String(message || "");
+            status.classList.toggle("is-error",Boolean(error));
+        }
+    }
+
+    function formatHistoryAmount(value){
+        const number = Number(value || 0);
+        const absolute = Math.abs(number).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:3});
+        return (number > 0 ? "+" : number < 0 ? "−" : "") + absolute;
+    }
+
+    function transactionKindLabel(kind){
+        const labels = {
+            daily_reward:"Daily reward",
+            calculator_spend:"Calculator use",
+            ai_chat_spend:"AI reply",
+            premium_lite_purchase:"Premium Lite activation",
+            refund:"Refund",
+            manual_adjustment:"Balance adjustment",
+            calc_pack_purchase:"CALC pack"
+        };
+        return labels[String(kind || "")] || String(kind || "Wallet transaction").replace(/_/g," ");
+    }
+
+    function renderTransactionHistory(){
+        const host = $("webShopHistoryRows");
+        if(!host) return;
+        host.replaceChildren();
+        const selected = historyFilter === "all" ? walletHistory : walletHistory.filter(row=>String(row.currency || "CALC").toUpperCase() === historyFilter);
+        if(!selected.length){
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.colSpan = 5;
+            cell.className = "web-shop-history-empty";
+            cell.textContent = historyFilter === "all" ? "No transactions yet." : "No " + historyFilter + " transactions yet.";
+            row.appendChild(cell);
+            host.appendChild(row);
+            return;
+        }
+        selected.forEach(item=>{
+            const row = document.createElement("tr");
+            const date = document.createElement("td");
+            const when = item.created_at ? new Date(item.created_at) : null;
+            date.textContent = when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : "—";
+            const description = document.createElement("td");
+            const title = document.createElement("strong");
+            title.textContent = transactionKindLabel(item.kind);
+            const note = document.createElement("small");
+            note.textContent = String(item.description || "");
+            description.append(title,note);
+            const amount = document.createElement("td");
+            amount.className = Number(item.amount || 0) < 0 ? "is-negative" : "is-positive";
+            amount.textContent = formatHistoryAmount(item.amount) + " " + String(item.currency || "CALC");
+            const balance = document.createElement("td");
+            balance.textContent = Number(item.balance_after || 0).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:3}) + " " + String(item.currency || "CALC");
+            const status = document.createElement("td");
+            status.textContent = ({completed:"Completed",reserved:"Pending",refunded:"Refunded",failed:"Failed"}[String(item.status || "")] || String(item.status || "—"));
+            row.append(date,description,amount,balance,status);
+            host.appendChild(row);
+        });
+    }
+
+    async function loadTransactionHistory(){
+        const section = $("webShopHistory");
+        if(!section) return;
+        try{
+            const session = await getSession();
+            if(!session){
+                section.hidden = true;
+                walletHistory = [];
+                return;
+            }
+            section.hidden = false;
+            setHistoryStatus("Loading your latest transactions…",false);
+            const result = await client().rpc("calc_wallet_history",{p_limit:50});
+            if(result.error) throw result.error;
+            walletHistory = Array.isArray(result.data) ? result.data : [];
+            renderTransactionHistory();
+            setHistoryStatus(walletHistory.length ? "Showing your latest " + walletHistory.length + " transactions." : "No transactions have been recorded for this account yet.",false);
+        }catch(error){
+            walletHistory = [];
+            renderTransactionHistory();
+            setHistoryStatus(/calc_wallet_history|PGRST202|schema cache|could not find the function/i.test(String(error?.message || error))
+                ? "Transaction history is not installed in this Preview database yet."
+                : "Your transaction history could not be loaded. Please try again.",true);
+            console.warn("Worth It transaction history could not be loaded:",error);
+        }
+    }
+    window.refreshWorthItTransactionHistory = loadTransactionHistory;
 
     async function refreshWallet(){
         let session = null;
@@ -269,7 +366,7 @@
             const nav = $("navLinks");
             if(nav) window.closeNavMenuUnlessPreserved(nav);
         }
-        void refreshWallet();
+        void refreshWallet().then(()=>loadTransactionHistory());
         window.scrollTo({top:0,behavior:"smooth"});
     }
     window.openWebShop = openWebShop;
@@ -295,6 +392,7 @@
                 return;
             }
             await refreshWallet();
+            await loadTransactionHistory();
             showStatus("Premium Lite is active for 15 days. 40 WIP was used; your CALC balance was not changed.",false);
         }catch(error){
             showStatus(isMissingEconomy(error) ? "The CALC wallet database setup is still pending." : "Premium Lite could not be activated. Please try again.",true);
@@ -557,6 +655,11 @@
             section.querySelectorAll("[data-webshop-category]").forEach(button=>{
                 button.addEventListener("click",()=>setCalcShopCategory(button.getAttribute("data-webshop-category")));
             });
+            $("webShopHistoryCurrency")?.addEventListener("change",event=>{
+                historyFilter = ["CALC","WIP"].includes(event.target.value) ? event.target.value : "all";
+                renderTransactionHistory();
+            });
+            $("webShopHistoryRefresh")?.addEventListener("click",()=>void loadTransactionHistory());
         }
         if(client()?.auth){
             client().auth.onAuthStateChange(()=>{ void refreshWallet(); });
