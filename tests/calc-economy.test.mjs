@@ -8,6 +8,7 @@ const shopCss = read("web-shop.css");
 const ugcCss = read("ugc-calculators.css");
 const economy = read("calc-economy.js");
 const sql = read("supabase/calc-economy.sql");
+const themeGate = read("supabase/worth-it-community-theme-premium-gate.sql");
 const economyFollowup = read("supabase/calc-economy-followup.sql");
 const ai = read("functions/api/ai-chat.js");
 const mediaApi = read("functions/api/chat-media.js");
@@ -107,6 +108,29 @@ test("the wallet uses private RLS-protected tables and authenticated, owner-chec
     assert.match(sql, /'wip_balance_total'/);
     assert.match(admin, /Outstanding WIP/);
     assert.match(admin, /item\.currency === 'WIP'/);
+});
+
+test("Custom Theme persistence is restricted to active Premium Lite/Premium at the database layer", () => {
+    assert.match(themeGate, /create or replace function private\\.worth_it_can_save_custom_theme\\(\\)/);
+    assert.match(themeGate, /security definer/);
+    assert.match(themeGate, /set search_path = ''/);
+    assert.match(themeGate, /premium_plan in \\('premium_lite', 'premium'\\)/);
+    assert.match(themeGate, /premium_expires_at > pg_catalog\\.now\\(\\)/);
+    assert.match(themeGate, /auth\\.uid\\(\\)/);
+    assert.match(themeGate, /grant execute on function private\\.worth_it_can_save_custom_theme\\(\\) to authenticated/);
+    assert.match(themeGate, /for insert[\\s\\S]*?private\\.worth_it_can_save_custom_theme/);
+    assert.match(themeGate, /for update[\\s\\S]*?using[\\s\\S]*?private\\.worth_it_can_save_custom_theme[\\s\\S]*?with check[\\s\\S]*?private\\.worth_it_can_save_custom_theme/);
+    assert.doesNotMatch(themeGate, /create or replace function public\\.worth_it_can_save_custom_theme/);
+    const smoke = read("tests/fixtures/calc-economy-postgres-smoke.sql");
+    assert.match(smoke, /Free accounts must not insert a custom theme/);
+    assert.match(smoke, /Free accounts must not update an existing custom theme/);
+    assert.match(smoke, /Active Premium must be able to update its saved theme/);
+    assert.match(smoke, /Active Premium Lite must be able to update its saved theme/);
+    assert.match(smoke, /Expired Premium Lite must not save Custom Themes/);
+    assert.match(smoke, /owner bypass/);
+    const setup = read("tests/fixtures/calc-economy-postgres-setup.sql");
+    assert.match(setup, /create table if not exists public\\.worth_it_user_themes/);
+    assert.match(setup, /enable row level security/);
 });
 
 test("AI reservations settle only after successful Gemini or Groq replies and failure paths refund", () => {
