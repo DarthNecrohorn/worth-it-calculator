@@ -145,8 +145,40 @@ begin
         raise exception 'Authenticated users must be able to read their own CALC summary.';
     end if;
 end
-$$;
+$;
 
+-- The database policy must reject direct writes by Free users, not just hide Save in the UI.
+insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+values ('11111111-1111-4111-8111-111111111111','Existing free theme','#111111');
+
+set role authenticated;
+do $
+declare
+    v_denied boolean := false;
+    v_rows integer := 0;
+begin
+    begin
+        insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+        values ('11111111-1111-4111-8111-111111111111','Free bypass attempt','#222222');
+    exception when insufficient_privilege then
+        v_denied := true;
+    end;
+    if not v_denied then
+        raise exception 'Free accounts must not insert a custom theme through the Data API.';
+    end if;
+
+    update public.worth_it_user_themes
+       set primary_color = '#333333'
+     where user_id = auth.uid();
+    get diagnostics v_rows = row_count;
+    if v_rows <> 0 then
+        raise exception 'Free accounts must not update an existing custom theme through the Data API.';
+    end if;
+end
+$;
+reset role;
+
+-- Full Premium and Premium Lite accounts must be able to save, while expired plans cannot.
 -- Full Premium reward, limits and owner access are tested with independent identities.
 insert into auth.users(id,email) values
     ('33333333-3333-4333-8333-333333333333','premium@example.test')
@@ -157,6 +189,16 @@ on conflict(user_id) do update set worth_it_id = excluded.worth_it_id, username 
 insert into private.worth_it_calc_wallets(user_id,balance_milli,premium_plan,premium_expires_at,last_daily_reward_on)
 values ('33333333-3333-4333-8333-333333333333',1000,'premium',now()+interval '30 days',(now() at time zone 'UTC')::date - 1)
 on conflict(user_id) do update set balance_milli=excluded.balance_milli,premium_plan='premium',premium_expires_at=excluded.premium_expires_at,last_daily_reward_on=excluded.last_daily_reward_on,last_wip_reward_on=null,wip_balance_milli=0;
+
+insert into auth.users(id,email) values
+    ('44444444-4444-4444-8444-444444444444','premium-lite@example.test'),
+    ('55555555-5555-4555-8555-555555555555','expired@example.test')
+on conflict(id) do update set email = excluded.email;
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at)
+values
+    ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '15 days'),
+    ('55555555-5555-4555-8555-555555555555','premium_lite',now()-interval '1 second')
+on conflict(user_id) do update set premium_plan=excluded.premium_plan,premium_expires_at=excluded.premium_expires_at;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
 select set_config('request.jwt.claims','{"sub":"33333333-3333-4333-8333-333333333333","email":"premium@example.test"}',false);
@@ -186,7 +228,57 @@ begin
         raise exception 'An active Premium subscription must block Premium Lite without spending WIP: %',v;
     end if;
 end
-$$;
+$;
+
+-- A current Premium account can insert and update its own saved theme.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+select set_config('request.jwt.claims','{"sub":"33333333-3333-4333-8333-333333333333","email":"premium@example.test"}',false);
+set role authenticated;
+do $
+declare v_rows integer := 0;
+begin
+    insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+    values (auth.uid(),'Premium theme','#444444');
+    update public.worth_it_user_themes set primary_color='#555555' where user_id=auth.uid();
+    get diagnostics v_rows = row_count;
+    if v_rows <> 1 then raise exception 'Active Premium must be able to update its saved theme.'; end if;
+end
+$;
+reset role;
+
+-- A current Premium Lite account also has full theme-saving access.
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-8444-444444444444","email":"premium-lite@example.test"}',false);
+set role authenticated;
+do $
+declare v_rows integer := 0;
+begin
+    insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+    values (auth.uid(),'Premium Lite theme','#666666');
+    update public.worth_it_user_themes set primary_color='#777777' where user_id=auth.uid();
+    get diagnostics v_rows = row_count;
+    if v_rows <> 1 then raise exception 'Active Premium Lite must be able to update its saved theme.'; end if;
+end
+$;
+reset role;
+
+-- Expired Premium Lite must be denied even if the stored plan label has not yet been refreshed.
+select set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',false);
+select set_config('request.jwt.claims','{"sub":"55555555-5555-4555-8555-555555555555","email":"expired@example.test"}',false);
+set role authenticated;
+do $
+declare v_denied boolean := false;
+begin
+    begin
+        insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+        values (auth.uid(),'Expired theme','#888888');
+    exception when insufficient_privilege then
+        v_denied := true;
+    end;
+    if not v_denied then raise exception 'Expired Premium Lite must not save Custom Themes.'; end if;
+end
+$;
+reset role;
 
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","email":"pedjasebez3545@gmail.com"}',false);
@@ -205,9 +297,19 @@ begin
     v := public.calc_buy_premium_lite('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
     if v->>'is_owner' <> 'true' then raise exception 'Owner should not need to buy Premium Lite: %',v; end if;
 end
-$$;
+$;
 
-select 'CALC economy smoke tests passed' as result;
+-- The site owner keeps the permanent owner bypass.
+set role authenticated;
+do $
+begin
+    insert into public.worth_it_user_themes(user_id,theme_name,primary_color)
+    values (auth.uid(),'Owner theme','#999999');
+end
+$;
+reset role;
+
+select 'CALC economy and Custom Theme RLS smoke tests passed' as result;
 
 -- Verify the transaction history can return only the authenticated user's rows.
 insert into private.worth_it_calc_transactions(
