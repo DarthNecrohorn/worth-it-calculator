@@ -15,6 +15,9 @@ const community = read("community-features.js");
 const economy = read("calc-economy.js");
 const sql = read("supabase/worth-it-ugc-badges.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
+const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
+const paginationCss = read("ugc-calculators.css");
+const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -439,4 +442,28 @@ test("migration and browser scripts are included in CI parsing and regression ch
     assert.match(workflow, /supabase\/worth-it-ugc-badges\.sql/);
     assert.match(workflow, /ugc-badges-postgres-setup\.sql/);
     assert.match(workflow, /ugc-badges-postgres-smoke\.sql/);
+});
+
+
+test("community calculators use secure 30-item server pagination for every view and category", () => {
+    for (const id of ["ugcCategoryFilter","ugcPagination","ugcPagePrevious","ugcPageNext","ugcPageNumber","ugcPageTotal","ugcPageInput","ugcPageGo"]) {
+        assert.ok(html.includes('id="' + id + '"'), id + " exists in the catalogue UI");
+    }
+    assert.match(maker,/function catalogPageKey\(\)/);
+    assert.match(maker,/state\.pages\[catalogPageKey\(\)\]/);
+    assert.match(maker,/get_worth_it_ugc_catalog_page/);
+    assert.match(maker,/p_category:state\.category/);
+    assert.match(maker,/p_page:currentCatalogPage\(\)/);
+    assert.match(maker,/function goToCatalogPage\(value\)/);
+    assert.match(paginationSql,/v_page_size integer := 30/);
+    assert.match(paginationSql,/limit v_page_size offset v_offset/);
+    assert.match(paginationSql,/v_category='all' or c\.category=v_category/);
+    for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-favorites"]) {
+        assert.ok(paginationSql.includes("'" + sort + "'"), sort + " has a server-side pagination path");
+    }
+    assert.match(paginationSql,/grant execute on function public\.get_worth_it_ugc_catalog_page\(text,text,text,text,integer\) to authenticated/);
+    assert.match(paginationFixture,/The first UGC page must contain exactly 30 items/);
+    assert.match(paginationFixture,/UGC category filtering leaked calculators/);
+    assert.match(paginationCss,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
+    assert.match(paginationCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
