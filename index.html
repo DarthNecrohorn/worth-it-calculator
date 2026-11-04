@@ -458,7 +458,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <div class="social-preview-item"><strong id="accountPanelFollowing">…</strong><span>Following</span></div>
                 </div>
                 <div class="account-divider"></div>
-                <button type="button" class="account-action account-view-profile-btn" onclick="openAccountInfo('profile')">👤 <span>View profile</span><span class="account-action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="account-action account-view-profile-btn" onclick="window.openWorthItOwnProfile && window.openWorthItOwnProfile()">👤 <span>View profile</span><span class="account-action-arrow" aria-hidden="true">→</span></button>
             </div>
         </div>
 
@@ -1244,6 +1244,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 </select>
                 <button type="button" class="calculator-favourites-toggle" id="favoriteCalculatorsToggle" aria-pressed="false">☆ Favourites</button>
                 <button type="button" class="btn btn-secondary filter-clear" id="clearCalculatorFilters">Clear</button>
+            </div>
+
+            <div class="community-calculator-navigation" id="ugcNavigationActions" hidden>
+                <button type="button" class="community-calculator-nav-button" id="ugcCatalogJumpButton">🌐 Community calculators</button>
+                <button type="button" class="community-calculator-nav-button community-calculator-nav-primary" id="ugcMakerJumpButton">✦ Create with AI</button>
             </div>
 
             <div class="calculator-grid" id="calculatorGrid">
