@@ -53,7 +53,7 @@ test("custom palettes use four validated colours and persist the header-controls
  assert.ok(html.includes('id="worthItThemeSecondary"'));
  assert.ok(html.includes('id="worthItThemeHover"'));
  assert.ok(html.includes('id="worthItThemeHeader"'));
- assert.ok(html.includes("Header controls background"));
+ assert.ok(html.includes("Background behind Web Shop and wallet buttons"));
  assert.ok(js.includes("function validHex"));
  assert.ok(js.includes("function isCustomTheme"));
  assert.ok(js.includes("--worth-it-hover-glow"));
