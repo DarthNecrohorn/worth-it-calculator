@@ -348,6 +348,8 @@ window.openWorthItUGCCalculator=function(id,options){
 };
 window.closeWorthItUGCCalculator=function(){
  state.detailRequest++;state.activeCalculator=null;state.activeId="";
+ if(state.descriptionStatusTimer){clearInterval(state.descriptionStatusTimer);state.descriptionStatusTimer=null;}
+ state.descriptionStatusRequest++;
  const section=$("ugcDetailSection");if(section)section.hidden=true;
  const home=$("homePage");if(home)home.style.display="block";
  if(window.location.pathname.startsWith("/calculator/ugc/"))window.history.pushState({worthItRoute:true},"","/calculators");
@@ -583,16 +585,81 @@ async function saveMakerDraft(publish){
  }catch(error){$("ugcMakerStatus").textContent=error?.message||"Could not save the calculator."; }
  finally{if(save)save.disabled=false;if(publishButton)publishButton.disabled=false;}
 }
+function setExploreInitialView(view){
+ const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
+ if(!stage||!basic||!community)return;
+ const target=view==="community"&&state.userId?"community":"basic";
+ state.exploreView=target;stage.dataset.activeView=target;stage.dataset.transitioning="false";
+ basic.hidden=target!=="basic";community.hidden=target!=="community";
+ basic.style.removeProperty("transform");community.style.removeProperty("transform");
+ basic.style.removeProperty("transition");community.style.removeProperty("transition");
+ basic.inert=target!=="basic";community.inert=target!=="community";
+}
+function switchCalculatorExploreView(target){
+ const next=target==="community"?"community":"basic";
+ const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
+ if(!stage||!basic||!community)return Promise.resolve(false);
+ if(state.exploreBusy)return Promise.resolve(false);
+ if(next===state.exploreView)return Promise.resolve(true);
+ if(next==="community"&&!state.userId){
+  toast("Sign in to browse and create community calculators.");
+  if(typeof window.openAuthModal==="function")window.openAuthModal("signup");
+  return Promise.resolve(false);
+ }
+ const from=state.exploreView==="community"?community:basic;
+ const to=next==="community"?community:basic;
+ const direction=next==="community"?1:-1;
+ if(from===basic)state.basicScrollTop=from.scrollTop;else state.communityScrollTop=from.scrollTop;
+ state.exploreBusy=true;stage.dataset.transitioning="true";
+ stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=true;});
+ to.hidden=false;to.inert=false;from.inert=true;
+ to.style.transition="none";to.style.transform="translateX("+(direction*100)+"%)";to.style.zIndex="2";
+ from.style.transition="none";from.style.transform="translateX(0)";from.style.zIndex="1";
+ void to.offsetWidth;
+ const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+ const duration=reduced?0:380;
+ to.style.transition=from.style.transition="transform "+duration+"ms cubic-bezier(.22,.75,.22,1)";
+ return new Promise(resolve=>{
+  let finished=false;
+  const finish=()=>{
+   if(finished)return;finished=true;
+   from.hidden=true;from.style.removeProperty("transform");from.style.removeProperty("transition");from.style.removeProperty("z-index");
+   to.style.removeProperty("transform");to.style.removeProperty("transition");to.style.removeProperty("z-index");
+   to.scrollTop=next==="community"?state.communityScrollTop:state.basicScrollTop;
+   state.exploreView=next;state.exploreBusy=false;stage.dataset.activeView=next;stage.dataset.transitioning="false";
+   stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=false;});
+   resolve(true);
+  };
+  if(duration===0){finish();return;}
+  const onEnd=event=>{if(event.target===from&&event.propertyName==="transform"){from.removeEventListener("transitionend",onEnd);finish();}};
+  from.addEventListener("transitionend",onEnd);
+  requestAnimationFrame(()=>{
+   from.style.transform="translateX("+(-direction*100)+"%)";
+   to.style.transform="translateX(0)";
+  });
+  window.setTimeout(()=>{from.removeEventListener("transitionend",onEnd);finish();},duration+120);
+ });
+}
+function openNewCalculatorMaker(){
+ state.editingId=null;state.aiDraft=null;openMaker();
+ $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
+ $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;
+ $("ugcMakerGenerate").textContent="✦ Generate calculator";
+ $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
+ $("ugcMakerStatus").textContent="Describe what you want to calculate.";
+}
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
  const section=$("ugcCommunitySection");if(section)section.hidden=!state.userId;
  const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
- $("ugcCatalogJumpButton")?.addEventListener("click",()=>{if(section){section.scrollIntoView({behavior:"smooth",block:"start"});}});
- $("ugcMakerJumpButton")?.addEventListener("click",()=>{if(section){section.scrollIntoView({behavior:"smooth",block:"start"});window.setTimeout(()=>$("ugcCreateButton")?.click(),180);}});
+ setExploreInitialView(window.location.pathname.startsWith("/calculator/ugc/")?"community":"basic");
+ $("ugcCatalogJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
+ $("ugcMakerJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community").then(openNewCalculatorMaker);});
+ $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
  document.querySelectorAll("[data-ugc-sort]").forEach(node=>node.addEventListener("click",()=>{setActiveSort(node.dataset.ugcSort);void loadCatalog();}));
  $("ugcPeriodFilter")?.addEventListener("change",event=>{state.period=event.target.value;void loadCatalog();});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
- $("ugcCreateButton")?.addEventListener("click",()=>{state.editingId=null;state.aiDraft=null;openMaker();$("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerStatus").textContent="Describe what you want to calculate.";});
+ $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
  $("ugcMakerOverlay")?.addEventListener("click",event=>{if(event.target.id==="ugcMakerOverlay")closeMaker();});
  $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
@@ -606,6 +673,7 @@ async function init(){
   try{await getSession();}catch(_){state.userId="";state.session=null;}
   const gallery=$("ugcCommunitySection");if(gallery)gallery.hidden=!state.userId;
   const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
+  if(!state.userId)setExploreInitialView("basic");
   state.catalogRequest++;
   if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
