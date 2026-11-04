@@ -62,7 +62,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=settings-reset-hover-glow-20261104c">
+<link rel="stylesheet" href="style.css?v=custom-theme-header-contrast-mobile-settings-20261104a&rev=nav-background-profile-centre-scroll-20261104a">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
@@ -71,8 +71,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=transaction-history-hide-premium-lite-20261104c">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=dark-light-section-palette-20261104e">
-<link rel="stylesheet" href="ugc-calculators.css?v=ugc-inline-page-controls-20261104a&amp;rev=arrow-counter-input-single-row-20261104a">
+<link rel="stylesheet" href="community-features.css?v=custom-theme-header-access-20261104a&amp;rev=header-colour-contrast-premium-gate-20261104a">
+<link rel="stylesheet" href="ugc-calculators.css?v=ugc-opaque-community-panel-20261104a&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
@@ -1105,6 +1105,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" class="settings-option" id="themeDarkBtn" onclick="setTheme('dark')">🌙 Dark</button>
             <button type="button" class="settings-option" id="themeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
+    </div>
+    <div class="settings-section settings-custom-theme-promo" id="settingsCustomThemePromo" role="note">
+        <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Custom Themes</strong><span class="settings-custom-theme-premium">PREMIUM</span></div>
+        <p>Make Worth It your own with custom colours for the header, buttons and page accents. Custom Themes are a Premium Lite and Premium benefit. Find them near the bottom of View more settings → Appearance &amp; Accessibility.</p>
+        <button type="button" class="settings-option" onclick="openFullSettings()">Find Custom Themes →</button>
     </div>
 
     <div class="settings-section settings-zoom-help">
@@ -2974,22 +2979,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
       </div>
-      <div class="worth-it-settings-control-group">
-        <h3>Custom theme colours</h3>
-        <p>Choose your own accent gradient. A saved custom palette becomes its own appearance mode. To return to Dark or Light, first use Reset settings.</p>
-        <div class="worth-it-theme-editor">
-          <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
-          <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Theme preview"></div>
-          <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
-          <div class="worth-it-theme-fields">
-            <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
-            <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
-            <label class="worth-it-theme-field" for="worthItThemeHover">Button hover border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
-          </div>
-          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
-          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
-        </div>
-      </div>
       <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
         <h3>How to zoom in</h3>
         <div class="worth-it-settings-zoom-method">
@@ -3005,6 +2994,30 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <p>Place two fingers on the screen and pinch apart to zoom in, or pinch together to zoom out.</p>
         </div>
         <p class="settings-note">Zoom is controlled by your browser or device. On some devices, pinch zoom may need to be enabled in browser settings.</p>
+      </div>
+      <div class="worth-it-settings-control-group worth-it-custom-theme-group" id="worthItCustomThemeSettingsGroup">
+        <h3>Custom Themes</h3>
+        <div id="worthItThemeLocked" class="worth-it-theme-locked" role="note">
+          <div class="worth-it-theme-locked-icon" aria-hidden="true">🔒</div>
+          <div>
+            <strong>Make Worth It yours</strong>
+            <p>Custom Themes are an exclusive benefit for active Premium Lite and Premium members. Choose the header background, page accents and button hover colour, and make the whole website match your style.</p>
+          </div>
+          <button type="button" class="settings-option" onclick="openWorthItThemeUpgrade()">Explore Premium benefits →</button>
+        </div>
+        <div class="worth-it-theme-editor" id="worthItThemeEditor" hidden>
+          <div class="worth-it-theme-editor-head"><strong>My Worth It theme</strong><span class="settings-note">Live preview</span></div>
+          <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Preview of your Worth It header and custom colours"></div>
+          <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
+          <div class="worth-it-theme-fields">
+            <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
+            <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+            <label class="worth-it-theme-field" for="worthItThemeHover">Button hover background, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
+            <label class="worth-it-theme-field" for="worthItThemeHeader">Header background behind navigation buttons<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
+          </div>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Save my theme</button><button type="button" class="settings-option" id="worthItThemeResetButton">Restore default colours</button></div>
+          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite"></p>
+        </div>
       </div>
       <div class="worth-it-settings-reset">
         <div>
@@ -5541,7 +5554,7 @@ if($("carResults")){
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
-<script src="/ugc-calculators.js?v=ugc-inline-page-controls-20261104a&amp;rev=arrow-counter-input-single-row-20261104a"></script>
+<script src="/ugc-calculators.js?v=ugc-empty-status-30-limit-20261104a&amp;rev=page-count-description-20261104a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
@@ -5568,6 +5581,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=custom-palette-reset-await-20261104f&amp;rev=dark-light-choice-custom-state-20261104f"></script>
+<script src="/community-features.js?v=custom-theme-header-access-20261104a&amp;rev=header-colour-contrast-premium-gate-20261104a"></script>
 </body>
 </html>
