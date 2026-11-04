@@ -14,6 +14,7 @@ const chat = read("chat-ui.js");
 const community = read("community-features.js");
 const economy = read("calc-economy.js");
 const sql = read("supabase/worth-it-ugc-badges.sql");
+const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -57,7 +58,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
         "worthItProfileNameBadges", "worthItProfileFavouriteCalculators"
     ]) assert.ok(html.includes('id="' + id + '"'), id + " is present in the UI");
 
-    for (const sort of ["latest", "popular", "liked", "favorited", "disliked", "mine"]) {
+    for (const sort of ["latest", "popular", "liked", "favorited", "disliked", "mine", "my-favorites"]) {
         assert.ok(html.includes('data-ugc-sort="' + sort + '"'), sort + " sort tab exists");
     }
     for (const period of ["today", "7d", "14d", "1m", "3m", "6m", "12m", "3y", "6y", "12y"]) {
@@ -73,10 +74,18 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(guest.includes("/calculator\\/ugc"));
     assert.ok(guest.includes("openWorthItUGCCalculator"));
     assert.ok(maker.includes("const MAX_CALCULATORS=10;"));
-    assert.ok(html.includes("You can create up to 10 community calculators"));
+    assert.ok(html.includes("You can save up to 10 community calculators"));
     assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
     assert.ok(maker.includes("get_worth_it_my_ugc_calculators"));
+    assert.ok(maker.includes("get_worth_it_my_favorite_ugc_calculators"));
     assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
+    assert.ok(maker.includes("switchCalculatorExploreView"));
+    assert.ok(html.includes("ugcBackToBasicButton"));
+    assert.ok(html.includes("IMPORTANT — PLEASE READ BEFORE USING WORTH IT AI"));
+    assert.ok(html.includes("Each successful AI reply costs"));
+    assert.ok(maker.includes("update_worth_it_ugc_calculator_description"));
+    assert.ok(maker.includes("get_worth_it_ugc_ai_edit_quota"));
+    assert.ok(sqlEnhancements.includes("get_worth_it_my_favorite_ugc_calculators"));
 });
 
 test("AI Maker requires a confirmed account and emits restricted declarative calculator definitions", async () => {
@@ -212,6 +221,126 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         assert.equal((await response.json()).code, "DAILY_AI_LIMIT");
         assert.equal(limitedCalls.length, 2);
     });
+});
+
+test("AI improvement preserves saved calculator identity and enforces owner and daily quota checks", async () => {
+    const existing = {
+        id: "11111111-1111-4111-8111-111111111111",
+        is_owner: true,
+        title: validDefinition.title,
+        description: validDefinition.description,
+        category: validDefinition.category,
+        spec: structuredClone(validDefinition)
+    };
+    const refined = structuredClone(validDefinition);
+    refined.inputs[0].label = "Starting savings balance";
+    refined.inputs[0].max = 2000000;
+
+    const calls = [];
+    await withFetch(async (url, options) => {
+        const path = String(url);
+        calls.push(path);
+        if (path.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        }
+        if (path.endsWith("/rest/v1/rpc/get_worth_it_ugc_calculator")) {
+            return new Response(JSON.stringify(existing),{status:200});
+        }
+        if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_edit")) {
+            return new Response(JSON.stringify({ok:true,daily_limit:2,edits_used:1,remaining:1}),{status:200});
+        }
+        if (path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_edit")) {
+            return new Response(JSON.stringify({ok:true}),{status:200});
+        }
+        if (path.includes("generativelanguage.googleapis.com")) {
+            const body=JSON.parse(options.body);
+            assert.match(body.systemInstruction.parts[0].text,/preserve the exact title, category, description/i);
+            return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(refined)}]}}]}),{status:200});
+        }
+        throw new Error("Unexpected AI refinement request: "+path);
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({mode:"refine",calculator_id:existing.id,prompt:"Improve the calculation assumptions and formulas."},{token:"valid-token"}),
+            env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+        });
+        assert.equal(response.status,200);
+        const result=await response.json();
+        assert.equal(result.mode,"refine");
+        assert.equal(result.calculator.title,existing.title);
+        assert.equal(result.calculator.description,existing.description);
+        assert.equal(result.calculator.category,existing.category);
+        assert.equal(result.calculator.spec.inputs[0].label,"Starting savings balance");
+        assert.ok(calls.some(path=>path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_edit")));
+    });
+
+    const deniedCalls=[];
+    await withFetch(async url=>{
+        const path=String(url);deniedCalls.push(path);
+        if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        if(path.endsWith("/rest/v1/rpc/get_worth_it_ugc_calculator"))return new Response(JSON.stringify({...existing,is_owner:false}),{status:200});
+        throw new Error("An edit reservation or AI provider call must not run for a non-owner.");
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({mode:"refine",calculator_id:existing.id,prompt:"Improve it."},{token:"valid-token"}),
+            env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+        });
+        assert.equal(response.status,403);
+        assert.equal((await response.json()).code,"NOT_CALCULATOR_OWNER");
+        assert.equal(deniedCalls.length,2);
+    });
+
+    const quotaCalls=[];
+    await withFetch(async url=>{
+        const path=String(url);quotaCalls.push(path);
+        if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        if(path.endsWith("/rest/v1/rpc/get_worth_it_ugc_calculator"))return new Response(JSON.stringify(existing),{status:200});
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_edit"))return new Response(JSON.stringify({ok:false,code:"DAILY_LIMIT",daily_limit:2,edits_used:2,remaining:0}),{status:200});
+        throw new Error("AI must not run after the AI edit quota is exhausted.");
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({mode:"refine",calculator_id:existing.id,prompt:"Improve it."},{token:"valid-token"}),
+            env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+        });
+        assert.equal(response.status,429);
+        assert.equal((await response.json()).code,"DAILY_AI_EDIT_LIMIT");
+        assert.equal(quotaCalls.length,3);
+    });
+
+    const identityCalls=[];
+    await withFetch(async (url,options)=>{
+        const path=String(url);identityCalls.push(path);
+        if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        if(path.endsWith("/rest/v1/rpc/get_worth_it_ugc_calculator"))return new Response(JSON.stringify(existing),{status:200});
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_edit"))return new Response(JSON.stringify({ok:true}),{status:200});
+        if(path.includes("generativelanguage.googleapis.com")){
+            const changed={...refined,category:"cars"};
+            return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(changed)}]}}]}),{status:200});
+        }
+        if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_edit"))return new Response(JSON.stringify({ok:true}),{status:200});
+        throw new Error("Unexpected request in identity guard test: "+path);
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({mode:"refine",calculator_id:existing.id,prompt:"Turn this into a car calculator."},{token:"valid-token"}),
+            env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+        });
+        assert.equal(response.status,422);
+        assert.equal((await response.json()).code,"CALCULATOR_IDENTITY_CHANGED");
+        assert.ok(identityCalls.some(path=>path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_edit")));
+    });
+});
+
+test("UGC enhancement migration enforces private favourites, description cooldown and AI edit quotas", () => {
+    assert.match(sqlEnhancements,/where f\.user_id=v_user_id/);
+    assert.match(sqlEnhancements,/update_worth_it_ugc_calculator_description/);
+    assert.match(sqlEnhancements,/interval '10 minutes'/);
+    assert.match(sqlEnhancements,/get_worth_it_ugc_ai_edit_quota/);
+    assert.match(sqlEnhancements,/when 'premium' then 4 when 'premium_lite' then 3 else 2/);
+    assert.match(sqlEnhancements,/reserve_worth_it_ugc_ai_edit/);
+    assert.match(sqlEnhancements,/refund_worth_it_ugc_ai_edit/);
+    assert.match(sqlEnhancements,/private\.worth_it_guard_ugc_calculator_update/);
+    assert.match(makerApi,/CALCULATOR_IDENTITY_CHANGED/);
+    assert.match(makerApi,/NOT_CALCULATOR_OWNER/);
+    assert.match(html,/Free 2 \/ Premium Lite 3 \/ Premium 4/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
