@@ -115,7 +115,7 @@ test("mobile calculator catalogue keeps three cards per row and Guest Lite conse
     assert.ok(communityCss.includes("html[data-ui-scale] .worth-it-guest-card"));
     assert.ok(communityCss.includes("overflow-y:auto!important"));
     assert.ok(communityCss.includes("position:static!important"));
-    assert.match(html, /community-features\.css\?v=community-economy-modal-20261031b/);
+    assert.match(html, /community-features\.css\?v=section-theme-custom-palette-20261104e/);
     assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
 });
 
