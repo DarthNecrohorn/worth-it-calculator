@@ -614,18 +614,5 @@ begin
 end
 $ugc_private_helper_privileges$;
 
--- Default privileges must also protect any future helper created in private by postgres.
-create function private.__ugc_default_acl_probe()
-returns boolean language sql as $ select true $;
-do $ugc_default_acl$
-begin
-    if has_function_privilege('anon','private.__ugc_default_acl_probe()','execute')
-       or has_function_privilege('authenticated','private.__ugc_default_acl_probe()','execute')
-       or has_function_privilege('service_role','private.__ugc_default_acl_probe()','execute') then
-        raise exception 'Future private helper functions inherit PUBLIC EXECUTE.';
-    end if;
-end
-$ugc_default_acl$;
-drop function private.__ugc_default_acl_probe();
 
 rollback;
