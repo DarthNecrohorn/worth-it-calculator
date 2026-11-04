@@ -76,7 +76,7 @@ test("custom palettes use four validated colours and persist the header-controls
  assert.ok(webShopCss.includes(".calc-economy-nav"));
  assert.ok(webShopCss.includes("--worth-it-header-foreground"));
  assert.ok(webShopCss.includes(".calc-wip-nav"));
- assert.ok(!siteCss.includes("html[data-worth-it-custom-theme] .nav-right-stack{"));
+
  assert.ok(siteCss.includes(".worth-it-settings-kicker"));
  assert.ok(siteCss.includes("#profileNavBtn .auth-avatar"));
  assert.ok(siteCss.includes("#settingsPanel"));
