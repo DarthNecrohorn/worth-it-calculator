@@ -59,7 +59,7 @@ begin
     -- Editing an existing calculator must not consume another daily creation.
     perform public.save_worth_it_ugc_calculator(
         current_setting('test.ugc_id')::uuid,
-        'Monthly savings growth edited',
+        'Monthly savings growth',
         'Updated description.',
         'money',
         '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
@@ -375,6 +375,175 @@ begin
     end if;
 end
 $test$;
+
+-- The new enhancement migration exposes a private favourites tab (owner-scoped only).
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $private_favourites$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_my_favorite_ugc_calculators('');
+    if jsonb_array_length(result)<>1 then
+        raise exception 'The viewer must see only the single UGC calculator they personally favourited: %',result;
+    end if;
+end
+$private_favourites$;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $private_favourites$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_my_favorite_ugc_calculators('');
+    if jsonb_array_length(result)<>0 then
+        raise exception 'The creator must not see another member''s private favourites.';
+    end if;
+end
+$private_favourites$;
+
+-- The calculator description is independently changeable once every 10 minutes.
+do $description_cooldown$
+declare
+    v_id uuid:=current_setting('test.ugc_calculator_id')::uuid;
+    result jsonb;
+begin
+    result:=public.get_worth_it_ugc_description_status(v_id);
+    if (result->>'can_save')::boolean is distinct from false then
+        raise exception 'A recent description edit did not activate its cooldown: %',result;
+    end if;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'An update too soon.');
+    if (result->>'success')::boolean is distinct from false
+       or result->>'code' is distinct from 'DESCRIPTION_COOLDOWN' then
+        raise exception 'A second description change was not blocked: %',result;
+    end if;
+
+    update private.worth_it_user_calculators
+       set description_changed_at=now()-interval '11 minutes'
+     where id=v_id;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'A description update after cooldown.');
+    if (result->>'success')::boolean is distinct from true
+       or (result->>'unchanged')::boolean is distinct from false then
+        raise exception 'A description update after the cooldown was not accepted: %',result;
+    end if;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'A second update too soon.');
+    if (result->>'success')::boolean is distinct from false
+       or result->>'code' is distinct from 'DESCRIPTION_COOLDOWN' then
+        raise exception 'The description cooldown was not restarted after a successful change: %',result;
+    end if;
+end
+$description_cooldown$;
+
+-- Even an owner cannot repurpose a saved calculator by changing its title or category.
+do $identity_lock$
+declare v_id uuid:=current_setting('test.ugc_calculator_id')::uuid; blocked boolean:=false;
+begin
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            v_id,'A completely different calculator','A description update after cooldown.','cars',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when sqlstate '22023' then blocked:=true;
+    end;
+    if not blocked then raise exception 'An owner repurposed a saved UGC calculator by changing its identity.'; end if;
+end
+$identity_lock$;
+
+-- Free: two AI improvements per UTC day, then a hard server-side limit.
+delete from private.worth_it_calc_wallets where user_id='11111111-1111-4111-8111-111111111111';
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $free_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>2 then raise exception 'Free AI edit limit must be 2: %',q; end if;
+    for i in 1..2 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Free AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Free account could exceed two AI improvements per UTC day: %',result;
+    end if;
+end
+$free_ai_edit_quota$;
+
+-- Premium Lite: three AI improvements per UTC day.
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+do $lite_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='44444444-4444-4444-8444-444444444444' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium Lite AI edit limit must be 3: %',q; end if;
+    for i in 1..3 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium Lite AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Premium Lite account could exceed three AI improvements per UTC day: %',result;
+    end if;
+end
+$lite_ai_edit_quota$;
+
+-- Premium: four AI improvements per UTC day.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $premium_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='33333333-3333-4333-8333-333333333333' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>4 then raise exception 'Premium AI edit limit must be 4: %',q; end if;
+    for i in 1..4 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Premium account could exceed four AI improvements per UTC day: %',result;
+    end if;
+end
+$premium_ai_edit_quota$;
+
+-- Failed AI requests refund both the reservation and the corresponding daily allowance.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $ai_edit_refund$
+declare calculator_id uuid; request_id uuid:=gen_random_uuid(); result jsonb; q jsonb;
+begin
+    update private.worth_it_ugc_ai_edit_daily_usage
+       set usage_date=(now() at time zone 'utc')::date-1
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,request_id);
+    if (result->>'ok')::boolean is distinct from true then raise exception 'The fresh-day AI edit reservation failed: %',result; end if;
+    result:=public.refund_worth_it_ugc_ai_edit(request_id);
+    if (result->>'ok')::boolean is distinct from true then raise exception 'The failed AI edit could not be refunded: %',result; end if;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'edits_used')::integer<>0 or (q->>'remaining')::integer<>2 then
+        raise exception 'A refunded AI improvement still consumed the daily allowance: %',q;
+    end if;
+end
+$ai_edit_refund$;
+
+-- The new owner-only RPCs are unavailable to anonymous users but callable by authenticated owners.
+do $enhancement_privileges$
+begin
+    if has_function_privilege('anon','public.get_worth_it_my_favorite_ugc_calculators(text)','execute') then
+        raise exception 'Anonymous users can call the private favourites RPC.';
+    end if;
+    if has_function_privilege('anon','public.update_worth_it_ugc_calculator_description(uuid,text)','execute') then
+        raise exception 'Anonymous users can change a community calculator description.';
+    end if;
+    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_edit(uuid,uuid)','execute') then
+        raise exception 'Authenticated owners cannot reserve a secured AI improvement.';
+    end if;
+end
+$enhancement_privileges$;
 
 -- Deleting an owned calculator also removes its unlinked text-keyed favourites.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
