@@ -104,7 +104,7 @@ function showProfileSection(){
  if(typeof window.hideCarsNavigationUi==="function")window.hideCarsNavigationUi();
  if(typeof window.hideWaterLevelsSection==="function")window.hideWaterLevelsSection();
  if(typeof window.hideShipTrackingSection==="function")window.hideShipTrackingSection();
- ["homePage","carsSection","weatherSection","newsSection","discountsSection","shopSection","marketsSection","moneySection","cryptoSection","waterLevelsSection","shipTrackingSection","settingsPanel"].forEach(id=>{const n=$(id);if(n)n.style.display="none";});
+ ["homePage","carsSection","weatherSection","newsSection","discountsSection","shopSection","marketsSection","moneySection","cryptoSection","waterLevelsSection","shipTrackingSection","settingsPanel","settingsPage"].forEach(id=>{const n=$(id);if(n)n.style.display="none";});
  document.querySelectorAll(".app").forEach(n=>{n.classList.remove("active");n.style.display="none";});
  $("accountPanel")?.classList.remove("open");$("accountPanel")?.setAttribute("aria-hidden","true");$("accountPageOverlay")?.classList.remove("open");
  const section=$("profileSection");if(section)section.style.display="block";
