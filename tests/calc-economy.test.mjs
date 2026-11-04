@@ -177,5 +177,5 @@ test("Web Shop transaction history is account-scoped in the database and UI", ()
     assert.doesNotMatch(historySql, /p_user_id|p_worth_it_id/);
     assert.match(historySql, /revoke all on function public\.calc_wallet_history\(integer\) from public, anon/);
     assert.match(historySql, /grant execute on function public\.calc_wallet_history\(integer\) to authenticated/);
-    assert.match(f["tests/fixtures/calc-economy-postgres-smoke.sql"].content, /history-hidden-other-user-marker/);
+    assert.match(read("tests/fixtures/calc-economy-postgres-smoke.sql"), /history-hidden-other-user-marker/);
 });
