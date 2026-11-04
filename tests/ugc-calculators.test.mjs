@@ -86,6 +86,9 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(maker.includes("update_worth_it_ugc_calculator_description"));
     assert.ok(maker.includes("get_worth_it_ugc_ai_edit_quota"));
     assert.ok(sqlEnhancements.includes("get_worth_it_my_favorite_ugc_calculators"));
+    assert.match(profile,/get_worth_it_own_profile/);
+    assert.match(profile,/select\("worth_it_id,username,display_name,avatar_url,banner_url,created_at"\)/);
+    assert.match(profile,/window\.openWorthItOwnProfileConnections=/);
 });
 
 test("AI Maker requires a confirmed account and emits restricted declarative calculator definitions", async () => {

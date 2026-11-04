@@ -162,7 +162,7 @@ async function getOwnProfileRow(user,force){
   if(r?.error){
    const message=String(r.error.message||r.error.details||r.error);
    if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist|function .*not found/i.test(message))throw r.error;
-   r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();
+   r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("user_id",user.id).maybeSingle();
    if(r.error)throw r.error;
    profile=r.data;
   }
