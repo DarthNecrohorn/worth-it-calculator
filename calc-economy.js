@@ -92,7 +92,11 @@
         if(button){
             button.onclick = guestView
                 ? () => window.WorthItGuestLite?.showAccountPrompt?.()
-                : () => openWebShop("currency");
+                : () => {
+                    const balance = state?.is_owner ? "Your owner CALC access is unlimited." :
+                        "You currently have " + Number(state?.balance || 0).toFixed(1) + " CALC. CALC is used for supported calculators and successful AI replies.";
+                    if(typeof window.showToast === "function") window.showToast(balance + " Open Web Shop using the separate Web Shop button.");
+                };
         }
 
         if(wipButton){
@@ -107,6 +111,11 @@
                     : state.is_owner
                         ? "Owner access is unlimited; Premium Lite is not required."
                         : "WIP is earned daily and used only to activate Premium Lite: 40 WIP for 15 days.";
+                wipButton.onclick = () => {
+                    const balance = state?.is_owner ? "Owner access is unlimited; Premium Lite is not required." :
+                        "You currently have " + Number(state?.wip_balance || 0).toFixed(1) + " WIP. Earn 1 WIP daily; 40 WIP activates Premium Lite for 15 days.";
+                    if(typeof window.showToast === "function") window.showToast(balance + " Open Web Shop using the separate Web Shop button.");
+                };
                 wipButton.setAttribute("aria-label",!state
                     ? "WIP balance unavailable until the economy database migration is installed."
                     : state.is_owner
