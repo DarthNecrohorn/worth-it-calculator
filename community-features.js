@@ -96,9 +96,10 @@ function hasPremiumThemeAccess(wallet){
  return ["premium","premium_lite"].includes(plan)&&Number.isFinite(expiry)&&expiry>Date.now();
 }
 function updateThemeAccessUI(){
- const editor=$("worthItThemeEditor"),locked=$("worthItThemeLocked");
+ const editor=$("worthItThemeEditor"),locked=$("worthItThemeLocked"),miniPromo=$("settingsCustomThemePromo");
  if(editor)editor.hidden=false;
  if(locked)locked.hidden=themeEntitled;
+ if(miniPromo)miniPromo.hidden=themeEntitled;
  const save=$("worthItThemeSaveButton"),reset=$("worthItThemeResetButton");
  if(save)save.textContent=themeEntitled?"Save my theme":"Unlock to save →";
  if(reset)reset.textContent=themeEntitled?"Restore default colours":"Reset preview colours";
@@ -212,6 +213,7 @@ async function loadThemeForSession(){
  }
 }
 async function saveCustomTheme(){
+ if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to save a Custom Theme.",true);return;}
  if(!themeEntitlementResolved||!themeEntitled){
   setThemeStatus("You can try every colour for free. Saving your theme and keeping it active across Worth It requires Premium Lite or Premium.",true);
   window.openWorthItThemeUpgrade?.();
@@ -250,6 +252,7 @@ async function saveCustomTheme(){
  }finally{if(button)button.disabled=false;}
 }
 async function resetCustomTheme(){
+ if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to change Custom Themes.",true);return false;}
  if(!themeEntitlementResolved||!themeEntitled){
   themePreviewActive=false;applyTheme(DEFAULT_THEME);
   setThemeStatus("Preview reset to the default Worth It colours. You can try another combination; nothing is saved.",false);
