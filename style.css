@@ -24049,3 +24049,75 @@ html[data-worth-it-custom-theme] body.worth-it-chat-open{
       linear-gradient(135deg,#0b1020,#111a2d);
 }
 #aiChatOverlay{--primary:#7C5CFF;--primary2:#38BDF8;}
+
+
+/* Full settings panels must respect the hidden state after every navigation change. */
+.worth-it-settings-panel[hidden],
+#appearanceSettingsPanel[hidden]{
+    display:none!important;
+}
+
+/* A saved Worth It palette is a separate appearance mode, not an accent layered over Dark or Light. */
+html[data-worth-it-custom-theme]{
+    color-scheme:dark!important;
+    --bg:color-mix(in srgb,var(--primary) 7%,#070b14);
+    --bg2:color-mix(in srgb,var(--primary2) 9%,#0b1120);
+    --card:color-mix(in srgb,var(--primary) 5%,rgba(17,25,42,.96));
+    --card-solid:color-mix(in srgb,var(--primary) 7%,#11192a);
+    --card2:color-mix(in srgb,var(--primary2) 8%,#151f33);
+    --border:color-mix(in srgb,var(--worth-it-hover-glow) 24%,rgba(148,163,184,.2));
+    --text:#f7f8ff;
+    --muted:#b6bfd1;
+    --muted2:#8490a7;
+    --surface-soft:color-mix(in srgb,var(--primary) 9%,rgba(255,255,255,.045));
+    --focus-ring:0 0 0 3px color-mix(in srgb,var(--worth-it-hover-glow) 27%,transparent);
+}
+html[data-worth-it-custom-theme] body{
+    color-scheme:dark;
+    color:var(--text);
+    background:
+      radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--primary) 23%,transparent),transparent 36%),
+      radial-gradient(ellipse at 94% 8%,color-mix(in srgb,var(--primary2) 20%,transparent),transparent 34%),
+      linear-gradient(135deg,var(--bg),var(--bg2))!important;
+}
+html[data-worth-it-custom-theme] .nav,
+html[data-worth-it-custom-theme] .settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-card,
+html[data-worth-it-custom-theme] .panel,
+html[data-worth-it-custom-theme] .stat,
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .metric,
+html[data-worth-it-custom-theme] .chart-card,
+html[data-worth-it-custom-theme] .faq-item,
+html[data-worth-it-custom-theme] .feedback-modal-card{
+    color:var(--text);
+    background-color:var(--card-solid);
+    border-color:color-mix(in srgb,var(--worth-it-hover-glow) 28%,var(--border));
+}
+html[data-worth-it-custom-theme] .nav{
+    background:color-mix(in srgb,var(--bg) 88%,transparent);
+}
+html[data-worth-it-custom-theme] .btn-primary,
+html[data-worth-it-custom-theme] .open-calc,
+html[data-worth-it-custom-theme] .settings-option.active,
+html[data-worth-it-custom-theme] .community-calculator-nav-primary,
+html[data-worth-it-custom-theme] .ugc-primary-button,
+html[data-worth-it-custom-theme] .ugc-action-primary{
+    border-color:color-mix(in srgb,var(--primary) 65%,transparent);
+    background:linear-gradient(120deg,var(--primary),var(--primary2));
+    color:#fff;
+}
+html[data-worth-it-custom-theme] button:hover:not(:disabled),
+html[data-worth-it-custom-theme] button:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb,var(--worth-it-hover-glow) 50%,transparent),
+      0 0 17px color-mix(in srgb,var(--worth-it-hover-glow) 42%,transparent)!important;
+}
+html[data-worth-it-custom-theme] input:focus-visible,
+html[data-worth-it-custom-theme] select:focus-visible,
+html[data-worth-it-custom-theme] textarea:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--worth-it-hover-glow) 28%,transparent)!important;
+}
