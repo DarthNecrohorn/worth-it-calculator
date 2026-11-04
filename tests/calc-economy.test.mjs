@@ -161,7 +161,7 @@ test("transaction reporting is exposed only through the existing owner-verified 
 test("Guest Lite header never flashes Web Shop or an account CALC balance before wallet resolution", () => {
     assert.match(html, /id="worthItWebShopButton" hidden/);
     assert.match(html, /id="worthItCalcWalletButton" hidden/);
-    assert.match(economy, /button\.hidden = !state && !signedInAccount/);
+    assert.match(economy, /button\.hidden = !state && \(!authResolved \|\| signedInAccount\)/);
     assert.match(economy, /shopButton\.hidden = guestView/);
     assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
     assert.match(shopCss, /\.calc-shop-nav\[hidden\],\.calc-wallet-nav\[hidden\]/);

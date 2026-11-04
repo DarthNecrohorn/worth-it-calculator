@@ -325,6 +325,7 @@ declare
     v_user_id uuid := auth.uid();
     v_usage_date date;
     v_status text;
+    v_edits_used integer;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode = '28000'; end if;
     update private.worth_it_ugc_ai_edit_requests
@@ -338,9 +339,20 @@ begin
         return jsonb_build_object('ok',v_status='refunded','already_refunded',v_status='refunded');
     end if;
 
-    update private.worth_it_ugc_ai_edit_daily_usage
-       set edits_used=greatest(0,edits_used-1),updated_at=now()
-     where user_id=v_user_id and usage_date=v_usage_date;
+    select edits_used into v_edits_used
+      from private.worth_it_ugc_ai_edit_daily_usage
+     where user_id=v_user_id and usage_date=v_usage_date
+     for update;
+    if v_edits_used is not null then
+        if v_edits_used<=1 then
+            delete from private.worth_it_ugc_ai_edit_daily_usage
+             where user_id=v_user_id and usage_date=v_usage_date and edits_used=1;
+        else
+            update private.worth_it_ugc_ai_edit_daily_usage
+               set edits_used=v_edits_used-1,updated_at=now()
+             where user_id=v_user_id and usage_date=v_usage_date;
+        end if;
+    end if;
     return jsonb_build_object('ok',true,'refunded',true);
 end;
 $$;
