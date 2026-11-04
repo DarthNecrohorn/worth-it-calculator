@@ -188,6 +188,8 @@ test("Web Shop transaction history is account-scoped in the database and UI", ()
     assert.match(economy,/calc_wallet_hide_transaction/);
     assert.match(economy,/financial record and account balance were not deleted or changed/i);
     assert.match(html,/option value="purchases">Your purchases/);
-    assert.match(html,/id="buyPremiumLiteButton"[^>]*50 WIP/);
+    assert.match(html,/id="buyPremiumLiteButton"/);
+    assert.match(html,/Activate Premium Lite · 50 WIP/);
+    assert.match(html,/50 <small>WIP \/ 15 days<\/small>/);
     assert.match(read("tests/fixtures/calc-economy-postgres-smoke.sql"), /history-hidden-other-user-marker/);
 });
