@@ -98,6 +98,8 @@ create table if not exists public.worth_it_user_themes (
     check (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
   secondary_color text not null default '#38BDF8'
     check (secondary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  header_color text not null default '#0B1120'
+    check (header_color ~ '^#[0-9A-Fa-f]{6}$'),
   updated_at timestamptz not null default now()
 );
 
