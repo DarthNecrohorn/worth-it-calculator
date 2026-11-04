@@ -97,11 +97,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </a>
 
         <div class="calc-economy-nav" aria-label="Web Shop, CALC Lite or CALC, and WIP currency">
-            <button type="button" class="calc-shop-nav" id="worthItWebShopButton" onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
+            <button type="button" class="calc-shop-nav" id="worthItWebShopButton" hidden onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
                 <span class="calc-shop-nav-icon" aria-hidden="true">🛍️</span>
                 <span class="calc-shop-nav-label">Web Shop</span>
             </button>
-            <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
+            <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" hidden onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
                 <span class="calc-wallet-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#calcCoinGradient)"/><path d="M11 8.5h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3Z" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zM11 16.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4zm-8.6 4.2h2.4v1H11zm4.3 0h2.4v1h-2.4zm4.3 0H22v1h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="calcCoinGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
                 <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
                 <span class="calc-wallet-unit" id="worthItCalcWalletUnit">CALC</span>
@@ -3092,6 +3092,31 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 </article>
             </div>
             <p class="web-shop-footnote">Premium Lite costs 40 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+        </section>
+
+        <section class="web-shop-history" id="webShopHistory" hidden aria-labelledby="webShopHistoryTitle">
+            <div class="web-shop-history-header">
+                <div>
+                    <h3 id="webShopHistoryTitle">Your transaction history</h3>
+                    <p>Only transactions belonging to your signed-in Worth It account are shown here.</p>
+                </div>
+                <div class="web-shop-history-tools">
+                    <label class="sr-only" for="webShopHistoryCurrency">Filter transaction history by currency</label>
+                    <select id="webShopHistoryCurrency" aria-label="Filter transaction history by currency">
+                        <option value="all">All currencies</option>
+                        <option value="CALC">CALC</option>
+                        <option value="WIP">WIP</option>
+                    </select>
+                    <button type="button" id="webShopHistoryRefresh" class="web-shop-history-refresh">↻ Refresh</button>
+                </div>
+            </div>
+            <p class="web-shop-history-status" id="webShopHistoryStatus" role="status" aria-live="polite">Your latest transactions will appear here.</p>
+            <div class="web-shop-history-table-wrap">
+                <table class="web-shop-history-table">
+                    <thead><tr><th>Date</th><th>Transaction</th><th>Change</th><th>Balance after</th><th>Status</th></tr></thead>
+                    <tbody id="webShopHistoryRows"></tbody>
+                </table>
+            </div>
         </section>
 
         <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
