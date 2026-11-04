@@ -34,7 +34,7 @@ test("Web Shop and CALC balance sit beside the logo without replacing the affili
     assert.match(routes, /"\/web-shop": "openWebShop"/);
     assert.match(html, /Buying is completely optional/);
     assert.match(html, /Free users receive 1 CALC and 1 WIP daily/);
-    assert.match(html, /40 <small>WIP \/ 15 days<\/small>/);
+    assert.match(html, /50 <small>WIP \/ 15 days<\/small>/);
     assert.match(html, /Every signed-in account earns 1 WIP per UTC day/);
     assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
     assert.match(economy, /const guestView = state \? state\.is_guest === true : !signedInAccount/);
@@ -172,7 +172,7 @@ test("Web Shop transaction history is account-scoped in the database and UI", ()
     const historySql = read("supabase/calc-wallet-history.sql");
     assert.match(html, /id="webShopHistory"/);
     assert.match(html, /Only transactions belonging to your signed-in Worth It account/);
-    assert.match(economy, /rpc\("calc_wallet_history",\{p_limit:50\}\)/);
+    assert.match(economy, /rpc\("calc_wallet_history",\{p_limit:100\}\)/);
     assert.match(historySql, /v_user_id uuid := auth\.uid\(\)/);
     assert.match(historySql, /where user_id = v_user_id/);
     assert.doesNotMatch(historySql, /p_user_id|p_worth_it_id/);
