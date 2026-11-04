@@ -186,7 +186,7 @@ begin
         raise exception 'An active Premium subscription must block Premium Lite without spending WIP: %',v;
     end if;
 end
-$;
+$$;
 
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","email":"pedjasebez3545@gmail.com"}',false);
@@ -218,7 +218,7 @@ insert into private.worth_it_calc_transactions(
 
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","email":"free@example.test"}',false);
-do $
+do $$
 declare
     v jsonb;
     v_own_id bigint;
@@ -263,7 +263,7 @@ begin
         raise exception 'Hiding a history row must be a reversible visibility flag, not a ledger delete.';
     end if;
 end
-$;
+$$;
 
 select set_config('request.jwt.claim.sub','',false);
 select set_config('request.jwt.claims','{}',false);
