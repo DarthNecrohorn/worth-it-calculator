@@ -104,7 +104,8 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(siteCss.includes(".worth-it-settings-kicker"));
  assert.ok(siteCss.includes("#profileNavBtn .auth-avatar"));
  assert.ok(siteCss.includes("#settingsPanel"));
- assert.ok(css.includes(".worth-it-theme-preview::before"));
+ assert.ok(css.includes(".worth-it-theme-preview-card"));
+ assert.ok(css.includes(".worth-it-theme-preview-secondary"));
  assert.ok(css.includes("html[data-worth-it-custom-theme] #marketsSection"));
  assert.ok(css.includes("--wt-section-card:linear-gradient"));
  assert.ok(css.includes("--wt-section-control:color-mix"));
@@ -130,6 +131,7 @@ test("everyone can preview Custom Themes in Settings, but only Premium can save 
  assert.ok(js.includes("window.setWorthItCustomThemeSettingsOpen=function(isOpen)"));
  assert.ok(js.includes("applyTheme(savedTheme)"));
  assert.ok(settings.includes("window.setWorthItCustomThemeSettingsOpen(true)"));
+ assert.ok(settings.includes("window.refreshWorthItCustomTheme"));
  assert.ok(routing.includes("window.setWorthItCustomThemeSettingsOpen(false)"));
  assert.ok(js.includes("async function clearThemeAfterExpiry(userId,request)"));
  assert.ok(js.includes("await clearThemeAfterExpiry(userId,request)"));
