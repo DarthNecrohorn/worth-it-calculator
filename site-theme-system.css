@@ -1,0 +1,492 @@
+
+/* Worth It Custom Theme — final cross-site design system.
+   Loaded last so section-local styles cannot reintroduce unreadable fixed colours. */
+html[data-worth-it-custom-theme] {
+    color-scheme: var(--worth-it-theme-color-scheme, dark) !important;
+}
+html[data-worth-it-custom-theme] body {
+    color: var(--text) !important;
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    line-height: var(--worth-it-theme-body-line-height, 1.55);
+    letter-spacing: var(--worth-it-theme-body-letter-spacing, normal);
+}
+html[data-worth-it-custom-theme] body :is(h1,h2,h3,h4,h5,h6) {
+    color: var(--worth-it-theme-heading-color, var(--text)) !important;
+    font-family: var(--worth-it-theme-heading-font-family, var(--worth-it-theme-font-family)) !important;
+    font-weight: var(--worth-it-theme-heading-weight, 800);
+    letter-spacing: var(--worth-it-theme-heading-letter-spacing, normal);
+    text-transform: var(--worth-it-theme-heading-transform, none);
+}
+html[data-worth-it-custom-theme] body a:not(.logo):not([class*="button"]):not([class*="-btn"]) {
+    color: var(--worth-it-theme-link-color, var(--primary)) !important;
+}
+html[data-worth-it-custom-theme] body :is(input,select,textarea,[contenteditable="true"]) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea,[contenteditable="true"]) {
+    background-color: var(--card-solid) !important;
+}
+html[data-worth-it-custom-theme] body :is(input,textarea,[contenteditable="true"])::placeholder {
+    color: var(--muted) !important;
+    opacity: 1;
+}
+
+/* Every ordinary control inherits the chosen palette instead of carrying
+   hard-coded white, grey or dark text from its section stylesheet. */
+html[data-worth-it-custom-theme] body :is(
+    button,input[type="button"],input[type="submit"],.settings-option
+):not(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,.worth-it-chat-nav-btn,
+    .worth-it-chat-send-btn,.shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,.active,.is-active,
+    .calc-favorite-toggle,.worth-it-profile-avatar-remove,
+    .worth-it-chat-call-end,.worth-it-chat-call-reject,.worth-it-chat-manage-delete,
+    .worth-it-chat-manage-leave,.is-recording,[aria-pressed="true"],
+    [aria-selected="true"],[aria-expanded="true"],
+    [class*="danger"],[class*="delete"],[class*="remove"],[class*="reject"]
+) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--worth-it-theme-control-radius, 10px) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    button.active,button.is-active,button[aria-pressed="true"],
+    button[aria-selected="true"],button[aria-expanded="true"]
+) {
+    color: var(--worth-it-primary-readable) !important;
+    background: color-mix(in srgb, var(--primary) 18%, var(--card-solid)) !important;
+    border-color: var(--primary) !important;
+}
+
+/* Primary actions: the selected preset controls the button style AND the
+   foreground is computed for that exact solid/gradient background. */
+html[data-worth-it-custom-theme] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav
+) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    border-radius: var(--worth-it-theme-control-radius, 10px) !important;
+    border-color: transparent !important;
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: transparent !important;
+    border: 1px solid var(--primary) !important;
+    color: var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] body :is(
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme] body :is(button,.settings-option):hover:not(:disabled) {
+    border-color: var(--worth-it-hover-glow, var(--primary)) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] body :is(button,.settings-option) {
+    transition: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] body :is(button,.settings-option) {
+    transition: transform .18s ease,background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] body :is(button,.settings-option) {
+    transition: transform .32s cubic-bezier(.2,.8,.2,1),background .32s ease,border-color .32s ease,color .32s ease,box-shadow .32s ease !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] body :is(button,.settings-option):hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] body :is(button,.settings-option):hover:not(:disabled) {
+    box-shadow: 0 0 0 2px color-mix(in srgb,var(--worth-it-hover-glow) 24%,transparent),
+                0 0 20px color-mix(in srgb,var(--worth-it-hover-glow) 34%,transparent);
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] body :is(button,.settings-option):hover:not(:disabled) {
+    transform: none !important;
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thick"] body :is(button,.settings-option,input,select,textarea) {
+    border-width: 2px !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] body :is(button,.settings-option,input,select,textarea) {
+    border-width: 1px !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="none"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="soft"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: 0 8px 24px color-mix(in srgb,var(--primary) 9%,transparent) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="strong"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: 0 16px 38px color-mix(in srgb,var(--primary) 20%,rgba(0,0,0,.22)) !important;
+}
+html[data-worth-it-custom-theme] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    border-color: var(--border) !important;
+    border-radius: var(--radius, 16px);
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="glass"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--card) !important;
+    backdrop-filter: blur(14px);
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="flat"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--surface-soft) !important;
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="solid"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--card-solid) !important;
+}
+html[data-worth-it-custom-theme] body :focus-visible {
+    outline-color: var(--primary) !important;
+}
+
+/* Header actions must use the current palette too. This includes AI Chat,
+   which used to keep a fixed white label on a light gradient. */
+html[data-worth-it-custom-theme] .nav {
+    background: var(--worth-it-header-background) !important;
+    color: var(--worth-it-header-foreground) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .nav .logo,
+html[data-worth-it-custom-theme] .nav .nav-links button {
+    color: var(--worth-it-header-foreground) !important;
+}
+html[data-worth-it-custom-theme] .nav .ai-chat-nav-btn,
+html[data-worth-it-custom-theme] .nav .admin-panel-nav-btn {
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] .nav :is(.menu-btn,.feedback-nav-btn,.signout-nav-btn,.settings-btn,.auth-btn,.profile-nav-btn,.worth-it-chat-nav-btn) {
+    color: var(--worth-it-header-foreground) !important;
+    border-color: color-mix(in srgb,var(--worth-it-header-foreground) 28%,transparent) !important;
+    background: color-mix(in srgb,var(--worth-it-header-foreground) 9%,transparent) !important;
+}
+
+/* Apply saved presets to the Web Shop as well as the rest of Worth It.
+   The Shop's own Dark/Light toggle remains the fallback when no Custom Theme is active. */
+html[data-worth-it-custom-theme] #webShopSection {
+    --ws-bg: var(--bg);
+    --ws-panel: var(--card-solid);
+    --ws-card: var(--card);
+    --ws-card-hover: var(--card2);
+    --ws-text: var(--text);
+    --ws-muted: var(--muted);
+    --ws-border: var(--border);
+    --ws-accent: var(--primary);
+    --ws-accent2: var(--primary2);
+    --ws-shadow: var(--shadow);
+    color: var(--text) !important;
+    background:
+        radial-gradient(ellipse at 6% 0%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 38%),
+        radial-gradient(ellipse at 96% 10%,color-mix(in srgb,var(--primary2) 16%,transparent),transparent 32%),
+        linear-gradient(145deg,var(--bg),var(--bg2)) !important;
+}
+html[data-worth-it-custom-theme] #webShopSection .web-shop-back {
+    border-radius: var(--worth-it-theme-control-radius) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] #webShopSection .web-shop-back {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] #webShopSection .web-shop-back {
+    background: transparent !important;
+    border: 1px solid var(--primary) !important;
+    color: var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] #webShopSection .web-shop-back {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Full-site AI Chat inherits the preset in its launcher, panel, controls and copy. */
+html[data-worth-it-custom-theme] .ai-chat-card {
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-messages { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .ai-chat-input {
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-input::placeholder { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .ai-chat-send {
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Community Chat: panels, messages and composer follow the active theme;
+   the independently generated doodle tile keeps the same scattered artwork
+   but uses the selected preset's own accent colours. */
+html[data-worth-it-custom-theme] .worth-it-chat-window {
+    --chat-line: var(--border);
+    --chat-muted: var(--muted);
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-sidebar {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-main {
+    color: var(--text) !important;
+    background:
+        radial-gradient(ellipse at 75% 0%,color-mix(in srgb,var(--primary) 13%,transparent),transparent 40%),
+        linear-gradient(160deg,var(--bg),color-mix(in srgb,var(--bg) 88%,var(--primary) 12%)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-header {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 86%,transparent) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header h2,.worth-it-chat-brand strong,
+    .worth-it-chat-side-item,.worth-it-chat-side-item strong
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header p,.worth-it-chat-brand small,
+    .worth-it-chat-side-item small,.worth-it-chat-sidebar-footer,
+    .worth-it-chat-muted,.worth-it-chat-compose-meta
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-side-item.is-active {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: var(--primary) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose-wrap {
+    background: color-mix(in srgb,var(--card-solid) 90%,transparent) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose {
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose textarea {
+    background: transparent !important;
+    color: var(--text) !important;
+    font-family: var(--worth-it-theme-font-family) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose textarea::placeholder {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-messages {
+    background-color: var(--bg) !important;
+    background-image:
+        linear-gradient(160deg,color-mix(in srgb,var(--primary) 6%,transparent),color-mix(in srgb,var(--primary2) 4%,transparent)),
+        var(--worthit-chat-wallpaper-image,none) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header-icon,.worth-it-chat-voice-icon,.worth-it-chat-control-icon,
+    .worth-it-chat-speaker-icon
+),html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header-icon,.worth-it-chat-voice-icon,.worth-it-chat-control-icon,
+    .worth-it-chat-speaker-icon
+) * {
+    stroke: var(--primary) !important;
+    color: var(--primary) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-send-btn {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Preserve the uploaded profile banner as a real background layer while
+   allowing the preset's cards, statistics, typography and controls to remain. */
+html[data-worth-it-custom-theme].profile-banner-active body::before {
+    background: linear-gradient(
+        120deg,
+        color-mix(in srgb,var(--bg) 34%,transparent),
+        color-mix(in srgb,var(--bg) 24%,transparent) 48%,
+        color-mix(in srgb,var(--bg) 34%,transparent)
+    ) !important;
+}
+html[data-worth-it-custom-theme].profile-banner-active .nav {
+    background: var(--worth-it-header-background) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner {
+    background: transparent !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner::before {
+    background: linear-gradient(
+        110deg,
+        color-mix(in srgb,var(--card-solid) 70%,transparent),
+        color-mix(in srgb,var(--card-solid) 46%,transparent) 58%,
+        color-mix(in srgb,var(--card-solid) 32%,transparent)
+    ) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner .worth-it-profile-heading h1 {
+    color: var(--worth-it-theme-heading-color) !important;
+    text-shadow: 0 1px 4px color-mix(in srgb,var(--bg) 35%,transparent) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner :is(
+    .worth-it-profile-username,.worth-it-profile-email,.worth-it-profile-avatar-guidance
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner .worth-it-profile-avatar-action {
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-stat,.worth-it-profile-share,.worth-it-profile-status
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    border-color: var(--border) !important;
+    backdrop-filter: blur(13px);
+    -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-stat span,
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-id-note,
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-member-since {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-share-copy a {
+    color: var(--worth-it-theme-link-color) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-status.is-error {
+    color: var(--danger) !important;
+}
+html[data-worth-it-custom-theme].profile-banner-active footer,
+html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,button) {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+/* The hamburger is an off-canvas drawer, not a dropdown that simply appears.
+   Keyframes are deliberately used instead of relying on the older transition
+   chain, which was being overridden by late mobile header positioning rules. */
+@keyframes worthItHamburgerEnter {
+    from { transform: translate3d(-105%,0,0); opacity: 0; }
+    to   { transform: translate3d(0,0,0); opacity: 1; }
+}
+@keyframes worthItHamburgerExit {
+    from { transform: translate3d(0,0,0); opacity: 1; }
+    to   { transform: translate3d(-105%,0,0); opacity: 0; }
+}
+@media (max-width: 900px) {
+    #navLinks.nav-links {
+        display: flex !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: auto !important;
+        top: 88px !important;
+        bottom: 0 !important;
+        width: min(390px,calc(100vw - 12px)) !important;
+        max-width: calc(100vw - 12px) !important;
+        height: calc(100dvh - 88px) !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding: 12px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        border-radius: 0 18px 18px 0 !important;
+        background: var(--card-solid,var(--card)) !important;
+        box-shadow: 0 0 0 100vmax rgba(3,7,18,.46),18px 0 44px rgba(0,0,0,.27) !important;
+        transform: translate3d(-105%,0,0);
+        transform-origin: left center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        will-change: transform,opacity;
+        animation: none !important;
+    }
+    #navLinks.nav-links.open {
+        top: 88px !important;
+        height: calc(100dvh - 88px) !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        animation: worthItHamburgerEnter .46s cubic-bezier(.22,.8,.25,1) both !important;
+    }
+    #navLinks.nav-links.closing {
+        top: 88px !important;
+        height: calc(100dvh - 88px) !important;
+        visibility: visible !important;
+        pointer-events: none !important;
+        animation: worthItHamburgerExit .46s cubic-bezier(.55,0,.8,.3) both !important;
+    }
+}
+@media (min-width: 901px) and (max-width: 1000px) {
+    #navLinks.nav-links {
+        top: 114px !important;
+        height: calc(100dvh - 114px) !important;
+    }
+    #navLinks.nav-links.open,
+    #navLinks.nav-links.closing {
+        top: 114px !important;
+        height: calc(100dvh - 114px) !important;
+    }
+}
+@media (min-width: 1001px) {
+    html[data-ui-scale="large"] #navLinks.nav-links,
+    html[data-ui-scale="xl"] #navLinks.nav-links {
+        display: flex !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: auto !important;
+        top: 114px !important;
+        bottom: 0 !important;
+        width: min(390px,calc(100vw - 12px)) !important;
+        height: calc(100dvh - 114px) !important;
+        max-height: none !important;
+        overflow: auto !important;
+        border-radius: 0 18px 18px 0 !important;
+        background: var(--card-solid,var(--card)) !important;
+        box-shadow: 0 0 0 100vmax rgba(3,7,18,.46),18px 0 44px rgba(0,0,0,.27) !important;
+        transform: translate3d(-105%,0,0);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        animation: none !important;
+    }
+    html[data-ui-scale="large"] #navLinks.nav-links.open,
+    html[data-ui-scale="xl"] #navLinks.nav-links.open {
+        visibility: visible !important;
+        pointer-events: auto !important;
+        animation: worthItHamburgerEnter .46s cubic-bezier(.22,.8,.25,1) both !important;
+    }
+    html[data-ui-scale="large"] #navLinks.nav-links.closing,
+    html[data-ui-scale="xl"] #navLinks.nav-links.closing {
+        visibility: visible !important;
+        pointer-events: none !important;
+        animation: worthItHamburgerExit .46s cubic-bezier(.55,0,.8,.3) both !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    #navLinks.nav-links.open,
+    #navLinks.nav-links.closing {
+        animation: none !important;
+    }
+}
