@@ -1428,17 +1428,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="ugc-sort-tab" data-ugc-sort="favorited" aria-pressed="false">Most Favorited</button>
           <button type="button" class="ugc-sort-tab" data-ugc-sort="disliked" aria-pressed="false">Most Disliked</button>
           <button type="button" class="ugc-sort-tab" data-ugc-sort="mine" aria-pressed="false">My Calculators</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-drafts" aria-pressed="false">My Drafts</button>
           <button type="button" class="ugc-sort-tab" data-ugc-sort="my-favorites" aria-pressed="false">My Favourites</button>
         </nav>
         <div class="ugc-catalog-tools">
           <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
           <select id="ugcCategoryFilter" aria-label="Filter community calculators by category">
-            <option value="all">All categories</option>
-            <option value="cars">Cars</option>
-            <option value="money">Money</option>
-            <option value="technology">Technology</option>
-            <option value="home">Home Costs</option>
-            <option value="other">Other</option>
+            <option value="all">All categories</option><optgroup label="Cars"><option value="cars">Cars — all</option><option value="car-ownership">Car ownership</option><option value="ev-ownership">Electric vehicles</option><option value="fuel-costs">Fuel costs</option><option value="vehicle-financing">Car financing</option><option value="car-insurance">Insurance</option><option value="car-maintenance">Maintenance & repairs</option><option value="depreciation-resale">Depreciation & resale</option><option value="vehicle-comparison">Vehicle comparisons</option></optgroup><optgroup label="Money"><option value="money">Money — all</option><option value="budgeting">Budgeting</option><option value="saving">Saving</option><option value="investing">Investing</option><option value="loans-debt">Loans & debt</option><option value="mortgages">Mortgages</option><option value="taxes">Taxes</option><option value="income-salary">Income & salary</option><option value="retirement">Retirement</option></optgroup><optgroup label="Technology"><option value="technology">Technology — all</option><option value="smartphones">Smartphones</option><option value="computers">Computers</option><option value="gaming">Gaming</option><option value="software-subscriptions">Software & subscriptions</option><option value="internet-connectivity">Internet & connectivity</option><option value="consumer-electronics">Consumer electronics</option><option value="tech-comparison">Technology comparisons</option></optgroup><optgroup label="Home Costs"><option value="home">Home Costs — all</option><option value="utilities-energy">Utilities & energy</option><option value="rent-housing">Rent & housing</option><option value="home-buying">Home buying</option><option value="renovation-repairs">Renovations & repairs</option><option value="home-appliances">Home appliances</option><option value="home-maintenance">Home maintenance</option><option value="household-budget">Household budget</option></optgroup><optgroup label="Other"><option value="other">Other — all</option><option value="travel">Travel</option><option value="education-career">Education & career</option><option value="health-fitness">Health & fitness</option><option value="food-groceries">Food & groceries</option><option value="business">Business</option><option value="lifestyle">Lifestyle</option><option value="general-comparison">General comparisons</option></optgroup>
           </select>
           <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
             <option value="today">Today</option>
@@ -1479,6 +1475,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <h1 id="ugcDetailTitle">Community calculator</h1>
           <p id="ugcDetailDescription"></p>
           <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Created by a Worth It member</a>
+          <div id="ugcDetailCategories" class="ugc-detail-categories" aria-label="AI-selected calculator categories"></div>
           <div id="ugcDetailStats" class="ugc-detail-stats"></div>
           <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
         </header>
@@ -1519,11 +1516,19 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <p id="ugcMakerStatus" class="ugc-maker-status" role="status" aria-live="polite">Describe your calculator in at least 10 characters.</p>
         <p id="ugcMakerQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's creation allowance loads when the maker opens.</p>
         <div id="ugcMakerPreview" class="ugc-maker-preview" hidden></div>
+        <div id="ugcMakerVisibilityWrap" class="ugc-maker-visibility" hidden>
+          <label for="ugcMakerVisibility">Who can find this calculator when published?</label>
+          <select id="ugcMakerVisibility">
+            <option value="private" selected>Private — only you can see it</option>
+            <option value="public">Public — anyone can discover it</option>
+          </select>
+          <small>Private calculators appear only in My Calculators. Other members cannot open them, even through a direct link.</small>
+        </div>
         <div class="ugc-maker-actions">
           <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
           <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
         </div>
-        <p class="ugc-maker-status">You can save up to 10 community calculators. New calculator creation per UTC day: Guest 0, Free 1, Premium Lite 2, Premium 3. AI improvements to an existing calculator per UTC day: Guest 0, Free 2, Premium Lite 3, Premium 4. AI improvements keep the calculator's original subject and purpose; they cannot turn it into a different type of calculator. Your calculator description can be changed separately once every 10 minutes. Only your own calculators can be improved or deleted. Published calculators use restricted formulas; custom JavaScript is never executed.</p>
+        <p class="ugc-maker-status">There is no total limit on how many community calculators you can save. New calculator creation per UTC day: Guest 0, Free 1, Premium Lite 2, Premium 3. AI improvements to an existing calculator per UTC day: Guest 0, Free 2, Premium Lite 3, Premium 4. AI improvements keep the calculator's original subject and purpose; they cannot turn it into a different type of calculator. Your calculator description can be changed separately once every 10 minutes. You can choose to publish saved calculators publicly or privately. Published calculators use restricted formulas; custom JavaScript is never executed.</p>
         <p class="ugc-maker-status" id="ugcMakerEditQuotaStatus" role="status" aria-live="polite" hidden></p>
       </section>
     </div>
