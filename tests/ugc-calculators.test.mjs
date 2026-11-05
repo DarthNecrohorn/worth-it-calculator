@@ -330,7 +330,7 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         if(path.endsWith("/rest/v1/rpc/get_worth_it_ugc_calculator"))return new Response(JSON.stringify(existing),{status:200});
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_edit"))return new Response(JSON.stringify({ok:true}),{status:200});
         if(path.includes("generativelanguage.googleapis.com")){
-            const changed={...refined,category:"cars"};
+            const changed={...refined,category:"cars",subcategories:["fuel-costs"]};
             return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(changed)}]}}]}),{status:200});
         }
         if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_edit"))return new Response(JSON.stringify({ok:true}),{status:200});
@@ -381,7 +381,7 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
 test("UGC writes are owner-bound with no lifetime cap and private calculators are hidden server-side", () => {
     assert.match(sql, /char_length\(v_title\) not between 3 and 70/);
     assert.doesNotMatch(visibilitySql, /v_count\s*>=\s*10|up to 10 community calculators/i);
-    assert.match(sql, /worth_it_validate_ugc_categories/);
+    assert.match(visibilitySql, /worth_it_validate_ugc_categories/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id for update/);
     assert.match(sql, /revoke all on private\.worth_it_user_calculators from public, anon, authenticated/i);
