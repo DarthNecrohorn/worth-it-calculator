@@ -381,7 +381,7 @@ export async function onRequestPost(context){
         if(mode==="refine"){
             system=[
                 "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
-                "Preserve the exact title, category, subcategories, description, underlying subject, comparison and purpose from the existing calculator.",
+                "Preserve the exact title, category, description, subcategories, underlying subject, comparison and purpose from the existing calculator.",
                 "Preserve every existing input key in its original order. Do not add, remove, rename or repurpose input keys.",
                 "Preserve the exact number, order and labels of all result rows. Improve only input labels, sensible bounds/defaults/steps/units and the formula expressions where useful.",
                 "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
