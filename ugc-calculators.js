@@ -3,15 +3,21 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const sb=()=>window.supabaseClient||null;
-const MAX_CALCULATORS=10;
 const PERIODS=[
  {value:"today",label:"Today"},{value:"7d",label:"Last 7 days"},{value:"14d",label:"Last 14 days"},
  {value:"1m",label:"Last month"},{value:"3m",label:"Last 3 months"},{value:"6m",label:"Last 6 months"},
  {value:"12m",label:"Last 12 months"},{value:"3y",label:"Last 3 years"},{value:"6y",label:"Last 6 years"},
  {value:"12y",label:"Last 12 years"}
 ];
-const SORTS=["latest","popular","liked","favorited","disliked","mine","my-favorites"];
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+const SORTS=["latest","popular","liked","favorited","disliked","mine","my-drafts","my-favorites"];
+const CATEGORY_LABELS={"cars":"Cars","car-ownership":"Car ownership","ev-ownership":"Electric vehicles","fuel-costs":"Fuel costs","vehicle-financing":"Car financing","car-insurance":"Insurance","car-maintenance":"Maintenance & repairs","depreciation-resale":"Depreciation & resale","vehicle-comparison":"Vehicle comparisons","money":"Money","budgeting":"Budgeting","saving":"Saving","investing":"Investing","loans-debt":"Loans & debt","mortgages":"Mortgages","taxes":"Taxes","income-salary":"Income & salary","retirement":"Retirement","technology":"Technology","smartphones":"Smartphones","computers":"Computers","gaming":"Gaming","software-subscriptions":"Software & subscriptions","internet-connectivity":"Internet & connectivity","consumer-electronics":"Consumer electronics","tech-comparison":"Technology comparisons","home":"Home Costs","utilities-energy":"Utilities & energy","rent-housing":"Rent & housing","home-buying":"Home buying","renovation-repairs":"Renovations & repairs","home-appliances":"Home appliances","home-maintenance":"Home maintenance","household-budget":"Household budget","other":"Other","travel":"Travel","education-career":"Education & career","health-fitness":"Health & fitness","food-groceries":"Food & groceries","business":"Business","lifestyle":"Lifestyle","general-comparison":"General comparisons"};
+function getCategoryLabels(item){
+ const main=CATEGORY_LABELS[item?.category]||"Other";
+ const keys=Array.isArray(item?.subcategories)?item.subcategories:(Array.isArray(item?.spec?.subcategories)?item.spec.subcategories:[]);
+ const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
+ return [main,...extras.filter(label=>label!==main)];
+}
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -49,25 +55,30 @@ function setActiveSort(sort){
 }
 function updateCatalogHeading(){
  const node=$("ugcCatalogHeading");
- if(node)node.textContent=state.sort==="mine"?"My Calculators":state.sort==="my-favorites"?"My Favourites":
+ if(node)node.textContent=state.sort==="mine"?"My Calculators":state.sort==="my-drafts"?"My Drafts":state.sort==="my-favorites"?"My Favourites":
   ({latest:"Latest calculators",popular:"Most popular",liked:"Most liked",favorited:"Most favorited",disliked:"Most disliked"}[state.sort]||"Community calculators");
 }
 function renderCatalog(rows){
  const host=$("ugcCalculatorGrid");if(!host)return;
  host.replaceChildren();
- if(!Array.isArray(rows)||!rows.length){host.appendChild(text("p","ugc-empty",state.sort==="mine"?"You have not created any calculators yet.":state.sort==="my-favorites"?"You have not favourited any community calculators yet.":"No community calculators match this filter yet."));return;}
+ if(!Array.isArray(rows)||!rows.length){
+  const empty=state.sort==="mine"?"You have no published community calculators yet.":state.sort==="my-drafts"?"You have no saved drafts yet.":state.sort==="my-favorites"?"You have not favourited any public community calculators yet.":"No community calculators match this filter yet.";
+  host.appendChild(text("p","ugc-empty",empty));return;
+ }
  rows.forEach(item=>{
-  const card=document.createElement("article");
-  card.className="calc-card ugc-calculator-card";
-  card.dataset.calculatorOrigin="ugc";
-  card.dataset.ugcId=String(item.id||"");
+  const card=document.createElement("article");card.className="calc-card ugc-calculator-card";
+  card.dataset.calculatorOrigin="ugc";card.dataset.ugcId=String(item.id||"");
   const head=document.createElement("div");head.className="ugc-card-head";
   const publicNumber=Number(item.calculator_number);
   if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
-  head.appendChild(text("span","ugc-category",String(item.category||"other").replace(/^\w/,c=>c.toUpperCase())));
-  if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.status==="published"?"Published":"Draft"));
+  head.appendChild(text("span","ugc-category",CATEGORY_LABELS[item.category]||"Other"));
+  if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
+  if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
+  const categoryChips=document.createElement("div");categoryChips.className="ugc-card-categories";
+  getCategoryLabels(item).forEach(label=>categoryChips.appendChild(text("span","ugc-subcategory-chip",label)));
+  card.appendChild(categoryChips);
   card.appendChild(text("p","ugc-card-description",item.description||"No description provided."));
   const owner=text("a","ugc-card-owner",item.owner_display_name||item.owner_username||"Worth It member");
   if(item.owner_worth_it_id)owner.href="/profile/"+item.owner_worth_it_id;else owner.href="#";
@@ -76,21 +87,25 @@ function renderCatalog(rows){
   if(state.sort==="mine"){
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    actions.append(
+    button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)),
     button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),
-    ...(item.status==="published"?[]:[button("Publish","ugc-action-primary",()=>publishCalculator(item.id))]),
-    button("Delete","ugc-action-danger",()=>deleteCalculator(item.id))
+    button(item.visibility==="public"?"Make private":"Make public","ugc-action-secondary",()=>setCalculatorVisibility(item.id,item.visibility==="public"?"private":"public"))
    );
+   card.appendChild(actions);
+  }else if(state.sort==="my-drafts"){
+   const actions=document.createElement("div");actions.className="ugc-card-actions";
+   const label=text("label","ugc-publish-visibility-label","Publish as");
+   const select=document.createElement("select");select.className="ugc-publish-visibility";select.setAttribute("aria-label","Visibility when publishing this draft");
+   [["private","Private — only you can see it"],["public","Public — anyone can discover it"]].forEach(([value,title])=>{const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);});
+   label.appendChild(select);
+   actions.append(button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
    card.appendChild(actions);
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
-   stats.append(text("span","", "◉ "+Number(item.views||0)),text("span","","♥ "+Number(item.likes||0)),text("span","","★ "+Number(item.favorites||0)),text("span","","▼ "+Number(item.dislikes||0)));
+   stats.append(text("span","","◉ "+Number(item.views||0)),text("span","","♥ "+Number(item.likes||0)),text("span","","★ "+Number(item.favorites||0)),text("span","","▼ "+Number(item.dislikes||0)));
    card.appendChild(stats);
    const actions=document.createElement("div");actions.className="ugc-card-actions";
-   actions.append(
-    button("♡ Like","ugc-action-secondary",()=>react(item.id,"like")),
-    button("♧ Dislike","ugc-action-secondary",()=>react(item.id,"dislike")),
-    button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id))
-   );
+   actions.append(button("♡ Like","ugc-action-secondary",()=>react(item.id,"like")),button("♧ Dislike","ugc-action-secondary",()=>react(item.id,"dislike")),button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)));
    card.appendChild(actions);
   }
   host.appendChild(card);
@@ -157,7 +172,9 @@ async function loadCatalog(){
   const page=Number(payload?.page)||1;
   const pages=Number(payload?.total_pages)||1;
   if(state.sort==="mine"){
-   status(state.myCalculators.length+" shown · "+total+" saved community calculators across "+pages+" page"+(pages===1?"":"s")+". Maximum "+MAX_CALCULATORS+" active slots.");
+   status(total+" published calculator"+(total===1?"":"s")+" in your account · public and private calculators are shown here.");
+  }else if(state.sort==="my-drafts"){
+   status(total+" saved draft"+(total===1?"":"s")+" · drafts are visible only to you and are not part of public discovery.");
   }else if(state.sort==="my-favorites"){
    status(total+" private favourite community calculator"+(total===1?"":"s")+" · page "+page+" of "+pages+". Only you can see this list.");
   }else{
@@ -336,6 +353,8 @@ function detailShow(calculator,fromUrl){
  const kicker=$("ugcDetailKicker"),publicNumber=Number(calculator.calculator_number);
  if(kicker)kicker.textContent=Number.isSafeInteger(publicNumber)&&publicNumber>=51?"WORTH IT COMMUNITY · CALCULATOR #"+publicNumber:"WORTH IT COMMUNITY";
  if(title)title.textContent=calculator.title||"Community calculator";
+ const categoryHost=$("ugcDetailCategories");
+ if(categoryHost){categoryHost.replaceChildren();getCategoryLabels(calculator).forEach(label=>categoryHost.appendChild(text("span","ugc-subcategory-chip",label)));}
  if(description)description.textContent=calculator.description||"No description provided.";
  if(owner){
   owner.textContent=calculator.owner_display_name||calculator.owner_username||"Worth It member";
@@ -456,39 +475,39 @@ async function editCalculator(id){
  if(result.error){status("Could not load this calculator for editing.",true);return;}
  const calculator=normalizeObject(result.data);
  if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
- state.editingId=id;
+ state.editingId=id;state.editingVisibility=calculator.visibility||"private";state.editingStatus=calculator.status||"draft";
  openMaker();
  const modal=$("ugcMakerModal");
  modal.querySelector("[name=prompt]").value="";
  $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator (for example: make the cost assumptions more precise or improve the formulas). Its subject and purpose cannot be changed.";
  $("ugcMakerTitle").value=calculator.title;
  $("ugcMakerDescription").value=calculator.description||"";
- $("ugcMakerCategory").value=calculator.category;
- state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,spec:calculator.spec};
+ state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,subcategories:calculator.subcategories||[],spec:calculator.spec};
  renderMakerPreview(state.aiDraft);
  $("ugcMakerGenerate").textContent="✦ Improve with AI";
  $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
  $("ugcMakerStatus").textContent="Your calculator's subject, title, category and description stay fixed. Ask AI to improve its inputs and formulas.";
 }
-async function publishCalculator(id){
+async function publishCalculator(id,visibility){
  if(!requireAccount()||!verifyConfirmed())return;
- if(!window.confirm("Publish this calculator to the Worth It Community?"))return;
+ const target=visibility==="public"?"public":"private";
+ if(!window.confirm(target==="public"?"Publish this calculator publicly so other members can discover it?":"Publish this calculator privately so only you can see it?"))return;
  try{
-  const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id});
+  const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id,p_visibility:target});
   if(result.error)throw result.error;
-  toast("Your calculator is now published.");
-  await loadCatalog();
+  toast(target==="public"?"Your calculator is now public.":"Your calculator is published privately.");
+  setActiveSort("mine");await loadCatalog();
  }catch(error){status(error?.message||"Could not publish this calculator.",true);}
 }
-async function deleteCalculator(id){
- if(!requireAccount())return;
- if(!window.confirm("Delete this calculator permanently?"))return;
+async function setCalculatorVisibility(id,visibility){
+ if(!requireAccount()||!verifyConfirmed())return;
+ const target=visibility==="public"?"public":"private";
  try{
-  const result=await sb().rpc("delete_worth_it_ugc_calculator",{p_id:id});
+  const result=await sb().rpc("set_worth_it_ugc_visibility",{p_id:id,p_visibility:target});
   if(result.error)throw result.error;
-  toast("Calculator deleted.");
+  toast(target==="public"?"Your calculator is now public and discoverable.":"Your calculator is now private.");
   await loadCatalog();
- }catch(error){status(error?.message||"Could not delete this calculator.",true);}
+ }catch(error){status(error?.message||"Could not change calculator visibility.",true);}
 }
 function openMaker(){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -500,6 +519,8 @@ function openMaker(){
  const editQuota=$("ugcMakerEditQuotaStatus"),createQuota=$("ugcMakerQuotaStatus");
  if(editQuota)editQuota.hidden=!state.editingId;
  if(createQuota)createQuota.hidden=Boolean(state.editingId);
+ const visibilityWrap=$("ugcMakerVisibilityWrap");
+ if(visibilityWrap)visibilityWrap.hidden=Boolean(state.editingId);
  $("ugcMakerGenerate").textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
  $("ugcMakerTitleHeading").textContent=state.editingId?"Improve your calculator with AI":"Create a calculator with AI";
  $("ugcMakerPrompt")?.focus();
@@ -516,13 +537,13 @@ function renderMakerPreview(definition){
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
  const title=document.createElement("label");title.textContent="Calculator title";
  const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=Boolean(state.editingId);title.appendChild(titleInput);
- const category=document.createElement("label");category.textContent="Category";
- const select=document.createElement("select");select.id="ugcMakerCategory";
- [["cars","Cars"],["money","Money"],["technology","Technology"],["home","Home"],["other","Other"]].forEach(([v,l])=>{const opt=document.createElement("option");opt.value=v;opt.textContent=l;select.appendChild(opt);});
- select.value=definition.category||"other";select.disabled=Boolean(state.editingId);category.appendChild(select);
  const desc=document.createElement("label");desc.textContent="Description (optional)";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId);desc.appendChild(descInput);
- fields.append(title,category,desc);host.appendChild(fields);
+ fields.append(title,desc);host.appendChild(fields);
+ const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
+ selected.appendChild(text("strong","","AI-selected categories"));
+ getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
+ host.appendChild(selected);
  const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" inputs · "+(definition.spec?.results?.length||0)+" results · formulas use a restricted arithmetic language");
  host.appendChild(summary);
  if(state.editingId)host.appendChild(text("p","ugc-maker-schema-summary","This is an improvement of your existing calculator. Its title, category, purpose and description are locked; AI can refine the calculation fields and formulas."));
@@ -599,7 +620,9 @@ async function saveMakerDraft(publish){
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
  const title=String($("ugcMakerTitle")?.value||"").trim();
  const description=state.editingId?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
- const category=state.editingId?String(state.aiDraft.category||"other"):String($("ugcMakerCategory")?.value||"other");
+ const category=String(state.aiDraft.category||"other");
+ const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
+ const previousStatus=state.editingStatus||"draft";
  if(title.length<3){$("ugcMakerStatus").textContent="Enter a title with at least 3 characters.";return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
@@ -611,10 +634,10 @@ async function saveMakerDraft(publish){
   const payload=normalizeObject(saved.data),id=payload?.id;
   if(!id)throw new Error("The calculator draft could not be saved.");
   if(publish){
-   const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id});
+   const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id,p_visibility:visibility});
    if(result.error)throw result.error;
   }
-  state.editingId=null;closeMaker();$("ugcMakerGenerate").textContent="✦ Generate calculator";$("ugcMakerTitleHeading").textContent="Create a calculator with AI";$("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";setActiveSort("mine");await loadCatalog();
+  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerGenerate").textContent="✦ Generate calculator";$("ugcMakerTitleHeading").textContent="Create a calculator with AI";$("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
   const publicNumber=Number(payload?.calculator_number);
   const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
@@ -718,9 +741,10 @@ document.addEventListener("visibilitychange",()=>{
 window.addEventListener("pageshow",reconcileExplorePanels);
 window.addEventListener("focus",reconcileExplorePanels);
 function openNewCalculatorMaker(){
- state.editingId=null;state.aiDraft=null;openMaker();
+ state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;openMaker();
+ $("ugcMakerVisibility").value="private";
  $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
- $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;
+ $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerVisibility").value="private";
  $("ugcMakerGenerate").textContent="✦ Generate calculator";
  $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
  $("ugcMakerStatus").textContent="Describe what you want to calculate.";
