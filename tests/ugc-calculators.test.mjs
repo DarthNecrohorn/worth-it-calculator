@@ -16,6 +16,7 @@ const economy = read("calc-economy.js");
 const sql = read("supabase/worth-it-ugc-badges.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
+const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
@@ -379,7 +380,7 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
 
 test("UGC writes are owner-bound with no lifetime cap and private calculators are hidden server-side", () => {
     assert.match(sql, /char_length\(v_title\) not between 3 and 70/);
-    assert.doesNotMatch(sql, /v_count\s*>=\s*10|up to 10 community calculators/i);
+    assert.doesNotMatch(visibilitySql, /v_count\s*>=\s*10|up to 10 community calculators/i);
     assert.match(sql, /worth_it_validate_ugc_categories/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id for update/);
@@ -482,10 +483,13 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.ok(html.indexOf('id="calculators"')<html.indexOf('id="ugcCommunitySection"'));
     assert.match(paginationSql,/v_page_size integer := 30/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
-    assert.match(paginationSql,/v_category='all' or c\.category=v_category/);
-    for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-drafts","my-favorites"]) {
+    assert.match(visibilitySql,/worth_it_ugc_category_matches/);
+    assert.match(visibilitySql,/p_filter=any/);
+    for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-favorites"]) {
         assert.ok(paginationSql.includes("'" + sort + "'"), sort + " has a server-side pagination path");
     }
+    assert.ok(visibilitySql.includes("my-drafts"), "my-drafts has a server-side pagination path");
+    assert.match(visibilitySql,/elsif v_sort='my-drafts' then/);
     assert.match(paginationSql,/grant execute on function public\.get_worth_it_ugc_catalog_page\(text,text,text,text,integer\) to authenticated/);
     assert.match(paginationFixture,/The first UGC page must contain exactly 30 items/);
     assert.match(paginationFixture,/UGC category filtering leaked calculators/);
@@ -518,7 +522,7 @@ test("community catalogue is synchronously reset to Basic on sign-in and sign-ou
     assert.match(maker, /if\(gallery\)gallery\.hidden=!communityActive/);
     assert.match(maker, /setExploreInitialView\(window\.location\.pathname\.startsWith\("\/calculator\/ugc\/"\)\?"community":"basic"\)/);
     assert.doesNotMatch(maker, /onAuthStateChange\(async\(\)=>[\s\S]*?await getSession\(\)/);
-    assert.match(maker, /ugcDetailCalculatorForm\)\?\.replaceChildren\(\)/);
+    assert.match(maker, /ugcDetailCalculatorForm"\)\?\.replaceChildren\(\)/);
 });
 
 
