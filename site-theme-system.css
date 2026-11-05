@@ -431,23 +431,8 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
         height: calc(100dvh - 88px) !important;
         transform: translate3d(0,0,0) !important;
         opacity: 1 !important;
-        transform: translate3d(0,0,0) !important;
-        opacity: 1 !important;
         visibility: visible !important;
         pointer-events: auto !important;
-        transition: none !important;
-        animation: none !important;
-        transition: none !important;
-        animation: none !important;
-
-    }
-    #navLinks.nav-links.closing {
-        top: 88px !important;
-        height: calc(100dvh - 88px) !important;
-        transform: translate3d(-105%,0,0) !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
         transition: none !important;
         animation: none !important;
 
@@ -458,8 +443,7 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
         top: 114px !important;
         height: calc(100dvh - 114px) !important;
     }
-    #navLinks.nav-links.open,
-    #navLinks.nav-links.closing {
+    #navLinks.nav-links.open {
         top: 114px !important;
         height: calc(100dvh - 114px) !important;
     }
@@ -491,16 +475,6 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
     html[data-ui-scale="xl"] #navLinks.nav-links.open {
         visibility: visible !important;
         pointer-events: auto !important;
-
-    }
-    html[data-ui-scale="large"] #navLinks.nav-links.closing,
-    html[data-ui-scale="xl"] #navLinks.nav-links.closing {
-        transform: translate3d(-105%,0,0) !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        transition: none !important;
-        animation: none !important;
 
     }
 }
@@ -806,8 +780,7 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
         margin: 0 !important;
         z-index: 101 !important;
     }
-    #navLinks.nav-links.open,
-    #navLinks.nav-links.closing {
+    #navLinks.nav-links.open {
         z-index: 2147483000 !important;
     }
 }
