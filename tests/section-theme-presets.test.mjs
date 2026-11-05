@@ -129,3 +129,11 @@ test("the saved Custom Theme reaches AI Chat, the Web Shop, every section and pr
     const finalTheme = html.indexOf('href="site-theme-system.css?v=');
     assert.ok(leaflet >= 0 && finalTheme > leaflet, "the final theme layer loads after all section styles");
 });
+
+test("all preset solid and gradient button backgrounds have a contrast-safe foreground fallback", () => {
+    assert.match(community, /function accessibleButtonBackground\(background,foreground\)/);
+    assert.match(community, /contrastRatio\(foreground,original\)>=4\.5/);
+    assert.match(community, /--worth-it-button-primary-background/);
+    assert.match(siteThemeCss, /--worth-it-button-primary-background/);
+    assert.match(siteThemeCss, /var\(--worth-it-button-primary-background\) !important/);
+});
