@@ -12,6 +12,7 @@ const PERIODS=[
 ];
 const SORTS=["latest","popular","liked","favorited","disliked","mine","my-favorites"];
 let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
 const button=(label,className,handler)=>{const node=text("button",className,label);node.type="button";node.addEventListener("click",handler);return node;};
@@ -623,12 +624,35 @@ async function saveMakerDraft(publish){
 function setExploreInitialView(view){
  const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
  if(!stage||!basic||!community)return;
+ if(pendingExploreTransitionFinish)pendingExploreTransitionFinish();
  const target=view==="community"&&state.userId?"community":"basic";
- state.exploreView=target;stage.dataset.activeView=target;stage.dataset.transitioning="false";
+ state.exploreView=target;state.exploreBusy=false;stage.dataset.activeView=target;stage.dataset.transitioning="false";
  basic.hidden=target!=="basic";community.hidden=target!=="community";
- basic.style.removeProperty("transform");community.style.removeProperty("transform");
- basic.style.removeProperty("transition");community.style.removeProperty("transition");
  basic.inert=target!=="basic";community.inert=target!=="community";
+ [basic,community].forEach(panel=>{
+  panel.style.removeProperty("transform");
+  panel.style.removeProperty("transition");
+  panel.style.removeProperty("z-index");
+ });
+}
+function reconcileExplorePanels(){
+ const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
+ if(!stage||!basic||!community)return;
+ if(state.exploreBusy&&pendingExploreTransitionFinish){
+  pendingExploreTransitionFinish();
+  return;
+ }
+ const active=state.exploreView==="community"&&state.userId?"community":"basic";
+ state.exploreView=active;state.exploreBusy=false;
+ stage.dataset.activeView=active;stage.dataset.transitioning="false";
+ basic.hidden=active!=="basic";community.hidden=active!=="community";
+ basic.inert=active!=="basic";community.inert=active!=="community";
+ [basic,community].forEach(panel=>{
+  panel.style.removeProperty("transform");
+  panel.style.removeProperty("transition");
+  panel.style.removeProperty("z-index");
+ });
+ stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=false;});
 }
 function switchCalculatorExploreView(target){
  const next=target==="community"?"community":"basic";
@@ -655,26 +679,44 @@ function switchCalculatorExploreView(target){
  const duration=reduced?0:380;
  to.style.transition=from.style.transition="transform "+duration+"ms cubic-bezier(.22,.75,.22,1)";
  return new Promise(resolve=>{
-  let finished=false;
+  let finished=false,fallbackTimer=null,onEnd=null;
   const finish=()=>{
-   if(finished)return;finished=true;
-   from.hidden=true;from.style.removeProperty("transform");from.style.removeProperty("transition");from.style.removeProperty("z-index");
+   if(finished)return;
+   finished=true;
+   if(fallbackTimer!==null){window.clearTimeout(fallbackTimer);fallbackTimer=null;}
+   if(onEnd){from.removeEventListener("transitionend",onEnd);onEnd=null;}
+   if(pendingExploreTransitionFinish===finish)pendingExploreTransitionFinish=null;
+   from.hidden=true;from.inert=true;
+   to.hidden=false;to.inert=false;
+   from.style.removeProperty("transform");from.style.removeProperty("transition");from.style.removeProperty("z-index");
    to.style.removeProperty("transform");to.style.removeProperty("transition");to.style.removeProperty("z-index");
    to.scrollTop=next==="community"?state.communityScrollTop:state.basicScrollTop;
    state.exploreView=next;state.exploreBusy=false;stage.dataset.activeView=next;stage.dataset.transitioning="false";
    stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=false;});
    resolve(true);
   };
+  pendingExploreTransitionFinish=finish;
   if(duration===0){finish();return;}
-  const onEnd=event=>{if(event.target===from&&event.propertyName==="transform"){from.removeEventListener("transitionend",onEnd);finish();}};
+  onEnd=event=>{
+   if(event.target===from&&event.propertyName==="transform")finish();
+  };
   from.addEventListener("transitionend",onEnd);
   requestAnimationFrame(()=>{
    from.style.transform="translateX("+(-direction*100)+"%)";
    to.style.transform="translateX(0)";
   });
-  window.setTimeout(()=>{from.removeEventListener("transitionend",onEnd);finish();},duration+120);
+  fallbackTimer=window.setTimeout(finish,duration+160);
  });
 }
+document.addEventListener("visibilitychange",()=>{
+ if(document.visibilityState==="hidden"){
+  if(pendingExploreTransitionFinish)pendingExploreTransitionFinish();
+  return;
+ }
+ reconcileExplorePanels();
+});
+window.addEventListener("pageshow",reconcileExplorePanels);
+window.addEventListener("focus",reconcileExplorePanels);
 function openNewCalculatorMaker(){
  state.editingId=null;state.aiDraft=null;openMaker();
  $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
