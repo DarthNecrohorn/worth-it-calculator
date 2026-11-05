@@ -97,6 +97,23 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(css.includes(".worth-it-theme-contrast-audit"));
  assert.ok(css.includes('data-worth-it-hover-effect="glow"'));
 
+ assert.ok(html.includes('id="worthItThemePresetGrid"'));
+ assert.ok(html.includes('id="worthItThemePreviewSwitcher"'));
+ assert.ok(html.includes('id="worthItThemeUndoButton"'));
+ assert.ok(html.includes('id="worthItThemeContrastAudit"'));
+ assert.ok(html.includes('data-theme-reset-group="colours"'));
+ ["worthItThemeFontSize","worthItThemeHeadingScale","worthItThemeLineHeight","worthItThemeButtonAnimation","worthItThemeHoverEffect","worthItThemeShadowIntensity","worthItThemeBorderThickness","worthItThemeFocusAppearance"].forEach(id=>assert.ok(html.includes('id="'+id+'"')));
+ ["fontSize","headingScale","lineHeight","buttonAnimation","hoverEffect","shadowIntensity","borderThickness","focusAppearance"].forEach(key=>assert.ok(js.includes('"'+key+'"')));
+ assert.ok(js.includes("const THEME_PRESETS"));
+ assert.ok(js.includes("function renderThemeContrastAudit"));
+ assert.ok(js.includes("function decorateThemeColourFields"));
+ assert.ok(js.includes("function rememberRecentThemeColour"));
+ assert.ok(js.includes("function undoThemeChanges"));
+ assert.ok(css.includes(".worth-it-theme-preset-grid"));
+ assert.ok(css.includes(".worth-it-theme-preview-switcher"));
+ assert.ok(css.includes(".worth-it-theme-contrast-audit"));
+ assert.ok(css.includes('data-worth-it-hover-effect="glow"'));
+
  assert.ok(js.includes("--worth-it-hover-glow"));
  assert.ok(js.includes("hover_color:theme.hover"));
  assert.ok(js.includes("window.resetWorthItCustomTheme=resetCustomTheme"));
