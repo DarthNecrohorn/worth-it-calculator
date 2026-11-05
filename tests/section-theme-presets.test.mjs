@@ -6,6 +6,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const themes = readFileSync(new URL("../section-themes.css", import.meta.url), "utf8");
 const shop = readFileSync(new URL("../shop.js", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
+const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
 
 const palettePairs = [
     ['#marketsSection { --wt-section-accent:#e6b85c;', 'html[data-theme="light"] #marketsSection { --wt-section-accent:#a66b00;'],
@@ -89,5 +90,16 @@ test("the section theme layer changes visual surfaces only, not layout geometry"
     ];
     for (const property of layoutProperties) {
         assert.ok(!themes.includes("\n    " + property), `layout property added: ${property}`);
+    }
+});
+
+test("custom palette button text uses contrast calculated for its actual surface", () => {
+    assert.match(community, /const surfaces=\[theme\.background,theme\.surface,theme\.surfaceAlt\]/);
+    assert.match(community, /--worth-it-primary-readable",accessibleThemeText\(theme\.primary,surfaces\)/);
+    assert.match(community, /--worth-it-secondary-readable",accessibleThemeText\(theme\.secondary,surfaces\)/);
+    assert.match(community, /--worth-it-gradient-foreground",gradientForeground\(theme\.primary,theme\.secondary\)/);
+    assert.match(themes, /data-worth-it-button-style="outline"[\s\S]*?color:var\(--worth-it-primary-readable\)!important/);
+    for (const selector of [".btn-primary",".auth-modal-submit",".shop-buy-button",".shop-deal-button",".worth-it-report-submit",".worth-it-display-name-save"]) {
+        assert.ok(themes.includes(selector), "missing palette-aware CTA foreground: " + selector);
     }
 });
