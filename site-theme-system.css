@@ -396,7 +396,7 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
     from { transform: translate3d(0,0,0); opacity: 1; }
     to   { transform: translate3d(-105%,0,0); opacity: 0; }
 }
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
     #navLinks.nav-links {
         display: flex !important;
         position: fixed !important;
@@ -490,3 +490,123 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
         animation: none !important;
     }
 }
+
+
+/* Keep AI Chat message bubbles and private conversation messages in sync with the
+   selected palette. Preserve the difference between incoming and outgoing messages. */
+html[data-worth-it-custom-theme] .ai-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.assistant .ai-chat-bubble {
+    background: var(--surface-soft) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.user .ai-chat-bubble {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: color-mix(in srgb,var(--primary) 36%,var(--border)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-message.is-mine .worth-it-chat-bubble {
+    color: var(--worth-it-gradient-foreground) !important;
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] :is(.worth-it-chat-message-name,.worth-it-chat-message-time) {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-preview,.worth-it-chat-message-reply-quote
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--surface-soft) 86%,var(--primary) 14%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-copy strong,.worth-it-chat-message-reply-quote strong
+) { color: var(--worth-it-theme-heading-color) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-reply-copy span {
+    color: var(--muted) !important;
+}
+
+/* Other parts of the member profile use translucent theme surfaces too, so the
+   uploaded banner remains visible below content instead of being covered by
+   fixed dark or white cards. */
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description,
+    .worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,
+    .worth-it-profile-connection-card,
+    .worth-it-profile-share,
+    .worth-it-profile-status,
+    .worth-it-profile-stat
+) {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-description,
+    .worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,
+    .worth-it-profile-connection-card,
+    .worth-it-profile-share,
+    .worth-it-profile-status,
+    .worth-it-profile-stat
+) {
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    backdrop-filter: blur(13px);
+    -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-text,
+    .worth-it-profile-description-empty,
+    .worth-it-profile-connection-text strong,
+    .worth-it-profile-share-copy .worth-it-profile-overline,
+    .worth-it-profile-id-row strong,
+    .worth-it-profile-member-since
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-meta,
+    .worth-it-profile-description-status,
+    .worth-it-profile-connection-text small,
+    .worth-it-profile-id-note,
+    .worth-it-profile-stat span,
+    .worth-it-profile-presence-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-copy,
+    .worth-it-profile-social-button,
+    .worth-it-profile-display-name-edit,
+    .worth-it-profile-report-button,
+    .worth-it-profile-avatar-action
+) {
+    border-color: var(--border) !important;
+    background: var(--surface-soft) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-social-button.primary,
+    .worth-it-profile-description-save,
+    .worth-it-profile-copy
+) {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.secondary {
+    background: color-mix(in srgb,var(--primary2) 15%,var(--card-solid)) !important;
+    color: var(--worth-it-secondary-readable) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.quiet {
+    background: var(--surface-soft) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-presence-text.is-online .worth-it-presence-label {
+    color: #16a34a !important;
+}
+
+/* For all supported hamburger widths, keep the left drawer attached to the
+   same header edge and animate both directions. */
