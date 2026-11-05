@@ -174,8 +174,14 @@ begin
     if v_rows <> 0 then
         raise exception 'Free accounts must not update an existing custom theme through the Data API.';
     end if;
+
+    delete from public.worth_it_user_themes where user_id=auth.uid();
+    get diagnostics v_rows = row_count;
+    if v_rows <> 1 then
+        raise exception 'An expired or Free account must still be able to remove its old custom theme.';
+    end if;
 end
-$$;
+$;
 reset role;
 
 -- Full Premium and Premium Lite accounts must be able to save, while expired plans cannot.
