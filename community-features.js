@@ -139,6 +139,21 @@ function contrastRatio(a,b){
 function contrastForeground(hex){
  return contrastRatio(hex,"#FFFFFF")>=contrastRatio(hex,"#08111F")?"#FFFFFF":"#08111F";
 }
+function mixHex(first,second,amount){
+ const a=hexRgb(first),b=hexRgb(second);
+ const rgb=a.map((value,index)=>Math.round(value+(b[index]-value)*amount));
+ return "#"+rgb.map(value=>value.toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+function accessibleButtonBackground(background,foreground){
+ const original=validHex(background)?background.toUpperCase():"#7C5CFF";
+ if(contrastRatio(foreground,original)>=4.5)return original;
+ const target=foreground.toUpperCase()==="#08111F"?"#FFFFFF":"#08111F";
+ for(let amount=0.02;amount<=1;amount+=0.02){
+  const candidate=mixHex(original,target,amount);
+  if(contrastRatio(foreground,candidate)>=4.5)return candidate;
+ }
+ return target;
+}
 function mixWithWhite(hex,amount){
  const rgb=hexRgb(hex).map(value=>Math.round(value+(255-value)*amount));
  return "#"+rgb.map(value=>value.toString(16).padStart(2,"0")).join("").toUpperCase();
@@ -331,15 +346,22 @@ function applyTheme(value){
   root.style.setProperty("--primary",theme.primary);
   root.style.setProperty("--primary2",theme.secondary);
   root.style.setProperty("--worth-it-hover-glow",theme.hover);
-  root.style.setProperty("--worth-it-theme-gradient","linear-gradient(120deg,"+theme.primary+","+theme.secondary+")");
+  const gradientText=gradientForeground(theme.primary,theme.secondary);
+  const primaryText=contrastForeground(theme.primary);
+  const secondaryText=contrastForeground(theme.secondary);
+  root.style.setProperty("--worth-it-theme-gradient","linear-gradient(120deg,"+
+   accessibleButtonBackground(theme.primary,gradientText)+","+
+   accessibleButtonBackground(theme.secondary,gradientText)+")");
   root.style.setProperty("--worth-it-header-background",theme.header);
   root.style.setProperty("--worth-it-header-foreground",contrastForeground(theme.header));
   root.style.setProperty("--worth-it-hover-foreground",contrastForeground(theme.hover));
-  root.style.setProperty("--worth-it-gradient-foreground",gradientForeground(theme.primary,theme.secondary));
+  root.style.setProperty("--worth-it-gradient-foreground",gradientText);
   root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.primary,surfaces));
   root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.secondary,surfaces));
-  root.style.setProperty("--worth-it-primary-foreground",contrastForeground(theme.primary));
-  root.style.setProperty("--worth-it-secondary-foreground",contrastForeground(theme.secondary));
+  root.style.setProperty("--worth-it-primary-foreground",primaryText);
+  root.style.setProperty("--worth-it-secondary-foreground",secondaryText);
+  root.style.setProperty("--worth-it-button-primary-background",accessibleButtonBackground(theme.primary,primaryText));
+  root.style.setProperty("--worth-it-button-secondary-background",accessibleButtonBackground(theme.secondary,secondaryText));
   root.style.setProperty("--worth-it-theme-heading-color",accessibleThemeText(theme.heading,surfaces));
   root.style.setProperty("--worth-it-theme-link-color",accessibleThemeText(theme.link,surfaces));
   root.style.setProperty("--worth-it-theme-font-family",bodyFont);
@@ -372,7 +394,7 @@ function applyTheme(value){
    "--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient",
    "--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground",
    "--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable",
-   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
+   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
