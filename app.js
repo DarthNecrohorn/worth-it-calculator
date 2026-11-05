@@ -3509,6 +3509,8 @@ function decimal(value) {
 
 window.decimal = decimal;
 
+let navMenuCloseTimer = null;
+
 function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
 
@@ -3525,7 +3527,16 @@ function closeNavMenuUnlessPreserved(navLinks) {
         return;
     }
 
+    if (navMenuCloseTimer !== null) {
+        window.clearTimeout(navMenuCloseTimer);
+        navMenuCloseTimer = null;
+    }
     navLinks.classList.remove("open");
+    navLinks.classList.add("closing");
+    navMenuCloseTimer = window.setTimeout(() => {
+        if (!navLinks.classList.contains("open")) navLinks.classList.remove("closing");
+        navMenuCloseTimer = null;
+    }, 460);
     delete navLinks.dataset.preserveOpen;
     navLinks.setAttribute("aria-hidden", "true");
 
@@ -3544,9 +3555,19 @@ function toggleMenu() {
     const isOpen =
         navLinks.classList.toggle("open");
 
+    if (navMenuCloseTimer !== null) {
+        window.clearTimeout(navMenuCloseTimer);
+        navMenuCloseTimer = null;
+    }
     if (isOpen) {
+        navLinks.classList.remove("closing");
         navLinks.dataset.preserveOpen = "true";
     } else {
+        navLinks.classList.add("closing");
+        navMenuCloseTimer = window.setTimeout(() => {
+            if (!navLinks.classList.contains("open")) navLinks.classList.remove("closing");
+            navMenuCloseTimer = null;
+        }, 460);
         delete navLinks.dataset.preserveOpen;
     }
 
