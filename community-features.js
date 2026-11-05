@@ -287,10 +287,10 @@ function applyTheme(value){
  const selectedTheme=cleanTheme(value);
  activeTheme=selectedTheme;
  const root=document.documentElement;
- // Public profile pages own their full-width banner and avatar styling.
- // Keep the saved palette in memory, but expose only the standard palette on profiles.
- const isolated=root.classList.contains("worth-it-profile-theme-isolated");
- const theme=isolated?DEFAULT_THEME:selectedTheme;
+ // Keep Custom Themes active on every section, including public member profiles.
+ // The profile banner is layered independently and styled by the final theme stylesheet.
+ root.classList.remove("worth-it-profile-theme-isolated");
+ const theme=selectedTheme;
  if(isCustomTheme(theme)){
   const surfaces=[theme.background,theme.surface,theme.surfaceAlt];
   const bodyFont={
@@ -317,6 +317,7 @@ function applyTheme(value){
    sharp:{card:"7px",control:"5px"}
   }[theme.corners];
   const cardAlpha=theme.cardStyle==="glass"?"82%":theme.cardStyle==="flat"?"68%":"100%";
+  root.style.setProperty("--worth-it-theme-color-scheme",relativeLuminance(theme.background)>=0.42?"light":"dark");
   root.style.setProperty("--bg",theme.background);
   root.style.setProperty("--bg2",theme.background);
   root.style.setProperty("--card-solid",theme.surface);
@@ -374,6 +375,7 @@ function applyTheme(value){
    "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
+   "--worth-it-theme-color-scheme",
    "--worth-it-theme-font-size","--worth-it-theme-heading-scale",
    "--worth-it-theme-control-radius","--surface-soft"
   ].forEach(property=>root.style.removeProperty(property));
@@ -388,12 +390,15 @@ function applyTheme(value){
  if(preview)preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
  updateThemeDesigner(selectedTheme);
  updateAppearanceModeControls();
+ // Notify theme-aware modules (notably the generated chat wallpaper) after
+ // all root tokens have been updated.
+ try{window.dispatchEvent(new Event("worthit-theme-change"));}catch(_){}
  return selectedTheme;
 }
-window.setWorthItProfileThemeIsolation=function(isolated){
+window.setWorthItProfileThemeIsolation=function(){
  const root=document.documentElement;
  if(!root)return;
- root.classList.toggle("worth-it-profile-theme-isolated",Boolean(isolated));
+ root.classList.remove("worth-it-profile-theme-isolated");
  applyTheme(activeTheme);
 };
 function setThemeStatus(message,isError){
