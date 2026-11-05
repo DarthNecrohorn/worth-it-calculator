@@ -378,6 +378,17 @@ async function openDetail(id,options){
  if(!requireAccount())return;
  const request=++state.detailRequest;
  detailStatus("Loading calculator…");
+ const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner");
+ if(title)title.textContent="Community calculator";
+ if(description)description.textContent="";
+ if(owner){owner.textContent="Created by a Worth It member";owner.href="#";}
+ $("ugcDetailCategories")?.replaceChildren();
+ $("ugcDetailStats")?.replaceChildren();
+ $("ugcDetailOwnerBadges")?.replaceChildren();
+ $("ugcDetailCalculatorForm")?.replaceChildren();
+ $("ugcDetailResults")?.replaceChildren();
+ $("ugcDetailEditDescription")?.classList.add("hidden");
+ $("ugcDetailDescriptionEditor")?.setAttribute("hidden","");
  const section=$("ugcDetailSection");if(section)section.hidden=false;
  const home=$("homePage");if(home)home.style.display="none";
  try{
@@ -774,17 +785,25 @@ async function init(){
  $("ugcDetailSaveDescription")?.addEventListener("click",saveDescription);
  $("ugcDetailLike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"like"));
  $("ugcDetailDislike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"dislike"));
- if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(async()=>{
+ if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange((event,session)=>{
   const previousUserId=state.userId;
-  try{await getSession();}catch(_){state.userId="";state.session=null;}
-  if(!state.userId || previousUserId!==state.userId)setExploreInitialView("basic");
+  // Use the session supplied by the auth event; never await getSession() while
+  // Supabase is dispatching an auth callback.
+  state.session=session||null;
+  state.userId=state.session?.user?.id||"";
+  const accountChanged=previousUserId!==state.userId;
+  if(!state.userId||accountChanged){
+   setExploreInitialView("basic");
+   state.pages={};state.lastPage=1;
+   state.sort="latest";setActiveSort("latest");
+  }
   const gallery=$("ugcCommunitySection"),navActions=$("ugcNavigationActions");
   const communityActive=Boolean(state.userId && state.exploreView==="community");
   if(gallery)gallery.hidden=!communityActive;
   if(navActions)navActions.hidden=!state.userId;
-  if(previousUserId!==state.userId){state.pages={};state.lastPage=1;}
   state.catalogRequest++;
-  if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
+  if(state.userId)void loadCatalog();
+  else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
  if(state.userId)await loadCatalog();else status("Sign in to browse, create and use community calculators.");
 }
