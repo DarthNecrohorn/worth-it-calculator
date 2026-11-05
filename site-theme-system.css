@@ -86,8 +86,8 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body :is(
     .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,
     .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
 ) {
-    background: var(--primary) !important;
-    border-color: var(--primary) !important;
+    background: var(--worth-it-button-primary-background) !important;
+    border-color: var(--worth-it-button-primary-background) !important;
     color: var(--worth-it-primary-foreground) !important;
 }
 html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body :is(
@@ -212,8 +212,8 @@ html[data-worth-it-custom-theme] #webShopSection .web-shop-back {
     border-radius: var(--worth-it-theme-control-radius) !important;
 }
 html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] #webShopSection .web-shop-back {
-    background: var(--primary) !important;
-    border-color: var(--primary) !important;
+    background: var(--worth-it-button-primary-background) !important;
+    border-color: var(--worth-it-button-primary-background) !important;
     color: var(--worth-it-primary-foreground) !important;
 }
 html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] #webShopSection .web-shop-back {
@@ -610,3 +610,117 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
 
 /* For all supported hamburger widths, keep the left drawer attached to the
    same header edge and animate both directions. */
+
+/* Inline text fragments inherit their themed parent. Muted, danger and warning
+   semantics are restored by the following token-specific rules. */
+html[data-worth-it-custom-theme] body :is(
+    p,span,small,strong,b,em,i,label,li,dt,dd,th,td,legend,summary,figcaption
+) { color: inherit !important; }
+html[data-worth-it-custom-theme] body :is(
+    .muted,.muted-text,.text-muted,[class*="muted"],
+    .worth-it-muted,.settings-note,.section-note,.helper-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .is-error,[class*="error"],[class*="danger"],[role="alert"]
+) { color: var(--danger, #dc2626) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .is-warning,[class*="warning"]
+) { color: var(--warning, #b45309) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.worth-it-settings-panel,.worth-it-settings-card,
+    .account-page-card,.account-panel,.panel,.stat,.metric,.chart-card,
+    .score-card,.faq-item,.worth-it-report-card,.worth-it-theme-editor,
+    .worth-it-profile-card,.worth-it-profile-description,
+    .worth-it-profile-connections-page
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card p,.panel p,.account-page-card p,.worth-it-settings-panel p,
+    .worth-it-profile-description-text,.worth-it-profile-connection-text
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card small,.calc-card .calc-description,.panel small,
+    .account-page-card small,.worth-it-settings-panel small,
+    .worth-it-profile-description-meta,.worth-it-profile-connection-text small
+) { color: var(--muted) !important; }
+
+/* AI Chat message bubbles and Community Chat messages also use the preset. */
+html[data-worth-it-custom-theme] .ai-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.assistant .ai-chat-bubble {
+    background: var(--surface-soft) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.user .ai-chat-bubble {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: color-mix(in srgb,var(--primary) 36%,var(--border)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-message.is-mine .worth-it-chat-bubble {
+    color: var(--worth-it-gradient-foreground) !important;
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] :is(.worth-it-chat-message-name,.worth-it-chat-message-time) {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-preview,.worth-it-chat-message-reply-quote
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--surface-soft) 86%,var(--primary) 14%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-copy strong,.worth-it-chat-message-reply-quote strong
+) { color: var(--worth-it-theme-heading-color) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-reply-copy span {
+    color: var(--muted) !important;
+}
+
+/* More profile surfaces remain translucent over the uploaded full-card banner. */
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description,.worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,.worth-it-profile-connection-card,
+    .worth-it-profile-share,.worth-it-profile-status,.worth-it-profile-stat
+) { color: var(--text) !important; border-color: var(--border) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-description,.worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,.worth-it-profile-connection-card,
+    .worth-it-profile-share,.worth-it-profile-status,.worth-it-profile-stat
+) {
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    backdrop-filter: blur(13px); -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-text,.worth-it-profile-description-empty,
+    .worth-it-profile-connection-text strong,.worth-it-profile-share-copy .worth-it-profile-overline,
+    .worth-it-profile-id-row strong,.worth-it-profile-member-since
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-meta,.worth-it-profile-description-status,
+    .worth-it-profile-connection-text small,.worth-it-profile-id-note,
+    .worth-it-profile-stat span,.worth-it-profile-presence-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-copy,.worth-it-profile-social-button,
+    .worth-it-profile-display-name-edit,.worth-it-profile-report-button,
+    .worth-it-profile-avatar-action
+) { border-color: var(--border) !important; background: var(--surface-soft) !important; color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-social-button.primary,.worth-it-profile-description-save,.worth-it-profile-copy
+) { background: var(--worth-it-theme-gradient) !important; border-color: transparent !important; color: var(--worth-it-gradient-foreground) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.secondary {
+    background: color-mix(in srgb,var(--primary2) 15%,var(--card-solid)) !important;
+    color: var(--worth-it-secondary-readable) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.quiet {
+    background: var(--surface-soft) !important; color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-presence-text.is-online .worth-it-presence-label {
+    color: #16a34a !important;
+}
