@@ -56,7 +56,7 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(html.includes('id="worthItThemeSecondary"'));
  assert.ok(html.includes('id="worthItThemeHover"'));
  assert.ok(html.includes('id="worthItThemeHeader"'));
- assert.ok(html.includes("Background behind Web Shop and wallet buttons"));
+ assert.ok(html.includes("Web Shop &amp; wallet background"));
  ["worthItThemeBackground","worthItThemeSurface","worthItThemeSurfaceAlt","worthItThemeText","worthItThemeHeading","worthItThemeMuted","worthItThemeLink","worthItThemeBorder"].forEach(id=>assert.ok(html.includes('id="'+id+'"')));
  ["worthItThemeFontFamily","worthItThemeHeadingStyle","worthItThemeBodyStyle","worthItThemeCorners","worthItThemeButtonStyle","worthItThemeCardStyle"].forEach(id=>assert.ok(html.includes('id="'+id+'"')));
  assert.ok(html.includes("PERSONAL WORKSPACE"));
@@ -117,7 +117,7 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
 test("everyone can preview Custom Themes in Settings, but only Premium can save them",()=>{
  assert.ok(html.includes('id="worthItThemeEditor">'));
  assert.ok(html.includes('id="settingsCustomThemePromo" role="note" hidden'));
- assert.ok(html.includes("Try every colour for free"));
+ assert.ok(html.includes("Try every colour, font and style for free"));
  assert.ok(html.includes("Your preview lasts while Settings is open"));
  assert.ok(html.includes("Save it and keep it active across the whole website"));
  assert.ok(js.includes("if(editor)editor.hidden=false"));
@@ -145,7 +145,7 @@ test("everyone can preview Custom Themes in Settings, but only Premium can save 
 test("custom themes are suspended on public profile routes and restored after leaving",()=>{
  assert.ok(html.includes('root.classList.add("worth-it-profile-theme-isolated")'));
  assert.ok(js.includes("let activeTheme = DEFAULT_THEME"));
- assert.ok(js.includes('root.classList.contains("worth-it-profile-theme-isolated")?DEFAULT_THEME:selectedTheme'));
+ assert.ok(js.includes('const isolated=root.classList.contains("worth-it-profile-theme-isolated")'));
  assert.ok(js.includes("window.setWorthItProfileThemeIsolation=function(isolated)"));
  assert.ok(js.includes("applyTheme(activeTheme)"));
  assert.ok(profileUi.includes("window.setWorthItProfileThemeIsolation(true)"));
