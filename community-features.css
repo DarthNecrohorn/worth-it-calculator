@@ -503,3 +503,74 @@ html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] button:hover
  .worth-it-theme-preset-more-toggle{width:100%}
  .worth-it-theme-preset-extra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Palette-aware text contrast for website controls. */
+html[data-worth-it-custom-theme] :is(
+ .btn-secondary,.nav-links button,.more-menu-btn,.settings-header button,
+ .close-btn,.nav-calculator-btn,.water-levels-back-up,.signout-nav-btn,
+ .auth-btn,.admin-panel-close,.admin-panel-back-button
+){color:var(--text)!important}
+html[data-worth-it-custom-theme] .nav-links button:hover{color:var(--text)!important}
+html[data-worth-it-custom-theme] :is(
+ .btn-primary,.hero-calculator-action .btn-secondary,.auth-modal-submit,
+ .shop-buy-button,.shop-deal-button,.worth-it-display-name-save,
+ .worth-it-report-submit,.water-levels-history-controls button.active,
+ .worth-it-theme-preview-primary
+){color:var(--worth-it-gradient-foreground)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+){color:var(--worth-it-gradient-foreground)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+){color:var(--worth-it-primary-readable)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn
+){color:var(--worth-it-gradient-foreground)!important}
+
+/* Side drawer: reveal from the left; reverse the motion when closed. */
+@media(max-width:1000px){
+ #navLinks.nav-links{
+  display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+  top:64px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
+  max-width:calc(100vw - 18px)!important;height:calc(100dvh - 64px)!important;
+  max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0);
+  transform-origin:left center;opacity:0;visibility:hidden;pointer-events:none;
+  box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
+  will-change:transform,opacity;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s linear .42s;
+ }
+ #navLinks.nav-links.open{
+  display:flex!important;transform:translate3d(0,0,0);opacity:1;visibility:visible;
+  pointer-events:auto!important;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+ }
+ #navLinks.nav-links.closing{
+  transform:translate3d(-105%,0,0);opacity:0;visibility:visible;pointer-events:none!important;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+ }
+}
+@media(min-width:1001px){
+ html[data-ui-scale="large"] #navLinks.nav-links,html[data-ui-scale="xl"] #navLinks.nav-links{
+  display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+  top:72px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
+  max-width:calc(100vw - 18px)!important;height:calc(100dvh - 72px)!important;
+  max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0);
+  opacity:0;visibility:hidden;pointer-events:none;
+  box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
+  will-change:transform,opacity;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s linear .42s;
+ }
+ html[data-ui-scale="large"] #navLinks.nav-links.open,html[data-ui-scale="xl"] #navLinks.nav-links.open{
+  transform:translate3d(0,0,0);opacity:1;visibility:visible;pointer-events:auto!important;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+ }
+ html[data-ui-scale="large"] #navLinks.nav-links.closing,html[data-ui-scale="xl"] #navLinks.nav-links.closing{
+  transform:translate3d(-105%,0,0);opacity:0;visibility:visible;pointer-events:none!important;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ #navLinks.nav-links,#navLinks.nav-links.open,#navLinks.nav-links.closing{transition:none!important}
+}
