@@ -139,3 +139,8 @@ test("all preset solid and gradient button backgrounds have a contrast-safe fore
     assert.match(siteThemeCss, /--worth-it-button-primary-background/);
     assert.match(siteThemeCss, /var\(--worth-it-button-primary-background\) !important/);
 });
+test("hamburger drawer items use the drawer surface contrast rather than header foreground", () => {
+    assert.match(siteThemeCss, /#navLinks\.nav-links\s*\{[\s\S]*?color: var\(--text\)[\s\S]*?background: var\(--card-solid\)/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links button\s*\{[\s\S]*?color: var\(--text\)/);
+    assert.match(siteThemeCss, /\.nav \.logo\s*\{[\s\S]*?color: var\(--worth-it-header-foreground\)/);
+});
