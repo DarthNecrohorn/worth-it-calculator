@@ -3509,98 +3509,32 @@ function decimal(value) {
 
 window.decimal = decimal;
 
-let navMenuCloseTimer = null;
-
 function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
-
     /*
-     * Once the user explicitly opens the hamburger, keep it open while any
-     * section is selected. All section buttons share this guard, so users can
-     * move between sections without reopening the menu each time. The
-     * hamburger button itself calls toggleMenu() and remains the close control.
+     * Keep the hamburger open while a section is selected after the user
+     * explicitly opened it. The hamburger button remains the close control.
      */
-    if (
-        navLinks.classList.contains("open") &&
-        navLinks.dataset.preserveOpen === "true"
-    ) {
-        return;
-    }
-
-    if (navMenuCloseTimer !== null) {
-        window.clearTimeout(navMenuCloseTimer);
-        navMenuCloseTimer = null;
-    }
+    if (navLinks.classList.contains("open") && navLinks.dataset.preserveOpen === "true") return;
     navLinks.classList.remove("open");
-    navLinks.classList.add("closing");
-    navMenuCloseTimer = window.setTimeout(() => {
-        if (!navLinks.classList.contains("open")) navLinks.classList.remove("closing");
-        navMenuCloseTimer = null;
-    }, 460);
     delete navLinks.dataset.preserveOpen;
     navLinks.setAttribute("aria-hidden", "true");
-
     const menuButton = document.querySelector(".menu-btn");
     if (menuButton) menuButton.setAttribute("aria-expanded", "false");
-
     document.documentElement.style.setProperty("--nav-scroll-lock", "0");
 }
-
 function toggleMenu() {
-    const navLinks =
-        document.getElementById("navLinks");
-
+    const navLinks = document.getElementById("navLinks");
     if (!navLinks) return;
-
-    const isOpen =
-        navLinks.classList.toggle("open");
-
-    if (navMenuCloseTimer !== null) {
-        window.clearTimeout(navMenuCloseTimer);
-        navMenuCloseTimer = null;
-    }
-    if (isOpen) {
-        navLinks.classList.remove("closing");
-        navLinks.dataset.preserveOpen = "true";
-    } else {
-        navLinks.classList.add("closing");
-        navMenuCloseTimer = window.setTimeout(() => {
-            if (!navLinks.classList.contains("open")) navLinks.classList.remove("closing");
-            navMenuCloseTimer = null;
-        }, 460);
-        delete navLinks.dataset.preserveOpen;
-    }
-
-    navLinks.setAttribute(
-        "aria-hidden",
-        String(!isOpen)
-    );
-
-    const menuButton =
-        document.querySelector(".menu-btn");
-
-    if (menuButton) {
-        menuButton.setAttribute(
-            "aria-expanded",
-            String(isOpen)
-        );
-    }
-
-    /*
-     * The mobile navigation uses one unified menu.
-     * Keep the legacy More panel mutually exclusive with it,
-     * so the two navigation layers never remain open together.
-     */
-    if (isOpen) {
-        closeMoreMenu();
-    }
-
-    document
-        .documentElement
-        .style
-        .setProperty("--nav-scroll-lock", isOpen ? "1" : "0");
+    const isOpen = navLinks.classList.toggle("open");
+    if (isOpen) navLinks.dataset.preserveOpen = "true";
+    else delete navLinks.dataset.preserveOpen;
+    navLinks.setAttribute("aria-hidden", String(!isOpen));
+    const menuButton = document.querySelector(".menu-btn");
+    if (menuButton) menuButton.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) closeMoreMenu();
+    document.documentElement.style.setProperty("--nav-scroll-lock", isOpen ? "1" : "0");
 }
-
 window.toggleMenu = toggleMenu;
 
 function closeMoreMenu() {
