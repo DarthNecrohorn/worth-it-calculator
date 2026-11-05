@@ -314,3 +314,19 @@ body.ugc-maker-open{overflow:hidden}
 }
 
 @media(max-width:700px){.ugc-maker-overlay{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))}.ugc-maker-card{max-height:calc(100dvh - 16px);padding:15px;border-radius:17px}}
+
+/* AI-selected hierarchical topics and owner-controlled calculator visibility. */
+.ugc-card-categories,.ugc-detail-categories,.ugc-maker-ai-categories{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.ugc-subcategory-chip{display:inline-flex;align-items:center;border:1px solid color-mix(in srgb,var(--primary) 24%,var(--border));border-radius:999px;padding:4px 8px;background:color-mix(in srgb,var(--primary) 7%,var(--card-solid));color:var(--muted);font-size:10px;font-weight:750}
+.ugc-maker-ai-categories{align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft)}
+.ugc-maker-ai-categories strong{flex-basis:100%;font-size:11px;color:var(--text)}
+.ugc-detail-categories{margin:8px 0}
+.ugc-publish-visibility-label{display:flex;flex-direction:column;gap:4px;min-width:min(240px,100%);color:var(--muted);font-size:10px;font-weight:750}
+.ugc-publish-visibility{max-width:100%;min-height:34px;border:1px solid var(--border);border-radius:9px;padding:6px 8px;background:var(--card-solid);color:var(--text);font:inherit;font-size:11px}
+.ugc-maker-visibility{display:grid;gap:6px;margin:10px 0 14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft)}
+.ugc-maker-visibility[hidden]{display:none!important}
+.ugc-maker-visibility label{margin:0!important;color:var(--text)!important;font-size:12px!important}
+.ugc-maker-visibility select{width:100%;min-height:40px;border:1px solid var(--border);border-radius:10px;background:var(--card-solid);color:var(--text);padding:8px 10px}
+.ugc-maker-visibility small{color:var(--muted);font-size:10px;line-height:1.45}
+#ugcCategoryFilter optgroup{font-weight:800}
+@media(max-width:700px){.ugc-publish-visibility-label{flex:1 1 100%;min-width:0}.ugc-publish-visibility{width:100%}.ugc-card-categories{gap:5px}}
