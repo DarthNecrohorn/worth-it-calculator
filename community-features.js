@@ -10,7 +10,9 @@ const DEFAULT_THEME = {
  background:"#070B14",surface:"#11192A",surfaceAlt:"#151F33",
  text:"#F8FAFC",heading:"#FFFFFF",muted:"#94A3B8",link:"#A99BFF",border:"#334155",
  fontFamily:"inter",headingStyle:"modern",bodyStyle:"standard",
- corners:"soft",buttonStyle:"gradient",cardStyle:"glass"
+ fontSize:"default",headingScale:"balanced",lineHeight:"normal",
+ corners:"soft",buttonStyle:"gradient",cardStyle:"glass",
+ buttonAnimation:"none",hoverEffect:"none",shadowIntensity:"none",borderThickness:"normal",focusAppearance:"standard"
 };
 const THEME_COLOR_FIELDS = Object.freeze([
  ["worthItThemePrimary","primary"],["worthItThemeSecondary","secondary"],
@@ -24,11 +26,23 @@ const THEME_SELECT_FIELDS = Object.freeze([
  ["worthItThemeFontFamily","fontFamily",["inter","system","arial","georgia","mono"]],
  ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical"]],
  ["worthItThemeBodyStyle","bodyStyle",["standard","comfortable","compact"]],
+ ["worthItThemeFontSize","fontSize",["small","default","large"]],
+ ["worthItThemeHeadingScale","headingScale",["compact","balanced","large"]],
+ ["worthItThemeLineHeight","lineHeight",["tight","normal","relaxed"]],
  ["worthItThemeCorners","corners",["soft","rounded","sharp"]],
  ["worthItThemeButtonStyle","buttonStyle",["gradient","solid","outline"]],
- ["worthItThemeCardStyle","cardStyle",["glass","solid","flat"]]
+ ["worthItThemeCardStyle","cardStyle",["glass","solid","flat"]],
+ ["worthItThemeButtonAnimation","buttonAnimation",["none","subtle","smooth"]],
+ ["worthItThemeHoverEffect","hoverEffect",["none","lift","glow"]],
+ ["worthItThemeShadowIntensity","shadowIntensity",["none","soft","strong"]],
+ ["worthItThemeBorderThickness","borderThickness",["thin","normal","thick"]],
+ ["worthItThemeFocusAppearance","focusAppearance",["subtle","standard","prominent"]]
 ]);
 const PREVIEW_REPORTS_KEY = "worthItPreviewReports:v1";
+const THEME_RECENT_KEY="worthItThemeRecentColours:v1";
+let activeThemePreviewView="website";
+let lastActiveThemeColorId="worthItThemePrimary";
+
 const currentHost = String(window.location.hostname || "").toLowerCase();
 const COMMUNITY_PREVIEW_MODE = currentHost.endsWith(".worth-it-calculator.pages.dev") && currentHost !== "worth-it-calculator.pages.dev";
 window.worthItCommunityPreviewMode = COMMUNITY_PREVIEW_MODE;
@@ -178,6 +192,72 @@ function updateAppearanceModeControls(){
   button.title=custom?"Custom appearance is active. Reset settings before returning to Dark or Light.":"Choose the standard "+(buttonTheme==="dark"?"Dark":"Light")+" appearance.";
  });
 }
+
+const THEME_PRESETS=[
+ {id:"midnight",name:"Midnight",theme:{primary:"#8B5CF6",secondary:"#38BDF8",hover:"#A78BFA",header:"#11152B",background:"#080B18",surface:"#141A31",surfaceAlt:"#1C2542",border:"#394365",text:"#F8FAFC",heading:"#FFFFFF",muted:"#AAB4D0",link:"#B9A7FF",fontFamily:"inter",headingStyle:"modern",bodyStyle:"comfortable"}},
+ {id:"minimal",name:"Minimal",theme:{primary:"#3157D5",secondary:"#0EA5A4",hover:"#5275E7",header:"#FFFFFF",background:"#F4F6FA",surface:"#FFFFFF",surfaceAlt:"#E9EEF5",border:"#D5DDE8",text:"#263244",heading:"#111827",muted:"#59677A",link:"#3157D5",fontFamily:"system",buttonStyle:"solid",cardStyle:"solid"}},
+ {id:"emerald",name:"Emerald",theme:{primary:"#10B981",secondary:"#A3E635",hover:"#34D399",header:"#082A25",background:"#061B19",surface:"#0D2B27",surfaceAlt:"#123A33",border:"#285A4F",text:"#E6FFF5",heading:"#F0FFF8",muted:"#A6C9BC",link:"#6EE7B7",headingStyle:"bold"}},
+ {id:"sunset",name:"Sunset",theme:{primary:"#F97316",secondary:"#EC4899",hover:"#FB923C",header:"#351426",background:"#1D1020",surface:"#311B30",surfaceAlt:"#45213A",border:"#75405C",text:"#FFF4F1",heading:"#FFFFFF",muted:"#D7B8C6",link:"#FDA4AF",fontFamily:"arial"}},
+ {id:"ocean",name:"Ocean",theme:{primary:"#0EA5E9",secondary:"#14B8A6",hover:"#38BDF8",header:"#08283B",background:"#061724",surface:"#0C293B",surfaceAlt:"#12384C",border:"#28566B",text:"#E9F8FF",heading:"#FFFFFF",muted:"#A6C8D8",link:"#7DD3FC",fontFamily:"system"}},
+ {id:"rose",name:"Rose",theme:{primary:"#E879A8",secondary:"#A78BFA",hover:"#F0A0C2",header:"#2B1728",background:"#180F1B",surface:"#2B1B2C",surfaceAlt:"#39243D",border:"#62405F",text:"#FFF3FA",heading:"#FFFFFF",muted:"#D3B3CA",link:"#F5A8CE",fontFamily:"georgia",headingStyle:"editorial"}}
+];
+function renderThemePreview(){
+ const node=$("worthItThemePreview");if(!node)return;
+ const views={
+  website:'<span class="worth-it-theme-preview-eyebrow">PERSONAL WORKSPACE</span><h4>Make Worth It yours</h4><p>Your website can have its own colours, typography and personality. <a href="#" tabindex="-1" aria-disabled="true">Explore your options</a></p><div class="worth-it-theme-preview-controls"><span class="worth-it-theme-preview-input">Search Worth It…</span><button class="worth-it-theme-preview-primary" disabled>Explore</button><button class="worth-it-theme-preview-secondary" disabled>Settings</button></div>',
+  calculator:'<span class="worth-it-theme-preview-eyebrow">CALCULATOR</span><h4>EV vs Gas</h4><p>Compare electric and gasoline vehicles over five years.</p><div class="worth-it-theme-preview-metrics"><span><small>Electric vehicle</small><strong>$35,000</strong></span><span><small>Annual distance</small><strong>12,000 km</strong></span></div><button class="worth-it-theme-preview-primary" disabled>Calculate</button>',
+  shop:'<span class="worth-it-theme-preview-eyebrow">WEB SHOP</span><h4>Premium Lite</h4><p>Unlock extra Worth It features.</p><div class="worth-it-theme-preview-metrics"><span><small>Duration</small><strong>15 days</strong></span><span><small>Price</small><strong>40 WIP</strong></span></div><button class="worth-it-theme-preview-primary" disabled>View plan</button>',
+  chat:'<span class="worth-it-theme-preview-eyebrow">AI CHAT</span><h4>Conversation</h4><div class="worth-it-theme-chat-bubble">Hello! How can I help?</div><div class="worth-it-theme-chat-bubble is-user">Compare these options.</div><button class="worth-it-theme-preview-primary" disabled>Send</button>',
+  cards:'<span class="worth-it-theme-preview-eyebrow">CONTENT CARDS</span><h4>Example panel</h4><p>This shows your card surface, corners, borders and shadow.</p><div class="worth-it-theme-preview-footer"><span>Account status</span><strong>Active</strong></div>',
+  forms:'<span class="worth-it-theme-preview-eyebrow">FORM ELEMENTS</span><h4>Example form</h4><p>Inputs, focus and buttons follow your selected design.</p><div class="worth-it-theme-preview-input">Your name</div><div class="worth-it-theme-preview-input">Email address</div><button class="worth-it-theme-preview-primary" disabled>Submit</button>'
+ };
+ const view=views[activeThemePreviewView]?activeThemePreviewView:"website";
+ node.dataset.previewView=view;
+ node.innerHTML='<div class="worth-it-theme-preview-nav"><span class="worth-it-theme-preview-brand"><span class="worth-it-theme-preview-mark">✓</span> Worth It</span><span class="worth-it-theme-preview-chip">LIVE '+view.toUpperCase()+' PREVIEW</span></div><div class="worth-it-theme-preview-card">'+views[view]+'</div>';
+ document.querySelectorAll("[data-theme-preview-view]").forEach(button=>{const active=button.dataset.themePreviewView===view;button.setAttribute("aria-pressed",String(active));button.classList.toggle("is-active",active);});
+}
+function renderThemeContrastAudit(theme){
+ const host=$("worthItThemeContrastAudit");if(!host)return;
+ const checks=[["Main text","text","background"],["Headings","heading","surface"],["Secondary text","muted","surface"],["Links","link","surface"]];
+ host.innerHTML=checks.map(([label,fg,bg])=>{const ratio=contrastRatio(theme[fg],theme[bg]);const pass=ratio>=4.5;return '<div class="worth-it-theme-contrast-row"><span><strong>'+label+'</strong><small>'+ratio.toFixed(2)+':1 · WCAG AA 4.5:1</small></span><span class="worth-it-theme-contrast-status '+(pass?"is-pass":"is-fallback")+'">'+(pass?"AA pass":"Auto fallback")+'</span></div>';}).join("");
+}
+function recentThemeColours(){try{const values=JSON.parse(readLocal(THEME_RECENT_KEY)||"[]");return Array.isArray(values)?values.filter(validHex).slice(0,10):[];}catch(_){return [];}}
+function rememberRecentThemeColour(value){if(!validHex(value))return;const colour=String(value).toUpperCase();writeLocal(THEME_RECENT_KEY,JSON.stringify([colour,...recentThemeColours().filter(item=>item!==colour)].slice(0,10)));renderRecentThemeColours();}
+function renderRecentThemeColours(){
+ const host=$("worthItThemeRecentColours");if(!host)return;host.replaceChildren();const values=recentThemeColours();
+ if(!values.length){const empty=document.createElement("span");empty.className="worth-it-theme-recent-empty";empty.textContent="Your recently used colours will appear here.";host.appendChild(empty);return;}
+ values.forEach(value=>{const button=document.createElement("button");button.type="button";button.className="worth-it-theme-recent-swatch";button.style.backgroundColor=value;button.title=value;button.setAttribute("aria-label","Use recent colour "+value);button.addEventListener("click",()=>{const input=$(lastActiveThemeColorId)||$("worthItThemePrimary");if(!input)return;input.value=value;const hex=$(input.id+"Hex");if(hex)hex.value=value;applyTheme(readThemeFromForm());themePreviewActive=true;});host.appendChild(button);});
+}
+function updateThemeDesigner(theme){
+ const clean=cleanTheme(theme);
+ THEME_COLOR_FIELDS.forEach(([id,key])=>{const input=$(id),hex=$(id+"Hex"),rgb=$(id+"Rgb");if(input&&hex&&document.activeElement!==hex)hex.value=clean[key];if(rgb)rgb.textContent="RGB "+hexRgb(clean[key]).join(", ");});
+ renderRecentThemeColours();renderThemeContrastAudit(clean);renderThemePreview();
+ document.querySelectorAll("[data-theme-preset]").forEach(button=>{const preset=THEME_PRESETS.find(item=>item.id===button.dataset.themePreset);const active=Boolean(preset)&&Object.entries(preset.theme).every(([key,value])=>clean[key]===value);button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+}
+function decorateThemeColourFields(preview){
+ THEME_COLOR_FIELDS.forEach(([id,key])=>{
+  const input=$(id);if(!input||input.dataset.themeColourEnhanced==="true")return;input.dataset.themeColourEnhanced="true";
+  const label=input.closest("label"),row=document.createElement("div");row.className="worth-it-theme-hex-row";
+  const hex=document.createElement("input");hex.type="text";hex.id=id+"Hex";hex.className="worth-it-theme-hex-input";hex.value=input.value.toUpperCase();hex.maxLength=7;hex.autocomplete="off";hex.spellcheck=false;hex.placeholder="#RRGGBB";hex.setAttribute("aria-label",(label?.textContent?.trim().split("\n")[0]||key)+" HEX colour");
+  const copy=document.createElement("button");copy.type="button";copy.className="worth-it-theme-small-action";copy.textContent="Copy";
+  copy.addEventListener("click",async event=>{event.preventDefault();event.stopPropagation();try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(input.value.toUpperCase());else{hex.focus();hex.select();if(!document.execCommand("copy"))throw new Error("Clipboard unavailable");}toast("Copied "+input.value.toUpperCase());}catch(_){hex.focus();hex.select();toast("Select and copy the HEX value manually.");}});
+  const reset=document.createElement("button");reset.type="button";reset.className="worth-it-theme-small-action";reset.textContent="Reset";reset.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();input.value=DEFAULT_THEME[key];hex.value=input.value;applyTheme(readThemeFromForm());themePreviewActive=true;});
+  row.append(hex,copy,reset);input.insertAdjacentElement("afterend",row);
+  const rgb=document.createElement("small");rgb.id=id+"Rgb";rgb.className="worth-it-theme-rgb";row.insertAdjacentElement("afterend",rgb);
+  const activate=()=>{lastActiveThemeColorId=id;};input.addEventListener("focus",activate);hex.addEventListener("focus",activate);
+  hex.addEventListener("input",()=>{const valid=validHex(hex.value);hex.setAttribute("aria-invalid",String(!valid));if(!valid)return;input.value=hex.value.toUpperCase();rememberRecentThemeColour(input.value);preview();});
+  hex.addEventListener("blur",()=>{if(!validHex(hex.value))hex.value=input.value.toUpperCase();});
+ });renderRecentThemeColours();
+}
+function applyThemePreset(id){const preset=THEME_PRESETS.find(item=>item.id===id);if(!preset)return;const theme=cleanTheme({...DEFAULT_THEME,...preset.theme,name:preset.name});setThemeFormValues(theme);applyTheme(theme);themePreviewActive=true;setThemeStatus(preset.name+" preset applied. You can still customize every setting before saving.",false);}
+function resetThemeGroup(group){
+ const current=readThemeFromForm();
+ const groups={colours:THEME_COLOR_FIELDS.map(([,key])=>key),typography:["fontFamily","headingStyle","bodyStyle","fontSize","headingScale","lineHeight"],effects:["corners","buttonStyle","cardStyle","buttonAnimation","hoverEffect","shadowIntensity","borderThickness","focusAppearance"]};
+ (groups[group]||[]).forEach(key=>{current[key]=DEFAULT_THEME[key];});
+ const next=cleanTheme(current);setThemeFormValues(next);applyTheme(next);themePreviewActive=true;
+ setThemeStatus(group==="colours"?"Website colours restored to their Worth It defaults.":group==="typography"?"Typography settings restored to their defaults.":"Interaction and shape settings restored to their defaults.",false);
+}
+function undoThemeChanges(){const theme=themeEntitled?cleanTheme(savedTheme):DEFAULT_THEME;setThemeFormValues(theme);applyTheme(theme);themePreviewActive=false;setThemeStatus("Unsaved theme changes were discarded. "+(themeEntitled?"Your saved theme is active again.":"The default Worth It preview has been restored."),false);}
 function applyTheme(value){
  const selectedTheme=cleanTheme(value);
  activeTheme=selectedTheme;
@@ -241,6 +321,17 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-theme-heading-transform",headingStyles.transform);
   root.style.setProperty("--worth-it-theme-body-line-height",bodyStyles.line);
   root.style.setProperty("--worth-it-theme-body-letter-spacing",bodyStyles.spacing);
+  const fontSizes={small:"0.94rem",default:"1rem",large:"1.08rem"};
+  const headingScales={compact:"0.94",balanced:"1",large:"1.16"};
+  const lineHeights={tight:"1.35",normal:bodyStyles.line,relaxed:"1.82"};
+  root.style.setProperty("--worth-it-theme-font-size",fontSizes[theme.fontSize]);
+  root.style.setProperty("--worth-it-theme-heading-scale",headingScales[theme.headingScale]);
+  root.style.setProperty("--worth-it-theme-body-line-height",lineHeights[theme.lineHeight]);
+  root.dataset.worthItButtonAnimation=theme.buttonAnimation;
+  root.dataset.worthItHoverEffect=theme.hoverEffect;
+  root.dataset.worthItShadowIntensity=theme.shadowIntensity;
+  root.dataset.worthItBorderThickness=theme.borderThickness;
+  root.dataset.worthItFocusAppearance=theme.focusAppearance;
   root.style.setProperty("--radius",radii.card);
   root.style.setProperty("--worth-it-theme-control-radius",radii.control);
   root.dataset.worthItCustomTheme=theme.name||"Custom";
@@ -256,15 +347,19 @@ function applyTheme(value){
    "--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
+   "--worth-it-theme-font-size","--worth-it-theme-heading-scale",
    "--worth-it-theme-control-radius","--surface-soft"
   ].forEach(property=>root.style.removeProperty(property));
   root.style.removeProperty("--radius");
   root.removeAttribute("data-worth-it-custom-theme");
   delete root.dataset.worthItButtonStyle;delete root.dataset.worthItCardStyle;delete root.dataset.worthItCorners;
+  delete root.dataset.worthItButtonAnimation;delete root.dataset.worthItHoverEffect;
+  delete root.dataset.worthItShadowIntensity;delete root.dataset.worthItBorderThickness;delete root.dataset.worthItFocusAppearance;
  }
  setThemeFormValues(selectedTheme);
  const preview=$("worthItThemePreview");
  if(preview)preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
+ updateThemeDesigner(selectedTheme);
  updateAppearanceModeControls();
  return selectedTheme;
 }
@@ -739,6 +834,15 @@ function init(){
  installFavouriteFilter();
  $("worthItThemeSaveButton")?.addEventListener("click",saveCustomTheme);
  $("worthItThemeResetButton")?.addEventListener("click",resetCustomTheme);
+ $("worthItThemeUndoButton")?.addEventListener("click",undoThemeChanges);
+ $("worthItThemeRandomPalette")?.addEventListener("click",()=>{
+  const activeId=document.querySelector("[data-theme-preset].is-active")?.dataset.themePreset;
+  const choices=THEME_PRESETS.filter(item=>item.id!==activeId),next=choices[Math.floor(Math.random()*choices.length)];
+  if(next)applyThemePreset(next.id);
+ });
+ $("worthItThemePresetGrid")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-preset]");if(button)applyThemePreset(button.dataset.themePreset);});
+ $("worthItThemePreviewSwitcher")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-preview-view]");if(!button)return;activeThemePreviewView=button.dataset.themePreviewView||"website";renderThemePreview();});
+ document.querySelectorAll("[data-theme-reset-group]").forEach(button=>button.addEventListener("click",()=>resetThemeGroup(button.dataset.themeResetGroup)));
  const previewThemeFromForm=()=>{
   if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to preview Custom Themes.",false);return;}
   const theme=readThemeFromForm();
@@ -747,9 +851,11 @@ function init(){
    ?"Live preview. Save your complete theme to keep all colours and styles active across Worth It; leaving without saving restores your saved design."
    :"Free live preview. Try colours, fonts, heading styles, buttons and corners. Your preview resets when you leave Settings; Premium Lite and Premium members can save it.",false);
  };
+ decorateThemeColourFields(previewThemeFromForm);
  THEME_COLOR_FIELDS.forEach(([id])=>{
-  $(id)?.addEventListener("input",previewThemeFromForm);
-  $(id)?.addEventListener("change",previewThemeFromForm);
+  const input=$(id);
+  input?.addEventListener("input",previewThemeFromForm);
+  input?.addEventListener("change",()=>{rememberRecentThemeColour(input.value);previewThemeFromForm();});
  });
  THEME_SELECT_FIELDS.forEach(([id])=>{
   $(id)?.addEventListener("change",previewThemeFromForm);
