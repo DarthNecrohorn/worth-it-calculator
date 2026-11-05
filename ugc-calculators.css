@@ -144,7 +144,7 @@ body.ugc-maker-open{overflow:hidden}
     scrollbar-gutter:stable;
     transform:translateX(0);
     transition:transform .36s cubic-bezier(.22,.75,.22,1);
-    will-change:transform;
+    will-change:auto;
 }
 .calculator-explore-stage>.calculator-explore-panel[hidden]{display:none!important}
 #calculators.calculator-explore-panel{padding-top:24px;padding-bottom:36px}
@@ -207,8 +207,8 @@ body.ugc-maker-open{overflow:hidden}
     overflow-x:hidden!important;
     overscroll-behavior:contain;
     scrollbar-gutter:stable;
-    backface-visibility:hidden;
-    will-change:transform;
+    backface-visibility:visible;
+    will-change:auto;
 }
 .calculator-explore-stage>.calculator-explore-panel[hidden],
 .calculator-explore-stage>.calculator-explore-panel[hidden=""],
@@ -295,4 +295,19 @@ body.ugc-maker-open{overflow:hidden}
 }
 @media(max-width:700px){
     .ugc-pagination-note{margin:8px 4px 7px;padding:8px 10px;font-size:11px}
+}
+
+
+/* Stable catalogues are not kept as permanently promoted GPU layers.
+   Only promote both panels while the horizontal slide is actually running. */
+.calculator-explore-stage[data-transitioning="true"] > .calculator-explore-panel:not([hidden]) {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+.calculator-explore-stage > .calculator-explore-panel[hidden],
+.calculator-explore-stage > .calculator-explore-panel[hidden=""],
+.calculator-explore-stage > .calculator-explore-panel[hidden="true"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
