@@ -307,7 +307,7 @@ function applyTheme(value){
  root.classList.remove("worth-it-profile-theme-isolated");
  const theme=selectedTheme;
  if(isCustomTheme(theme)){
-  const surfaces=[theme.background,theme.surface,theme.surfaceAlt];
+  const surfaces=[theme.background,theme.surface,theme.surfaceAlt,theme.header];
   const bodyFont={
    inter:'"Inter",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif',
    system:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
