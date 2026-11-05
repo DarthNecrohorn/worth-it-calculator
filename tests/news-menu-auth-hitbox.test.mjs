@@ -125,3 +125,24 @@ test("the final hamburger drawer uses explicit enter/exit keyframes below the tw
     assert.match(siteThemeCss, /prefers-reduced-motion: reduce/);
     assert.match(html, /site-theme-system\.css\?v=/);
 });
+
+
+test("responsive header stacks the economy controls under the logo and enlarges only the profile target", () => {
+    const start = siteThemeCss.indexOf("The compact header has two predictable left-side rows");
+    assert.ok(start >= 0, "the compact brand-stack layout exists");
+    const block = siteThemeCss.slice(start);
+    assert.match(block, /\.nav-inner > \.menu-btn[\s\S]*?left: 16px/);
+    assert.match(block, /\.nav-inner > \.logo[\s\S]*?left: 64px/);
+    assert.match(block, /\.nav-inner > \.calc-economy-nav[\s\S]*?left: 64px[\s\S]*?top: 48px/);
+    assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?width: 44px/);
+    assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?height: 44px/);
+    assert.match(block, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?worthItHamburgerEnterReduced/);
+    assert.match(block, /animation-duration: \.54s/);
+    assert.match(block, /animation-duration: \.44s/);
+    assert.match(html, /site-theme-system\.css\?v=global-theme-wallpaper-drawer-20261105d/);
+});
+
+test("the homepage no longer reserves a large block for outdated calculator statistics", () => {
+    const home = html.slice(html.indexOf('<section id="homePage">'), html.indexOf('<div id="calculatorExploreStage"'));
+    assert.doesNotMatch(home, /Decision calculators|Long-term comparisons|Free to use/);
+});
