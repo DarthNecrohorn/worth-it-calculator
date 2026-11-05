@@ -96,7 +96,7 @@ test("the section theme layer changes visual surfaces only, not layout geometry"
 });
 
 test("custom palette button text uses contrast calculated for its actual surface", () => {
-    assert.match(community, /const surfaces=\[theme\.background,theme\.surface,theme\.surfaceAlt\]/);
+    assert.match(community, /const surfaces=\[theme\.background,theme\.surface,theme\.surfaceAlt,theme\.header\]/);
     assert.match(community, /--worth-it-primary-readable",accessibleThemeText\(theme\.primary,surfaces\)/);
     assert.match(community, /--worth-it-secondary-readable",accessibleThemeText\(theme\.secondary,surfaces\)/);
     assert.match(community, /const gradientText=gradientForeground\(theme\.primary,theme\.secondary\)/);
