@@ -509,11 +509,16 @@ test("calculator explorer settles and restores exactly one visible panel after t
 });
 
 
-test("community catalogue stays hidden after sign-in until explicitly selected", () => {
-    assert.match(maker, /if\(!state\.userId \|\| previousUserId!==state\.userId\)setExploreInitialView\("basic"\)/);
+test("community catalogue is synchronously reset to Basic on sign-in and sign-out", () => {
+    assert.match(maker, /onAuthStateChange\(\(event,session\)=>/);
+    assert.match(maker, /state\.session=session\|\|null/);
+    assert.match(maker, /state\.userId=state\.session\?\.user\?\.id\|\|""/);
+    assert.match(maker, /if\(!state\.userId\|\|accountChanged\)\{\s*setExploreInitialView\("basic"\)/);
     assert.match(maker, /communityActive=Boolean\(state\.userId && state\.exploreView==="community"\)/);
     assert.match(maker, /if\(gallery\)gallery\.hidden=!communityActive/);
     assert.match(maker, /setExploreInitialView\(window\.location\.pathname\.startsWith\("\/calculator\/ugc\/"\)\?"community":"basic"\)/);
+    assert.doesNotMatch(maker, /onAuthStateChange\(async\(\)=>[\s\S]*?await getSession\(\)/);
+    assert.match(maker, /ugcDetailCalculatorForm\)\?\.replaceChildren\(\)/);
 });
 
 
