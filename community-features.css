@@ -477,3 +477,9 @@ html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] .calc-ca
 html[data-worth-it-custom-theme][data-worth-it-focus-appearance="subtle"] :focus-visible{outline:1px solid var(--primary);outline-offset:1px}
 html[data-worth-it-custom-theme][data-worth-it-focus-appearance="prominent"] :focus-visible{outline:3px solid var(--primary);outline-offset:3px}
 @media(max-width:600px){.worth-it-theme-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.worth-it-theme-subhead{align-items:flex-start}.worth-it-theme-contrast-row{align-items:flex-start}.worth-it-theme-editor .worth-it-theme-actions button{flex:1 1 100%}.worth-it-theme-hex-row{grid-template-columns:minmax(0,1fr) auto}.worth-it-theme-hex-row .worth-it-theme-small-action:last-child{grid-column:2}}
+
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .settings-option,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .menu-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-shop-nav,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-wallet-nav{transition:none!important}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] button:hover:not(:disabled){transform:none!important;box-shadow:none!important;border-color:var(--border)!important}
