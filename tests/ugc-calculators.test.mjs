@@ -483,3 +483,18 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(paginationCss,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
     assert.match(paginationCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
+
+
+test("calculator explorer settles and restores exactly one visible panel after tab changes", () => {
+    assert.match(maker, /let pendingExploreTransitionFinish=null/);
+    assert.match(maker, /function reconcileExplorePanels\(\)/);
+    assert.match(maker, /pendingExploreTransitionFinish=finish/);
+    assert.match(maker, /document\.addEventListener\("visibilitychange"/);
+    assert.match(maker, /window\.addEventListener\("pageshow",reconcileExplorePanels\)/);
+    assert.match(maker, /window\.addEventListener\("focus",reconcileExplorePanels\)/);
+    assert.match(maker, /basic\.hidden=active!=="basic";community\.hidden=active!=="community"/);
+    assert.match(maker, /fallbackTimer=window\.setTimeout\(finish,duration\+160\)/);
+    assert.match(paginationCss, /visibility:hidden!important/);
+    assert.match(paginationCss, /pointer-events:none!important/);
+    assert.match(paginationCss, /data-transitioning="true"[\s\S]*?will-change: transform/);
+});
