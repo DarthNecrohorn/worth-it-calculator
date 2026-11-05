@@ -70,9 +70,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
-    <link rel="stylesheet" href="web-shop.css?v=custom-economy-header-background-20261104b">
+    <link rel="stylesheet" href="web-shop.css?v=web-shop-heading-back-20261105a">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a">
+<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;design-system=20261105b&amp;theme-designer=20261105b">
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -3191,9 +3191,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <section class="app web-shop-section" id="webShopSection" data-ws-theme="dark" style="display:none" aria-labelledby="webShopTitle">
     <div class="web-shop-shell">
         <header class="web-shop-topline">
-            <div>
+            <div class="web-shop-heading-block">
                 <p class="web-shop-eyebrow">Worth It · Digital economy</p>
-                <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
+                <div class="web-shop-heading-row">
+                    <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
+                    <button type="button" class="web-shop-back" onclick="backFromWebShop()">← Back to Worth It</button>
+                </div>
                 <p class="web-shop-subtitle">CALC pays for supported calculators and successful AI replies. WIP is earned daily and is used only for Premium Lite. Guests use a separate 0.5 CALC Lite daily allowance.</p>
             </div>
             <div class="web-shop-tools">
@@ -3321,7 +3324,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </section>
 
         <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
-        <button type="button" class="web-shop-back" onclick="showHome()">← Back to Worth It</button>
     </div>
 </section>
 
@@ -3663,7 +3665,7 @@ try{
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="/api/runtime-config"></script>
-<script src="app.js?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a"></script>
+<script src="app.js?v=hamburger-slide-drawer-20261105a"></script>
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
@@ -5691,7 +5693,7 @@ if($("carResults")){
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
 <script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a"></script>
-<script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104b"></script>
+<script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104b&amp;web-shop-settings-back=20261105a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
         <div class="worth-it-chat-call-card">
@@ -5717,6 +5719,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b"></script>
 </body>
 </html>
