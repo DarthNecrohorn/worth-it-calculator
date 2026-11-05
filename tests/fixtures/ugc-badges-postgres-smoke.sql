@@ -539,6 +539,11 @@ end
 $enhancement_privileges$;
 
 -- Drafts and private published calculators are kept out of public discovery.
+-- Restore a Premium test plan after the earlier Free quota checks so this section
+-- can create two extra fixtures without weakening the daily quota assertions.
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at)
+values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days')
+on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select (public.save_worth_it_ugc_calculator(
  null,'Private visibility fixture','','money',
