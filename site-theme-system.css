@@ -173,9 +173,23 @@ html[data-worth-it-custom-theme] .nav {
     color: var(--worth-it-header-foreground) !important;
     border-color: var(--border) !important;
 }
-html[data-worth-it-custom-theme] .nav .logo,
-html[data-worth-it-custom-theme] .nav .nav-links button {
+html[data-worth-it-custom-theme] .nav .logo {
     color: var(--worth-it-header-foreground) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links {
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links button {
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links button:hover {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--primary) 14%,var(--card-solid)) !important;
+    border-color: var(--primary) !important;
 }
 html[data-worth-it-custom-theme] .nav .ai-chat-nav-btn,
 html[data-worth-it-custom-theme] .nav .admin-panel-nav-btn {
