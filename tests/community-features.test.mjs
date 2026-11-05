@@ -176,11 +176,12 @@ test("everyone can preview Custom Themes in Settings, but only Premium can save 
  assert.ok(js.includes("no saved theme has been changed"));
  assert.ok(js.includes("window.addEventListener(\"focus\",refreshThemeOnReturn)"));
 });
-test("custom themes are suspended on public profile routes and restored after leaving",()=>{
+test("custom themes stay active on public profile routes and after leaving",()=>{
  assert.ok(html.includes('root.classList.add("worth-it-profile-theme-isolated")'));
  assert.ok(js.includes("let activeTheme = DEFAULT_THEME"));
- assert.ok(js.includes('const isolated=root.classList.contains("worth-it-profile-theme-isolated")'));
- assert.ok(js.includes("window.setWorthItProfileThemeIsolation=function(isolated)"));
+ assert.ok(js.includes("const theme=selectedTheme"));
+ assert.ok(js.includes('root.classList.remove("worth-it-profile-theme-isolated")'));
+ assert.ok(js.includes("window.setWorthItProfileThemeIsolation=function()"));
  assert.ok(js.includes("applyTheme(activeTheme)"));
  assert.ok(profileUi.includes("window.setWorthItProfileThemeIsolation(true)"));
  assert.ok(profileUi.includes("window.setWorthItProfileThemeIsolation(false)"));
