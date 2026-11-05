@@ -527,28 +527,22 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
  .settings-option:not(.danger),.feedback-nav-btn
 ){color:var(--worth-it-gradient-foreground)!important}
 
-/* Side drawer: reveal from the left; reverse the motion when closed. */
+/* Side drawer: state changes immediately; the open/close animation is intentionally removed. */
 @media(max-width:1000px){
  #navLinks.nav-links{
   display:flex!important;position:fixed!important;left:0!important;right:auto!important;
   top:64px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
   max-width:calc(100vw - 18px)!important;height:calc(100dvh - 64px)!important;
   max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
-  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0);
-  transform-origin:left center;opacity:0;visibility:hidden;pointer-events:none;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0)!important;
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
   box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
-  will-change:transform,opacity;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s linear .42s;
+  transition:none!important;animation:none!important;will-change:auto;
  }
  #navLinks.nav-links.open{
-  display:flex!important;transform:translate3d(0,0,0);opacity:1;visibility:visible;
-  pointer-events:auto!important;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
- }
- #navLinks.nav-links.closing{
-  top:64px!important;height:calc(100dvh - 64px)!important;
-  transform:translate3d(-105%,0,0);opacity:0;visibility:visible;pointer-events:none!important;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+  display:flex!important;transform:translate3d(0,0,0)!important;opacity:1!important;
+  visibility:visible!important;pointer-events:auto!important;
+  transition:none!important;animation:none!important;
  }
 }
 @media(min-width:1001px){
@@ -557,23 +551,14 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
   top:72px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
   max-width:calc(100vw - 18px)!important;height:calc(100dvh - 72px)!important;
   max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
-  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0);
-  opacity:0;visibility:hidden;pointer-events:none;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0)!important;
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
   box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
-  will-change:transform,opacity;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s linear .42s;
+  transition:none!important;animation:none!important;will-change:auto;
  }
  html[data-ui-scale="large"] #navLinks.nav-links.open,html[data-ui-scale="xl"] #navLinks.nav-links.open{
   top:72px!important;height:calc(100dvh - 72px)!important;
-  transform:translate3d(0,0,0);opacity:1;visibility:visible;pointer-events:auto!important;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
+  transform:translate3d(0,0,0)!important;opacity:1!important;visibility:visible!important;
+  pointer-events:auto!important;transition:none!important;animation:none!important;
  }
- html[data-ui-scale="large"] #navLinks.nav-links.closing,html[data-ui-scale="xl"] #navLinks.nav-links.closing{
-  top:72px!important;height:calc(100dvh - 72px)!important;
-  transform:translate3d(-105%,0,0);opacity:0;visibility:visible;pointer-events:none!important;
-  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .28s ease,visibility 0s;
- }
-}
-@media(prefers-reduced-motion:reduce){
- #navLinks.nav-links,#navLinks.nav-links.open,#navLinks.nav-links.closing{transition:none!important}
 }
