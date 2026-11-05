@@ -72,7 +72,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=custom-economy-header-background-20261104b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;free-preview=20261104c">
+<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;design-system=20261105a">
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -1109,7 +1109,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </div>
     <div class="settings-section settings-custom-theme-promo" id="settingsCustomThemePromo" role="note" hidden>
         <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Try Custom Themes</strong><span class="settings-custom-theme-premium">SAVE WITH PREMIUM</span></div>
-        <p>Experiment with the header background, page accents and button hover colour for free. Your preview lasts while Settings is open. Save your design and keep it active across Worth It with Premium Lite or Premium.</p>
+        <p>Experiment with the page, cards, text, links, buttons, fonts and heading styles for free. Your preview lasts while Settings is open. Save the complete design and keep it active across Worth It with Premium Lite or Premium.</p>
         <button type="button" class="settings-option" onclick="openSettingsAppearance()">Try Custom Themes →</button>
     </div>
 
@@ -2987,19 +2987,90 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="worth-it-theme-locked-icon" aria-hidden="true">✨</div>
           <div>
             <strong>Make Worth It yours</strong>
-            <p>Try every colour for free and see your custom look instantly. Your preview lasts while Settings is open. Save your design and keep it active across the whole website with an active Premium Lite or Premium subscription.</p>
+            <p>Try every colour, font and style for free and see your complete design instantly. Your preview lasts while Settings is open. Save it and keep it active across the whole website with an active Premium Lite or Premium subscription.</p>
           </div>
           <button type="button" class="settings-option" onclick="openWorthItThemeUpgrade()">Unlock theme saving →</button>
         </div>
         <div class="worth-it-theme-editor" id="worthItThemeEditor">
           <div class="worth-it-theme-editor-head"><strong>Build your theme</strong><span class="settings-note" id="worthItThemePreviewLabel">Free live preview · Save with Premium</span></div>
-          <div id="worthItThemePreview" class="worth-it-theme-preview" role="img" aria-label="Preview of your Worth It header and custom colours"></div>
+          <div id="worthItThemePreview" class="worth-it-theme-preview" role="group" aria-label="Live sample of your custom Worth It theme">
+            <div class="worth-it-theme-preview-nav">
+              <span class="worth-it-theme-preview-brand"><span class="worth-it-theme-preview-mark">✓</span> Worth It</span>
+              <span class="worth-it-theme-preview-chip">YOUR THEME</span>
+            </div>
+            <div class="worth-it-theme-preview-card">
+              <span class="worth-it-theme-preview-eyebrow">PERSONAL WORKSPACE</span>
+              <h4>Make Worth It yours</h4>
+              <p>This sample shows how headings, normal text, secondary text and links will look together. <a href="#" tabindex="-1" aria-disabled="true">Example link</a></p>
+              <div class="worth-it-theme-preview-controls">
+                <span class="worth-it-theme-preview-input">Example input field</span>
+                <button type="button" class="worth-it-theme-preview-primary" disabled>Primary button</button>
+                <button type="button" class="worth-it-theme-preview-secondary" disabled>Secondary</button>
+              </div>
+              <div class="worth-it-theme-preview-footer"><span>Card surface</span><span>Border · Accent · Text</span></div>
+            </div>
+          </div>
           <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
-          <div class="worth-it-theme-fields">
-            <label class="worth-it-theme-field" for="worthItThemePrimary">Primary colour<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
-            <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary colour<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
-            <label class="worth-it-theme-field" for="worthItThemeHover">Button hover background, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
-            <label class="worth-it-theme-field" for="worthItThemeHeader">Background behind Web Shop and wallet buttons<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
+          <div class="worth-it-theme-design-section">
+            <h4>Website colours</h4>
+            <p>Choose the main colours that shape the whole website. Text colours automatically receive a contrast-safe fallback when needed.</p>
+            <div class="worth-it-theme-fields">
+              <label class="worth-it-theme-field" for="worthItThemePrimary">Primary accent<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary accent<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHover">Button hover, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHeader">Web Shop &amp; wallet background<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
+              <label class="worth-it-theme-field" for="worthItThemeBackground">Page background<input id="worthItThemeBackground" type="color" value="#070b14"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSurface">Card &amp; panel background<input id="worthItThemeSurface" type="color" value="#11192a"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSurfaceAlt">Secondary surface<input id="worthItThemeSurfaceAlt" type="color" value="#151f33"></label>
+              <label class="worth-it-theme-field" for="worthItThemeBorder">Borders &amp; dividers<input id="worthItThemeBorder" type="color" value="#334155"></label>
+              <label class="worth-it-theme-field" for="worthItThemeText">Main text<input id="worthItThemeText" type="color" value="#f8fafc"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHeading">Heading text<input id="worthItThemeHeading" type="color" value="#ffffff"></label>
+              <label class="worth-it-theme-field" for="worthItThemeMuted">Secondary / muted text<input id="worthItThemeMuted" type="color" value="#94a3b8"></label>
+              <label class="worth-it-theme-field" for="worthItThemeLink">Links &amp; link accents<input id="worthItThemeLink" type="color" value="#a99bff"></label>
+            </div>
+          </div>
+          <div class="worth-it-theme-design-section">
+            <h4>Typography &amp; shape</h4>
+            <p>Change the personality of headings and body text, and choose how cards and controls are shaped.</p>
+            <div class="worth-it-theme-fields worth-it-theme-style-fields">
+              <label class="worth-it-theme-field" for="worthItThemeFontFamily">Website font
+                <select id="worthItThemeFontFamily">
+                  <option value="inter">Inter · Modern</option><option value="system">System default</option>
+                  <option value="arial">Arial · Familiar</option><option value="georgia">Georgia · Classic serif</option>
+                  <option value="mono">Monospace · Technical</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeHeadingStyle">Heading style
+                <select id="worthItThemeHeadingStyle">
+                  <option value="modern">Modern</option><option value="bold">Extra bold</option>
+                  <option value="editorial">Editorial · Serif</option><option value="technical">Technical · Uppercase</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeBodyStyle">Body text spacing
+                <select id="worthItThemeBodyStyle">
+                  <option value="standard">Standard</option><option value="comfortable">Comfortable · Airy</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeCorners">Corners &amp; controls
+                <select id="worthItThemeCorners">
+                  <option value="soft">Soft</option><option value="rounded">Extra rounded</option>
+                  <option value="sharp">Sharp</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeButtonStyle">Button appearance
+                <select id="worthItThemeButtonStyle">
+                  <option value="gradient">Gradient</option><option value="solid">Solid</option>
+                  <option value="outline">Outline</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeCardStyle">Card appearance
+                <select id="worthItThemeCardStyle">
+                  <option value="glass">Glass</option><option value="solid">Solid</option>
+                  <option value="flat">Soft / flat</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Unlock to save →</button><button type="button" class="settings-option" id="worthItThemeResetButton">Reset preview colours</button></div>
           <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite">Change the colours above to preview your own Worth It look. Free previews are temporary; Premium Lite and Premium members can save them.</p>
@@ -5584,6 +5655,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;free-preview=20261104a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105a"></script>
 </body>
 </html>
