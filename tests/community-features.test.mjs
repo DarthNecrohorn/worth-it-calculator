@@ -269,7 +269,7 @@ test("Custom Theme includes twelve distinct extra presets with an accessible exp
  assert.ok(html.includes('id="worthItThemePresetMoreGrid"'));
  assert.ok(html.includes('aria-controls="worthItThemePresetMoreGrid"'));
  assert.ok(js.includes("function setMoreThemePresetsExpanded"));
- assert.ok(js.includes('item.group==="more"'));
+ assert.ok(js.includes('THEME_PRESETS.some(preset=>preset.group==="more"'));
  assert.ok(js.includes('preset.group==="more"'));
  assert.ok(css.includes(".worth-it-theme-preset-extra-grid"));
  assert.ok(css.includes("#worthItThemePresetMoreGrid[hidden]"));
