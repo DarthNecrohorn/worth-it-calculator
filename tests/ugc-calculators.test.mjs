@@ -61,7 +61,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
         "worthItProfileNameBadges", "worthItProfileFavouriteCalculators"
     ]) assert.ok(html.includes('id="' + id + '"'), id + " is present in the UI");
 
-    for (const sort of ["latest", "popular", "liked", "favorited", "disliked", "mine", "my-favorites"]) {
+    for (const sort of ["latest", "popular", "liked", "favorited", "disliked", "mine", "my-drafts", "my-favorites"]) {
         assert.ok(html.includes('data-ugc-sort="' + sort + '"'), sort + " sort tab exists");
     }
     for (const period of ["today", "7d", "14d", "1m", "3m", "6m", "12m", "3y", "6y", "12y"]) {
@@ -76,8 +76,14 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(routing.includes("ugc-calculator"));
     assert.ok(guest.includes("/calculator\\/ugc"));
     assert.ok(guest.includes("openWorthItUGCCalculator"));
-    assert.ok(maker.includes("const MAX_CALCULATORS=10;"));
-    assert.ok(html.includes("You can save up to 10 community calculators"));
+    assert.doesNotMatch(maker, /MAX_CALCULATORS/);
+    assert.doesNotMatch(html, /You can save up to 10 community calculators/);
+    assert.ok(html.includes("There is no total limit on how many community calculators you can save."));
+    assert.ok(html.includes('data-ugc-sort="my-drafts"'));
+    assert.ok(maker.includes('state.sort==="my-drafts"'));
+    assert.ok(maker.includes("set_worth_it_ugc_visibility"));
+    assert.ok(html.includes("ugcMakerVisibilityWrap"));
+    assert.ok(maker.includes("AI-selected categories"));
     assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
     assert.ok(maker.includes("get_worth_it_ugc_catalog_page"));
     assert.ok(maker.includes("p_sort:state.sort"));
@@ -369,21 +375,22 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
     assert.match(makerApi, /GROQ_API_KEY/);
 });
 
-test("UGC writes are owner-bound, capped and not directly accessible through public tables", () => {
+test("UGC writes are owner-bound with no lifetime cap and private calculators are hidden server-side", () => {
     assert.match(sql, /char_length\(v_title\) not between 3 and 70/);
-    assert.match(sql, /v_count>=10/);
+    assert.doesNotMatch(sql, /v_count\s*>=\s*10|up to 10 community calculators/i);
+    assert.match(sql, /worth_it_validate_ugc_categories/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id/);
-    assert.match(sql, /Verify ownership before removing any social data/);
-    assert.match(sql, /delete from public\.worth_it_calculator_favorites[\s\S]*?calculator_key='ugc:'\|\|p_id::text/);
     assert.match(sql, /where id=p_id and owner_user_id=v_user_id for update/);
-    assert.match(sql, /status='published'/);
     assert.match(sql, /revoke all on private\.worth_it_user_calculators from public, anon, authenticated/i);
     assert.match(sql, /alter table private\.worth_it_user_calculators enable row level security/i);
     assert.match(sql, /revoke all on function public\.save_worth_it_ugc_calculator/);
     assert.match(sql, /grant execute on function public\.save_worth_it_ugc_calculator.*to authenticated/i);
     assert.match(sql, /email_confirmed_at is not null/);
     assert.match(sql, /'is_owner',\(c\.owner_user_id=v_user_id\)/);
-    assert.match(read("tests/fixtures/ugc-badges-postgres-smoke.sql"), /Deleting a calculator left orphan favourite rows/);
+    assert.match(read("supabase/worth-it-ugc-visibility-categories-drafts.sql"), /c\.status='published' and c\.visibility='public'/);
+    assert.match(read("supabase/worth-it-ugc-visibility-categories-drafts.sql"), /c\.owner_user_id=v_user_id or \(c\.status='published' and c\.visibility='public'\)/);
+    assert.match(read("tests/fixtures/ugc-badges-postgres-smoke.sql"), /The account should be able to save more than ten calculators/);
+    assert.match(read("tests/fixtures/ugc-badges-postgres-smoke.sql"), /A non-owner opened a private calculator by direct ID/);
     assert.doesNotMatch(sql, /'owner_user_id',c\.owner_user_id/);
 });
 
@@ -474,7 +481,7 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(paginationSql,/v_page_size integer := 30/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
     assert.match(paginationSql,/v_category='all' or c\.category=v_category/);
-    for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-favorites"]) {
+    for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-drafts","my-favorites"]) {
         assert.ok(paginationSql.includes("'" + sort + "'"), sort + " has a server-side pagination path");
     }
     assert.match(paginationSql,/grant execute on function public\.get_worth_it_ugc_catalog_page\(text,text,text,text,integer\) to authenticated/);
@@ -505,4 +512,16 @@ test("community catalogue stays hidden after sign-in until explicitly selected",
     assert.match(maker, /communityActive=Boolean\(state\.userId && state\.exploreView==="community"\)/);
     assert.match(maker, /if\(gallery\)gallery\.hidden=!communityActive/);
     assert.match(maker, /setExploreInitialView\(window\.location\.pathname\.startsWith\("\/calculator\/ugc\/"\)\?"community":"basic"\)/);
+});
+
+
+test("AI Maker taxonomy is AI-assigned, closed-set validated and shown as category chips", () => {
+    assert.match(makerApi, /ALLOWED_SUBCATEGORIES/);
+    assert.match(makerApi, /Choose 1 to 3 relevant subcategories from the selected primary category only/);
+    assert.match(makerApi, /subcategories\.length<1\|\|subcategories\.length>3/);
+    assert.match(maker, /getCategoryLabels/);
+    assert.match(maker, /ugc-subcategory-chip/);
+    assert.match(html, /ugcDetailCategories/);
+    assert.match(html, /optgroup label="Cars"/);
+    assert.match(html, /optgroup label="Money"/);
 });
