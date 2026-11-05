@@ -115,14 +115,14 @@ test("hamburger opens as a left-to-right drawer and reverses smoothly on close",
     assert.match(communityCss, /prefers-reduced-motion:reduce/);
 });
 
-test("the final hamburger drawer uses explicit enter/exit keyframes below the two-row header", () => {
-    assert.match(siteThemeCss, /@keyframes worthItHamburgerEnter/);
-    assert.match(siteThemeCss, /@keyframes worthItHamburgerExit/);
-    assert.match(siteThemeCss, /#navLinks\.nav-links\.open[\s\S]*?animation: worthItHamburgerEnter/);
-    assert.match(siteThemeCss, /#navLinks\.nav-links\.closing[\s\S]*?animation: worthItHamburgerExit/);
+test("the hamburger drawer opens and closes instantly without the removed motion layer", () => {
+    assert.doesNotMatch(siteThemeCss, /worthItHamburger|@keyframes/);
+    assert.doesNotMatch(siteThemeCss, /animation-duration:\s*\.5[46]s/);
+    assert.doesNotMatch(siteThemeCss, /transition:\s*transform\s*\.24s/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links\.open[\s\S]*?transform: translate3d\(0,0,0\)/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links\.closing[\s\S]*?transform: translate3d\(-105%,0,0\)/);
     assert.match(siteThemeCss, /top: 88px !important/);
     assert.match(siteThemeCss, /top: 114px !important/);
-    assert.match(siteThemeCss, /prefers-reduced-motion: reduce/);
     assert.match(html, /site-theme-system\.css\?v=/);
 });
 
@@ -136,9 +136,8 @@ test("responsive header stacks the economy controls under the logo and enlarges 
     assert.match(block, /\.nav-inner > \.calc-economy-nav[\s\S]*?left: 64px[\s\S]*?top: 48px/);
     assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?width: 44px/);
     assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?height: 44px/);
-    assert.match(block, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?worthItHamburgerEnterReduced/);
-    assert.match(block, /animation-duration: \.54s/);
-    assert.match(block, /animation-duration: \.44s/);
+    assert.doesNotMatch(block, /worthItHamburger|animation-duration: \.5[46]s/);
+    assert.match(block, /\.nav-inner > \.menu-btn\[aria-expanded="true"\][\s\S]*?background:/);
     assert.match(html, /site-theme-system\.css\?v=global-theme-wallpaper-drawer-20261105d/);
 });
 
