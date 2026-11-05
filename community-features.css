@@ -483,3 +483,23 @@ html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .menu-bt
 html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-shop-nav,
 html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-wallet-nav{transition:none!important}
 html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] button:hover:not(:disabled){transform:none!important;box-shadow:none!important;border-color:var(--border)!important}
+
+/* Additional theme preset collection: compact by default, expanded on demand. */
+.worth-it-theme-preset{min-height:82px;align-content:start}
+.worth-it-theme-preset-more{grid-column:1/-1;display:grid;gap:10px;padding:12px;border:1px solid var(--border);border-radius:13px;background:color-mix(in srgb,var(--card-solid) 82%,var(--primary) 5%)}
+.worth-it-theme-preset-more-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.worth-it-theme-preset-more-head>span{display:grid;gap:3px;min-width:0}
+.worth-it-theme-preset-more-head strong{font-size:12px;color:var(--text)}
+.worth-it-theme-preset-more-head small{font-size:10px;line-height:1.45;color:var(--muted)}
+.worth-it-theme-preset-more-toggle{flex:0 0 auto;white-space:nowrap}
+.worth-it-theme-preset-extra-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#worthItThemePresetMoreGrid[hidden]{display:none!important}
+.worth-it-theme-preset-extra-grid .worth-it-theme-preset{min-height:82px}
+.worth-it-theme-preset[aria-pressed="true"]{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 9%,var(--card-solid));box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent)}
+.worth-it-theme-preset:focus-visible,.worth-it-theme-preset-more-toggle:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+@media(max-width:600px){
+ .worth-it-theme-preset-more{padding:10px}
+ .worth-it-theme-preset-more-head{align-items:flex-start;flex-direction:column}
+ .worth-it-theme-preset-more-toggle{width:100%}
+ .worth-it-theme-preset-extra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
