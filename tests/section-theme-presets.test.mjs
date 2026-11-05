@@ -7,6 +7,7 @@ const themes = readFileSync(new URL("../section-themes.css", import.meta.url), "
 const shop = readFileSync(new URL("../shop.js", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
 const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
+const customThemeCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
 
 const palettePairs = [
     ['#marketsSection { --wt-section-accent:#e6b85c;', 'html[data-theme="light"] #marketsSection { --wt-section-accent:#a66b00;'],
@@ -98,8 +99,8 @@ test("custom palette button text uses contrast calculated for its actual surface
     assert.match(community, /--worth-it-primary-readable",accessibleThemeText\(theme\.primary,surfaces\)/);
     assert.match(community, /--worth-it-secondary-readable",accessibleThemeText\(theme\.secondary,surfaces\)/);
     assert.match(community, /--worth-it-gradient-foreground",gradientForeground\(theme\.primary,theme\.secondary\)/);
-    assert.match(themes, /data-worth-it-button-style="outline"[\s\S]*?color:var\(--worth-it-primary-readable\)!important/);
+    assert.match(customThemeCss, /data-worth-it-button-style="outline"[\s\S]*?color:var\(--worth-it-primary-readable\)!important/);
     for (const selector of [".btn-primary",".auth-modal-submit",".shop-buy-button",".shop-deal-button",".worth-it-report-submit",".worth-it-display-name-save"]) {
-        assert.ok(themes.includes(selector), "missing palette-aware CTA foreground: " + selector);
+        assert.ok(customThemeCss.includes(selector), "missing palette-aware CTA foreground: " + selector);
     }
 });
