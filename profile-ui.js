@@ -720,9 +720,23 @@ function renderWorthItOtherNotifications(){
   const person=createWorthItNotificationPerson(notification);
   const body=document.createElement("div");body.className="worth-it-notification-event-body";
   const title=document.createElement("p");title.className="worth-it-notification-event-title";
+  const type=String(notification.type||"unfriended");
   const name=String(notification.display_name||notification.username||"A Worth It member");
-  title.append(document.createTextNode(String(notification.type||"unfriended")==="follow"?name+" started following you.":name+" unfriended you."));
-  const reason=String(notification.type||"unfriended")==="unfriended"?String(notification.reason||"").trim():"";
+  if(type==="ugc_published"){
+   title.append(document.createTextNode(name+" published a new public calculator: "));
+   const calculatorTitle=String(notification.calculator_title||"Untitled calculator");
+   const calculatorId=String(notification.ugc_calculator_id||"");
+   if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(calculatorId)){
+    const link=document.createElement("a");link.className="worth-it-notification-calculator-link";
+    link.href="/calculator/ugc/"+encodeURIComponent(calculatorId);
+    const calculatorNumber=Number(notification.calculator_number);
+    link.textContent=calculatorTitle+(Number.isSafeInteger(calculatorNumber)&&calculatorNumber>0?" (#"+calculatorNumber+")":"");
+    title.append(link);
+   }else title.append(document.createTextNode(calculatorTitle));
+  }else{
+   title.append(document.createTextNode(type==="follow"?name+" started following you.":name+" unfriended you."));
+  }
+  const reason=type==="unfriended"?String(notification.reason||"").trim():"";
   if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
   else body.appendChild(title);
   const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
@@ -861,6 +875,7 @@ window.performWorthItSocialAction = async function(action) {
    }
   }
   await window.openWorthItProfile(targetId, { refresh: true });
+  if (action === "follow") await refreshWorthItNotifications(false);
   if (typeof window.showToast === "function") window.showToast(action === "follow" ? (context.is_following ? "You unfollowed this user." : "You are now following this user.") : "Your friend connection was updated.");
  } catch (error) {
   if (typeof window.showToast === "function") window.showToast(error?.message || "The social action could not be completed.");
