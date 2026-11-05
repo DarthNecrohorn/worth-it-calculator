@@ -61,6 +61,9 @@ html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-na
 }
 #webShopSection .web-shop-shell{width:min(1120px,calc(100% - 34px));margin:0 auto}
 #webShopSection .web-shop-topline{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:28px}
+#webShopSection .web-shop-heading-block{flex:1 1 auto;min-width:0}
+#webShopSection .web-shop-heading-row{display:flex;align-items:center;justify-content:space-between;gap:14px;min-width:0}
+#webShopSection .web-shop-heading-row .web-shop-title{min-width:0}
 #webShopSection .web-shop-eyebrow{margin:0 0 8px;color:var(--ws-accent);font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
 #webShopSection .web-shop-title{margin:0;color:var(--ws-text);font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.04em}
 #webShopSection .web-shop-subtitle{max-width:700px;margin:10px 0 0;color:var(--ws-muted);line-height:1.65}
@@ -102,14 +105,17 @@ html[data-theme="light"] .calc-shop-nav,html[data-theme="light"] .calc-wallet-na
 #webShopSection .web-shop-ribbon{position:absolute;right:14px;top:14px;border-radius:999px;background:color-mix(in srgb,var(--ws-accent) 19%,var(--ws-panel));border:1px solid color-mix(in srgb,var(--ws-accent) 50%,var(--ws-border));color:var(--ws-text);padding:5px 9px;font-size:10px;font-weight:900;letter-spacing:.06em}
 #webShopSection .web-shop-footnote{margin:19px 0 0;color:var(--ws-muted);font-size:12px;line-height:1.6}
 #webShopSection .web-shop-status{min-height:22px;margin:13px 0 0;color:var(--ws-muted);font-size:13px}
-#webShopSection .web-shop-back{display:inline-flex;align-items:center;gap:8px;margin-top:24px;border:0;background:transparent;color:var(--ws-muted);font-weight:800;padding:8px 0}
-#webShopSection .web-shop-back:hover{color:var(--ws-text)}
+#webShopSection #webShopSection .web-shop-back{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;margin:0;padding:9px 12px;border:1px solid var(--ws-border);border-radius:12px;background:var(--ws-panel);color:var(--ws-text);font-size:12px;font-weight:850;line-height:1.2;white-space:nowrap;transition:transform .18s ease,border-color .18s ease,background .18s ease,color .18s ease}
+#webShopSection .web-shop-back:hover{color:var(--ws-text);border-color:var(--ws-accent);background:var(--ws-card-hover);transform:translateY(-1px)}
 #webShopSection [hidden]{display:none!important}
 @media(max-width:820px){#webShopSection .web-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){
     #webShopSection{padding-top:24px}
     #webShopSection .web-shop-shell{width:min(100% - 22px,1120px)}
-    #webShopSection .web-shop-topline{align-items:flex-start;flex-direction:column;margin-bottom:20px}
+    #webShopSection .web-shop-topline{align-items:stretch;flex-direction:column;margin-bottom:20px}
+    #webShopSection .web-shop-heading-row{gap:9px}
+    #webShopSection .web-shop-title{font-size:clamp(25px,7vw,34px)}
+    #webShopSection .web-shop-back{padding:8px 9px;font-size:11px}
     #webShopSection .web-shop-tools{width:100%;justify-content:space-between}
     #webShopSection .web-shop-grid{grid-template-columns:1fr}
     #webShopSection .web-shop-card .web-shop-description{min-height:0}
