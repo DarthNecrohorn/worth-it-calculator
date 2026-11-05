@@ -527,6 +527,7 @@ begin
               from private.worth_it_user_calculators c
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
              where c.owner_user_id=v_user_id
+               and c.status='published'
                and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
              order by c.updated_at desc,c.id
@@ -564,6 +565,7 @@ begin
               from private.worth_it_user_calculators c
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
              where c.owner_user_id=v_user_id
+               and c.status='draft'
                and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
              order by c.updated_at desc,c.id
