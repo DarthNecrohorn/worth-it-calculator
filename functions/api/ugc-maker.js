@@ -3,6 +3,13 @@ const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.7-flash";
 const MAX_PROMPT_CHARS = 900;
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
+const ALLOWED_SUBCATEGORIES = {
+ cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
+ money:new Set(["budgeting","saving","investing","loans-debt","mortgages","taxes","income-salary","retirement"]),
+ technology:new Set(["smartphones","computers","gaming","software-subscriptions","internet-connectivity","consumer-electronics","tech-comparison"]),
+ home:new Set(["utilities-energy","rent-housing","home-buying","renovation-repairs","home-appliances","home-maintenance","household-budget"]),
+ other:new Set(["travel","education-career","health-fitness","food-groceries","business","lifestyle","general-comparison"])
+};
 const FUNCTIONS = new Set(["min","max","abs","round","floor","ceil","sqrt","pow"]);
 
 function json(data,status,origin){
@@ -196,6 +203,9 @@ function normalizeDefinition(raw){
     const description=String(raw?.description||"").trim().slice(0,500);
     const category=String(raw?.category||"other").toLowerCase();
     if(title.length<3||!ALLOWED_CATEGORIES.has(category))throw new Error("The generated calculator details are incomplete.");
+    const subcategories=Array.isArray(raw?.subcategories)?Array.from(new Set(raw.subcategories.map(value=>String(value||"").trim().toLowerCase()))):[];
+    const allowedSubcategories=ALLOWED_SUBCATEGORIES[category];
+    if(subcategories.length<1||subcategories.length>3||subcategories.some(value=>!allowedSubcategories.has(value)))throw new Error("The AI-selected community categories are invalid.");
     if(!Array.isArray(raw?.inputs)||raw.inputs.length<1||raw.inputs.length>12)throw new Error("A calculator must have between 1 and 12 inputs.");
     if(!Array.isArray(raw?.results)||raw.results.length<1||raw.results.length>6)throw new Error("A calculator must have between 1 and 6 results.");
     const seen=new Set();
@@ -221,7 +231,7 @@ function normalizeDefinition(raw){
         evaluate(ast,values);
         return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
     });
-    return {version:1,inputs,results};
+    return {version:1,subcategories,inputs,results};
 }
 export async function onRequestOptions(context){
     const origin=allowedOrigin(context.request);
@@ -347,10 +357,16 @@ export async function onRequestPost(context){
         }
 
         const commonRules=[
-            "Return only one valid JSON object with keys title, description, category, inputs, results.",
+            "Return only one valid JSON object with keys title, description, category, subcategories, inputs, results.",
             "Never return HTML, Markdown, JavaScript, SQL, code, scripts, event handlers, URLs or executable content.",
             "The result is a declarative calculator schema only. Formula expressions are evaluated by a restricted arithmetic parser.",
-            "Allowed categories: cars, money, technology, home, other.",
+            "Choose exactly one primary category: cars, money, technology, home, or other. AI must choose it; users do not choose or override it.",
+            "Choose 1 to 3 relevant subcategories from the selected primary category only. Do not invent tags or choose unrelated categories.",
+            "cars subcategories: car-ownership, ev-ownership, fuel-costs, vehicle-financing, car-insurance, car-maintenance, depreciation-resale, vehicle-comparison.",
+            "money subcategories: budgeting, saving, investing, loans-debt, mortgages, taxes, income-salary, retirement.",
+            "technology subcategories: smartphones, computers, gaming, software-subscriptions, internet-connectivity, consumer-electronics, tech-comparison.",
+            "home subcategories: utilities-energy, rent-housing, home-buying, renovation-repairs, home-appliances, home-maintenance, household-budget.",
+            "other subcategories: travel, education-career, health-fitness, food-groceries, business, lifestyle, general-comparison.",
             "Each input has key, label, min, max, default, step, unit. Keys must match ^[a-z][a-z0-9_]{0,31}$ and be unique.",
             "All numeric values must be finite and min <= default <= max. Keep input ranges realistic and bounded.",
             "Each result has label, expression, format, currency, prefix, suffix.",
@@ -365,7 +381,7 @@ export async function onRequestPost(context){
         if(mode==="refine"){
             system=[
                 "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
-                "Preserve the exact title, category, description, underlying subject, comparison and purpose from the existing calculator.",
+                "Preserve the exact title, category, subcategories, description, underlying subject, comparison and purpose from the existing calculator.",
                 "Preserve every existing input key in its original order. Do not add, remove, rename or repurpose input keys.",
                 "Preserve the exact number, order and labels of all result rows. Improve only input labels, sensible bounds/defaults/steps/units and the formula expressions where useful.",
                 "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
@@ -378,6 +394,7 @@ export async function onRequestPost(context){
                     title:existingCalculator.title,
                     description:existingCalculator.description||"",
                     category:existingCalculator.category,
+                    subcategories:existingCalculator.subcategories||existingCalculator.spec.subcategories||[],
                     inputs:existingCalculator.spec.inputs,
                     results:existingCalculator.spec.results
                 }),
