@@ -72,7 +72,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=custom-economy-header-background-20261104b">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;design-system=20261105a">
+<link rel="stylesheet" href="community-features.css?v=section-theme-custom-palette-20261104e&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a">
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -2993,6 +2993,25 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <div class="worth-it-theme-editor" id="worthItThemeEditor">
           <div class="worth-it-theme-editor-head"><strong>Build your theme</strong><span class="settings-note" id="worthItThemePreviewLabel">Free live preview · Save with Premium</span></div>
+          <div class="worth-it-theme-preset-section">
+            <div class="worth-it-theme-subhead"><span><h4>Theme presets</h4><p>Start with a curated palette, then customize every detail.</p></span><button type="button" class="worth-it-theme-small-action" id="worthItThemeRandomPalette">Random palette</button></div>
+            <div class="worth-it-theme-preset-grid" id="worthItThemePresetGrid">
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="midnight"><span class="worth-it-theme-preset-swatches"><i style="background:#8b5cf6"></i><i style="background:#38bdf8"></i><i style="background:#080b18"></i></span><strong>Midnight</strong><small>Violet · Blue</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="minimal"><span class="worth-it-theme-preset-swatches"><i style="background:#3157d5"></i><i style="background:#0ea5a4"></i><i style="background:#f4f6fa"></i></span><strong>Minimal</strong><small>Clean · Neutral</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="emerald"><span class="worth-it-theme-preset-swatches"><i style="background:#10b981"></i><i style="background:#a3e635"></i><i style="background:#061b19"></i></span><strong>Emerald</strong><small>Green · Fresh</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="sunset"><span class="worth-it-theme-preset-swatches"><i style="background:#f97316"></i><i style="background:#ec4899"></i><i style="background:#1d1020"></i></span><strong>Sunset</strong><small>Warm · Vibrant</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="ocean"><span class="worth-it-theme-preset-swatches"><i style="background:#0ea5e9"></i><i style="background:#14b8a6"></i><i style="background:#061724"></i></span><strong>Ocean</strong><small>Blue · Teal</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="rose"><span class="worth-it-theme-preset-swatches"><i style="background:#e879a8"></i><i style="background:#a78bfa"></i><i style="background:#180f1b"></i></span><strong>Rose</strong><small>Rose · Lavender</small></button>
+            </div>
+          </div>
+          <div class="worth-it-theme-preview-switcher" id="worthItThemePreviewSwitcher" role="group" aria-label="Preview different website areas">
+            <button type="button" data-theme-preview-view="website" aria-pressed="true">Website</button>
+            <button type="button" data-theme-preview-view="calculator" aria-pressed="false">Calculator</button>
+            <button type="button" data-theme-preview-view="shop" aria-pressed="false">Web Shop</button>
+            <button type="button" data-theme-preview-view="chat" aria-pressed="false">AI Chat</button>
+            <button type="button" data-theme-preview-view="cards" aria-pressed="false">Cards</button>
+            <button type="button" data-theme-preview-view="forms" aria-pressed="false">Forms</button>
+          </div>
           <div id="worthItThemePreview" class="worth-it-theme-preview" role="group" aria-label="Live sample of your custom Worth It theme">
             <div class="worth-it-theme-preview-nav">
               <span class="worth-it-theme-preview-brand"><span class="worth-it-theme-preview-mark">✓</span> Worth It</span>
@@ -3014,6 +3033,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="worth-it-theme-design-section">
             <h4>Website colours</h4>
             <p>Choose the main colours that shape the whole website. Text colours automatically receive a contrast-safe fallback when needed.</p>
+            <div class="worth-it-theme-section-actions"><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="colours">Reset colour group</button></div>
             <div class="worth-it-theme-fields">
               <label class="worth-it-theme-field" for="worthItThemePrimary">Primary accent<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
               <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary accent<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
@@ -3028,10 +3048,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <label class="worth-it-theme-field" for="worthItThemeMuted">Secondary / muted text<input id="worthItThemeMuted" type="color" value="#94a3b8"></label>
               <label class="worth-it-theme-field" for="worthItThemeLink">Links &amp; link accents<input id="worthItThemeLink" type="color" value="#a99bff"></label>
             </div>
+            <div class="worth-it-theme-recent"><div class="worth-it-theme-subhead"><span><strong>Recent colours</strong><small>Reuse the last colours you selected.</small></span></div><div id="worthItThemeRecentColours" class="worth-it-theme-recent-swatches"></div></div>
           </div>
           <div class="worth-it-theme-design-section">
             <h4>Typography &amp; shape</h4>
             <p>Change the personality of headings and body text, and choose how cards and controls are shaped.</p>
+            <div class="worth-it-theme-section-actions"><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="typography">Reset typography</button></div>
             <div class="worth-it-theme-fields worth-it-theme-style-fields">
               <label class="worth-it-theme-field" for="worthItThemeFontFamily">Website font
                 <select id="worthItThemeFontFamily">
@@ -3051,6 +3073,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
                   <option value="standard">Standard</option><option value="comfortable">Comfortable · Airy</option>
                   <option value="compact">Compact</option>
                 </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeFontSize">Website font size
+                <select id="worthItThemeFontSize"><option value="small">Small</option><option value="default" selected>Default</option><option value="large">Large</option></select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeHeadingScale">Heading scale
+                <select id="worthItThemeHeadingScale"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="large">Large</option></select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeLineHeight">Line height
+                <select id="worthItThemeLineHeight"><option value="tight">Tight</option><option value="normal" selected>Normal</option><option value="relaxed">Relaxed</option></select>
               </label>
               <label class="worth-it-theme-field" for="worthItThemeCorners">Corners &amp; controls
                 <select id="worthItThemeCorners">
@@ -3072,7 +3103,21 @@ html[data-theme="light"].worth-it-initial-paint::before {
               </label>
             </div>
           </div>
-          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeSaveButton">Unlock to save →</button><button type="button" class="settings-option" id="worthItThemeResetButton">Reset preview colours</button></div>
+          <div class="worth-it-theme-design-section">
+            <div class="worth-it-theme-subhead"><span><h4>Interaction &amp; depth</h4><p>Fine-tune hover motion, shadows, borders and keyboard focus.</p></span><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="effects">Reset effects</button></div>
+            <div class="worth-it-theme-fields worth-it-theme-style-fields">
+              <label class="worth-it-theme-field" for="worthItThemeButtonAnimation">Button animation<select id="worthItThemeButtonAnimation"><option value="none" selected>None</option><option value="subtle">Subtle</option><option value="smooth">Smooth</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeHoverEffect">Hover effect<select id="worthItThemeHoverEffect"><option value="none" selected>None</option><option value="lift">Lift</option><option value="glow">Glow</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeShadowIntensity">Shadow intensity<select id="worthItThemeShadowIntensity"><option value="none" selected>None</option><option value="soft">Soft</option><option value="strong">Strong</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeBorderThickness">Border thickness<select id="worthItThemeBorderThickness"><option value="thin">Thin</option><option value="normal" selected>Normal</option><option value="thick">Thick</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeFocusAppearance">Keyboard focus<select id="worthItThemeFocusAppearance"><option value="subtle">Subtle</option><option value="standard" selected>Standard</option><option value="prominent">Prominent</option></select></label>
+            </div>
+          </div>
+          <div class="worth-it-theme-design-section">
+            <div class="worth-it-theme-subhead"><span><h4>Accessibility &amp; contrast</h4><p>WCAG AA uses a 4.5:1 contrast target for normal text. Low-contrast text receives a readable fallback on the website.</p></span></div>
+            <div id="worthItThemeContrastAudit" class="worth-it-theme-contrast-audit" aria-live="polite"></div>
+          </div>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeUndoButton">Undo unsaved changes</button><button type="button" class="settings-option" id="worthItThemeSaveButton">Unlock to save →</button><button type="button" class="settings-option" id="worthItThemeResetButton">Reset preview theme</button></div>
           <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite">Change the colours above to preview your own Worth It look. Free previews are temporary; Premium Lite and Premium members can save them.</p>
         </div>
       </div>
@@ -5655,6 +5700,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a"></script>
 </body>
 </html>
