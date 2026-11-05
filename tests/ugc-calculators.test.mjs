@@ -19,6 +19,7 @@ const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
+const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -539,4 +540,24 @@ test("AI Maker taxonomy is AI-assigned, closed-set validated and shown as catego
     assert.match(html, /ugcDetailCategories/);
     assert.match(html, /optgroup label="Cars"/);
     assert.match(html, /optgroup label="Money"/);
+});
+
+
+test("public UGC publications notify current followers and stop after unfollow", () => {
+    assert.match(paginationCss, /ugc-maker-close-glyph\\{display:block;line-height:1;transform:translateY\\(-2px\\)\\}/);
+    assert.match(publishNotificationsSql, /after insert or update of status,visibility/i);
+    assert.match(publishNotificationsSql, /after delete on public\\.worth_it_follows/i);
+    assert.match(publishNotificationsSql, /notification_type='ugc_published'/);
+    assert.match(publishNotificationsSql, /f\\.follower_user_id=actor_id/);
+    assert.match(publishNotificationsSql, /f\\.followed_user_id=n\\.actor_user_id/);
+    assert.match(publishNotificationsSql, /f\\.created_at<=n\\.created_at/);
+    assert.match(publishNotificationsSql, /c\\.visibility='public'/);
+    assert.match(publishNotificationsSql, /interval '24 hours'/);
+    assert.match(profile, /type==="ugc_published"/);
+    assert.match(profile, /worth-it-notification-calculator-link/);
+    assert.match(profile, /if \\(action === "follow"\\) await refreshWorthItNotifications\\(false\\)/);
+    assert.match(paginationFixture, /A follower did not receive the new public UGC calculator notification/);
+    assert.match(paginationFixture, /Changing a published calculator to Private did not remove its notification/);
+    assert.match(paginationFixture, /Unfollowing did not remove prior UGC publication notifications/);
+    assert.match(paginationFixture, /A former follower received a later public UGC publication/);
 });
