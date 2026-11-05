@@ -727,9 +727,8 @@ function openNewCalculatorMaker(){
 }
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
- const section=$("ugcCommunitySection");if(section)section.hidden=!state.userId;
- const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
  setExploreInitialView(window.location.pathname.startsWith("/calculator/ugc/")?"community":"basic");
+ const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
  $("ugcCatalogJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
  $("ugcMakerJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community").then(openNewCalculatorMaker);});
  $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
@@ -754,10 +753,12 @@ async function init(){
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(async()=>{
   const previousUserId=state.userId;
   try{await getSession();}catch(_){state.userId="";state.session=null;}
-  const gallery=$("ugcCommunitySection");if(gallery)gallery.hidden=!state.userId;
-  const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
+  if(!state.userId || previousUserId!==state.userId)setExploreInitialView("basic");
+  const gallery=$("ugcCommunitySection"),navActions=$("ugcNavigationActions");
+  const communityActive=Boolean(state.userId && state.exploreView==="community");
+  if(gallery)gallery.hidden=!communityActive;
+  if(navActions)navActions.hidden=!state.userId;
   if(previousUserId!==state.userId){state.pages={};state.lastPage=1;}
-  if(!state.userId)setExploreInitialView("basic");
   state.catalogRequest++;
   if(state.userId)void loadCatalog();else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
  });
