@@ -292,7 +292,7 @@ function applyTheme(value){
  const isolated=root.classList.contains("worth-it-profile-theme-isolated");
  const theme=isolated?DEFAULT_THEME:selectedTheme;
  if(isCustomTheme(theme)){
-  const surfaces=[theme.background,theme.surface];
+  const surfaces=[theme.background,theme.surface,theme.surfaceAlt];
   const bodyFont={
    inter:'"Inter",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif',
    system:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
@@ -335,8 +335,10 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-header-foreground",contrastForeground(theme.header));
   root.style.setProperty("--worth-it-hover-foreground",contrastForeground(theme.hover));
   root.style.setProperty("--worth-it-gradient-foreground",gradientForeground(theme.primary,theme.secondary));
-  root.style.setProperty("--worth-it-primary-readable",readableAccent(theme.primary));
-  root.style.setProperty("--worth-it-secondary-readable",readableAccent(theme.secondary));
+  root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.primary,surfaces));
+  root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.secondary,surfaces));
+  root.style.setProperty("--worth-it-primary-foreground",contrastForeground(theme.primary));
+  root.style.setProperty("--worth-it-secondary-foreground",contrastForeground(theme.secondary));
   root.style.setProperty("--worth-it-theme-heading-color",accessibleThemeText(theme.heading,surfaces));
   root.style.setProperty("--worth-it-theme-link-color",accessibleThemeText(theme.link,surfaces));
   root.style.setProperty("--worth-it-theme-font-family",bodyFont);
@@ -369,7 +371,7 @@ function applyTheme(value){
    "--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient",
    "--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground",
    "--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable",
-   "--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
+   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-font-size","--worth-it-theme-heading-scale",
