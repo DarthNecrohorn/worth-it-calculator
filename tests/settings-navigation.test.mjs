@@ -121,3 +121,22 @@ test("custom appearance cannot be mixed with standard Dark/Light until a full re
     assert.match(community, /window\.resetWorthItCustomTheme=resetCustomTheme/);
     assert.match(community, /root\.removeAttribute\("data-worth-it-custom-theme"\)/);
 });
+
+test("Web Shop Back sits beside its title and restores the exact Settings route", () => {
+    const shopStart = html.indexOf('id="webShopSection"');
+    const shopEnd = html.indexOf("</section>", shopStart);
+    assert.ok(shopStart >= 0 && shopEnd > shopStart, "Web Shop markup exists");
+    const shop = html.slice(shopStart, shopEnd);
+    const heading = shop.indexOf('class="web-shop-heading-row"');
+    const title = shop.indexOf('id="webShopTitle"', heading);
+    const back = shop.indexOf('class="web-shop-back"', heading);
+    assert.ok(heading >= 0 && title > heading && back > title, "Back is aligned to the right of the Web Shop title");
+    assert.match(shop, /onclick="backFromWebShop\(\)"/);
+    assert.doesNotMatch(shop, /onclick="showHome\(\)">← Back to Worth It/);
+    assert.match(routing, /window\.backFromWebShop = function \(\)/);
+    assert.match(routing, /previousPath === "\/settings" \|\| previousPath\.startsWith\("\/settings\/"\)/);
+    assert.match(routing, /window\.history\.back\(\)/);
+    assert.match(routing, /originalFunctions\.showHome \|\| window\.showHome/);
+    assert.match(css, /web-shop-heading-row/);
+    assert.match(css, /@media\(max-width:600px\)[\s\S]*?web-shop-heading-row/);
+});
