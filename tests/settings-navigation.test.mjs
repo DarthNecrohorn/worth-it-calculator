@@ -7,6 +7,7 @@ const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8"
 const routing = readFileSync(new URL("../routing.js", import.meta.url), "utf8");
 const redirects = readFileSync(new URL("../_redirects", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const webShopCss = readFileSync(new URL("../web-shop.css", import.meta.url), "utf8");
 
 const sections = [
     { key: "account", path: "/settings/account", panel: "accountProfilePanel", card: "settingsAccount", fn: "openSettingsAccount" },
@@ -137,6 +138,6 @@ test("Web Shop Back sits beside its title and restores the exact Settings route"
     assert.match(routing, /previousPath === "\/settings" \|\| previousPath\.startsWith\("\/settings\/"\)/);
     assert.match(routing, /window\.history\.back\(\)/);
     assert.match(routing, /originalFunctions\.showHome \|\| window\.showHome/);
-    assert.match(css, /web-shop-heading-row/);
-    assert.match(css, /@media\(max-width:600px\)[\s\S]*?web-shop-heading-row/);
+    assert.match(webShopCss, /web-shop-heading-row/);
+    assert.match(webShopCss, /@media\(max-width:600px\)[\s\S]*?web-shop-heading-row/);
 });
