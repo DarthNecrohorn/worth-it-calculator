@@ -139,7 +139,7 @@ test("everyone can preview Custom Themes in Settings, but only Premium can save 
  assert.ok(js.includes("premium_expires_at"));
  assert.ok(js.includes("Your Premium subscription is no longer active. Your saved Custom Theme was reset to the default."));
  assert.ok(js.includes("if(!walletResolved)"));
- assert.ok(js.includes("No saved theme was changed"));
+ assert.ok(js.includes("no saved theme has been changed"));
  assert.ok(js.includes("window.addEventListener(\"focus\",refreshThemeOnReturn)"));
 });
 test("custom themes are suspended on public profile routes and restored after leaving",()=>{
