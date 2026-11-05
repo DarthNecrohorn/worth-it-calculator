@@ -258,3 +258,19 @@ test("community slide and calculator pagination surfaces stay opaque and clearly
  assert.ok(ugcCss.includes("background-color:var(--bg)"));
  assert.ok(ugcJs.includes("This is not a 30-calculator total limit"));
 });
+
+
+test("Custom Theme includes twelve distinct extra presets with an accessible expandable collection",()=>{
+ const extraIds=["graphite","lavender-mist","terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura","neon-pulse"];
+ const extraNames=["Graphite","Lavender Mist","Terracotta","Matcha","Champagne","Berry","Arctic","Retro","Royal","Mocha","Sakura","Neon Pulse"];
+ extraIds.forEach(id=>assert.ok(html.includes('data-theme-preset="'+id+'"'),"missing preset "+id));
+ extraNames.forEach(name=>assert.ok(html.includes("<strong>"+name+"</strong>"),"missing preset label "+name));
+ assert.ok(html.includes('id="worthItThemePresetMoreToggle"'));
+ assert.ok(html.includes('id="worthItThemePresetMoreGrid"'));
+ assert.ok(html.includes('aria-controls="worthItThemePresetMoreGrid"'));
+ assert.ok(js.includes("function setMoreThemePresetsExpanded"));
+ assert.ok(js.includes('item.group==="more"'));
+ assert.ok(js.includes('preset.group==="more"'));
+ assert.ok(css.includes(".worth-it-theme-preset-extra-grid"));
+ assert.ok(css.includes("#worthItThemePresetMoreGrid[hidden]"));
+});
