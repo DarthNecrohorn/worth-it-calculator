@@ -7,6 +7,7 @@ const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const news = readFileSync(new URL("../news-ui.js", import.meta.url), "utf8");
 const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
+const siteThemeCss = readFileSync(new URL("../site-theme-system.css", import.meta.url), "utf8");
 
 test("choosing a section keeps an explicitly opened hamburger panel open", () => {
     const start = app.indexOf("function closeNavMenuUnlessPreserved(navLinks)");
@@ -112,4 +113,15 @@ test("hamburger opens as a left-to-right drawer and reverses smoothly on close",
     assert.match(communityCss, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)/);
     assert.match(communityCss, /#navLinks\.nav-links\.closing\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
     assert.match(communityCss, /prefers-reduced-motion:reduce/);
+});
+
+test("the final hamburger drawer uses explicit enter/exit keyframes below the two-row header", () => {
+    assert.match(siteThemeCss, /@keyframes worthItHamburgerEnter/);
+    assert.match(siteThemeCss, /@keyframes worthItHamburgerExit/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links\.open[\s\S]*?animation: worthItHamburgerEnter/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links\.closing[\s\S]*?animation: worthItHamburgerExit/);
+    assert.match(siteThemeCss, /top: 88px !important/);
+    assert.match(siteThemeCss, /top: 114px !important/);
+    assert.match(siteThemeCss, /prefers-reduced-motion: reduce/);
+    assert.match(html, /site-theme-system\.css\?v=/);
 });
