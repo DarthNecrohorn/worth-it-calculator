@@ -191,7 +191,9 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /candidate\.radius \+ existing\.radius \+ requiredGap/);
     assert.match(calls, /const CHAT_WALLPAPER_GEOMETRIES = \[/);
-    assert.match(calls, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
+    assert.match(calls, /const smallOpacity = customPalette \\? "\\.43" : mode === "light" \\? "\\.52" : "\\.43"/);
+    assert.match(calls, /const opacity = customPalette \\? \\(mode === "light" \\? "\\.34" : "\\.32"\\)/);
+    assert.match(calls, /getConversationWallpaperTheme\\(\\)/);
     assert.match(calls, /wallpaperThemeObserver\.observe/);
     assert.match(calls, /wallpaperSurfaceObserver\.observe\(wallpaperSurface\)/);
     assert.match(calls, /surface\.style\.setProperty\("--worthit-chat-wallpaper-size"/);
