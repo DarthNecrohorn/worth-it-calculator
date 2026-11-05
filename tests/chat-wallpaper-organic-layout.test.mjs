@@ -101,7 +101,7 @@ test("wallpaper avoids horizontal tiling and sizes its generated tile to the mes
 });
 
 test("Custom Theme accents are used for every generated chat wallpaper drawing", () => {
-    const { make } = loadWallpaperGenerator();
+    const make = loadWallpaperGenerator();
     const custom = {
         key: "custom-test-palette",
         mode: "dark",
