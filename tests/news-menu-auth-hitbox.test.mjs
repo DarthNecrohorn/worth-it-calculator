@@ -105,14 +105,15 @@ test("News rechecks the account scope before reusing its in-memory feed", () => 
     assert.match(body, /newsLoadInProgress = false;\s*return;/);
 });
 
-test("hamburger opens as a left-to-right drawer and reverses smoothly on close", () => {
-    assert.match(app, /navLinks\.classList\.add\("closing"\)/);
-    assert.match(app, /navMenuCloseTimer/);
-    assert.match(app, /window\.setTimeout\([\s\S]*?460\)/);
-    assert.match(communityCss, /#navLinks\.nav-links\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
-    assert.match(communityCss, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)/);
-    assert.match(communityCss, /#navLinks\.nav-links\.closing\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
-    assert.match(communityCss, /prefers-reduced-motion:reduce/);
+test("hamburger drawer opens and closes instantly without timers or transition rules", () => {
+    const drawerCss = communityCss.slice(communityCss.indexOf("/* Side drawer:"));
+    assert.doesNotMatch(app, /navMenuCloseTimer|classList\\.(?:add|remove)\\("closing"\\)|setTimeout\\([\\s\\S]*?460/);
+    assert.doesNotMatch(drawerCss, /nav-links\\.closing|transition:\\s*transform/);
+    assert.doesNotMatch(siteThemeCss, /nav-links\\.closing|worthItHamburger|@keyframes/);
+    assert.match(drawerCss, /#navLinks\\.nav-links\\.open\\s*\\{[\\s\\S]*?transform:translate3d\\(0,0,0\\)!important/);
+    assert.match(siteThemeCss, /#navLinks\\.nav-links\\.open[\\s\\S]*?transform: translate3d\\(0,0,0\\)/);
+    assert.match(siteThemeCss, /top: 88px !important/);
+    assert.match(siteThemeCss, /top: 114px !important/);
 });
 
 test("the hamburger drawer opens and closes instantly without the removed motion layer", () => {
