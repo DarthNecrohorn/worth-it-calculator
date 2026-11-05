@@ -57,6 +57,7 @@ function prepareWorthItSettingsPage() {
 
     if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
     if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(true);
+    if (typeof window.refreshWorthItCustomTheme === "function") void window.refreshWorthItCustomTheme();
 
     const homePage = document.getElementById("homePage");
     if (homePage) homePage.style.display = "none";
