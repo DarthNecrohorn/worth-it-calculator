@@ -366,6 +366,32 @@
         }
     }
 
+    window.backFromWebShop = function () {
+        const state = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        const previousRoute = typeof state.worthItRoutePrevious === "string"
+            ? state.worthItRoutePrevious
+            : "";
+        let previousPath = "";
+        try {
+            if (previousRoute) {
+                previousPath = normalizePath(new URL(previousRoute, window.location.origin).pathname);
+            }
+        } catch (_) {}
+
+        if (
+            normalizePath(window.location.pathname) === "/web-shop" &&
+            (previousPath === "/settings" || previousPath.startsWith("/settings/"))
+        ) {
+            window.history.back();
+            return;
+        }
+
+        const showHome = originalFunctions.showHome || window.showHome;
+        if (typeof showHome === "function") showHome.call(window);
+    };
+
     window.addEventListener("popstate", function () {
         applyRoute(window.location.pathname, { initial: false });
     });
