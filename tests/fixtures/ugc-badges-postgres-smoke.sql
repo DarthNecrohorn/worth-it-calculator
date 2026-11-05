@@ -123,7 +123,7 @@ begin
         raise exception 'A different member was incorrectly treated as the calculator owner.';
     end if;
     v_catalog:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
-    if jsonb_array_length(v_catalog)<1 then
+    if jsonb_array_length(v_catalog->'items')<1 then
         raise exception 'Published UGC calculator is missing from the latest catalogue.';
     end if;
     v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
