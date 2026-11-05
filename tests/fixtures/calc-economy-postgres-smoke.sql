@@ -181,7 +181,7 @@ begin
         raise exception 'An expired or Free account must still be able to remove its old custom theme.';
     end if;
 end
-$;
+$$;
 reset role;
 
 -- Full Premium and Premium Lite accounts must be able to save, while expired plans cannot.
