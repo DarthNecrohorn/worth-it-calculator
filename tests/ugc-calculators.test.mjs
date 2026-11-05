@@ -25,6 +25,7 @@ const validDefinition = {
     title: "Monthly savings growth",
     description: "Estimate savings with monthly deposits.",
     category: "money",
+    subcategories: ["budgeting", "saving"],
     inputs: [
         { key: "starting_amount", label: "Starting savings", min: 0, max: 1000000, default: 1000, step: 1, unit: "EUR" },
         { key: "monthly_deposit", label: "Monthly deposit", min: 0, max: 100000, default: 300, step: 1, unit: "EUR" },
@@ -143,6 +144,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(result.success, true);
         assert.equal(result.calculator.title, validDefinition.title);
         assert.equal(result.calculator.spec.inputs.length, 3);
+        assert.deepEqual(result.calculator.spec.subcategories, ["budgeting", "saving"]);
         assert.equal(result.calculator.spec.results[0].expression, "starting_amount + monthly_deposit * 12 * years");
         assert.equal(calls, 1);
     });
