@@ -494,7 +494,7 @@ test("calculator explorer settles and restores exactly one visible panel after t
     assert.match(maker, /window\.addEventListener\("focus",reconcileExplorePanels\)/);
     assert.match(maker, /basic\.hidden=active!=="basic";community\.hidden=active!=="community"/);
     assert.match(maker, /fallbackTimer=window\.setTimeout\(finish,duration\+160\)/);
-    assert.match(paginationCss, /visibility:hidden!important/);
-    assert.match(paginationCss, /pointer-events:none!important/);
+    assert.match(paginationCss, /visibility:\\s*hidden!important/);
+    assert.match(paginationCss, /pointer-events:\\s*none!important/);
     assert.match(paginationCss, /data-transitioning="true"[\s\S]*?will-change: transform/);
 });
