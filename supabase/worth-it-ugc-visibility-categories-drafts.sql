@@ -316,6 +316,34 @@ begin
 end;
 $$;
 
+create or replace function public.get_worth_it_my_ugc_calculators(p_search text default '')
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private, auth
+as $
+declare v_user_id uuid:=auth.uid(); v_search text:=left(btrim(coalesce(p_search,'')),80); v_result jsonb;
+begin
+    if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id',c.id,'calculator_number',c.calculator_number,'title',c.title,'description',c.description,'category',c.category,'subcategories',c.subcategories,'visibility',c.visibility,
+        'spec',c.spec,'status',c.status,'created_at',c.created_at,'updated_at',c.updated_at,
+        'published_at',c.published_at,
+        'views',(select count(*) from private.worth_it_calculator_views v where v.calculator_id=c.id),
+        'likes',(select count(*) from private.worth_it_calculator_reactions r where r.calculator_id=c.id and r.reaction='like'),
+        'dislikes',(select count(*) from private.worth_it_calculator_reactions r where r.calculator_id=c.id and r.reaction='dislike'),
+        'favorites',(select count(*) from public.worth_it_calculator_favorites f where f.calculator_key='ugc:'||c.id::text)
+    ) order by c.updated_at desc),'[]'::jsonb)
+      into v_result
+      from private.worth_it_user_calculators c
+     where c.owner_user_id=v_user_id
+       and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%');
+    return coalesce(v_result,'[]'::jsonb);
+end;
+$;
+
+
 create or replace function public.get_worth_it_profile_favorite_calculators(p_worth_it_id bigint)
 returns jsonb
 language plpgsql
