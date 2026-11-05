@@ -63,7 +63,7 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-maker-head h2{font-size:22px;margin:0 0 5px}
 .ugc-maker-head p{font-size:12px;color:var(--muted)}
 .ugc-maker-close{flex:0 0 36px;width:36px;height:36px;display:grid;place-items:center;padding:0;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft);color:var(--text);font-size:20px;cursor:pointer}
-.ugc-maker-close-glyph{display:block;line-height:1;transform:translateY(-3px)}
+.ugc-maker-close-glyph{display:block;line-height:1;transform:translateY(-2px)}
 .ugc-maker-card label{display:flex;flex-direction:column;gap:7px;margin:12px 0;color:var(--muted);font-size:11px;font-weight:750}
 .ugc-maker-card textarea{resize:vertical;min-height:110px}
 .ugc-maker-actions{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}
