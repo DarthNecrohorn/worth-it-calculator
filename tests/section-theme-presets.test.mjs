@@ -99,9 +99,9 @@ test("custom palette button text uses contrast calculated for its actual surface
     assert.match(community, /const surfaces=\[theme\.background,theme\.surface,theme\.surfaceAlt\]/);
     assert.match(community, /--worth-it-primary-readable",accessibleThemeText\(theme\.primary,surfaces\)/);
     assert.match(community, /--worth-it-secondary-readable",accessibleThemeText\(theme\.secondary,surfaces\)/);
-    assert.match(community, /const gradientText=gradientForeground\\(theme\\.primary,theme\\.secondary\\)/);
+    assert.match(community, /const gradientText=gradientForeground\(theme\.primary,theme\.secondary\)/);
     assert.match(community, /--worth-it-gradient-foreground",gradientText/);
-    assert.match(community, /accessibleButtonBackground\\(theme\\.primary,gradientText\\)/);
+    assert.match(community, /accessibleButtonBackground\(theme\.primary,gradientText\)/);
     assert.match(customThemeCss, /data-worth-it-button-style="outline"[\s\S]*?color:var\(--worth-it-primary-readable\)!important/);
     for (const selector of [".btn-primary",".auth-modal-submit",".shop-buy-button",".shop-deal-button",".worth-it-report-submit",".worth-it-display-name-save"]) {
         assert.ok(customThemeCss.includes(selector), "missing palette-aware CTA foreground: " + selector);
