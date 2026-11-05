@@ -399,13 +399,6 @@ html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,butto
     border-color: var(--border) !important;
 }
 
-/* The hamburger is an off-canvas drawer, not a dropdown that simply appears.
-   Keyframes are deliberately used instead of relying on the older transition
-   chain, which was being overridden by late mobile header positioning rules. */
-to   { transform: translate3d(0,0,0); opacity: 1; }
-}
-to   { transform: translate3d(-105%,0,0); opacity: 0; }
-}
 @media (max-width: 1000px) {
     #navLinks.nav-links {
         display: flex !important;
@@ -426,25 +419,37 @@ to   { transform: translate3d(-105%,0,0); opacity: 0; }
         background: var(--card-solid,var(--card)) !important;
         box-shadow: 0 0 0 100vmax rgba(3,7,18,.46),18px 0 44px rgba(0,0,0,.27) !important;
         transform: translate3d(-105%,0,0);
-        transform-origin: left center;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        will-change: transform,opacity;
+        transition: none !important;
         animation: none !important;
+        will-change: auto;
     }
     #navLinks.nav-links.open {
         top: 88px !important;
         height: calc(100dvh - 88px) !important;
+        transform: translate3d(0,0,0) !important;
+        opacity: 1 !important;
+        transform: translate3d(0,0,0) !important;
+        opacity: 1 !important;
         visibility: visible !important;
         pointer-events: auto !important;
+        transition: none !important;
+        animation: none !important;
+        transition: none !important;
+        animation: none !important;
 
     }
     #navLinks.nav-links.closing {
         top: 88px !important;
         height: calc(100dvh - 88px) !important;
-        visibility: visible !important;
+        transform: translate3d(-105%,0,0) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
         pointer-events: none !important;
+        transition: none !important;
+        animation: none !important;
 
     }
 }
@@ -479,6 +484,7 @@ to   { transform: translate3d(-105%,0,0); opacity: 0; }
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
+        transition: none !important;
         animation: none !important;
     }
     html[data-ui-scale="large"] #navLinks.nav-links.open,
@@ -489,15 +495,13 @@ to   { transform: translate3d(-105%,0,0); opacity: 0; }
     }
     html[data-ui-scale="large"] #navLinks.nav-links.closing,
     html[data-ui-scale="xl"] #navLinks.nav-links.closing {
-        visibility: visible !important;
+        transform: translate3d(-105%,0,0) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
         pointer-events: none !important;
-
-    }
-}
-@media (prefers-reduced-motion: reduce) {
-    #navLinks.nav-links.open,
-    #navLinks.nav-links.closing {
+        transition: none !important;
         animation: none !important;
+
     }
 }
 
@@ -736,17 +740,6 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
 }
 
 
-/* Hamburger motion and brand-stack layout refresh. */
-62% { opacity: 1; }
-    100% { transform: translate3d(0,0,0); opacity: 1; }
-}
-100% { transform: translate3d(-105%,0,0); opacity: 0; }
-}
-to   { transform: translate3d(0,0,0); opacity: 1; }
-}
-to   { transform: translate3d(-12px,0,0); opacity: 0; }
-}
-
 /* The compact header has two predictable left-side rows:
    menu + brand above, Web Shop / CALC / WIP directly underneath.
    Right-side actions retain their existing two-row placement. */
@@ -774,11 +767,9 @@ to   { transform: translate3d(-12px,0,0); opacity: 0; }
         justify-content: center !important;
         padding: 0 !important;
         z-index: 102 !important;
-        transform-origin: center;
-        transition: transform .24s ease, background-color .2s ease, border-color .2s ease !important;
+        transition: background-color .2s ease, border-color .2s ease !important;
     }
     .nav-inner > .menu-btn[aria-expanded="true"] {
-        transform: rotate(90deg);
         background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
         border-color: var(--primary) !important;
     }
@@ -818,12 +809,6 @@ to   { transform: translate3d(-12px,0,0); opacity: 0; }
     #navLinks.nav-links.open,
     #navLinks.nav-links.closing {
         z-index: 2147483000 !important;
-    }
-    #navLinks.nav-links.open {
-
-    }
-    #navLinks.nav-links.closing {
-
     }
 }
 @media (min-width: 901px) and (max-width: 1000px) {
@@ -885,14 +870,6 @@ to   { transform: translate3d(-12px,0,0); opacity: 0; }
         right: 16px !important;
         margin: 0 !important;
         z-index: 101 !important;
-    }
-    html[data-ui-scale="large"] #navLinks.nav-links.open,
-    html[data-ui-scale="xl"] #navLinks.nav-links.open {
-
-    }
-    html[data-ui-scale="large"] #navLinks.nav-links.closing,
-    html[data-ui-scale="xl"] #navLinks.nav-links.closing {
-
     }
 }
 
@@ -988,12 +965,6 @@ to   { transform: translate3d(-12px,0,0); opacity: 0; }
 
 /* A lighter but still perceptible movement for users requesting reduced motion. */
 @media (prefers-reduced-motion: reduce) {
-    #navLinks.nav-links.open {
-
-    }
-    #navLinks.nav-links.closing {
-
-    }
     .nav-inner > .menu-btn {
         transition: background-color .12s ease, border-color .12s ease !important;
     }
