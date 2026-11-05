@@ -544,20 +544,20 @@ test("AI Maker taxonomy is AI-assigned, closed-set validated and shown as catego
 
 
 test("public UGC publications notify current followers and stop after unfollow", () => {
-    assert.match(paginationCss, /ugc-maker-close-glyph\\{display:block;line-height:1;transform:translateY\\(-2px\\)\\}/);
-    assert.match(publishNotificationsSql, /after insert or update of status,visibility/i);
-    assert.match(publishNotificationsSql, /after delete on public\\.worth_it_follows/i);
-    assert.match(publishNotificationsSql, /notification_type='ugc_published'/);
-    assert.match(publishNotificationsSql, /f\\.follower_user_id=actor_id/);
-    assert.match(publishNotificationsSql, /f\\.followed_user_id=n\\.actor_user_id/);
-    assert.match(publishNotificationsSql, /f\\.created_at<=n\\.created_at/);
-    assert.match(publishNotificationsSql, /c\\.visibility='public'/);
-    assert.match(publishNotificationsSql, /interval '24 hours'/);
-    assert.match(profile, /type==="ugc_published"/);
-    assert.match(profile, /worth-it-notification-calculator-link/);
-    assert.match(profile, /if \\(action === "follow"\\) await refreshWorthItNotifications\\(false\\)/);
-    assert.match(paginationFixture, /A follower did not receive the new public UGC calculator notification/);
-    assert.match(paginationFixture, /Changing a published calculator to Private did not remove its notification/);
-    assert.match(paginationFixture, /Unfollowing did not remove prior UGC publication notifications/);
-    assert.match(paginationFixture, /A former follower received a later public UGC publication/);
+    assert.ok(paginationCss.includes(".ugc-maker-close-glyph{display:block;line-height:1;transform:translateY(-2px)}"));
+    assert.ok(publishNotificationsSql.includes("after insert or update of status,visibility"));
+    assert.ok(publishNotificationsSql.includes("after delete on public.worth_it_follows"));
+    assert.ok(publishNotificationsSql.includes("notification_type='ugc_published'"));
+    assert.ok(publishNotificationsSql.includes("f.follower_user_id=actor_id"));
+    assert.ok(publishNotificationsSql.includes("f.followed_user_id=n.actor_user_id"));
+    assert.ok(publishNotificationsSql.includes("f.created_at<=n.created_at"));
+    assert.ok(publishNotificationsSql.includes("c.visibility='public'"));
+    assert.ok(publishNotificationsSql.includes("interval '24 hours'"));
+    assert.ok(profile.includes('type==="ugc_published"'));
+    assert.ok(profile.includes("worth-it-notification-calculator-link"));
+    assert.ok(profile.includes('if (action === "follow") await refreshWorthItNotifications(false)'));
+    assert.ok(paginationFixture.includes("A follower did not receive the new public UGC calculator notification"));
+    assert.ok(paginationFixture.includes("Changing a published calculator to Private did not remove its notification"));
+    assert.ok(paginationFixture.includes("Unfollowing did not remove prior UGC publication notifications"));
+    assert.ok(paginationFixture.includes("A former follower received a later public UGC publication"));
 });
