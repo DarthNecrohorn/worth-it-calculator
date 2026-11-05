@@ -49,6 +49,10 @@ begin
 end
 $number_check$;
 
+insert into public.worth_it_follows(follower_user_id,followed_user_id)
+values ('22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111')
+on conflict do nothing;
+
 select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid,'public')->>'status') as publish_status \gset
 
 -- Free accounts receive one successful new calculator per UTC day.
@@ -611,6 +615,93 @@ begin
     if item->>'visibility'<>'public' then raise exception 'Public visibility was not applied.'; end if;
 end
 $public_access$;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'private');
+
+
+-- A current follower receives the public calculator publication.
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_publish_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if not exists(
+        select 1 from jsonb_array_elements(notices) n
+         where n->>'type'='ugc_published'
+           and n->>'ugc_calculator_id'=current_setting('test.ugc_id')
+           and n->>'calculator_title'='Monthly savings growth'
+           and n->>'calculator_number'='51'
+    ) then raise exception 'A follower did not receive the new public UGC calculator notification: %',notices; end if;
+end
+$ugc_publish_notifications$;
+
+-- A transition to Private removes the associated notification.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_id')::uuid,'private');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_private_clears_notification$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_id')) then
+        raise exception 'Changing a published calculator to Private did not remove its notification.';
+    end if;
+end
+$ugc_private_clears_notification$;
+
+-- Re-publishing publicly while still followed creates a new notification.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_id')::uuid,'public');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_republish_notifies$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if not exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_id')) then
+        raise exception 'Re-publishing a public UGC calculator did not notify an active follower.';
+    end if;
+end
+$ugc_republish_notifies$;
+
+-- A member who does not follow the creator receives no UGC publication notification.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $ugc_non_follower_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published') then
+        raise exception 'A user who does not follow the creator received a UGC publication notification.';
+    end if;
+end
+$ugc_non_follower_notifications$;
+
+-- Unfollowing removes existing notices and prevents notices for later public releases.
+delete from public.worth_it_follows
+ where follower_user_id='22222222-2222-4222-8222-222222222222'
+   and followed_user_id='11111111-1111-4111-8111-111111111111';
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_unfollow_clears_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published') then
+        raise exception 'Unfollowing did not remove prior UGC publication notifications.';
+    end if;
+end
+$ugc_unfollow_clears_notifications$;
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'public');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_unfollow_future_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_private_id')) then
+        raise exception 'A former follower received a later public UGC publication.';
+    end if;
+end
+$ugc_unfollow_future_notifications$;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'private');
 
