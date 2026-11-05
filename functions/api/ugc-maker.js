@@ -443,10 +443,12 @@ export async function onRequestPost(context){
             const refinedKeys=definition.inputs.map(item=>String(item.key));
             const originalLabels=existingCalculator.spec.results.map(item=>String(item.label));
             const refinedLabels=definition.results.map(item=>String(item.label));
+            const originalSubcategories=existingCalculator.subcategories||existingCalculator.spec.subcategories||[];
             const identityIsPreserved=
                 String(parsed.title||"").trim()===String(existingCalculator.title||"").trim()&&
                 String(parsed.description||"").trim()===String(existingCalculator.description||"").trim()&&
                 String(parsed.category||"").toLowerCase()===String(existingCalculator.category||"").toLowerCase()&&
+                sameArray(definition.subcategories,originalSubcategories)&&
                 sameArray(refinedKeys,originalKeys)&&sameArray(refinedLabels,originalLabels);
             if(!identityIsPreserved){
                 await refundEditQuota();
