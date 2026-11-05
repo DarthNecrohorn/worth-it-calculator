@@ -6,6 +6,7 @@ const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const news = readFileSync(new URL("../news-ui.js", import.meta.url), "utf8");
+const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
 
 test("choosing a section keeps an explicitly opened hamburger panel open", () => {
     const start = app.indexOf("function closeNavMenuUnlessPreserved(navLinks)");
@@ -107,8 +108,8 @@ test("hamburger opens as a left-to-right drawer and reverses smoothly on close",
     assert.match(app, /navLinks\.classList\.add\("closing"\)/);
     assert.match(app, /navMenuCloseTimer/);
     assert.match(app, /window\.setTimeout\([\s\S]*?460\)/);
-    assert.match(css, /#navLinks\.nav-links\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
-    assert.match(css, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)/);
-    assert.match(css, /#navLinks\.nav-links\.closing\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
-    assert.match(css, /prefers-reduced-motion:reduce/);
+    assert.match(communityCss, /#navLinks\.nav-links\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
+    assert.match(communityCss, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)/);
+    assert.match(communityCss, /#navLinks\.nav-links\.closing\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
+    assert.match(communityCss, /prefers-reduced-motion:reduce/);
 });
