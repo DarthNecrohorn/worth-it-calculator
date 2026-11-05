@@ -29,6 +29,106 @@
  .worth-it-theme-editor-head .settings-note{text-align:left}
 }
 
+
+/* Full-site Custom Theme design tokens and live component sample. */
+html[data-worth-it-custom-theme] body{
+ background:
+  radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--primary) 16%,transparent),transparent 30%),
+  radial-gradient(circle at 90% 10%,color-mix(in srgb,var(--primary2) 13%,transparent),transparent 28%),
+  linear-gradient(135deg,var(--bg),var(--bg2));
+ color:var(--text);
+ font-family:var(--worth-it-theme-font-family);
+ line-height:var(--worth-it-theme-body-line-height);
+ letter-spacing:var(--worth-it-theme-body-letter-spacing);
+}
+html[data-worth-it-custom-theme] h1,
+html[data-worth-it-custom-theme] h2,
+html[data-worth-it-custom-theme] h3,
+html[data-worth-it-custom-theme] h4,
+html[data-worth-it-custom-theme] h5,
+html[data-worth-it-custom-theme] h6,
+html[data-worth-it-custom-theme] .calc-card-title,
+html[data-worth-it-custom-theme] .worth-it-settings-panel-heading h2,
+html[data-worth-it-custom-theme] .account-page-title{
+ color:var(--worth-it-theme-heading-color);
+ font-family:var(--worth-it-theme-heading-font-family);
+ font-weight:var(--worth-it-theme-heading-weight);
+ letter-spacing:var(--worth-it-theme-heading-letter-spacing);
+ text-transform:var(--worth-it-theme-heading-transform);
+}
+html[data-worth-it-custom-theme] a:not(.logo):not([class*="button"]):not([class*="-btn"]):not([aria-disabled="true"]){
+ color:var(--worth-it-theme-link-color);
+}
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .worth-it-settings-panel,
+html[data-worth-it-custom-theme] .account-page-card,
+html[data-worth-it-custom-theme] .worth-it-theme-editor,
+html[data-worth-it-custom-theme] .worth-it-report-card{
+ border-radius:var(--radius);
+}
+html[data-worth-it-custom-theme] .settings-option,
+html[data-worth-it-custom-theme] .feedback-nav-btn,
+html[data-worth-it-custom-theme] .settings-btn,
+html[data-worth-it-custom-theme] .signout-nav-btn,
+html[data-worth-it-custom-theme] .auth-btn,
+html[data-worth-it-custom-theme] .menu-btn,
+html[data-worth-it-custom-theme] .calc-economy-nav>button,
+html[data-worth-it-custom-theme] .calc-wallet-nav{
+ border-radius:var(--worth-it-theme-control-radius);
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .feedback-nav-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .settings-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .menu-btn{
+ background:var(--primary)!important;border-color:var(--primary)!important;color:var(--worth-it-gradient-foreground)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .feedback-nav-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .settings-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .menu-btn{
+ background:transparent!important;border:1px solid var(--primary)!important;color:var(--worth-it-primary-readable)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .feedback-nav-btn{
+ background:linear-gradient(115deg,var(--primary),var(--primary2));
+ border-color:transparent;color:var(--worth-it-gradient-foreground);
+}
+.worth-it-theme-design-section{display:grid;gap:9px;padding-top:13px;border-top:1px solid var(--border)}
+.worth-it-theme-design-section h4{color:var(--text);font-size:14px;font-weight:850}
+.worth-it-theme-design-section>p{color:var(--muted);font-size:12px;line-height:1.55}
+.worth-it-theme-style-fields select{
+ width:100%;min-height:46px;padding:9px 36px 9px 11px;border:1px solid var(--border);
+ border-radius:11px;background:var(--card-solid);color:var(--text);font:inherit;cursor:pointer;
+}
+.worth-it-theme-preview{
+ display:grid;gap:12px;width:100%;height:auto;min-height:0;padding:14px;
+ border:1px solid var(--border);border-radius:var(--radius);
+ background:var(--bg);color:var(--text);overflow:hidden;
+}
+.worth-it-theme-preview-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.worth-it-theme-preview-brand{display:flex;align-items:center;gap:8px;color:var(--worth-it-theme-heading-color);font-weight:850}
+.worth-it-theme-preview-mark{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:var(--worth-it-gradient-foreground);font-weight:900}
+.worth-it-theme-preview-chip{padding:5px 9px;border:1px solid var(--border);border-radius:99px;background:var(--card2);color:var(--muted);font-size:9px;font-weight:850;letter-spacing:.08em}
+.worth-it-theme-preview-card{display:grid;gap:8px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card-solid);color:var(--text)}
+.worth-it-theme-preview-eyebrow{color:var(--worth-it-primary-readable);font-size:9px;font-weight:900;letter-spacing:.12em}
+.worth-it-theme-preview-card h4{margin:0;color:var(--worth-it-theme-heading-color);font-size:clamp(16px,2.8vw,21px);font-family:var(--worth-it-theme-heading-font-family);font-weight:var(--worth-it-theme-heading-weight);letter-spacing:var(--worth-it-theme-heading-letter-spacing);text-transform:var(--worth-it-theme-heading-transform)}
+.worth-it-theme-preview-card p{color:var(--text);font-size:12px;line-height:var(--worth-it-theme-body-line-height)}
+.worth-it-theme-preview-card p a{color:var(--worth-it-theme-link-color);text-decoration:underline;text-underline-offset:2px}
+.worth-it-theme-preview-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.worth-it-theme-preview-input{flex:1 1 135px;min-height:34px;display:flex;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:var(--worth-it-theme-control-radius);background:var(--card2);color:var(--muted);font-size:11px}
+.worth-it-theme-preview-controls button{min-height:34px;padding:7px 11px;border:1px solid var(--primary);border-radius:var(--worth-it-theme-control-radius);font-size:11px;font-weight:800}
+.worth-it-theme-preview-primary{background:linear-gradient(115deg,var(--primary),var(--primary2));color:var(--worth-it-gradient-foreground);border-color:transparent!important}
+.worth-it-theme-preview-secondary{background:transparent;color:var(--worth-it-primary-readable)}
+.worth-it-theme-preview-controls button:disabled{opacity:1;cursor:default}
+.worth-it-theme-preview-footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border);color:var(--muted);font-size:10px}
+@media(max-width:600px){
+ .worth-it-theme-editor{padding:12px}
+ .worth-it-theme-preview{padding:10px}
+ .worth-it-theme-preview-card{padding:11px}
+ .worth-it-theme-preview-controls{align-items:stretch}
+ .worth-it-theme-preview-controls button{flex:1 1 100px}
+}
+
 .worth-it-theme-editor{display:grid;gap:14px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft)}
 .worth-it-theme-editor-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .worth-it-theme-preview{width:100%;height:12px;border-radius:99px;background:linear-gradient(110deg,#7C5CFF,#38BDF8)}
