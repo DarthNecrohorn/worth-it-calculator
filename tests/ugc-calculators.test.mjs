@@ -498,3 +498,11 @@ test("calculator explorer settles and restores exactly one visible panel after t
     assert.match(paginationCss, /pointer-events:\s*none\s*!important/);
     assert.match(paginationCss, /data-transitioning="true"[\s\S]*?will-change: transform/);
 });
+
+
+test("community catalogue stays hidden after sign-in until explicitly selected", () => {
+    assert.match(maker, /if\(!state\.userId \|\| previousUserId!==state\.userId\)setExploreInitialView\("basic"\)/);
+    assert.match(maker, /communityActive=Boolean\(state\.userId && state\.exploreView==="community"\)/);
+    assert.match(maker, /if\(gallery\)gallery\.hidden=!communityActive/);
+    assert.match(maker, /setExploreInitialView\(window\.location\.pathname\.startsWith\("\/calculator\/ugc\/"\)\?"community":"basic"\)/);
+});
