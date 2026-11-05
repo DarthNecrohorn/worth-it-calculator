@@ -102,3 +102,13 @@ test("News rechecks the account scope before reusing its in-memory feed", () => 
     assert.match(body, /newsData = \{\};/);
     assert.match(body, /newsLoadInProgress = false;\s*return;/);
 });
+
+test("hamburger opens as a left-to-right drawer and reverses smoothly on close", () => {
+    assert.match(app, /navLinks\.classList\.add\("closing"\)/);
+    assert.match(app, /navMenuCloseTimer/);
+    assert.match(app, /window\.setTimeout\([\s\S]*?460\)/);
+    assert.match(css, /#navLinks\.nav-links\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
+    assert.match(css, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)/);
+    assert.match(css, /#navLinks\.nav-links\.closing\s*\{[\s\S]*?transform:translate3d\(-105%,0,0\)/);
+    assert.match(css, /prefers-reduced-motion:reduce/);
+});
