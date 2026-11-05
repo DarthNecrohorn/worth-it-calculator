@@ -237,7 +237,7 @@ function updateThemeDesigner(theme){
 function decorateThemeColourFields(preview){
  THEME_COLOR_FIELDS.forEach(([id,key])=>{
   const input=$(id);if(!input||input.dataset.themeColourEnhanced==="true")return;input.dataset.themeColourEnhanced="true";
-  const label=input.closest("label"),row=document.createElement("div");row.className="worth-it-theme-hex-row";
+  const label=input.closest("label"),row=document.createElement("span");row.className="worth-it-theme-hex-row";
   const hex=document.createElement("input");hex.type="text";hex.id=id+"Hex";hex.className="worth-it-theme-hex-input";hex.value=input.value.toUpperCase();hex.maxLength=7;hex.autocomplete="off";hex.spellcheck=false;hex.placeholder="#RRGGBB";hex.setAttribute("aria-label",(label?.textContent?.trim().split("\n")[0]||key)+" HEX colour");
   const copy=document.createElement("button");copy.type="button";copy.className="worth-it-theme-small-action";copy.textContent="Copy";
   copy.addEventListener("click",async event=>{event.preventDefault();event.stopPropagation();try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(input.value.toUpperCase());else{hex.focus();hex.select();if(!document.execCommand("copy"))throw new Error("Clipboard unavailable");}toast("Copied "+input.value.toUpperCase());}catch(_){hex.focus();hex.select();toast("Select and copy the HEX value manually.");}});
