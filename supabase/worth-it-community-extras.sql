@@ -99,7 +99,35 @@ create table if not exists public.worth_it_user_themes (
   secondary_color text not null default '#38BDF8'
     check (secondary_color ~ '^#[0-9A-Fa-f]{6}$'),
   header_color text not null default '#0B1120'
-    check (header_color ~ '^#[0-9A-Fa-f]{6}$'),
+    check (header_color ~ '^#[0-9A-Fa-f]{6}
+);
+
+alter table public.worth_it_user_themes enable row level security;
+revoke all on public.worth_it_user_themes from public, anon, authenticated;
+grant select,insert,update,delete on public.worth_it_user_themes to authenticated;
+
+drop policy if exists "Users can view their own custom theme" on public.worth_it_user_themes;
+create policy "Users can view their own custom theme"
+  on public.worth_it_user_themes for select to authenticated
+  using ((select auth.uid()) = user_id);
+drop policy if exists "Users can create their own custom theme" on public.worth_it_user_themes;
+create policy "Users can create their own custom theme"
+  on public.worth_it_user_themes for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+drop policy if exists "Users can update their own custom theme" on public.worth_it_user_themes;
+create policy "Users can update their own custom theme"
+  on public.worth_it_user_themes for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+drop policy if exists "Users can delete their own custom theme" on public.worth_it_user_themes;
+create policy "Users can delete their own custom theme"
+  on public.worth_it_user_themes for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+commit;
+),
+  theme_config jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(theme_config) = 'object'),
   updated_at timestamptz not null default now()
 );
 
