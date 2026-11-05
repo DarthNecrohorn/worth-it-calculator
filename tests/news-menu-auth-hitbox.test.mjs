@@ -107,24 +107,13 @@ test("News rechecks the account scope before reusing its in-memory feed", () => 
 
 test("hamburger drawer opens and closes instantly without timers or transition rules", () => {
     const drawerCss = communityCss.slice(communityCss.indexOf("/* Side drawer:"));
-    assert.doesNotMatch(app, /navMenuCloseTimer|classList\\.(?:add|remove)\\("closing"\\)|setTimeout\\([\\s\\S]*?460/);
-    assert.doesNotMatch(drawerCss, /nav-links\\.closing|transition:\\s*transform/);
-    assert.doesNotMatch(siteThemeCss, /nav-links\\.closing|worthItHamburger|@keyframes/);
-    assert.match(drawerCss, /#navLinks\\.nav-links\\.open\\s*\\{[\\s\\S]*?transform:translate3d\\(0,0,0\\)!important/);
-    assert.match(siteThemeCss, /#navLinks\\.nav-links\\.open[\\s\\S]*?transform: translate3d\\(0,0,0\\)/);
-    assert.match(siteThemeCss, /top: 88px !important/);
-    assert.match(siteThemeCss, /top: 114px !important/);
-});
-
-test("the hamburger drawer opens and closes instantly without the removed motion layer", () => {
-    assert.doesNotMatch(siteThemeCss, /worthItHamburger|@keyframes/);
-    assert.doesNotMatch(siteThemeCss, /animation-duration:\s*\.5[46]s/);
-    assert.doesNotMatch(siteThemeCss, /transition:\s*transform\s*\.24s/);
+    assert.doesNotMatch(app, /navMenuCloseTimer|classList\.(?:add|remove)\("closing"\)|setTimeout\([\s\S]*?460/);
+    assert.doesNotMatch(drawerCss, /nav-links\.closing|transition:\s*transform/);
+    assert.doesNotMatch(siteThemeCss, /nav-links\.closing|worthItHamburger|@keyframes/);
+    assert.match(drawerCss, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)!important/);
     assert.match(siteThemeCss, /#navLinks\.nav-links\.open[\s\S]*?transform: translate3d\(0,0,0\)/);
-    assert.match(siteThemeCss, /#navLinks\.nav-links\.closing[\s\S]*?transform: translate3d\(-105%,0,0\)/);
     assert.match(siteThemeCss, /top: 88px !important/);
     assert.match(siteThemeCss, /top: 114px !important/);
-    assert.match(html, /site-theme-system\.css\?v=/);
 });
 
 
@@ -139,7 +128,7 @@ test("responsive header stacks the economy controls under the logo and enlarges 
     assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?height: 44px/);
     assert.doesNotMatch(block, /worthItHamburger|animation-duration: \.5[46]s/);
     assert.match(block, /\.nav-inner > \.menu-btn\[aria-expanded="true"\][\s\S]*?background:/);
-    assert.match(html, /site-theme-system\.css\?v=global-theme-wallpaper-drawer-20261105d/);
+    assert.match(html, /site-theme-system\.css\?v=drawer-instant-20261105a/);
 });
 
 test("the homepage no longer reserves a large block for outdated calculator statistics", () => {
