@@ -4,7 +4,30 @@ const $ = id => document.getElementById(id);
 const sb = () => window.supabaseClient || null;
 const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
-const DEFAULT_THEME = {name:"Worth It",primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120"};
+const DEFAULT_THEME = {
+ name:"Worth It",
+ primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120",
+ background:"#070B14",surface:"#11192A",surfaceAlt:"#151F33",
+ text:"#F8FAFC",heading:"#FFFFFF",muted:"#94A3B8",link:"#A99BFF",border:"#334155",
+ fontFamily:"inter",headingStyle:"modern",bodyStyle:"standard",
+ corners:"soft",buttonStyle:"gradient",cardStyle:"glass"
+};
+const THEME_COLOR_FIELDS = Object.freeze([
+ ["worthItThemePrimary","primary"],["worthItThemeSecondary","secondary"],
+ ["worthItThemeHover","hover"],["worthItThemeHeader","header"],
+ ["worthItThemeBackground","background"],["worthItThemeSurface","surface"],
+ ["worthItThemeSurfaceAlt","surfaceAlt"],["worthItThemeText","text"],
+ ["worthItThemeHeading","heading"],["worthItThemeMuted","muted"],
+ ["worthItThemeLink","link"],["worthItThemeBorder","border"]
+]);
+const THEME_SELECT_FIELDS = Object.freeze([
+ ["worthItThemeFontFamily","fontFamily",["inter","system","arial","georgia","mono"]],
+ ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical"]],
+ ["worthItThemeBodyStyle","bodyStyle",["standard","comfortable","compact"]],
+ ["worthItThemeCorners","corners",["soft","rounded","sharp"]],
+ ["worthItThemeButtonStyle","buttonStyle",["gradient","solid","outline"]],
+ ["worthItThemeCardStyle","cardStyle",["glass","solid","flat"]]
+]);
 const PREVIEW_REPORTS_KEY = "worthItPreviewReports:v1";
 const currentHost = String(window.location.hostname || "").toLowerCase();
 const COMMUNITY_PREVIEW_MODE = currentHost.endsWith(".worth-it-calculator.pages.dev") && currentHost !== "worth-it-calculator.pages.dev";
@@ -23,6 +46,8 @@ let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
 let themePreviewActive = false;
+let themeExpiryTimer = null;
+let themeReturnRefreshAt = 0;
 let favouritesRemoteAvailable = null;
 let favouritesLocalNoticeShown = false;
 let reportVisibilityTimer = null;
@@ -43,13 +68,44 @@ function isMissingCommunitySchema(error){
 }
 function cleanTheme(value){
  const theme=value&&typeof value==="object"?value:{};
- return {
-  name:String(theme.name||DEFAULT_THEME.name).trim().slice(0,24)||DEFAULT_THEME.name,
-  primary:validHex(theme.primary)?theme.primary.toUpperCase():DEFAULT_THEME.primary,
-  secondary:validHex(theme.secondary)?theme.secondary.toUpperCase():DEFAULT_THEME.secondary,
-  hover:validHex(theme.hover)?theme.hover.toUpperCase():DEFAULT_THEME.hover,
-  header:validHex(theme.header)?theme.header.toUpperCase():DEFAULT_THEME.header
+ const cleaned={
+  name:String(theme.name||DEFAULT_THEME.name).trim().slice(0,24)||DEFAULT_THEME.name
  };
+ THEME_COLOR_FIELDS.forEach(([,key])=>{
+  cleaned[key]=validHex(theme[key])?String(theme[key]).toUpperCase():DEFAULT_THEME[key];
+ });
+ THEME_SELECT_FIELDS.forEach(([,key,allowed])=>{
+  cleaned[key]=allowed.includes(String(theme[key]||""))?String(theme[key]):DEFAULT_THEME[key];
+ });
+ return cleaned;
+}
+function themeConfig(theme){
+ const clean=cleanTheme(theme);
+ const config={};
+ THEME_COLOR_FIELDS.slice(4).forEach(([,key])=>{config[key]=clean[key];});
+ THEME_SELECT_FIELDS.forEach(([,key])=>{config[key]=clean[key];});
+ return config;
+}
+function readThemeFromForm(){
+ const value={name:$("worthItThemeName")?.value||DEFAULT_THEME.name};
+ THEME_COLOR_FIELDS.forEach(([id,key])=>{value[key]=$(id)?.value||DEFAULT_THEME[key];});
+ THEME_SELECT_FIELDS.forEach(([id,key])=>{value[key]=$(id)?.value||DEFAULT_THEME[key];});
+ return cleanTheme(value);
+}
+function setThemeFormValues(theme){
+ THEME_COLOR_FIELDS.forEach(([id,key])=>{const node=$(id);if(node)node.value=theme[key];});
+ THEME_SELECT_FIELDS.forEach(([id,key])=>{const node=$(id);if(node)node.value=theme[key];});
+ const name=$("worthItThemeName");if(name)name.value=theme.name;
+}
+function accessibleThemeText(color,surfaces){
+ const clean=validHex(color)?color.toUpperCase():"#FFFFFF";
+ const backgrounds=(Array.isArray(surfaces)?surfaces:[]).filter(validHex);
+ if(!backgrounds.length||backgrounds.every(background=>contrastRatio(clean,background)>=4.5))return clean;
+ const candidates=["#FFFFFF","#08111F"];
+ return candidates.sort((a,b)=>{
+  const score=value=>Math.min(...backgrounds.map(background=>contrastRatio(value,background)));
+  return score(b)-score(a);
+ })[0];
 }
 function hexRgb(hex){
  const clean=String(hex||"").replace("#","");
@@ -86,7 +142,7 @@ function gradientForeground(primary,secondary){
 }
 function isCustomTheme(value){
  const theme=cleanTheme(value);
- return theme.primary!==DEFAULT_THEME.primary || theme.secondary!==DEFAULT_THEME.secondary || theme.hover!==DEFAULT_THEME.hover || theme.header!==DEFAULT_THEME.header;
+ return Object.keys(DEFAULT_THEME).some(key=>key!=="name"&&theme[key]!==DEFAULT_THEME[key]);
 }
 function hasPremiumThemeAccess(wallet){
  if(!wallet)return false;
@@ -103,10 +159,10 @@ function updateThemeAccessUI(){
  const save=$("worthItThemeSaveButton"),reset=$("worthItThemeResetButton"),previewLabel=$("worthItThemePreviewLabel");
  if(save)save.textContent=themeEntitled?"Save my theme":"Unlock to save →";
  if(previewLabel)previewLabel.textContent=themeEntitled?"Live preview · Save to keep it active":"Free live preview · Save with Premium";
- if(reset)reset.textContent=themeEntitled?"Restore default colours":"Reset preview colours";
- ["worthItThemePrimary","worthItThemeSecondary","worthItThemeHover","worthItThemeHeader","worthItThemeName","worthItThemeResetButton"].forEach(id=>{
-  const node=$(id);if(node)node.disabled=false;
- });
+ if(reset)reset.textContent=themeEntitled?"Restore default theme":"Reset preview theme";
+ THEME_COLOR_FIELDS.forEach(([id])=>{const node=$(id);if(node)node.disabled=false;});
+ THEME_SELECT_FIELDS.forEach(([id])=>{const node=$(id);if(node)node.disabled=false;});
+ ["worthItThemeName","worthItThemeResetButton"].forEach(id=>{const node=$(id);if(node)node.disabled=false;});
  if(save)save.disabled=false;
 }
 function updateAppearanceModeControls(){
@@ -126,10 +182,46 @@ function applyTheme(value){
  const selectedTheme=cleanTheme(value);
  activeTheme=selectedTheme;
  const root=document.documentElement;
- // Public profile pages own their full-width banner and avatar styling. Keep the
- // saved palette in memory, but expose only the standard site palette on profiles.
- const theme=root.classList.contains("worth-it-profile-theme-isolated")?DEFAULT_THEME:selectedTheme;
+ // Public profile pages own their full-width banner and avatar styling.
+ // Keep the saved palette in memory, but expose only the standard palette on profiles.
+ const isolated=root.classList.contains("worth-it-profile-theme-isolated");
+ const theme=isolated?DEFAULT_THEME:selectedTheme;
  if(isCustomTheme(theme)){
+  const surfaces=[theme.background,theme.surface];
+  const bodyFont={
+   inter:'"Inter",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif',
+   system:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+   arial:'Arial,Helvetica,sans-serif',
+   georgia:'Georgia,"Times New Roman",serif',
+   mono:'"SFMono-Regular",Consolas,"Liberation Mono",monospace'
+  }[theme.fontFamily];
+  const headingStyles={
+   modern:{family:bodyFont,weight:"800",spacing:"-.025em",transform:"none"},
+   bold:{family:bodyFont,weight:"950",spacing:"-.045em",transform:"none"},
+   editorial:{family:'Georgia,"Times New Roman",serif',weight:"700",spacing:"-.015em",transform:"none"},
+   technical:{family:'"SFMono-Regular",Consolas,"Liberation Mono",monospace',weight:"800",spacing:".035em",transform:"uppercase"}
+  }[theme.headingStyle];
+  const bodyStyles={
+   standard:{line:"1.55",spacing:"normal"},
+   comfortable:{line:"1.72",spacing:".01em"},
+   compact:{line:"1.42",spacing:"-.005em"}
+  }[theme.bodyStyle];
+  const radii={
+   soft:{card:"16px",control:"10px"},
+   rounded:{card:"26px",control:"16px"},
+   sharp:{card:"7px",control:"5px"}
+  }[theme.corners];
+  const cardAlpha=theme.cardStyle==="glass"?"82%":theme.cardStyle==="flat"?"68%":"100%";
+  root.style.setProperty("--bg",theme.background);
+  root.style.setProperty("--bg2",theme.background);
+  root.style.setProperty("--card-solid",theme.surface);
+  root.style.setProperty("--card2",theme.surfaceAlt);
+  root.style.setProperty("--card","color-mix(in srgb,"+theme.surface+" "+cardAlpha+",transparent)");
+  root.style.setProperty("--surface-soft","color-mix(in srgb,"+theme.surfaceAlt+" 74%,transparent)");
+  root.style.setProperty("--border",theme.border);
+  root.style.setProperty("--text",accessibleThemeText(theme.text,surfaces));
+  root.style.setProperty("--muted",accessibleThemeText(theme.muted,surfaces));
+  root.style.setProperty("--muted2",accessibleThemeText(theme.muted,surfaces));
   root.style.setProperty("--primary",theme.primary);
   root.style.setProperty("--primary2",theme.secondary);
   root.style.setProperty("--worth-it-hover-glow",theme.hover);
@@ -140,27 +232,39 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-gradient-foreground",gradientForeground(theme.primary,theme.secondary));
   root.style.setProperty("--worth-it-primary-readable",readableAccent(theme.primary));
   root.style.setProperty("--worth-it-secondary-readable",readableAccent(theme.secondary));
+  root.style.setProperty("--worth-it-theme-heading-color",accessibleThemeText(theme.heading,surfaces));
+  root.style.setProperty("--worth-it-theme-link-color",accessibleThemeText(theme.link,surfaces));
+  root.style.setProperty("--worth-it-theme-font-family",bodyFont);
+  root.style.setProperty("--worth-it-theme-heading-font-family",headingStyles.family);
+  root.style.setProperty("--worth-it-theme-heading-weight",headingStyles.weight);
+  root.style.setProperty("--worth-it-theme-heading-letter-spacing",headingStyles.spacing);
+  root.style.setProperty("--worth-it-theme-heading-transform",headingStyles.transform);
+  root.style.setProperty("--worth-it-theme-body-line-height",bodyStyles.line);
+  root.style.setProperty("--worth-it-theme-body-letter-spacing",bodyStyles.spacing);
+  root.style.setProperty("--radius",radii.card);
+  root.style.setProperty("--worth-it-theme-control-radius",radii.control);
   root.dataset.worthItCustomTheme=theme.name||"Custom";
+  root.dataset.worthItButtonStyle=theme.buttonStyle;
+  root.dataset.worthItCardStyle=theme.cardStyle;
+  root.dataset.worthItCorners=theme.corners;
  }else{
-  ["--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient","--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground","--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable"].forEach(property=>root.style.removeProperty(property));
+  [
+   "--bg","--bg2","--card","--card-solid","--card2","--border","--text","--muted","--muted2",
+   "--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient",
+   "--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground",
+   "--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable",
+   "--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
+   "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
+   "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
+   "--worth-it-theme-control-radius","--surface-soft"
+  ].forEach(property=>root.style.removeProperty(property));
+  root.style.removeProperty("--radius");
   root.removeAttribute("data-worth-it-custom-theme");
+  delete root.dataset.worthItButtonStyle;delete root.dataset.worthItCardStyle;delete root.dataset.worthItCorners;
  }
- const primary=$("worthItThemePrimary"),secondary=$("worthItThemeSecondary"),hover=$("worthItThemeHover"),header=$("worthItThemeHeader"),name=$("worthItThemeName");
- if(primary)primary.value=selectedTheme.primary;
- if(secondary)secondary.value=selectedTheme.secondary;
- if(hover)hover.value=selectedTheme.hover;
- if(header)header.value=selectedTheme.header;
- if(name)name.value=selectedTheme.name;
+ setThemeFormValues(selectedTheme);
  const preview=$("worthItThemePreview");
- if(preview){
-  preview.style.background=isCustomTheme(selectedTheme)
-   ?"linear-gradient(120deg,"+selectedTheme.primary+","+selectedTheme.secondary+")"
-   :"linear-gradient(120deg,#7c5cff,#38bdf8)";
-  preview.style.setProperty("--preview-hover",selectedTheme.hover);
-  preview.style.setProperty("--preview-header",selectedTheme.header);
-  preview.style.setProperty("--preview-header-foreground",contrastForeground(selectedTheme.header));
-  preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
- }
+ if(preview)preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
  updateAppearanceModeControls();
  return selectedTheme;
 }
@@ -175,77 +279,149 @@ function setThemeStatus(message,isError){
  node.textContent=String(message||"");
  node.classList.toggle("is-error",Boolean(isError));
 }
-async function loadThemeForSession(){
- const request=++themeRequest;let session=null,wallet=null;
- const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
- try{const result=await sb()?.auth?.getSession?.();if(result?.error)throw result.error;session=result?.data?.session||null;}catch(_){}
- const userId=session?.user?.id||"";themeUserId=userId;themeRemoteAvailable=userId?null:false;
- try{wallet=await window.refreshWorthItCalcWallet?.()||null;}catch(error){console.warn("Could not verify Premium access for Custom Themes:",error);}
- if(request!==themeRequest||themeUserId!==userId)return;
- themeEntitled=hasPremiumThemeAccess(wallet);
- themeEntitlementResolved=true;
+async function clearThemeAfterExpiry(userId,request){
  savedTheme=DEFAULT_THEME;
- updateThemeAccessUI();
- if(!themeEntitled){
+ removeLocal(scopedKey(THEME_KEY,userId));
+ themeRemoteAvailable=userId?null:false;
+ if(userId&&themeRemoteAvailable!==false){
+  try{
+   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",userId);
+   if(result.error)throw result.error;
+   themeRemoteAvailable=true;
+  }catch(error){
+   if(isMissingCommunitySchema(error))themeRemoteAvailable=false;
+   else console.warn("Expired Custom Theme could not be removed from the account:",error);
+  }
+ }
+ if(request!==themeRequest||themeUserId!==userId)return false;
+ return true;
+}
+function scheduleThemeExpiry(wallet,userId){
+ if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
+ if(!wallet||wallet.is_owner===true||!userId)return;
+ const expiry=Date.parse(wallet.premium_expires_at||"");
+ if(!Number.isFinite(expiry))return;
+ const maxDelay=2147480000;
+ const delay=Math.max(250,Math.min(maxDelay,expiry-Date.now()+750));
+ themeExpiryTimer=window.setTimeout(()=>{
+  if(themeUserId!==userId)return;
+  if(Date.now()<expiry){scheduleThemeExpiry(wallet,userId);return;}
+  void loadThemeForSession();
+ },delay);
+}
+async function loadThemeForSession(){
+ const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
+ const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
+ try{
+  const result=await sb()?.auth?.getSession?.();
+  if(result?.error)throw result.error;
+  session=result?.data?.session||null;sessionResolved=true;
+ }catch(error){console.warn("Could not verify the Worth It session for Custom Themes:",error);}
+ if(request!==themeRequest)return;
+ const userId=session?.user?.id||"";
+ themeUserId=userId;
+ if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
+ if(!sessionResolved){
+  themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
   applyTheme(livePreview||DEFAULT_THEME);
-  setThemeStatus("Try every colour below. Your preview lasts while Settings is open; saving and keeping it active across Worth It is a Premium Lite and Premium benefit.",false);
+  setThemeStatus("Your account status could not be verified. No saved theme was deleted; try again when your connection is restored.",true);
   return;
  }
+ if(!userId){
+  themeRemoteAvailable=false;themeEntitled=false;themeEntitlementResolved=true;savedTheme=DEFAULT_THEME;
+  updateThemeAccessUI();applyTheme(livePreview||DEFAULT_THEME);
+  setThemeStatus("You can preview all Custom Theme options here. Sign in with Premium Lite or Premium to save a theme.",false);
+  return;
+ }
+ themeRemoteAvailable=null;
+ try{
+  wallet=await window.refreshWorthItCalcWallet?.()||null;
+  walletResolved=Boolean(wallet&&wallet.ok===true&&!wallet.is_guest);
+ }catch(error){console.warn("Could not verify Premium access for Custom Themes:",error);}
+ if(request!==themeRequest||themeUserId!==userId)return;
+ if(!walletResolved){
+  themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
+  applyTheme(livePreview||DEFAULT_THEME);
+  setThemeStatus("Your subscription could not be verified. You can still preview colours, but no saved theme has been changed. Please retry when the account service is available.",true);
+  return;
+ }
+ themeEntitled=hasPremiumThemeAccess(wallet);
+ themeEntitlementResolved=true;
+ updateThemeAccessUI();
+ if(!themeEntitled){
+  const hadSavedTheme=Boolean(readLocal(scopedKey(THEME_KEY,userId)));
+  await clearThemeAfterExpiry(userId,request);
+  if(request!==themeRequest||themeUserId!==userId)return;
+  applyTheme(livePreview||DEFAULT_THEME);
+  setThemeStatus(hadSavedTheme
+   ?"Your Premium subscription is no longer active. Your saved Custom Theme was reset to the default. You can continue trying colours for free."
+   :"Try every colour below. Your preview lasts while Settings is open; saving and keeping it active across Worth It is a Premium Lite and Premium benefit.",false);
+  return;
+ }
+ scheduleThemeExpiry(wallet,userId);
  try{
   const raw=readLocal(scopedKey(THEME_KEY,userId));
   savedTheme=raw?cleanTheme(JSON.parse(raw)):DEFAULT_THEME;
   applyTheme(livePreview||savedTheme);
  }catch(_){savedTheme=DEFAULT_THEME;applyTheme(livePreview||DEFAULT_THEME);}
- if(!userId)return;
  try{
-  const result=await sb().from("worth_it_user_themes").select("theme_name,primary_color,secondary_color,hover_color,header_color").eq("user_id",userId).maybeSingle();
+  const result=await sb().from("worth_it_user_themes")
+   .select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
+   .eq("user_id",userId).maybeSingle();
   if(request!==themeRequest||themeUserId!==userId)return;
   if(result.error)throw result.error;
   if(result.data){
-   savedTheme=cleanTheme({name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,hover:result.data.hover_color,header:result.data.header_color});
-   writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));applyTheme(livePreview||savedTheme);
+   const config=result.data.theme_config&&typeof result.data.theme_config==="object"?result.data.theme_config:{};
+   savedTheme=cleanTheme({
+    name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,
+    hover:result.data.hover_color,header:result.data.header_color,...config
+   });
+   writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
+   applyTheme(livePreview||savedTheme);
   }else{
-   savedTheme=DEFAULT_THEME;
-   removeLocal(scopedKey(THEME_KEY,userId));
+   savedTheme=DEFAULT_THEME;removeLocal(scopedKey(THEME_KEY,userId));
    applyTheme(livePreview||DEFAULT_THEME);
   }
+  themeRemoteAvailable=true;
  }catch(error){
-  if(isMissingCommunitySchema(error)){themeRemoteAvailable=false;setThemeStatus("Preview-only: your saved Premium theme is stored on this device and will sync after the community migration is installed.",false);}
-  else{console.warn("Worth It custom theme could not be synchronised:",error);}
+  if(isMissingCommunitySchema(error)){
+   themeRemoteAvailable=false;
+   setThemeStatus("Preview-only: your saved Premium theme is stored on this device and will sync after the theme design migration is installed.",false);
+  }else{console.warn("Worth It custom theme could not be synchronised:",error);}
  }
 }
 async function saveCustomTheme(){
  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to save a Custom Theme.",true);return;}
  if(!themeEntitlementResolved||!themeEntitled){
-  setThemeStatus("You can try every colour for free. Saving your theme and keeping it active across Worth It requires Premium Lite or Premium.",true);
+  setThemeStatus("You can try every colour and style for free. Saving your complete theme and keeping it active across Worth It requires Premium Lite or Premium.",true);
   window.openWorthItThemeUpgrade?.();
   return;
  }
- const rawPrimary=$("worthItThemePrimary")?.value||"",rawSecondary=$("worthItThemeSecondary")?.value||"",rawHover=$("worthItThemeHover")?.value||"",rawHeader=$("worthItThemeHeader")?.value||"";
- if(!validHex(rawPrimary)||!validHex(rawSecondary)||!validHex(rawHover)||!validHex(rawHeader)){setThemeStatus("Choose valid colours before saving.",true);return;}
- const theme=cleanTheme({name:$("worthItThemeName")?.value,primary:rawPrimary,secondary:rawSecondary,hover:rawHover,header:rawHeader});
- if(!isCustomTheme(theme)){setThemeStatus("Choose at least one colour that differs from the default palette before saving a custom theme.",true);return;}
+ const theme=readThemeFromForm();
+ if(!isCustomTheme(theme)){setThemeStatus("Choose at least one setting that differs from the default Worth It theme before saving.",true);return;}
  if(!themeUserId){setThemeStatus("Sign in with your Premium account to save and sync your custom theme.",true);return;}
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
  try{
   if(themeRemoteAvailable===false){
    savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
    themePreviewActive=false;applyTheme(theme);
-   setThemeStatus("Your custom theme is saved on this device. Account sync will activate after the community migration is installed.",false);
+   setThemeStatus("Your custom theme is saved on this device. Account sync will activate after the theme design migration is installed.",false);
    return;
   }
   const result=await sb().from("worth_it_user_themes").upsert({
-   user_id:themeUserId,theme_name:theme.name,primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,header_color:theme.header,updated_at:new Date().toISOString()
+   user_id:themeUserId,theme_name:theme.name,
+   primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,header_color:theme.header,
+   theme_config:themeConfig(theme),updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
   if(result.error)throw result.error;
   savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
   themePreviewActive=false;applyTheme(theme);
-  setThemeStatus("Your custom theme is saved and will stay active across Worth It.",false);
+  setThemeStatus("Your complete custom theme is saved and will stay active across Worth It.",false);
  }catch(error){
   if(isMissingCommunitySchema(error)){
    themeRemoteAvailable=false;savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
    themePreviewActive=false;applyTheme(theme);
-   setThemeStatus("Your custom theme is saved on this device. Account sync will activate after the community migration is installed.",false);
+   setThemeStatus("Your custom theme is saved on this device. Account sync will activate after the theme design migration is installed.",false);
   }else{
    themePreviewActive=true;applyTheme(theme);
    setThemeStatus("The preview is active, but your theme could not be saved to your account. Please try again.",true);
@@ -563,16 +739,22 @@ function init(){
  installFavouriteFilter();
  $("worthItThemeSaveButton")?.addEventListener("click",saveCustomTheme);
  $("worthItThemeResetButton")?.addEventListener("click",resetCustomTheme);
- ["worthItThemePrimary","worthItThemeSecondary","worthItThemeHover","worthItThemeHeader","worthItThemeName"].forEach(id=>{
-  $(id)?.addEventListener("input",()=>{
-   if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to preview Custom Themes.",false);return;}
-   applyTheme({name:$("worthItThemeName")?.value,primary:$("worthItThemePrimary")?.value,secondary:$("worthItThemeSecondary")?.value,hover:$("worthItThemeHover")?.value,header:$("worthItThemeHeader")?.value});
-   themePreviewActive=true;
-   setThemeStatus(themeEntitled
-    ?"Live preview. Save your theme to keep it active across Worth It; leaving without saving restores your saved colours."
-    :"Free live preview. Your colours reset when you leave Settings. Premium Lite and Premium members can save and keep their theme across Worth It.",false);
-  });
+ const previewThemeFromForm=()=>{
+  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to preview Custom Themes.",false);return;}
+  const theme=readThemeFromForm();
+  applyTheme(theme);themePreviewActive=true;
+  setThemeStatus(themeEntitled
+   ?"Live preview. Save your complete theme to keep all colours and styles active across Worth It; leaving without saving restores your saved design."
+   :"Free live preview. Try colours, fonts, heading styles, buttons and corners. Your preview resets when you leave Settings; Premium Lite and Premium members can save it.",false);
+ };
+ THEME_COLOR_FIELDS.forEach(([id])=>{
+  $(id)?.addEventListener("input",previewThemeFromForm);
+  $(id)?.addEventListener("change",previewThemeFromForm);
  });
+ THEME_SELECT_FIELDS.forEach(([id])=>{
+  $(id)?.addEventListener("change",previewThemeFromForm);
+ });
+ $("worthItThemeName")?.addEventListener("input",previewThemeFromForm);
  $("worthItProfileReportButton")?.addEventListener("click",openProfileReport);
  const settingsPage=$("settingsPage");
  if(settingsPage&&typeof MutationObserver==="function"){
@@ -598,11 +780,22 @@ function init(){
   }).observe(grid,{childList:true});
  });
  void loadFavouritesForSession();void loadThemeForSession();
+ const refreshThemeOnReturn=()=>{
+  if(document.hidden)return;
+  const now=Date.now();
+  if(now-themeReturnRefreshAt<5000)return;
+  themeReturnRefreshAt=now;
+  void loadThemeForSession();
+ };
+ window.addEventListener("focus",refreshThemeOnReturn);
+ window.addEventListener("pageshow",refreshThemeOnReturn);
+ document.addEventListener("visibilitychange",refreshThemeOnReturn);
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(()=>{
   setTimeout(()=>{void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();},0);
  });
 }
 window.refreshWorthItCommunityFeatures=function(){void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();};
+window.refreshWorthItCustomTheme=loadThemeForSession;
 window.resetWorthItCustomTheme=resetCustomTheme;
 window.isWorthItCustomThemeActive=()=>Boolean(document.documentElement?.hasAttribute("data-worth-it-custom-theme"));
 window.openWorthItThemeUpgrade=async function(){
