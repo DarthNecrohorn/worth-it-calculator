@@ -333,3 +333,42 @@ body.ugc-maker-open{overflow:hidden}
 
 .worth-it-notification-calculator-link{color:var(--primary2);font-weight:850;text-decoration:underline;text-decoration-color:rgba(124,92,255,.5);text-underline-offset:2px}
 .worth-it-notification-calculator-link:hover{color:var(--primary);text-decoration-color:currentColor}
+
+
+/* Local, free AI Maker test mode: interactive inputs and live formula results. */
+.ugc-maker-test-toggle{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ margin:10px 0 0;padding:10px 14px;border:1px solid color-mix(in srgb,var(--primary) 48%,var(--border));
+ border-radius:11px;background:color-mix(in srgb,var(--primary) 10%,var(--card-solid));
+ color:var(--text);font-size:12px;font-weight:850;cursor:pointer;
+ transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.ugc-maker-test-toggle:hover{background:color-mix(in srgb,var(--primary) 17%,var(--card-solid));border-color:var(--primary);transform:translateY(-1px)}
+.ugc-maker-test-panel{margin:12px 0 6px;padding:16px;border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));border-radius:15px;background:color-mix(in srgb,var(--primary) 4%,var(--card-solid))}
+.ugc-maker-test-panel[hidden]{display:none!important}
+.ugc-maker-test-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+.ugc-maker-test-head h4{margin:0 0 5px;color:var(--text);font-size:15px}
+.ugc-maker-test-head p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.ugc-maker-test-reset{flex:0 0 auto;border:1px solid var(--border);border-radius:9px;padding:7px 10px;background:var(--surface-soft);color:var(--text);font-size:10px;font-weight:800;cursor:pointer}
+.ugc-maker-test-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ugc-maker-test-input{min-width:0;margin:0!important;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--text)!important}
+.ugc-maker-test-input>span{color:var(--text);font-size:11px;font-weight:800;overflow-wrap:anywhere}
+.ugc-maker-test-input input{width:100%;min-width:0;margin-top:2px;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card-solid);color:var(--text);font-size:13px;font-weight:750;font-variant-numeric:tabular-nums}
+.ugc-maker-test-input input[aria-invalid="true"]{border-color:var(--danger);box-shadow:0 0 0 1px color-mix(in srgb,var(--danger) 25%,transparent)}
+.ugc-maker-test-input small{color:var(--muted);font-size:10px;font-weight:600}
+.ugc-maker-test-results-heading{margin:16px 0 9px;color:var(--text);font-size:13px}
+.ugc-maker-test-results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ugc-maker-test-result{display:flex;min-width:0;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--card-solid)}
+.ugc-maker-test-result>span{color:var(--muted);font-size:10px;font-weight:800}
+.ugc-maker-test-result>strong{color:var(--text);font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ugc-maker-test-result.is-error{border-color:color-mix(in srgb,var(--danger) 55%,var(--border))}
+.ugc-maker-test-result.is-error>strong,.ugc-maker-test-result.is-error>small{color:var(--danger)}
+.ugc-maker-test-result>small{font-size:10px;line-height:1.45}
+.ugc-maker-test-status{min-height:18px;margin:10px 0 4px;color:var(--muted);font-size:10px}
+.ugc-maker-test-note{margin:0;color:var(--primary2);font-size:10px;line-height:1.5}
+@media(max-width:560px){
+ .ugc-maker-test-panel{padding:12px}
+ .ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:minmax(0,1fr)}
+ .ugc-maker-test-head{gap:8px}
+ .ugc-maker-test-result>strong{font-size:16px}
+}
