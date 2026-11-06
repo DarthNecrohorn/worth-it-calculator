@@ -56,16 +56,11 @@ function withFetch(mock, callback) {
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
 
-test("AI Maker closes only on a direct backdrop click, not when text selection ends outside the card", () => {
-    const modalStart = html.indexOf('<div id="ugcMakerModal"');
-    const modalMarkup = html.slice(modalStart, modalStart + 400);
-    assert.ok(modalStart >= 0 && modalMarkup.includes('<section id="ugcMakerOverlay"'), "maker card is nested inside the outer backdrop");
-    assert.ok(maker.includes('const makerModal=$("ugcMakerModal");'), "the outer modal is selected for backdrop handling");
-    assert.ok(maker.includes('let makerBackdropPointerDown=false;'), "backdrop pointer origin is tracked");
-    assert.ok(maker.includes('makerModal?.addEventListener("pointerdown",event=>{makerBackdropPointerDown=event.target===makerModal;});'), "only a pointer press that starts on the backdrop qualifies");
-    assert.ok(maker.includes('const shouldClose=makerBackdropPointerDown&&event.target===makerModal;'), "the pointer must also end on the backdrop before closing");
-    assert.ok(maker.includes('makerModal?.addEventListener("pointercancel",()=>{makerBackdropPointerDown=false;});'), "cancelled pointer interactions reset backdrop state");
-    assert.ok(!maker.includes('$("ugcMakerOverlay")?.addEventListener("click"'), "clicks inside the maker card must not dismiss it");
+test("AI Maker can be closed only with its X button; backdrop clicks never dismiss it", () => {
+    assert.ok(maker.includes('$("ugcMakerClose")?.addEventListener("click",closeMaker);'), "the X button is wired to close the maker");
+    assert.ok(!maker.includes('addEventListener("click",event=>{\n  const shouldClose='), "there is no backdrop click-to-close handler");
+    assert.ok(!maker.includes('makerBackdropPointerDown'), "there is no pointer-based backdrop dismissal");
+    assert.ok(!maker.includes('$("ugcMakerOverlay")?.addEventListener("click"'), "clicking the calculator card never dismisses the maker");
 });
 
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
