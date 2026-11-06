@@ -77,7 +77,7 @@ begin
             null,'Free second draft','','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when program_limit_exceeded then blocked:=true;
+    exception when raise_exception then blocked:=true;
     end;
     if not blocked then raise exception 'Free account created more than one calculator in a UTC day.'; end if;
 end
