@@ -56,12 +56,15 @@ function withFetch(mock, callback) {
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
 
-test("AI Maker closes only when the outer backdrop itself is clicked", () => {
+test("AI Maker closes only on a direct backdrop click, not when text selection ends outside the card", () => {
     const modalStart = html.indexOf('<div id="ugcMakerModal"');
     const modalMarkup = html.slice(modalStart, modalStart + 400);
     assert.ok(modalStart >= 0 && modalMarkup.includes('<section id="ugcMakerOverlay"'), "maker card is nested inside the outer backdrop");
     assert.ok(maker.includes('const makerModal=$("ugcMakerModal");'), "the outer modal is selected for backdrop handling");
-    assert.ok(maker.includes('makerModal?.addEventListener("click",event=>{if(event.target===makerModal)closeMaker();});'), "only a direct click on the outer backdrop closes the modal");
+    assert.ok(maker.includes('let makerBackdropPointerDown=false;'), "backdrop pointer origin is tracked");
+    assert.ok(maker.includes('makerModal?.addEventListener("pointerdown",event=>{makerBackdropPointerDown=event.target===makerModal;});'), "only a pointer press that starts on the backdrop qualifies");
+    assert.ok(maker.includes('const shouldClose=makerBackdropPointerDown&&event.target===makerModal;'), "the pointer must also end on the backdrop before closing");
+    assert.ok(maker.includes('makerModal?.addEventListener("pointercancel",()=>{makerBackdropPointerDown=false;});'), "cancelled pointer interactions reset backdrop state");
     assert.ok(!maker.includes('$("ugcMakerOverlay")?.addEventListener("click"'), "clicks inside the maker card must not dismiss it");
 });
 
