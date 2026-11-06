@@ -777,7 +777,8 @@ async function init(){
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
- $("ugcMakerOverlay")?.addEventListener("click",event=>{if(event.target.id==="ugcMakerOverlay")closeMaker();});
+ const makerModal=$("ugcMakerModal");
+ makerModal?.addEventListener("click",event=>{if(event.target===makerModal)closeMaker();});
  $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
