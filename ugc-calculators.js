@@ -332,13 +332,16 @@ async function runCalculation(calculator){
  let reserved=false;
  try{
   const usagePriceMilli=Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100));
-  const priceLabel=formatCalcPrice(usagePriceMilli);
+  let priceLabel=formatCalcPrice(usagePriceMilli);
   const reserve=await sb().rpc("calc_wallet_reserve",{p_request_id:requestId,p_reason:"calculator",p_calculator_id:calculator.id});
   if(reserve.error)throw reserve.error;
   if(!reserve.data?.ok){
-   if(reserve.data?.code==="INSUFFICIENT_CALC")throw new Error("Not enough CALC. This calculation costs "+priceLabel+" CALC. Visit Web Shop or collect your daily reward.");
+   const requiredMilli=Number(reserve.data?.required)*1000;
+   const requiredLabel=Number.isFinite(requiredMilli)&&requiredMilli>0?formatCalcPrice(requiredMilli):priceLabel;
+   if(reserve.data?.code==="INSUFFICIENT_CALC")throw new Error("Not enough CALC. This calculation costs "+requiredLabel+" CALC. Visit Web Shop or collect your daily reward.");
    throw new Error("Could not reserve CALC for this calculation.");
   }
+  priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
   const results=(calculator.spec.results||[]).map(item=>{
    const ast=compileExpression(item.expression,new Set(inputs.map(input=>input.key)));
