@@ -478,3 +478,23 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-detail-price-controls{align-items:stretch}
  .ugc-detail-price-controls input{width:100%}
 }
+
+
+/* Keep the gallery tile proportions genuinely square at all viewport widths. */
+.ugc-calculator-grid{
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));
+}
+.ugc-detail-reaction-note{
+ margin:6px 0 12px;
+ padding:9px 11px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ background:var(--surface-soft);
+ color:var(--muted);
+ font-size:11px;
+ line-height:1.5;
+}
+.ugc-detail-reaction-note[hidden]{display:none!important}
+@media(max-width:700px){
+ .ugc-calculator-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+}
