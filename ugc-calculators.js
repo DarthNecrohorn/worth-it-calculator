@@ -674,7 +674,7 @@ function renderMakerPreview(definition){
    const input=document.createElement(type==="textarea"?"textarea":"input");
    if(type!=="textarea")input.type=type;
    input.value=String(value??"");
-   input.addEventListener("input",()=>onChange(input.value));
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();});
    label.appendChild(input);grid.appendChild(label);
   };
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
