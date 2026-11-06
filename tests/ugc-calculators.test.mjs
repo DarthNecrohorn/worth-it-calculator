@@ -543,7 +543,9 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(maker,/state\.lastPage/);
     assert.match(maker,/function currentCatalogPage\(\)[\s\S]*?remembered\|\|state\.lastPage/);
     assert.match(maker,/nav\.hidden=total===0/);
-    assert.match(maker,/input\.disabled=pages<=1/);
+    const paginationFunction = maker.slice(maker.indexOf("function renderPagination"), maker.indexOf("function goToCatalogPage"));
+    assert.match(paginationFunction,/input\.disabled=false/);
+    assert.doesNotMatch(paginationFunction,/input\.disabled=pages<=1/);
     assert.match(maker,/ugcPageInput.*addEventListener\("change"/);
     assert.match(paginationCss,/\.ugc-pagination\{[\s\S]*?flex-wrap:nowrap/);
     assert.match(maker,/get_worth_it_ugc_catalog_page/);
