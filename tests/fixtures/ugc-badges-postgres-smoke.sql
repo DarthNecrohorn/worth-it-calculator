@@ -1,0 +1,820 @@
+-- Smoke tests for account ownership, publication, discovery, favorites and badges.
+\set ON_ERROR_STOP on
+begin;
+
+-- Keep the public ID contract deterministic across repeated disposable smoke runs.
+select setval('private.worth_it_user_calculator_number_seq'::regclass,51,false);
+
+insert into auth.users(id,email,email_confirmed_at) values
+ ('11111111-1111-4111-8111-111111111111','creator@example.test',now()),
+ ('22222222-2222-4222-8222-222222222222','viewer@example.test',now()),
+ ('33333333-3333-4333-8333-333333333333','premium@example.test',now()),
+ ('44444444-4444-4444-8444-444444444444','lite@example.test',now()),
+ ('55555555-5555-4555-8555-555555555555','pedjasebez3545@gmail.com',now()),
+ ('66666666-6666-4666-8666-666666666666','unconfirmed@example.test',null);
+
+insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name,created_at) values
+ ('11111111-1111-4111-8111-111111111111',101,'creator','Calculator Creator',now()-interval '13 months'),
+ ('22222222-2222-4222-8222-222222222222',102,'viewer','Calculator Viewer',now()-interval '2 weeks'),
+ ('33333333-3333-4333-8333-333333333333',103,'premium','Premium Member',now()-interval '1 month'),
+ ('44444444-4444-4444-8444-444444444444',104,'lite','Premium Lite Member',now()-interval '3 months'),
+ ('55555555-5555-4555-8555-555555555555',105,'owner','Worth It Owner',now()-interval '6 years'),
+ ('66666666-6666-4666-8666-666666666666',106,'unconfirmed','Unconfirmed Member',now()-interval '1 month');
+
+insert into public.worth_it_user_preferences(user_id,profile_visibility) values
+ ('11111111-1111-4111-8111-111111111111','public'),
+ ('22222222-2222-4222-8222-222222222222','public'),
+ ('33333333-3333-4333-8333-333333333333','public'),
+ ('44444444-4444-4444-8444-444444444444','public'),
+ ('55555555-5555-4555-8555-555555555555','public');
+
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at) values
+ ('33333333-3333-4333-8333-333333333333','premium',now()+interval '30 days'),
+ ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '30 days');
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select (public.save_worth_it_ugc_calculator(
+ null,'Monthly savings growth','Estimate savings with monthly deposits.','money',
+ '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
+)->>'id') as calculator_id \gset
+
+select set_config('test.ugc_id', :'calculator_id', false);
+do $number_check$
+declare v_number bigint;
+begin
+    select calculator_number into v_number
+      from private.worth_it_user_calculators
+     where id=current_setting('test.ugc_id')::uuid;
+    if v_number<>51 then raise exception 'The first user calculator must receive public number 51, got %.',v_number; end if;
+end
+$number_check$;
+
+insert into public.worth_it_follows(follower_user_id,followed_user_id)
+values ('22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111')
+on conflict do nothing;
+
+select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid,'public')->>'status') as publish_status \gset
+
+-- Free accounts receive one successful new calculator per UTC day.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $free_quota$
+declare q jsonb; blocked boolean:=false;
+begin
+    -- Editing an existing calculator must not consume another daily creation.
+    perform public.save_worth_it_ugc_calculator(
+        current_setting('test.ugc_id')::uuid,
+        'Monthly savings growth',
+        'Updated description.',
+        'money',
+        '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
+    );
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>1 or (q->>'creations_used')::integer<>1 or (q->>'remaining')::integer<>0 then
+        raise exception 'Free daily creation allowance is incorrect: %',q;
+    end if;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Free second draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when raise_exception then blocked:=true;
+    end;
+    if not blocked then raise exception 'Free account created more than one calculator in a UTC day.'; end if;
+end
+$free_quota$;
+
+-- Upgrade the fixture creator to Premium, verify the next sequential ID, and then test the lifetime cap.
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at)
+values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days')
+on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
+select (public.save_worth_it_ugc_calculator(
+ null,'Second savings calculator','','money',
+ '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+)->>'calculator_number') as second_calculator_number \gset
+select set_config('test.ugc_second_number', :'second_calculator_number', false);
+do $number_check$
+begin
+    if current_setting('test.ugc_second_number')::bigint<>52 then raise exception 'Calculator numbers must be sequential from 51.'; end if;
+end
+$number_check$;
+select set_config('test.ugc_calculator_id', :'calculator_id', false);
+do $owner_check$
+declare
+    v_detail jsonb;
+    v_mine jsonb;
+begin
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_detail->>'is_owner')::boolean is distinct from true then
+        raise exception 'The calculator owner cannot open their own published calculator.';
+    end if;
+    v_mine:=public.get_worth_it_my_ugc_calculators('');
+    if jsonb_array_length(v_mine)<>2 then
+        raise exception 'The owner cannot list their saved calculator.';
+    end if;
+end
+$owner_check$;
+
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $viewer_check$
+declare
+    v_detail jsonb;
+    v_catalog jsonb;
+    v_reaction jsonb;
+    v_view jsonb;
+begin
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_detail->>'is_owner')::boolean is distinct from false then
+        raise exception 'A different member was incorrectly treated as the calculator owner.';
+    end if;
+    v_catalog:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
+    if jsonb_array_length(v_catalog->'items')<1 then
+        raise exception 'Published UGC calculator is missing from the latest catalogue.';
+    end if;
+    v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
+    if v_reaction->>'reaction' is distinct from 'like' then
+        raise exception 'The like reaction was not stored.';
+    end if;
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_view->>'success')::boolean is distinct from true then
+        raise exception 'The calculator view could not be recorded.';
+    end if;
+end
+$viewer_check$;
+
+-- Favourites are insertable only for the authenticated user's own row.
+select set_config('test.ugc_id', :'calculator_id', false);
+set role authenticated;
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+insert into public.worth_it_calculator_favorites(user_id,calculator_key)
+values ('22222222-2222-4222-8222-222222222222','ugc:'||:'calculator_id');
+do $test$
+begin
+    begin
+        insert into public.worth_it_calculator_favorites(user_id,calculator_key)
+        values ('11111111-1111-4111-8111-111111111111','ugc:'||current_setting('test.ugc_id',true));
+        raise exception 'Cross-account favourite insert unexpectedly succeeded.';
+    exception when insufficient_privilege then
+        null;
+    end;
+end
+$test$;
+reset role;
+
+select set_config('test.ugc_id', :'calculator_id', false);
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $test$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_profile_favorite_calculators(102);
+    if jsonb_array_length(result)<>1 then raise exception 'The owner profile did not return the expected favourite.'; end if;
+end
+$test$;
+
+-- Non-owners cannot edit another member's calculator.
+do $test$
+begin
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            current_setting('test.ugc_id',true)::uuid,'Hijacked title','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+        raise exception 'Non-owner edit unexpectedly succeeded.';
+    exception when insufficient_privilege then
+        null;
+    end;
+end
+$test$;
+
+-- There is no lifetime cap. Save more than ten calculators across UTC days while each day stays within the tier quota.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $unlimited_ugc$
+declare i integer; today_utc date:=(now() at time zone 'utc')::date; total_count integer;
+begin
+    for i in 1..12 loop
+        update private.worth_it_ugc_creation_daily_usage
+           set usage_date=today_utc-i,updated_at=now()
+         where user_id='11111111-1111-4111-8111-111111111111'
+           and usage_date=today_utc;
+        perform public.save_worth_it_ugc_calculator(
+            null,'Unlimited saved calculator '||i,'','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    end loop;
+    select count(*)::integer into total_count from private.worth_it_user_calculators
+     where owner_user_id='11111111-1111-4111-8111-111111111111';
+    if total_count<=10 then raise exception 'The account should be able to save more than ten calculators; saved %.',total_count; end if;
+end
+$unlimited_ugc$;
+
+-- Premium allows three and Premium Lite allows two successful new calculators per UTC day.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $premium_quota$
+declare q jsonb; i integer; blocked boolean:=false;
+begin
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium quota must be three per day: %',q; end if;
+    for i in 1..3 loop
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium draft '||i,'','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    end loop;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium fourth draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when raise_exception then blocked:=true;
+    end;
+    if not blocked then raise exception 'Premium created more than three calculators in a UTC day.'; end if;
+end
+$premium_quota$;
+
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+do $lite_quota$
+declare q jsonb; i integer; blocked boolean:=false;
+begin
+    q:=public.get_worth_it_ugc_creation_quota();
+    if (q->>'daily_limit')::integer<>2 then raise exception 'Premium Lite quota must be two per day: %',q; end if;
+    for i in 1..2 loop
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium Lite draft '||i,'','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    end loop;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Premium Lite third draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when raise_exception then blocked:=true;
+    end;
+    if not blocked then raise exception 'Premium Lite created more than two calculators in a UTC day.'; end if;
+end
+$lite_quota$;
+
+-- AI Maker quota is enforced atomically per confirmed user and UTC day.
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $quota_test$
+declare
+    i integer;
+    result jsonb;
+begin
+    for i in 1..10 loop
+        result:=public.reserve_worth_it_ugc_maker_generation();
+        if (result->>'ok')::boolean is distinct from true then
+            raise exception 'AI Maker quota rejected a request before the daily limit.';
+        end if;
+    end loop;
+    result:=public.reserve_worth_it_ugc_maker_generation();
+    if (result->>'ok')::boolean is distinct from false
+       or result->>'code' is distinct from 'DAILY_LIMIT'
+       or (result->>'requests_used')::integer<>10 then
+        raise exception 'AI Maker daily limit did not stop the eleventh generation.';
+    end if;
+end
+$quota_test$;
+
+-- Unconfirmed accounts cannot create or publish.
+select set_config('request.jwt.claim.sub','66666666-6666-4666-8666-666666666666',false);
+do $test$
+declare failed boolean:=false;
+begin
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Unconfirmed draft','','money',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when insufficient_privilege then
+        failed:=true;
+    end;
+    if not failed then raise exception 'Unconfirmed account unexpectedly created a calculator.'; end if;
+    failed:=false;
+    begin
+        perform public.reserve_worth_it_ugc_maker_generation();
+    exception when insufficient_privilege then
+        failed:=true;
+    end;
+    if not failed then raise exception 'Unconfirmed account unexpectedly used the AI Maker.'; end if;
+end
+$test$;
+
+-- Premium tiers and membership periods unlock only the matching server-issued badges.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+select public.set_worth_it_profile_badge_equipped('premium',true);
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+select public.set_worth_it_profile_badge_equipped('premium_lite',true);
+select public.set_worth_it_profile_badge_equipped('member_3m',true);
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_profile_badge_equipped('member_12m',true);
+
+-- Only the configured owner account can equip the OWNER badge.
+select set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',false);
+select public.set_worth_it_profile_badge_equipped('owner',true);
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $test$
+declare result jsonb; failed boolean:=false;
+begin
+    result:=public.get_worth_it_profile_badges(103);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='premium' and (b->>'equipped')::boolean) then
+        raise exception 'PREMIUM badge was not equipped.';
+    end if;
+    result:=public.get_worth_it_profile_badges(104);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='premium_lite' and (b->>'equipped')::boolean) then
+        raise exception 'PREMIUM LITE badge was not equipped.';
+    end if;
+    result:=public.get_worth_it_profile_badges(105);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='owner' and (b->>'equipped')::boolean) then
+        raise exception 'OWNER badge was not visible on the owner profile.';
+    end if;
+    result:=public.get_worth_it_profile_badges(101);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='member_12m' and (b->>'equipped')::boolean) then
+        raise exception 'Membership tenure badge was not equipped.';
+    end if;
+end
+$test$;
+
+-- An ordinary user cannot equip or forge the OWNER badge.
+do $test$
+declare failed boolean:=false;
+begin
+    begin
+        perform public.set_worth_it_profile_badge_equipped('owner',true);
+    exception when insufficient_privilege then
+        failed:=true;
+    end;
+    if not failed then raise exception 'An ordinary account equipped the OWNER badge.'; end if;
+end
+$test$;
+
+-- Unequip persists and the public badge list no longer advertises it.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_profile_badge_equipped('member_12m',false);
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $test$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_profile_badges(101);
+    if exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='member_12m') then
+        raise exception 'Unequipped badge remained on the public profile.';
+    end if;
+end
+$test$;
+
+-- Private profiles never reveal their favourites to another member.
+update public.worth_it_user_preferences set profile_visibility='private'
+ where user_id='22222222-2222-4222-8222-222222222222';
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $test$
+begin
+    if jsonb_array_length(public.get_worth_it_profile_favorite_calculators(102))<>0 then
+        raise exception 'A private profile exposed its favourite calculators.';
+    end if;
+end
+$test$;
+
+-- The new enhancement migration exposes a private favourites tab (owner-scoped only).
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $private_favourites$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_my_favorite_ugc_calculators('');
+    if jsonb_array_length(result)<>1 then
+        raise exception 'The viewer must see only the single UGC calculator they personally favourited: %',result;
+    end if;
+end
+$private_favourites$;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $private_favourites$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_my_favorite_ugc_calculators('');
+    if jsonb_array_length(result)<>0 then
+        raise exception 'The creator must not see another member''s private favourites.';
+    end if;
+end
+$private_favourites$;
+
+-- The calculator description is independently changeable once every 10 minutes.
+do $description_cooldown$
+declare
+    v_id uuid:=current_setting('test.ugc_calculator_id')::uuid;
+    result jsonb;
+begin
+    result:=public.get_worth_it_ugc_description_status(v_id);
+    if (result->>'can_save')::boolean is distinct from false then
+        raise exception 'A recent description edit did not activate its cooldown: %',result;
+    end if;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'An update too soon.');
+    if (result->>'success')::boolean is distinct from false
+       or result->>'code' is distinct from 'DESCRIPTION_COOLDOWN' then
+        raise exception 'A second description change was not blocked: %',result;
+    end if;
+
+    update private.worth_it_user_calculators
+       set description_changed_at=now()-interval '11 minutes'
+     where id=v_id;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'A description update after cooldown.');
+    if (result->>'success')::boolean is distinct from true
+       or (result->>'unchanged')::boolean is distinct from false then
+        raise exception 'A description update after the cooldown was not accepted: %',result;
+    end if;
+    result:=public.update_worth_it_ugc_calculator_description(v_id,'A second update too soon.');
+    if (result->>'success')::boolean is distinct from false
+       or result->>'code' is distinct from 'DESCRIPTION_COOLDOWN' then
+        raise exception 'The description cooldown was not restarted after a successful change: %',result;
+    end if;
+end
+$description_cooldown$;
+
+-- Even an owner cannot repurpose a saved calculator by changing its title or category.
+do $identity_lock$
+declare v_id uuid:=current_setting('test.ugc_calculator_id')::uuid; blocked boolean:=false;
+begin
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            v_id,'A completely different calculator','A description update after cooldown.','cars',
+            '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
+        );
+    exception when sqlstate '22023' then blocked:=true;
+    end;
+    if not blocked then raise exception 'An owner repurposed a saved UGC calculator by changing its identity.'; end if;
+end
+$identity_lock$;
+
+-- Free: two AI improvements per UTC day, then a hard server-side limit.
+delete from private.worth_it_calc_wallets where user_id='11111111-1111-4111-8111-111111111111';
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $free_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>2 then raise exception 'Free AI edit limit must be 2: %',q; end if;
+    for i in 1..2 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Free AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Free account could exceed two AI improvements per UTC day: %',result;
+    end if;
+end
+$free_ai_edit_quota$;
+
+-- Premium Lite: three AI improvements per UTC day.
+select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
+do $lite_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='44444444-4444-4444-8444-444444444444' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium Lite AI edit limit must be 3: %',q; end if;
+    for i in 1..3 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium Lite AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Premium Lite account could exceed three AI improvements per UTC day: %',result;
+    end if;
+end
+$lite_ai_edit_quota$;
+
+-- Premium: four AI improvements per UTC day.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $premium_ai_edit_quota$
+declare q jsonb; result jsonb; i integer; calculator_id uuid;
+begin
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='33333333-3333-4333-8333-333333333333' order by created_at limit 1;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'daily_limit')::integer<>4 then raise exception 'Premium AI edit limit must be 4: %',q; end if;
+    for i in 1..4 loop
+        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium AI edit % was rejected: %',i,result; end if;
+        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
+    end loop;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
+    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
+        raise exception 'Premium account could exceed four AI improvements per UTC day: %',result;
+    end if;
+end
+$premium_ai_edit_quota$;
+
+-- Failed AI requests refund both the reservation and the corresponding daily allowance.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $ai_edit_refund$
+declare calculator_id uuid; request_id uuid:=gen_random_uuid(); result jsonb; q jsonb;
+begin
+    update private.worth_it_ugc_ai_edit_daily_usage
+       set usage_date=(now() at time zone 'utc')::date-1
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select id into calculator_id from private.worth_it_user_calculators
+     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
+    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,request_id);
+    if (result->>'ok')::boolean is distinct from true then raise exception 'The fresh-day AI edit reservation failed: %',result; end if;
+    result:=public.refund_worth_it_ugc_ai_edit(request_id);
+    if (result->>'ok')::boolean is distinct from true then raise exception 'The failed AI edit could not be refunded: %',result; end if;
+    q:=public.get_worth_it_ugc_ai_edit_quota();
+    if (q->>'edits_used')::integer<>0 or (q->>'remaining')::integer<>2 then
+        raise exception 'A refunded AI improvement still consumed the daily allowance: %',q;
+    end if;
+end
+$ai_edit_refund$;
+
+-- The new owner-only RPCs are unavailable to anonymous users but callable by authenticated owners.
+do $enhancement_privileges$
+begin
+    if has_function_privilege('anon','public.get_worth_it_my_favorite_ugc_calculators(text)','execute') then
+        raise exception 'Anonymous users can call the private favourites RPC.';
+    end if;
+    if has_function_privilege('anon','public.update_worth_it_ugc_calculator_description(uuid,text)','execute') then
+        raise exception 'Anonymous users can change a community calculator description.';
+    end if;
+    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_edit(uuid,uuid)','execute') then
+        raise exception 'Authenticated owners cannot reserve a secured AI improvement.';
+    end if;
+end
+$enhancement_privileges$;
+
+-- Drafts and private published calculators are kept out of public discovery.
+-- Restore a Premium test plan after the earlier Free quota checks so this section
+-- can create two extra fixtures without weakening the daily quota assertions.
+insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at)
+values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days')
+on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select (public.save_worth_it_ugc_calculator(
+ null,'Private visibility fixture','','money',
+ '{"subcategories":["saving","budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10}],"results":[{"label":"Total","expression":"amount"}]}'::jsonb
+)->>'id') as private_calculator_id \gset
+select set_config('test.ugc_private_id', :'private_calculator_id', false);
+select public.publish_worth_it_ugc_calculator(:'private_calculator_id'::uuid,'private');
+select (public.save_worth_it_ugc_calculator(
+ null,'Unpublished draft fixture','','cars',
+ '{"inputs":[{"key":"distance","label":"Distance","min":0,"max":1000,"default":100}],"results":[{"label":"Distance","expression":"distance"}]}'::jsonb
+)->>'id') as draft_calculator_id \gset
+select set_config('test.ugc_draft_id', :'draft_calculator_id', false);
+
+do $owner_lists$
+declare my_items jsonb; drafts jsonb; private_detail jsonb;
+begin
+    my_items:=public.get_worth_it_ugc_catalog_page('mine','12y','','all',1);
+    drafts:=public.get_worth_it_ugc_catalog_page('my-drafts','12y','','all',1);
+    if not exists(select 1 from jsonb_array_elements(my_items->'items') x where x->>'id'=current_setting('test.ugc_private_id')) then
+        raise exception 'Owner My Calculators list did not include their private published calculator.';
+    end if;
+    if exists(select 1 from jsonb_array_elements(my_items->'items') x where x->>'id'=current_setting('test.ugc_draft_id')) then
+        raise exception 'A draft leaked into My Calculators.';
+    end if;
+    if not exists(select 1 from jsonb_array_elements(drafts->'items') x where x->>'id'=current_setting('test.ugc_draft_id')) then
+        raise exception 'My Drafts did not include the saved draft.';
+    end if;
+    private_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_private_id')::uuid);
+    if private_detail->>'visibility'<>'private' then raise exception 'Private visibility was not saved.'; end if;
+    if jsonb_array_length(private_detail->'subcategories')<>2 then raise exception 'AI-assigned categories were not persisted.'; end if;
+end
+$owner_lists$;
+
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $private_access$
+declare blocked boolean:=false; page jsonb; view_result jsonb;
+begin
+    begin
+        perform public.get_worth_it_ugc_calculator(current_setting('test.ugc_private_id')::uuid);
+    exception when no_data_found then blocked:=true;
+    end;
+    if not blocked then raise exception 'A non-owner opened a private calculator by direct ID.'; end if;
+    page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
+    if exists(select 1 from jsonb_array_elements(page->'items') x where x->>'id'=current_setting('test.ugc_private_id')) then
+        raise exception 'A private calculator leaked into public discovery.';
+    end if;
+    view_result:=public.record_worth_it_ugc_view(current_setting('test.ugc_private_id')::uuid);
+    if coalesce((view_result->>'counted')::boolean,false) then raise exception 'A private calculator view was counted.'; end if;
+    begin
+        perform public.set_worth_it_ugc_reaction(current_setting('test.ugc_private_id')::uuid,'like');
+        raise exception 'A viewer reacted to a private calculator.';
+    exception when insufficient_privilege then null;
+    end;
+end
+$private_access$;
+
+-- Only the owner can switch visibility; public visibility allows a direct calculator open.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'public');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $public_access$
+declare item jsonb;
+begin
+    item:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_private_id')::uuid);
+    if item->>'visibility'<>'public' then raise exception 'Public visibility was not applied.'; end if;
+end
+$public_access$;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'private');
+
+
+-- A current follower receives the public calculator publication.
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_publish_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if not exists(
+        select 1 from jsonb_array_elements(notices) n
+         where n->>'type'='ugc_published'
+           and n->>'ugc_calculator_id'=current_setting('test.ugc_id')
+           and n->>'calculator_title'='Monthly savings growth'
+           and n->>'calculator_number'='51'
+    ) then raise exception 'A follower did not receive the new public UGC calculator notification: %',notices; end if;
+end
+$ugc_publish_notifications$;
+
+-- A transition to Private removes the associated notification.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_id')::uuid,'private');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_private_clears_notification$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_id')) then
+        raise exception 'Changing a published calculator to Private did not remove its notification.';
+    end if;
+end
+$ugc_private_clears_notification$;
+
+-- Re-publishing publicly while still followed creates a new notification.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_id')::uuid,'public');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_republish_notifies$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if not exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_id')) then
+        raise exception 'Re-publishing a public UGC calculator did not notify an active follower.';
+    end if;
+end
+$ugc_republish_notifies$;
+
+-- A member who does not follow the creator receives no UGC publication notification.
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $ugc_non_follower_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published') then
+        raise exception 'A user who does not follow the creator received a UGC publication notification.';
+    end if;
+end
+$ugc_non_follower_notifications$;
+
+-- Unfollowing removes existing notices and prevents notices for later public releases.
+delete from public.worth_it_follows
+ where follower_user_id='22222222-2222-4222-8222-222222222222'
+   and followed_user_id='11111111-1111-4111-8111-111111111111';
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_unfollow_clears_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published') then
+        raise exception 'Unfollowing did not remove prior UGC publication notifications.';
+    end if;
+end
+$ugc_unfollow_clears_notifications$;
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'public');
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $ugc_unfollow_future_notifications$
+declare notices jsonb;
+begin
+    notices:=public.get_worth_it_social_notifications();
+    if exists(select 1 from jsonb_array_elements(notices) n where n->>'type'='ugc_published' and n->>'ugc_calculator_id'=current_setting('test.ugc_private_id')) then
+        raise exception 'A former follower received a later public UGC publication.';
+    end if;
+end
+$ugc_unfollow_future_notifications$;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_visibility(current_setting('test.ugc_private_id')::uuid,'private');
+
+do $delete_disabled$
+begin
+    if has_function_privilege('authenticated','public.delete_worth_it_ugc_calculator(uuid)','execute') then
+        raise exception 'The removed Delete action is still executable by authenticated users.';
+    end if;
+end
+$delete_disabled$;
+
+
+-- Private data tables and privileged RPCs are not available to anon/authenticated directly.
+do $test$
+begin
+    if has_table_privilege('authenticated','private.worth_it_user_calculators','select') then
+        raise exception 'Authenticated users can query private UGC rows directly.';
+    end if;
+    if has_table_privilege('authenticated','private.worth_it_ugc_maker_daily_usage','select') then
+        raise exception 'Authenticated users can query private AI Maker usage rows directly.';
+    end if;
+    if has_function_privilege('anon','public.reserve_worth_it_ugc_maker_generation()','execute') then
+        raise exception 'Anonymous users can reserve AI Maker generations.';
+    end if;
+    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_maker_generation()','execute') then
+        raise exception 'Authenticated users cannot reserve a secured AI Maker generation.';
+    end if;
+    if has_function_privilege('anon','public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb)','execute') then
+        raise exception 'Anonymous users can execute UGC creation.';
+    end if;
+    if not has_function_privilege('authenticated','public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb)','execute') then
+        raise exception 'Authenticated users cannot execute the secured UGC RPC.';
+    end if;
+end
+$test$;
+
+
+-- Private UGC helper routines must not be directly executable by API roles.
+do $ugc_private_helper_privileges$
+declare
+    v_role text;
+    v_function text;
+begin
+    foreach v_function in array array[
+        'private.worth_it_badge_is_earned(uuid,text)',
+        'private.worth_it_guard_ugc_calculator_update()',
+        'private.worth_it_validate_ugc_spec(jsonb)'
+    ] loop
+        foreach v_role in array array['anon','authenticated','service_role'] loop
+            if has_function_privilege(v_role,v_function,'execute') then
+                raise exception '% can execute internal UGC helper %.',v_role,v_function;
+            end if;
+        end loop;
+    end loop;
+    if has_schema_privilege('anon','private','usage')
+       or has_schema_privilege('authenticated','private','usage') then
+        raise exception 'An API role can use the private schema.';
+    end if;
+end
+$ugc_private_helper_privileges$;
+
+
+
+-- The paginated catalogue always returns at most 30 items and preserves category filtering.
+insert into private.worth_it_user_calculators(
+    owner_user_id,title,description,category,spec,status,visibility,published_at
+)
+select
+    '33333333-3333-4333-8333-333333333333'::uuid,
+    'Pagination fixture calculator '||g,
+    'Disposable row used to verify thirty-item community pages.',
+    case when g%2=0 then 'money' else 'cars' end,
+    '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10}],"results":[{"label":"Total","expression":"amount"}]}'::jsonb,
+    'published',
+    'public',
+    now()-make_interval(secs=>g)
+from generate_series(1,31) g;
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $ugc_pagination$
+declare
+    first_page jsonb;
+    second_page jsonb;
+    cars_page jsonb;
+    count_first integer;
+    count_second integer;
+begin
+    first_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
+    second_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',2);
+    count_first:=jsonb_array_length(first_page->'items');
+    count_second:=jsonb_array_length(second_page->'items');
+
+    if (first_page->>'page_size')::integer<>30 or count_first<>30 then
+        raise exception 'The first UGC page must contain exactly 30 items: %',first_page;
+    end if;
+    if (second_page->>'page')::integer<>2 or count_second<1 or count_second>30 then
+        raise exception 'Page two must return the remaining UGC items: %',second_page;
+    end if;
+    if (first_page->>'total_count')::integer<31 or (first_page->>'total_pages')::integer<2 then
+        raise exception 'UGC pagination total counts are incomplete: %',first_page;
+    end if;
+
+    cars_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','cars',1);
+    if cars_page->>'category'<>'cars' or
+       exists(select 1 from jsonb_array_elements(cars_page->'items') item where item->>'category'<>'cars') then
+        raise exception 'UGC category filtering leaked calculators from another category: %',cars_page;
+    end if;
+
+    if (public.get_worth_it_ugc_catalog_page('mine','12y','','all',1)->>'page_size')::integer<>30
+       or (public.get_worth_it_ugc_catalog_page('my-favorites','12y','','all',1)->>'page_size')::integer<>30 then
+        raise exception 'Personal UGC catalogue views must use the same 30-item page size.';
+    end if;
+end
+$ugc_pagination$;
+
+rollback;

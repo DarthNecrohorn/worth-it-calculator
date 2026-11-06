@@ -12,7 +12,7 @@ test("feedback/admin overlay styles load after the existing section theme layer"
     const sectionThemes = html.indexOf('href="section-themes.css?v=section-themes-20261030a"');
     const overlayStyles = html.indexOf('href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b"');
     assert.ok(sectionThemes >= 0 && overlayStyles > sectionThemes);
-    assert.match(html, /settings\.js\?v=feedback-overlay-stay-open-20261030a/);
+    assert.match(html, /settings\.js\?v=appearance-custom-reset-direct-theme-20261104e/);
     assert.match(html, /admin-panel\.js\?v=admin-overlays-stay-open-20261030a/);
 });
 

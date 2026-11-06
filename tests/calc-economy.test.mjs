@@ -1,0 +1,220 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
+const html = read("index.html");
+const shopCss = read("web-shop.css");
+const ugcCss = read("ugc-calculators.css");
+const economy = read("calc-economy.js");
+const sql = read("supabase/calc-economy.sql");
+const themeGate = read("supabase/worth-it-community-theme-premium-gate.sql");
+const economyFollowup = read("supabase/calc-economy-followup.sql");
+const ai = read("functions/api/ai-chat.js");
+const mediaApi = read("functions/api/chat-media.js");
+const chat = read("chat-ui.js");
+const profile = read("profile-ui.js");
+const admin = read("admin-panel.js");
+const routes = read("routing.js");
+
+test("Web Shop and CALC balance sit beside the logo without replacing the affiliate Shop", () => {
+    const logo = html.indexOf('class="logo"');
+    const webShop = html.indexOf('id="worthItWebShopButton"');
+    const balance = html.indexOf('id="worthItCalcWalletButton"');
+    const wip = html.indexOf('id="worthItWipWalletButton"');
+    const nav = html.indexOf('id="navLinks"');
+    assert.ok(logo >= 0 && logo < webShop && webShop < balance && balance < wip && wip < nav);
+    assert.match(html, /id="worthItCalcWalletUnit">CALC/);
+    assert.match(html, /id="worthItWipWalletButton"[^>]*onclick="openWebShop\('subscriptions'\)"[^>]*hidden/);
+    assert.match(html, /class="calc-wip-use">Premium Lite/);
+    assert.match(html, /id="webShopSection"/);
+    assert.match(routes, /"\/shop": "openDiscounts"/);
+    assert.match(economy, /"shipTrackingSection","profileSection","discountsSection","worthItProfileDescriptionSection"/);
+    assert.match(html, /data-webshop-category="currency"/);
+    assert.match(html, /data-webshop-category="subscriptions"/);
+    assert.match(routes, /"\/web-shop": "openWebShop"/);
+    assert.match(html, /Buying is completely optional/);
+    assert.match(html, /Free users receive 1 CALC and 1 WIP daily/);
+    assert.match(html, /50 <small>WIP \/ 15 days<\/small>/);
+    assert.match(html, /Every signed-in account earns 1 WIP per UTC day/);
+    assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
+    assert.match(economy, /const guestView = state \? state\.is_guest === true : !signedInAccount/);
+    assert.match(economy, /shopButton\.hidden = guestView/);
+    assert.match(economy, /shopButton\.style\.display = guestView \? "none" : ""/);
+    assert.match(economy, /signedInAccount \? "CALC" : "CALC Lite"/);
+    assert.match(economy, /Your Guest Lite CALC Lite balance is temporarily unavailable/);
+    assert.match(economy, /wipButton\.hidden = !showWip/);
+    assert.match(economy, /WIP rewards and balances are waiting for the CALC economy SQL migration/);
+    assert.match(economy, /Wallet unavailable · calculation disabled/);
+    assert.match(economy, /button\.disabled = !state/);
+    assert.match(economy, /CALC account billing is not available in this Preview database yet/);
+    assert.match(economy, /No calculation was run and no currency was charged/);
+    assert.match(economy, /Pay 0\.1 " \+ currency \+ " to calculate/);
+    assert.match(html, /0\.5 CALC Lite per UTC day/);
+    assert.match(html, /WIP is the only currency used to activate Premium Lite/);
+    assert.match(html, /CALC is never deducted for Premium Lite/);
+});
+
+test("the Web Shop has its own persistent dark and light themes", () => {
+    assert.match(shopCss, /#webShopSection\s*\{/);
+    assert.match(shopCss, /#webShopSection\[data-ws-theme="light"\]/);
+    assert.match(economy, /worthItWebShopTheme/);
+    assert.match(economy, /window\.toggleWebShopTheme/);
+});
+
+test("daily rewards, guest non-stacking and calculator costs use exact milli-CALC units", () => {
+    const guestApi = read("functions/api/guest-calc.js");
+    assert.match(guestApi, /DAILY_MILLI = 500/);
+    assert.match(guestApi, /currency:"CALC_LITE"/);
+    assert.match(economy, /CALCULATOR_COST_MILLI = 100/);
+    assert.match(economy, /guestRpc\("balance"\)/);
+    assert.match(economy, /guestRpc\("reserve",requestId,calculatorType\)/);
+    assert.match(economy, /isBillableCalculator/);
+    assert.doesNotMatch(economy, /worthItGuestCalcWalletV1|function guestWallet\(/);
+    assert.match(guestApi, /balance_milli=500/);
+    assert.match(guestApi, /status='reserved'/);
+    assert.match(sql, /when 'premium_lite' then 1500/);
+    assert.match(sql, /when 'premium' then 3000/);
+    assert.match(sql, /v_wip_reward := 1000/);
+    assert.match(sql, /wip_balance_milli = wip_balance_milli \+ v_wip_added/);
+    assert.match(sql, /currency text not null default 'CALC'/);
+    assert.match(sql, /else 1000/);
+    assert.match(sql, /v_added := v_reward/);
+    assert.match(sql, /interval '15 days'/);
+    assert.match(sql, /v_cost integer := 50000/);
+    assert.match(sql, /'INSUFFICIENT_WIP'/);
+    assert.match(sql, /'WIP', -v_cost, v_wallet\.wip_balance_milli/);
+    assert.match(economy, /50 WIP to activate Premium Lite/);
+    assert.match(sql, /Automatic refund for an abandoned operation/);
+});
+
+test("the ordinary Basic/Advanced/Scientific calculator stays free", () => {
+    assert.match(economy, /window\.calculateGeneric/);
+    assert.match(economy, /window\.calculateCars/);
+    assert.doesNotMatch(economy, /window\.calculateExpression\s*=/);
+    assert.match(html, /setCalculatorMode\('basic'\)/);
+    assert.match(html, /setCalculatorMode\('advanced'\)/);
+    assert.match(html, /setCalculatorMode\('scientific'\)/);
+});
+
+test("the wallet uses private RLS-protected tables and authenticated, owner-checked RPCs", () => {
+    assert.match(sql, /alter table private\.worth_it_calc_wallets enable row level security/);
+    assert.match(sql, /alter table private\.worth_it_calc_transactions enable row level security/);
+    assert.match(sql, /revoke all on private\.worth_it_calc_wallets from public, anon, authenticated/);
+    assert.match(sql, /grant execute on function public\.calc_wallet_reserve\(uuid,text\) to authenticated/);
+    assert.match(sql, /create or replace function public\.calc_admin_overview\(\)/);
+    assert.match(sql, /Administrator authorization required/);
+    assert.match(sql, /create unique index if not exists worth_it_calc_transactions_request_uidx/);
+    assert.match(sql, /'wip_balance_total'/);
+    assert.match(admin, /Outstanding WIP/);
+    assert.match(admin, /item\.currency === 'WIP'/);
+});
+
+test("Custom Theme persistence is restricted to active Premium Lite/Premium at the database layer", () => {
+    assert.ok(themeGate.includes("create or replace function private.worth_it_can_save_custom_theme()"));
+    assert.ok(themeGate.includes("security definer"));
+    assert.ok(themeGate.includes("set search_path = ''"));
+    assert.ok(themeGate.includes("premium_plan in ('premium_lite', 'premium')"));
+    assert.ok(themeGate.includes("premium_expires_at > pg_catalog.now()"));
+    assert.ok(themeGate.includes("auth.uid()"));
+    assert.ok(themeGate.includes("grant execute on function private.worth_it_can_save_custom_theme() to authenticated"));
+    assert.ok(themeGate.includes("for insert"));
+    assert.ok(themeGate.includes("for update"));
+    assert.ok(themeGate.includes("with check"));
+    assert.ok(!themeGate.includes("function public.worth_it_can_save_custom_theme()"));
+    const smoke = read("tests/fixtures/calc-economy-postgres-smoke.sql");
+    assert.ok(smoke.includes("Free accounts must not insert a custom theme"));
+    assert.ok(smoke.includes("Free accounts must not update an existing custom theme"));
+    assert.ok(smoke.includes("Active Premium must be able to update its saved theme"));
+    assert.ok(smoke.includes("Active Premium Lite must be able to update its saved theme"));
+    assert.ok(smoke.includes("Expired Premium Lite must not save Custom Themes"));
+    assert.ok(smoke.includes("owner bypass"));
+    const setup = read("tests/fixtures/calc-economy-postgres-setup.sql");
+    assert.ok(setup.includes("create table if not exists public.worth_it_user_themes"));
+    assert.ok(setup.includes("enable row level security"));
+});
+
+test("AI reservations settle only after successful Gemini or Groq replies and failure paths refund", () => {
+    const reserve = ai.indexOf('"calc_wallet_reserve"');
+    const settle = ai.indexOf('"calc_wallet_settle"');
+    const refund = ai.indexOf('"calc_wallet_refund"');
+    const geminiSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (env.GEMINI_API_KEY)"));
+    const groqSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (!env.GROQ_API_KEY)"));
+    const geminiDone = ai.indexOf('type: "done", provider: "gemini"');
+    const groqDone = ai.indexOf('type: "done", provider: "groq"');
+    assert.ok(reserve >= 0 && settle > reserve && refund > reserve);
+    assert.ok(geminiSettleCall > reserve && geminiDone > geminiSettleCall);
+    assert.ok(groqSettleCall > reserve && groqDone > groqSettleCall);
+    assert.match(ai, /INSUFFICIENT_CALC/);
+    assert.match(ai, /No CALC was charged/);
+    assert.match(ai, /async cancel\(\)/);
+});
+
+test("chat media limits are enforced server-side and dynamically validated in the composer", () => {
+    assert.match(mediaApi, /calc_chat_media_limits/);
+    assert.match(mediaApi, /tierLimits\.image_bytes/);
+    assert.match(mediaApi, /tierLimits\.gif_bytes/);
+    assert.match(mediaApi, /tierLimits\.video_bytes/);
+    assert.match(chat, /getWorthItChatMediaLimits/);
+    assert.match(economy, /window\.getWorthItChatMediaLimits/);
+    assert.match(sql, /image_bytes',5242880/);
+    assert.match(sql, /image_bytes',10485760/);
+    assert.match(sql, /image_bytes',26214400/);
+});
+
+test("Premium Lite, Premium, owner and member badges are rendered beside profile and chat usernames", () => {
+    assert.match(html, /id="worthItProfileNameBadges"/);
+    assert.match(profile, /get_worth_it_profile_badges/);
+    assert.match(profile, /set_worth_it_profile_badge_equipped/);
+    assert.match(profile, /loadWorthItProfileBadges/);
+    assert.match(chat, /worth-it-chat-message-author-line/);
+    assert.match(chat, /worth-it-chat-member-badges/);
+    assert.match(chat, /loadWorthItPublicBadges/);
+    assert.match(shopCss, /\.worth-it-premium-badge\[hidden\]\{display:none!important\}/);
+    assert.match(ugcCss, /data-badge="premium"/);
+    assert.match(ugcCss, /data-badge="premium_lite"/);
+    assert.match(ugcCss, /data-badge="owner"/);
+});
+
+test("transaction reporting is exposed only through the existing owner-verified Admin Panel", () => {
+    assert.match(admin, /data-admin-section="economy"/);
+    assert.match(admin, /if\(!\(await isAdmin\(\)\)\)/);
+    assert.match(admin, /calc_admin_overview/);
+    assert.match(sql, /if auth\.uid\(\) is null or v_email <>/);
+});
+
+
+test("Guest Lite header never flashes Web Shop or an account CALC balance before wallet resolution", () => {
+    assert.match(html, /id="worthItWebShopButton" hidden/);
+    assert.match(html, /id="worthItCalcWalletButton" hidden/);
+    assert.match(economy, /button\.hidden = !state && \(!authResolved \|\| signedInAccount\)/);
+    assert.match(economy, /shopButton\.hidden = guestView/);
+    assert.match(economy, /state\.is_guest \? "CALC Lite" : "CALC"/);
+    assert.match(shopCss, /\.calc-shop-nav\[hidden\],\.calc-wallet-nav\[hidden\]/);
+});
+
+test("Web Shop transaction history is account-scoped in the database and UI", () => {
+    const historySql = read("supabase/calc-wallet-history.sql");
+    assert.match(html, /id="webShopHistory"/);
+    assert.match(html, /Only transactions belonging to your signed-in Worth It account/);
+    assert.match(economy, /rpc\("calc_wallet_history",\{p_limit:100\}\)/);
+    assert.match(historySql, /v_user_id uuid := auth\.uid\(\)/);
+    assert.match(historySql, /where user_id = v_user_id/);
+    assert.doesNotMatch(historySql, /p_user_id|p_worth_it_id/);
+    assert.match(historySql, /revoke all on function public\.calc_wallet_history\(integer\) from public, anon/);
+    assert.match(historySql, /grant execute on function public\.calc_wallet_history\(integer\) to authenticated/);
+    assert.match(economyFollowup,/hidden_at is null/);
+    assert.match(economyFollowup,/create or replace function public\.calc_wallet_hide_transaction\(p_transaction_id bigint\)/);
+    assert.match(economyFollowup,/where id = p_transaction_id[\s\S]*?and user_id = v_user_id/);
+    assert.match(economyFollowup,/revoke all on function public\.calc_wallet_hide_transaction\(bigint\) from public,anon/);
+    assert.match(economyFollowup,/grant execute on function public\.calc_wallet_hide_transaction\(bigint\) to authenticated/);
+    assert.match(economy,/historyFilter === "purchases"/);
+    assert.match(economy,/isPurchaseTransaction/);
+    assert.match(economy,/calc_wallet_hide_transaction/);
+    assert.match(economy,/financial record and account balance were not deleted or changed/i);
+    assert.match(html,/option value="purchases">Your purchases/);
+    assert.match(html,/id="buyPremiumLiteButton"/);
+    assert.match(html,/Activate Premium Lite · 50 WIP/);
+    assert.match(html,/50 <small>WIP \/ 15 days<\/small>/);
+    assert.match(read("tests/fixtures/calc-economy-postgres-smoke.sql"), /history-hidden-other-user-marker/);
+});

@@ -25,6 +25,7 @@
         "/weather": "openWeather",
         "/news": "openNews",
         "/shop": "openDiscounts",
+        "/web-shop": "openWebShop",
         "/compare-cars": "openCars",
         "/markets": "openMarkets",
         "/currencies": "openMoney",
@@ -102,6 +103,7 @@
         originalFunctions[name] = original;
         window[name] = function () {
             if (name !== "openFullSettings") {
+                if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
                 const settingsPage = document.getElementById("settingsPage");
                 if (settingsPage) settingsPage.style.display = "none";
             }
@@ -122,6 +124,12 @@
     patchRouteFunction("openWorthItProfile", function (worthItId) {
         const id = Number(worthItId);
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
+    });
+    patchRouteFunction("openWorthItUGCCalculator", function (calculatorId) {
+        const id = String(calculatorId || "").toLowerCase();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
+            ? "/calculator/ugc/" + id
+            : null;
     });
 
     // Return to the exact route that opened this profile. Directly opened
@@ -268,6 +276,9 @@
             return null;
         }
 
+        const ugcCalculatorMatch = path.match(/^\/calculator\/ugc\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+        if (ugcCalculatorMatch) return { kind: "ugc-calculator", id: ugcCalculatorMatch[1].toLowerCase() };
+
         const calculatorMatch = path.match(/^\/calculator\/(\d+)$/);
         if (calculatorMatch) {
             const id = Number(calculatorMatch[1]);
@@ -290,6 +301,10 @@
 
         const route = resolveRoute(normalized);
         if (!route) return;
+
+        if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
+        const settingsPage = document.getElementById("settingsPage");
+        if (settingsPage) settingsPage.style.display = "none";
 
         const rawPath = window.location.pathname;
         if (rawPath !== normalized && (options && options.initial)) {
@@ -318,6 +333,13 @@
                 return;
             }
 
+            if (route.kind === "ugc-calculator") {
+                if (typeof window.openWorthItUGCCalculator === "function") {
+                    window.openWorthItUGCCalculator(route.id, { fromUrl: true });
+                }
+                return;
+            }
+
             if (route.kind === "calculator") {
                 const openCalculator = originalFunctions.openCalculator || window.openCalculator;
                 if (typeof openCalculator === "function") openCalculator.call(window, route.type);
@@ -343,6 +365,32 @@
             applyingRoute = false;
         }
     }
+
+    window.backFromWebShop = function () {
+        const state = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        const previousRoute = typeof state.worthItRoutePrevious === "string"
+            ? state.worthItRoutePrevious
+            : "";
+        let previousPath = "";
+        try {
+            if (previousRoute) {
+                previousPath = normalizePath(new URL(previousRoute, window.location.origin).pathname);
+            }
+        } catch (_) {}
+
+        if (
+            normalizePath(window.location.pathname) === "/web-shop" &&
+            (previousPath === "/settings" || previousPath.startsWith("/settings/"))
+        ) {
+            window.history.back();
+            return;
+        }
+
+        const showHome = originalFunctions.showHome || window.showHome;
+        if (typeof showHome === "function") showHome.call(window);
+    };
 
     window.addEventListener("popstate", function () {
         applyRoute(window.location.pathname, { initial: false });

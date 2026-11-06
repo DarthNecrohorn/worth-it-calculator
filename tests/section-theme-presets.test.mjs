@@ -6,6 +6,9 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const themes = readFileSync(new URL("../section-themes.css", import.meta.url), "utf8");
 const shop = readFileSync(new URL("../shop.js", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
+const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
+const customThemeCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
+const siteThemeCss = readFileSync(new URL("../site-theme-system.css", import.meta.url), "utf8");
 
 const palettePairs = [
     ['#marketsSection { --wt-section-accent:#e6b85c;', 'html[data-theme="light"] #marketsSection { --wt-section-accent:#a66b00;'],
@@ -90,4 +93,54 @@ test("the section theme layer changes visual surfaces only, not layout geometry"
     for (const property of layoutProperties) {
         assert.ok(!themes.includes("\n    " + property), `layout property added: ${property}`);
     }
+});
+
+test("custom palette button text uses contrast calculated for its actual surface", () => {
+    assert.match(community, /const surfaces=\[theme\.background,theme\.surface,theme\.surfaceAlt,theme\.header\]/);
+    assert.match(community, /--worth-it-primary-readable",accessibleThemeText\(theme\.primary,surfaces\)/);
+    assert.match(community, /--worth-it-secondary-readable",accessibleThemeText\(theme\.secondary,surfaces\)/);
+    assert.match(community, /const gradientText=gradientForeground\(theme\.primary,theme\.secondary\)/);
+    assert.match(community, /--worth-it-gradient-foreground",gradientText/);
+    assert.match(community, /accessibleButtonBackground\(theme\.primary,gradientText\)/);
+    assert.match(customThemeCss, /data-worth-it-button-style="outline"[\s\S]*?color:var\(--worth-it-primary-readable\)!important/);
+    for (const selector of [".btn-primary",".auth-modal-submit",".shop-buy-button",".shop-deal-button",".worth-it-report-submit",".worth-it-display-name-save"]) {
+        assert.ok(customThemeCss.includes(selector), "missing palette-aware CTA foreground: " + selector);
+    }
+});
+
+test("the saved Custom Theme reaches AI Chat, the Web Shop, every section and profile banners", () => {
+    assert.match(community, /const theme=selectedTheme/);
+    assert.match(community, /root\.classList\.remove\("worth-it-profile-theme-isolated"\)/);
+    assert.match(community, /worthit-theme-change/);
+    for (const selector of [
+        ".ai-chat-nav-btn",
+        ".ai-chat-send",
+        ".worth-it-chat-window",
+        ".worth-it-chat-messages",
+        "#webShopSection",
+        ".web-shop-back",
+        ".worth-it-profile-section.has-banner",
+        ".worth-it-profile-cover.has-banner"
+    ]) {
+        assert.ok(siteThemeCss.includes(selector), "missing full-site theme target: " + selector);
+    }
+    assert.match(siteThemeCss, /data-worth-it-button-style="solid"/);
+    assert.match(siteThemeCss, /data-worth-it-button-style="outline"/);
+    assert.match(siteThemeCss, /data-worth-it-button-style="gradient"/);
+    const leaflet = html.indexOf('href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"');
+    const finalTheme = html.indexOf('href="site-theme-system.css?v=');
+    assert.ok(leaflet >= 0 && finalTheme > leaflet, "the final theme layer loads after all section styles");
+});
+
+test("all preset solid and gradient button backgrounds have a contrast-safe foreground fallback", () => {
+    assert.match(community, /function accessibleButtonBackground\(background,foreground\)/);
+    assert.match(community, /contrastRatio\(foreground,original\)>=4\.5/);
+    assert.match(community, /--worth-it-button-primary-background/);
+    assert.match(siteThemeCss, /--worth-it-button-primary-background/);
+    assert.match(siteThemeCss, /var\(--worth-it-button-primary-background\) !important/);
+});
+test("hamburger drawer items use the drawer surface contrast rather than header foreground", () => {
+    assert.match(siteThemeCss, /#navLinks\.nav-links\s*\{[\s\S]*?color: var\(--text\)[\s\S]*?background: var\(--card-solid\)/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links button\s*\{[\s\S]*?color: var\(--text\)/);
+    assert.match(siteThemeCss, /\.nav \.logo\s*\{[\s\S]*?color: var\(--worth-it-header-foreground\)/);
 });

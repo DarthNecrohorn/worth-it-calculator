@@ -60,6 +60,16 @@
                     '<span class="admin-panel-section-copy"><strong>Platform Usage</strong><small>Cloudflare Workers, CPU &amp; D1</small></span>',
                     '<span class="admin-panel-section-arrow">›</span>',
                 '</button>',
+                '<button type="button" class="admin-panel-section-button" data-admin-section="reports" onclick="showAdminSection(&quot;reports&quot;)">',
+                    '<span class="admin-panel-section-icon">⚑</span>',
+                    '<span class="admin-panel-section-copy"><strong>User Reports</strong><small>Review and moderate profile reports</small></span>',
+                    '<span class="admin-panel-section-arrow">›</span>',
+                '</button>',
+                '<button type="button" class="admin-panel-section-button" data-admin-section="economy" onclick="showAdminSection(\'economy\')">',
+                    '<span class="admin-panel-section-icon">◈</span>',
+                    '<span class="admin-panel-section-copy"><strong>Economy &amp; Transactions</strong><small>CALC balances, subscriptions and purchase history</small></span>',
+                    '<span class="admin-panel-section-arrow">›</span>',
+                '</button>',
             '</div>'
         ].join('');
     }
@@ -82,12 +92,150 @@
         });
     }
 
+
+    async function loadEconomyOverview(){
+        const area = $('adminEconomyArea');
+        if(!area) return;
+        area.innerHTML = '<div class="admin-panel-loading"><span class="admin-panel-spinner"></span>Loading CALC transactions…</div>';
+        try{
+            const session = await getSession();
+            if(!session?.access_token) throw new Error('Please sign in again.');
+            const result = await window.supabaseClient.rpc('calc_admin_overview');
+            if(result.error) throw result.error;
+            const overview = Array.isArray(result.data) ? result.data[0] : result.data;
+            if(!overview || typeof overview !== 'object') throw new Error('No economy overview was returned.');
+            const rows = Array.isArray(overview.transactions) ? overview.transactions : [];
+            const number = value => Number(value || 0).toLocaleString(undefined,{maximumFractionDigits:3});
+            const date = value => value ? new Date(value).toLocaleString() : '—';
+            const cards = [
+                ['Wallets',number(overview.wallet_count)],
+                ['Premium Lite active',number(overview.active_premium_lite)],
+                ['Premium active',number(overview.active_premium)],
+                ['Outstanding CALC',number(overview.calc_balance_total)],
+                ['Outstanding WIP',number(overview.wip_balance_total)]
+            ];
+            const table = rows.length ? '<div class="admin-platform-table-wrap"><table class="admin-platform-table"><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>' +
+                rows.map(item => {
+                    const currency = item.currency === 'WIP' ? 'WIP' : 'CALC';
+                    return '<tr><td>'+escapeHtml(date(item.created_at))+'</td><td>'+escapeHtml(item.username || item.email || 'Member')+'</td><td>'+escapeHtml(item.kind || '')+'</td><td>'+escapeHtml(number(item.amount))+' '+currency+'</td><td>'+escapeHtml(number(item.balance_after))+' '+currency+'</td><td>'+escapeHtml(item.status || '')+'</td></tr>';
+                }).join('')+
+                '</tbody></table></div>' : '<div class="admin-panel-empty"><span>◈</span><strong>No CALC transactions yet</strong><small>Daily rewards, calculator usage and subscription activity will appear here.</small></div>';
+            area.innerHTML = '<div class="admin-usage-summary-grid">'+cards.map(card=>'<article class="admin-usage-summary-card"><span>'+escapeHtml(card[0])+'</span><strong>'+escapeHtml(card[1])+'</strong></article>').join('')+'</div>'+
+                '<div class="admin-panel-list-head"><span>Latest '+rows.length+' transactions</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminEconomy()">↻ Refresh</button></div>'+table+
+                '<div class="admin-panel-card" style="margin-top:16px"><strong>Bank payouts and payment provider</strong><p style="color:var(--muted);line-height:1.6;margin:8px 0 0">Bank account details are not stored in Worth It. Connect and verify a payout account directly in the approved payment provider dashboard. Paid CALC packs and real-money Premium remain disabled until the provider approves the product and webhook integration is configured.</p></div>';
+        }catch(error){
+            const message = String(error?.message || 'Could not load the economy overview.');
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load CALC transactions</strong><span>'+escapeHtml(/PGRST202|calc_admin_overview|schema cache/i.test(message)?'Apply the CALC economy SQL migration in Supabase first.':message)+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminEconomy()">Try again</button></div>';
+        }
+    }
+    async function refreshAdminEconomy(){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        await loadEconomyOverview();
+    }
+
+
+    function isCommunityReportMigrationMissing(error){
+        const code = String(error?.code || '');
+        const message = String(error?.message || error?.details || '').toLowerCase();
+        return ['42703','PGRST204','PGRST205'].includes(code) ||
+            /admin_note|reviewed_at|schema cache|could not find the table|does not exist/.test(message);
+    }
+    async function loadUserReports(){
+        const area = $('adminUserReportsArea');
+        if(!area) return;
+        area.innerHTML = '<div class="admin-panel-loading"><span class="admin-panel-spinner"></span>Loading user reports…</div>';
+        try{
+            const session = await getSession();
+            if(!session?.access_token || !(await isAdmin())) throw new Error('Admin access required.');
+            let migrationReady = true;
+            let result = await window.supabaseClient.from('worth_it_user_reports')
+                .select('id,created_at,reporter_worth_it_id,reported_worth_it_id,reported_username,reason,details,status,admin_note,reviewed_at')
+                .order('created_at',{ascending:false}).limit(100);
+            if(result.error && isCommunityReportMigrationMissing(result.error)){
+                migrationReady = false;
+                result = await window.supabaseClient.from('worth_it_user_reports')
+                    .select('id,created_at,reporter_worth_it_id,reported_worth_it_id,reported_username,reason,details,status')
+                    .order('created_at',{ascending:false}).limit(100);
+            }
+            if(result.error) throw result.error;
+            const databaseRows = Array.isArray(result.data) ? result.data : [];
+            const previewRows = window.worthItCommunityPreviewMode && typeof window.getWorthItPreviewReports === 'function'
+                ? window.getWorthItPreviewReports().map(item=>({...item,_previewLocal:true})) : [];
+            const rows = [...previewRows,...databaseRows.map(item=>({...item,_previewLocal:false}))];
+            rows.sort((a,b)=>new Date(b.created_at||0).getTime()-new Date(a.created_at||0).getTime());
+            const readOnlyNotice = migrationReady ? '' :
+                '<div class="admin-user-report-readonly-note"><strong>Database reports are read-only in this Preview.</strong><span>New Preview test reports are stored locally in this browser and can be moderated here. Existing database reports are never changed by Preview testing.</span></div>';
+            if(!rows.length){
+                area.innerHTML = readOnlyNotice + '<div class="admin-panel-empty"><span>✓</span><strong>No user reports</strong><small>New profile reports will appear here after a member submits one.</small></div>';
+                return;
+            }
+            area.innerHTML = readOnlyNotice +
+                '<div class="admin-panel-list-head"><span>'+rows.length+' latest reports</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">↻ Refresh</button></div>' +
+                '<div class="admin-user-reports-list">'+rows.map(item=>{
+                    const date = item.created_at ? new Date(item.created_at).toLocaleString() : '—';
+                    const reporter = item._previewLocal ? 'Preview test account' : (item.reporter_worth_it_id ? 'Worth It ID '+item.reporter_worth_it_id : 'Member');
+                    const reported = item.reported_worth_it_id ? 'Worth It ID '+item.reported_worth_it_id : 'Unknown profile';
+                    const options = ['open','reviewing','resolved','dismissed'].map(status=>'<option value="'+status+'"'+(item.status===status?' selected':'')+'>'+status.charAt(0).toUpperCase()+status.slice(1)+'</option>').join('');
+                    const canModerate = item._previewLocal || migrationReady;
+                    const moderation = canModerate ?
+                        '<label>Status<select class="admin-user-report-status">'+options+'</select></label>'+
+                        '<label>Private admin note<textarea class="admin-user-report-note" maxlength="1000" rows="2">'+escapeHtml(item.admin_note||'')+'</textarea></label>'+
+                        '<button type="button" class="admin-panel-inline-button" onclick="moderateWorthItUserReport('+Number(item.id)+',this)">Save moderation update</button>'+
+                        (item.reviewed_at?'<small>Last reviewed '+escapeHtml(new Date(item.reviewed_at).toLocaleString())+'</small>':'') :
+                        '<p class="admin-user-report-readonly-hint">Status: <strong>'+escapeHtml(item.status||'open')+'</strong> · Database report is read-only until its moderation migration is installed in a staging database.</p>';
+                    return '<article class="admin-user-report-card" data-report-id="'+Number(item.id)+'">'+
+                        '<div class="admin-user-report-top"><div><strong>#'+Math.abs(Number(item.id))+' · '+escapeHtml(item.reason||'Other')+(item._previewLocal?' · Preview test':'')+'</strong><small>'+escapeHtml(date)+'</small></div><span>'+escapeHtml(item.status||'open')+'</span></div>'+
+                        '<p><strong>Reported:</strong> '+escapeHtml(item.reported_display_name||item.reported_username||'Worth It member')+' · '+escapeHtml(reported)+'</p>'+
+                        '<p><strong>Submitted by:</strong> '+escapeHtml(reporter)+'</p>'+
+                        '<p class="admin-user-report-details">'+escapeHtml(item.details||'No extra details provided.')+'</p>'+
+                        moderation+
+                    '</article>';
+                }).join('')+'</div>';
+        }catch(error){
+            area.innerHTML = '<div class="admin-panel-error"><strong>Could not load user reports</strong><span>'+escapeHtml(error?.message||'Please check the report table setup and try again.')+'</span><button type="button" class="admin-panel-inline-button" onclick="refreshAdminUserReports()">Try again</button></div>';
+        }
+    }
+    async function refreshAdminUserReports(){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        await loadUserReports();
+    }
+    async function moderateWorthItUserReport(reportId,button){
+        if(!(await isAdmin())){ closeAdminPanel(); return; }
+        const card = button?.closest('.admin-user-report-card');
+        const status = card?.querySelector('.admin-user-report-status')?.value || '';
+        const note = card?.querySelector('.admin-user-report-note')?.value || '';
+        const numericId = Number(reportId);
+        const isPreviewLocal = window.worthItCommunityPreviewMode === true && Number.isSafeInteger(numericId) && numericId < 0;
+        if((!isPreviewLocal && (!Number.isSafeInteger(numericId) || numericId<1)) || !card || button.disabled) return;
+        button.disabled = true;
+        try{
+            let payload = null;
+            if(isPreviewLocal){
+                payload = await window.moderateWorthItPreviewReport(numericId,status,note);
+            }else{
+                const result = await window.supabaseClient.rpc('admin_update_worth_it_user_report',{
+                    p_report_id:numericId,p_status:status,p_admin_note:note
+                });
+                if(result.error) throw result.error;
+                payload = Array.isArray(result.data)?result.data[0]:result.data;
+            }
+            if(!payload?.success) throw new Error(payload?.code==='REPORT_NOT_FOUND'?'This report no longer exists.':'The moderation update was not saved.');
+            setStatus('Report #'+Math.abs(numericId)+' updated.', 'success');
+            await loadUserReports();
+        }catch(error){
+            setStatus(error?.message||'Could not update the report.','error');
+            button.disabled = false;
+        }
+    }
+
     async function showAdminSection(section){
         if(!(await isAdmin())){ closeAdminPanel(); return; }
         activeSection =
             section === 'feedback' ||
             section === 'usage' ||
-            section === 'platform-usage'
+            section === 'platform-usage' ||
+            section === 'reports' ||
+            section === 'economy'
                 ? section
                 : 'home';
         setStatus('');
@@ -103,6 +251,18 @@
             setActiveNav();
             feedbackLoaded = false;
             await loadFeedback();
+            return;
+        }
+        if(activeSection === 'reports'){
+            content.innerHTML = renderSectionHeader('User Reports','Private reports submitted by Worth It members.','⚑') + '<div id="adminUserReportsArea"></div>';
+            setActiveNav();
+            await loadUserReports();
+            return;
+        }
+        if(activeSection === 'economy'){
+            content.innerHTML = renderSectionHeader('Economy & Transactions','Private CALC balances, subscription activity and purchase history.','◈') + '<div id="adminEconomyArea"></div>';
+            setActiveNav();
+            await loadEconomyOverview();
             return;
         }
         if(activeSection === 'platform-usage'){
@@ -678,6 +838,9 @@
     window.refreshAdminFeedback = refreshAdminFeedback;
     window.refreshAdminUsage = refreshAdminUsage;
     window.refreshAdminPlatformUsage = refreshAdminPlatformUsage;
+    window.refreshAdminEconomy = refreshAdminEconomy;
+    window.refreshAdminUserReports = refreshAdminUserReports;
+    window.moderateWorthItUserReport = moderateWorthItUserReport;
     window.openAdminFeedback = openAdminPanel;
     window.closeAdminFeedback = closeAdminPanel;
     window.loadAdminFeedback = refreshAdminFeedback;
