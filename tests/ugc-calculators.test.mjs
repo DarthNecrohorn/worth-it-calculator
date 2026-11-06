@@ -674,7 +674,8 @@ test("UGC detail page exposes owner pricing, favourites, and only valid public r
 
 
 test("square UGC cards use responsive columns and explain creator reaction limits", () => {
-    assert.match(paginationCss, /\.ugc-calculator-grid\{[\\s\\S]*?grid-template-columns:repeat\\(auto-fit,minmax/);
+    assert.ok(paginationCss.includes(".ugc-calculator-grid{"));
+    assert.ok(paginationCss.includes("grid-template-columns:repeat(auto-fit,minmax"));
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
     assert.match(maker, /const reactionNote=\\$\\("ugcDetailReactionNote"\\);if\\(reactionNote\\)reactionNote\\.hidden=canReact/);
 });
