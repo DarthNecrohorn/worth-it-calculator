@@ -724,15 +724,19 @@ async function loadFavouritesForSession(){
   }catch(error){if(isMissingCommunitySchema(error)){favouritesRemoteAvailable=false;saveLocalFavourites();}else{console.warn("Worth It favourite calculators could not be synchronised:",error);}}
  }
  decorateCards();
+ const detailButton=$("ugcDetailFavorite");
+ if(detailButton?.dataset.ugcFavoriteKey)updateFavouriteButton(detailButton,detailButton.dataset.ugcFavoriteKey);
 }
-async function toggleFavourite(key,button){
+async function toggleFavourite(key,button,allowDetail=false){
  const card=button?.closest(".calc-card");
  if(!favouritesUserId){toast("Sign in to save a user-created calculator.");return;}
- if(!isUGCCalculatorCard(card)||calculatorKey(card)!==key||!/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(key)){
+ const validKey=/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(key);
+ if(!validKey||(!allowDetail&&(!isUGCCalculatorCard(card)||calculatorKey(card)!==key))){
   toast("Only user-created calculators can be added to favourites.");return;
  }
+ const notify=()=>button?._worthItFavouriteChanged?.(favourites.has(key));
  const had=favourites.has(key);if(had)favourites.delete(key);else favourites.add(key);
- updateFavouriteButton(button,key);saveLocalFavourites();refreshFavouriteFilter();
+ updateFavouriteButton(button,key);saveLocalFavourites();refreshFavouriteFilter();notify();
  if(favouritesRemoteAvailable===false){if(!favouritesLocalNoticeShown){toast("Preview-only: favourites are saved locally for this account until the community database migration is installed.");favouritesLocalNoticeShown=true;}return;}
  button.disabled=true;
  try{
@@ -743,11 +747,29 @@ async function toggleFavourite(key,button){
  }catch(error){
   if(isMissingCommunitySchema(error)){favouritesRemoteAvailable=false;if(!favouritesLocalNoticeShown){toast("Preview-only: favourites are saved locally for this account until the community database migration is installed.");favouritesLocalNoticeShown=true;}return;}
   if(had)favourites.add(key);else favourites.delete(key);
-  saveLocalFavourites();updateFavouriteButton(button,key);refreshFavouriteFilter();
+  saveLocalFavourites();updateFavouriteButton(button,key);refreshFavouriteFilter();notify();
   toast("Could not sync this favourite. Apply the community features SQL migration first.");
   console.error("Favourite calculator update failed:",error);
  }finally{button.disabled=false;}
 }
+window.bindWorthItUGCFavoriteButton=function(id,button,isFavorite,onChange){
+ const clean=String(id||"").toLowerCase(),key="ugc:"+clean;
+ if(!button||!/^ugc:[a-z0-9][a-z0-9_-]{0,62}$/i.test(key))return;
+ button.dataset.ugcFavoriteKey=key;
+ if(typeof isFavorite==="boolean"){
+  if(isFavorite)favourites.add(key);else favourites.delete(key);
+  saveLocalFavourites();
+ }
+ button._worthItFavouriteChanged=typeof onChange==="function"?onChange:null;
+ updateFavouriteButton(button,key);
+ if(!button.dataset.ugcFavoriteBound){
+  button.dataset.ugcFavoriteBound="true";
+  button.addEventListener("click",event=>{
+   event.preventDefault();event.stopPropagation();
+   void toggleFavourite(key,button,true);
+  });
+ }
+};
 
 
 function getPreviewReports(){
