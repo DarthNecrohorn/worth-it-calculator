@@ -77,9 +77,11 @@ function renderCatalog(rows){
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
   const categoryChips=document.createElement("div");categoryChips.className="ugc-card-categories";
-  getCategoryLabels(item).forEach(label=>categoryChips.appendChild(text("span","ugc-subcategory-chip",label)));
-  card.appendChild(categoryChips);
+  const mainCategory=CATEGORY_LABELS[item.category]||"Other";
+  getCategoryLabels(item).filter(label=>label!==mainCategory).forEach(label=>categoryChips.appendChild(text("span","ugc-subcategory-chip",label)));
+  if(categoryChips.childElementCount)card.appendChild(categoryChips);
   card.appendChild(text("p","ugc-card-description",item.description||"No description provided."));
+  card.appendChild(text("p","ugc-card-more","Open calculator to see all the info →"));
   const owner=text("a","ugc-card-owner",item.owner_display_name||item.owner_username||"Worth It member");
   if(item.owner_worth_it_id)owner.href="/profile/"+item.owner_worth_it_id;else owner.href="#";
   owner.addEventListener("click",event=>{if(!item.owner_worth_it_id)event.preventDefault();});
@@ -131,7 +133,7 @@ function renderPagination(payload){
  nav.hidden=total===0;
  if(pageNumber)pageNumber.textContent=String(page);
  if(pageTotal)pageTotal.textContent=pages>100?"100+":String(pages);
- if(input){input.value=String(page);input.max=String(pages);input.min="1";input.disabled=pages<=1;}
+ if(input){input.value=String(page);input.max=String(pages);input.min="1";input.disabled=false;input.removeAttribute("aria-invalid");}
  if(prev)prev.disabled=page<=1;
  if(next)next.disabled=page>=pages;
  if(summary){
@@ -140,11 +142,26 @@ function renderPagination(payload){
  }
 }
 function goToCatalogPage(value){
- const requested=Number.parseInt(String(value||""),10);
- if(!Number.isFinite(requested)||requested<1){status("Enter a page number from 1 to "+state.totalPages+".",true);return;}
- const target=Math.min(state.totalPages,requested);
- state.pages[catalogPageKey()]=target;
- state.lastPage=target;
+ const raw=String(value??"").trim();
+ const requested=Number(raw);
+ const input=$("ugcPageInput");
+ if(!raw||!Number.isSafeInteger(requested)||requested<1){
+  const message="Enter a whole page number from 1 to "+state.totalPages+".";
+  if(input)input.setAttribute("aria-invalid","true");
+  status(message,true);
+  const summary=$("ugcPaginationStatus");if(summary)summary.textContent=message;
+  return;
+ }
+ if(requested>state.totalPages){
+  const message="Only "+state.totalPages+" page"+(state.totalPages===1?" is":"s are")+" available right now. More pages will appear when enough community calculators have been published.";
+  if(input)input.setAttribute("aria-invalid","true");
+  status(message,true);
+  const summary=$("ugcPaginationStatus");if(summary)summary.textContent=message;
+  return;
+ }
+ if(input)input.removeAttribute("aria-invalid");
+ state.pages[catalogPageKey()]=requested;
+ state.lastPage=requested;
  void loadCatalog();
 }
 async function loadCatalog(){
@@ -276,6 +293,10 @@ async function refreshCreationQuota(){
   console.warn("UGC creation quota could not be loaded:",error);
  }
 }
+function formatCalcPrice(usagePriceMilli){
+ const amount=(Number(usagePriceMilli)||100)/1000;
+ return String(Number(amount.toFixed(3)));
+}
 function renderCalculatorForm(calculator){
  const host=$("ugcDetailCalculatorForm");if(!host)return;
  host.replaceChildren();
@@ -289,7 +310,9 @@ function renderCalculatorForm(calculator){
   if(input.unit)wrap.appendChild(text("small","",input.unit));
   host.appendChild(wrap);
  });
- host.appendChild(button("Calculate · 0.1 CALC","ugc-action-primary ugc-calculate-button",()=>runCalculation(calculator)));
+ const usagePriceMilli=Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100));
+ const priceLabel=formatCalcPrice(usagePriceMilli);
+ host.appendChild(button("Calculate · "+priceLabel+" CALC","ugc-action-primary ugc-calculate-button",()=>runCalculation(calculator)));
 }
 async function runCalculation(calculator){
  if(!requireAccount())return;
@@ -308,10 +331,12 @@ async function runCalculation(calculator){
  const requestId=crypto.randomUUID();
  let reserved=false;
  try{
-  const reserve=await sb().rpc("calc_wallet_reserve",{p_request_id:requestId,p_reason:"calculator"});
+  const usagePriceMilli=Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100));
+  const priceLabel=formatCalcPrice(usagePriceMilli);
+  const reserve=await sb().rpc("calc_wallet_reserve",{p_request_id:requestId,p_reason:"calculator",p_calculator_id:calculator.id});
   if(reserve.error)throw reserve.error;
   if(!reserve.data?.ok){
-   if(reserve.data?.code==="INSUFFICIENT_CALC")throw new Error("Not enough CALC. Visit Web Shop or collect your daily reward.");
+   if(reserve.data?.code==="INSUFFICIENT_CALC")throw new Error("Not enough CALC. This calculation costs "+priceLabel+" CALC. Visit Web Shop or collect your daily reward.");
    throw new Error("Could not reserve CALC for this calculation.");
   }
   reserved=true;
@@ -323,7 +348,7 @@ async function runCalculation(calculator){
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
   reserved=false;
   renderCalculationResults(results);
-  detailStatus("Calculation complete. 0.1 CALC was charged.",false);
+  detailStatus("Calculation complete. "+priceLabel+" CALC was charged.",false);
   await refreshCalcWallet();
  }catch(error){
   if(reserved)await sb().rpc("calc_wallet_refund",{p_request_id:requestId}).catch(()=>{});
@@ -347,9 +372,13 @@ async function refreshCalcWallet(){
  if(typeof window.refreshWorthItCalcWallet==="function")return window.refreshWorthItCalcWallet();
  try{await sb().rpc("calc_wallet_summary");}catch(_){}
 }
+function renderDetailStats(calculator){
+ const stats=$("ugcDetailStats");if(!stats)return;
+ stats.textContent="♥ "+Number(calculator.likes||0)+" likes · ★ "+Number(calculator.favorites||0)+" favourites · ◉ "+Number(calculator.views||0)+" views";
+}
 function detailShow(calculator,fromUrl){
  state.activeCalculator=calculator;state.activeId=String(calculator.id);
- const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner"),stats=$("ugcDetailStats");
+ const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner");
  const kicker=$("ugcDetailKicker"),publicNumber=Number(calculator.calculator_number);
  if(kicker)kicker.textContent=Number.isSafeInteger(publicNumber)&&publicNumber>=51?"WORTH IT COMMUNITY · CALCULATOR #"+publicNumber:"WORTH IT COMMUNITY";
  if(title)title.textContent=calculator.title||"Community calculator";
@@ -360,10 +389,34 @@ function detailShow(calculator,fromUrl){
   owner.textContent=calculator.owner_display_name||calculator.owner_username||"Worth It member";
   owner.href=calculator.owner_worth_it_id?"/profile/"+calculator.owner_worth_it_id:"#";
  }
- if(stats)stats.textContent="♥ "+Number(calculator.likes||0)+" likes · ★ "+Number(calculator.favorites||0)+" favourites · ◉ "+Number(calculator.views||0)+" views";
+ renderDetailStats(calculator);
  $("ugcDetailEditDescription")?.classList.toggle("hidden",calculator.is_owner!==true);
  const editor=$("ugcDetailDescriptionEditor");
  if(editor){editor.hidden=calculator.is_owner!==true;$("ugcDetailDescriptionInput").value=calculator.description||"";}
+ const priceEditor=$("ugcDetailPriceEditor");
+ const usagePriceMilli=Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100));
+ const priceInput=$("ugcDetailUsagePrice");
+ if(priceEditor)priceEditor.hidden=calculator.is_owner!==true;
+ if(priceInput)priceInput.value=(usagePriceMilli/1000).toFixed(2);
+ const priceDisplay=$("ugcDetailUsagePriceDisplay");
+ if(priceDisplay)priceDisplay.textContent="Cost per calculation: "+formatCalcPrice(usagePriceMilli)+" CALC.";
+ const favoriteButton=$("ugcDetailFavorite");
+ if(favoriteButton)window.bindWorthItUGCFavoriteButton?.(calculator.id,favoriteButton,calculator.is_favorite===true,active=>{
+  const previous=calculator.is_favorite===true;
+  if(previous!==active){calculator.favorites=Math.max(0,Number(calculator.favorites||0)+(active?1:-1));calculator.is_favorite=active;renderDetailStats(calculator);}
+ });
+ const canReact=calculator.is_owner!==true&&calculator.visibility==="public";
+ const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
+ if(likeButton){
+  likeButton.hidden=!canReact;likeButton.textContent=calculator.my_reaction==="like"?"♥ Liked":"♥ Like";
+  likeButton.classList.toggle("is-active",calculator.my_reaction==="like");
+  likeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="like"));
+ }
+ if(dislikeButton){
+  dislikeButton.hidden=!canReact;dislikeButton.textContent=calculator.my_reaction==="dislike"?"▼ Disliked":"▼ Dislike";
+  dislikeButton.classList.toggle("is-active",calculator.my_reaction==="dislike");
+  dislikeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="dislike"));
+ }
  const badges=$("ugcDetailOwnerBadges");if(badges)badges.replaceChildren();
  renderCalculatorForm(calculator);
  $("ugcDetailResults")?.replaceChildren();
@@ -385,6 +438,9 @@ async function openDetail(id,options){
  $("ugcDetailCategories")?.replaceChildren();
  $("ugcDetailStats")?.replaceChildren();
  $("ugcDetailOwnerBadges")?.replaceChildren();
+ $("ugcDetailPriceEditor")?.setAttribute("hidden","");
+ $("ugcDetailLike")?.setAttribute("hidden","");
+ $("ugcDetailDislike")?.setAttribute("hidden","");
  $("ugcDetailCalculatorForm")?.replaceChildren();
  $("ugcDetailResults")?.replaceChildren();
  $("ugcDetailEditDescription")?.classList.add("hidden");
@@ -428,6 +484,32 @@ async function react(id,reaction){
   await loadCatalog();
   if(state.activeId===String(id))await openDetail(id,{fromUrl:true});
  }catch(error){toast(error?.message||"Could not save your reaction.");}
+}
+async function saveUsagePrice(){
+ const calculator=state.activeCalculator;
+ if(!calculator||calculator.is_owner!==true||!requireAccount())return;
+ const input=$("ugcDetailUsagePrice"),buttonNode=$("ugcDetailSaveUsagePrice"),statusNode=$("ugcDetailUsagePriceStatus");
+ const value=Number(input?.value);
+ const priceMilli=Math.round(value*1000);
+ if(!Number.isFinite(value)||value<0.1||value>0.5||!Number.isInteger(priceMilli)||priceMilli%10!==0){
+  if(statusNode)statusNode.textContent="Choose a price from 0.10 to 0.50 CALC in 0.01 increments.";
+  return;
+ }
+ if(buttonNode)buttonNode.disabled=true;
+ if(statusNode)statusNode.textContent="Saving usage price…";
+ try{
+  const result=await sb().rpc("set_worth_it_ugc_usage_price",{p_id:calculator.id,p_price_milli:priceMilli});
+  if(result.error)throw result.error;
+  const saved=normalizeObject(result.data);
+  if(saved?.success!==true)throw new Error(saved?.error||"The usage price was not confirmed.");
+  calculator.usage_price_milli=Number(saved.usage_price_milli)||priceMilli;
+  renderCalculatorForm(calculator);
+  const display=$("ugcDetailUsagePriceDisplay");
+  if(display)display.textContent="Cost per calculation: "+formatCalcPrice(calculator.usage_price_milli)+" CALC.";
+  if(statusNode)statusNode.textContent="Usage price saved: "+formatCalcPrice(calculator.usage_price_milli)+" CALC per calculation.";
+ }catch(error){
+  if(statusNode)statusNode.textContent=error?.message||"Could not save the usage price.";
+ }finally{if(buttonNode)buttonNode.disabled=false;}
 }
 async function refreshDescriptionStatus(id){
  const request=++state.descriptionStatusRequest;
@@ -908,6 +990,7 @@ async function init(){
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
  $("ugcDetailBack")?.addEventListener("click",()=>window.closeWorthItUGCCalculator());
  $("ugcDetailSaveDescription")?.addEventListener("click",saveDescription);
+ $("ugcDetailSaveUsagePrice")?.addEventListener("click",saveUsagePrice);
  $("ugcDetailLike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"like"));
  $("ugcDetailDislike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"dislike"));
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange((event,session)=>{
