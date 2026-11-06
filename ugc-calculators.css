@@ -372,3 +372,109 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-maker-test-head{gap:8px}
  .ugc-maker-test-result>strong{font-size:16px}
 }
+
+
+/* PR #194 polish: square calculator tiles, compact excerpts and clear state chips. */
+.ugc-calculator-card{
+ aspect-ratio:1 / 1;
+ min-height:330px;
+ overflow:hidden;
+ gap:8px;
+}
+.ugc-card-head{
+ justify-content:flex-start;
+ flex-wrap:wrap;
+ padding-right:48px;
+}
+.ugc-card-title{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ overflow:hidden;
+}
+.ugc-card-description{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:3;
+ overflow:hidden;
+ flex:0 1 auto;
+ min-height:0;
+}
+.ugc-card-more{
+ margin:0;
+ color:var(--primary2);
+ font-size:10px;
+ font-weight:750;
+ line-height:1.4;
+}
+.ugc-card-owner{margin-top:auto}
+.ugc-card-actions{margin-top:2px}
+.ugc-detail-usage-price{
+ margin:12px 0 8px;
+ color:var(--primary2);
+ font-size:12px;
+ font-weight:850;
+}
+.ugc-detail-price-editor{
+ display:grid;
+ gap:9px;
+ margin:12px 0 18px;
+ padding:14px;
+ border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));
+ border-radius:14px;
+ background:var(--surface-soft);
+}
+.ugc-detail-price-editor[hidden]{display:none!important}
+.ugc-detail-price-editor>label{
+ color:var(--text);
+ font-size:12px;
+ font-weight:800;
+}
+.ugc-detail-price-controls{
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ gap:9px;
+}
+.ugc-detail-price-controls input{
+ width:min(150px,100%);
+ min-height:40px;
+ padding:8px 10px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ background:var(--card-solid);
+ color:var(--text);
+ font:inherit;
+ font-size:13px;
+ font-weight:800;
+}
+.ugc-detail-price-editor .ugc-maker-status{margin:0}
+.ugc-detail-favorite-button{
+ min-width:42px;
+ min-height:38px;
+ display:inline-grid;
+ place-items:center;
+ padding:7px 11px;
+ font-size:18px;
+ line-height:1;
+}
+.ugc-detail-favorite-button.is-favourite{
+ color:#fbbf24;
+ border-color:rgba(251,191,36,.48);
+ background:rgba(251,191,36,.10);
+}
+.ugc-detail-actions button[hidden]{display:none!important}
+.ugc-detail-actions .is-active{
+ color:var(--primary2);
+ border-color:color-mix(in srgb,var(--primary) 55%,var(--border));
+ background:color-mix(in srgb,var(--primary) 12%,var(--surface-soft));
+}
+.ugc-page-input[aria-invalid="true"]{
+ border-color:var(--danger);
+ box-shadow:0 0 0 2px color-mix(in srgb,var(--danger) 20%,transparent);
+}
+@media(max-width:700px){
+ .ugc-calculator-card{min-height:300px}
+ .ugc-detail-price-controls{align-items:stretch}
+ .ugc-detail-price-controls input{width:100%}
+}
