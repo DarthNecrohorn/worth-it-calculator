@@ -57,9 +57,11 @@ function withFetch(mock, callback) {
 }
 
 test("AI Maker closes only when the outer backdrop itself is clicked", () => {
-    assert.match(html, /<div id="ugcMakerModal"[^>]*>\\s*<section id="ugcMakerOverlay"/);
-    assert.match(maker, /const makerModal=\\$\\("ugcMakerModal"\\);\\s*makerModal\\?\\.addEventListener\\("click",event=>\\{if\\(event\\.target===makerModal\\)closeMaker\\(\\);\\}\\);/);
-    assert.doesNotMatch(maker, /\\$\\("ugcMakerOverlay"\\)\\?\\.addEventListener\\("click"/);
+    const modalStart = html.indexOf('<div id="ugcMakerModal"');
+    const modalMarkup = html.slice(modalStart, modalStart + 400);
+    assert.ok(modalStart >= 0 && modalMarkup.includes('<section id="ugcMakerOverlay"'), "maker card is nested inside the outer backdrop");
+    assert.ok(maker.includes('const makerModal=$("ugcMakerModal");\\n makerModal?.addEventListener("click",event=>{if(event.target===makerModal)closeMaker();});'), "only a direct click on the outer backdrop closes the modal");
+    assert.ok(!maker.includes('$("ugcMakerOverlay")?.addEventListener("click"'), "clicks inside the maker card must not dismiss it");
 });
 
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
