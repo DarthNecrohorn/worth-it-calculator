@@ -158,7 +158,7 @@ begin
         returning creations_used into v_creations_used;
         if v_creations_used is null then
             raise exception 'Daily calculator creation limit reached (% per UTC day).',v_daily_limit
-                using errcode='54000';
+                using errcode='P0001';
         end if;
 
         insert into private.worth_it_user_calculators(owner_user_id,title,description,category,subcategories,spec)
@@ -721,4 +721,5 @@ grant execute on function public.set_worth_it_ugc_visibility(uuid,text) to authe
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) from public,anon;
 grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) to authenticated;
 
+notify pgrst, 'reload schema';
 commit;
