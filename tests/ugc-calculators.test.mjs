@@ -56,6 +56,12 @@ function withFetch(mock, callback) {
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
 
+test("AI Maker closes only when the outer backdrop itself is clicked", () => {
+    assert.match(html, /<div id="ugcMakerModal"[^>]*>\\s*<section id="ugcMakerOverlay"/);
+    assert.match(maker, /const makerModal=\\$\\("ugcMakerModal"\\);\\s*makerModal\\?\\.addEventListener\\("click",event=>\\{if\\(event\\.target===makerModal\\)closeMaker\\(\\);\\}\\);/);
+    assert.doesNotMatch(maker, /\\$\\("ugcMakerOverlay"\\)\\?\\.addEventListener\\("click"/);
+});
+
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
     for (const id of [
         "ugcCommunitySection", "ugcCalculatorGrid", "ugcCreateButton", "ugcMakerModal",
