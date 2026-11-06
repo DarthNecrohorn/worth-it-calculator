@@ -122,6 +122,7 @@ test("UGC visibility migration uses the same protected public/private RPC contra
     assert.match(visibilitySql,/where id=p_id and owner_user_id=v_user_id and status='published'/);
     assert.match(visibilitySql,/NOTIFY pgrst, 'reload schema'/i);
     assert.match(visibilitySql,/using errcode='P0001'/);
+    assert.match(paginationFixture,/exception when raise_exception then blocked:=true;/);
 });
 
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
