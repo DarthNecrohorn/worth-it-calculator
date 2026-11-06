@@ -513,12 +513,20 @@ async function publishCalculator(id,visibility){
 async function setCalculatorVisibility(id,visibility){
  if(!requireAccount()||!verifyConfirmed())return;
  const target=visibility==="public"?"public":"private";
+ const card=Array.from(document.querySelectorAll(".ugc-calculator-card")).find(node=>node.dataset.ugcId===String(id));
+ const action=card?.querySelector(".ugc-card-actions button:last-child");
+ if(action)action.disabled=true;
  try{
   const result=await sb().rpc("set_worth_it_ugc_visibility",{p_id:id,p_visibility:target});
   if(result.error)throw result.error;
+  const payload=normalizeObject(result.data);
+  if(payload?.success!==true||payload.visibility!==target)throw new Error("The calculator visibility change was not confirmed.");
   toast(target==="public"?"Your calculator is now public and discoverable.":"Your calculator is now private.");
   await loadCatalog();
- }catch(error){status(error?.message||"Could not change calculator visibility.",true);}
+ }catch(error){
+  status(error?.message||"Could not change calculator visibility.",true);
+  if(action)action.disabled=false;
+ }
 }
 function openMaker(){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -732,6 +740,7 @@ async function saveMakerDraft(publish){
  if(title.length<3){$("ugcMakerStatus").textContent="Enter a title with at least 3 characters.";return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
+ let savedIdAfterWrite="";
  try{
   const saved=await sb().rpc("save_worth_it_ugc_calculator",{
    p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:state.aiDraft.spec
@@ -739,15 +748,37 @@ async function saveMakerDraft(publish){
   if(saved.error)throw saved.error;
   const payload=normalizeObject(saved.data),id=payload?.id;
   if(!id)throw new Error("The calculator draft could not be saved.");
+  savedIdAfterWrite=id;
+  // Keep the ID before publishing. A retry updates this saved draft instead
+  // of creating a duplicate or consuming another daily creation slot.
+  if(!state.editingId){
+   state.editingId=id;
+   state.editingVisibility=visibility;
+   state.editingStatus="draft";
+   $("ugcMakerGenerate").textContent="✦ Improve with AI";
+   $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
+   const visibilityWrap=$("ugcMakerVisibilityWrap");if(visibilityWrap)visibilityWrap.hidden=true;
+   const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus");
+   if(createQuota)createQuota.hidden=true;
+   if(editQuota)editQuota.hidden=false;
+   void refreshAiEditQuota();
+  }
   if(publish){
    const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id,p_visibility:visibility});
    if(result.error)throw result.error;
+   const publication=normalizeObject(result.data);
+   if(publication?.success!==true||publication.visibility!==visibility)throw new Error("The calculator was saved, but publication was not confirmed.");
   }
   state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerGenerate").textContent="✦ Generate calculator";$("ugcMakerTitleHeading").textContent="Create a calculator with AI";$("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
   const publicNumber=Number(payload?.calculator_number);
   const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
- }catch(error){$("ugcMakerStatus").textContent=error?.message||"Could not save the calculator."; }
+ }catch(error){
+  const detail=error?.message||"Could not save the calculator.";
+  $("ugcMakerStatus").textContent=savedIdAfterWrite
+   ?"Your draft is saved. Publishing could not be completed: "+detail+" You can retry without creating another calculator."
+   :detail;
+ }
  finally{if(save)save.disabled=false;if(publishButton)publishButton.disabled=false;}
 }
 function setExploreInitialView(view){
