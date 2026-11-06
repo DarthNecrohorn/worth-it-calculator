@@ -409,6 +409,7 @@ function detailShow(calculator,fromUrl){
   if(previous!==active){calculator.favorites=Math.max(0,Number(calculator.favorites||0)+(active?1:-1));calculator.is_favorite=active;renderDetailStats(calculator);}
  });
  const canReact=calculator.is_owner!==true&&calculator.visibility==="public";
+ const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact;
  const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
  if(likeButton){
   likeButton.hidden=!canReact;likeButton.textContent=calculator.my_reaction==="like"?"♥ Liked":"♥ Like";
@@ -444,6 +445,7 @@ async function openDetail(id,options){
  $("ugcDetailPriceEditor")?.setAttribute("hidden","");
  $("ugcDetailLike")?.setAttribute("hidden","");
  $("ugcDetailDislike")?.setAttribute("hidden","");
+ $("ugcDetailReactionNote")?.setAttribute("hidden","");
  $("ugcDetailCalculatorForm")?.replaceChildren();
  $("ugcDetailResults")?.replaceChildren();
  $("ugcDetailEditDescription")?.classList.add("hidden");
