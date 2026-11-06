@@ -1623,14 +1623,24 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <span class="ugc-community-kicker">COMMUNITY CALCULATOR</span>
         </div>
         <header class="ugc-detail-header">
+          <button type="button" id="ugcDetailFavorite" class="ugc-action-secondary ugc-detail-favorite-button" aria-pressed="false" aria-label="Add to favourites" title="Add to favourites">☆</button>
           <span class="ugc-detail-kicker" id="ugcDetailKicker">WORTH IT COMMUNITY</span>
           <h1 id="ugcDetailTitle">Community calculator</h1>
           <p id="ugcDetailDescription"></p>
-          <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Created by a Worth It member</a>
-          <div id="ugcDetailCategories" class="ugc-detail-categories" aria-label="AI-selected calculator categories"></div>
-          <div id="ugcDetailStats" class="ugc-detail-stats"></div>
-          <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
+          <div class="ugc-detail-meta-row">
+            <div class="ugc-detail-meta-info">
+              <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Made by a Worth It member</a>
+              <div id="ugcDetailCategories" class="ugc-detail-categories" aria-label="AI-selected calculator categories"></div>
+              <div id="ugcDetailStats" class="ugc-detail-stats"></div>
+              <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
+            </div>
+            <div class="ugc-detail-actions" aria-label="Calculator reactions">
+              <button type="button" id="ugcDetailLike" class="ugc-action-secondary" hidden>♥ Like</button>
+              <button type="button" id="ugcDetailDislike" class="ugc-action-secondary" hidden>▼ Dislike</button>
+            </div>
+          </div>
         </header>
+        <p id="ugcDetailReactionNote" class="ugc-detail-reaction-note" hidden>Only other users can like or dislike a public calculator. The creator cannot rate their own calculator.</p>
         <section id="ugcDetailDescriptionEditor" class="ugc-detail-description-editor" hidden>
           <label for="ugcDetailDescriptionInput">Your calculator description · optional · up to 500 characters</label>
           <textarea id="ugcDetailDescriptionInput" rows="3" maxlength="500" placeholder="Explain what this calculator does and when people should use it."></textarea>
@@ -1652,12 +1662,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div id="ugcDetailCalculatorForm" class="ugc-detail-calculator-form"></div>
         </section>
         <div id="ugcDetailResults"></div>
-        <div class="ugc-detail-actions">
-          <button type="button" id="ugcDetailFavorite" class="ugc-action-secondary ugc-detail-favorite-button" aria-pressed="false" aria-label="Add to favourites" title="Add to favourites">☆</button>
-          <button type="button" id="ugcDetailLike" class="ugc-action-secondary" hidden>♥ Like</button>
-          <button type="button" id="ugcDetailDislike" class="ugc-action-secondary" hidden>▼ Dislike</button>
-        </div>
-        <p id="ugcDetailReactionNote" class="ugc-detail-reaction-note" hidden>Only other users can like or dislike a public calculator. The creator cannot rate their own calculator.</p>
         <p id="ugcDetailStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
       </div>
     </section>
