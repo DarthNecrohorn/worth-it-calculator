@@ -562,3 +562,20 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
   pointer-events:auto!important;transition:none!important;animation:none!important;
  }
 }
+
+
+/* Detail-page UGC favourite is inline, unlike the floating catalogue-card star. */
+#ugcDetailFavorite{
+ position:static;
+ width:auto;
+ height:auto;
+ min-width:42px;
+ padding:7px 11px;
+ border-radius:10px;
+ font-size:18px;
+}
+#ugcDetailFavorite.is-favourite{
+ color:#fbbf24;
+ border-color:rgba(251,191,36,.48);
+ background:rgba(251,191,36,.10);
+}
