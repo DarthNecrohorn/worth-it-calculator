@@ -98,6 +98,32 @@ test("AI Maker test mode recalculates locally with the restricted formula engine
     assert.match(paginationCss, /\.ugc-maker-test-results-grid/);
 });
 
+test("the UGC calculator detail section is outside the home page that is hidden while a calculator is open", () => {
+    const homeStart = html.indexOf('<section id="homePage">');
+    const detailStart = html.indexOf('<section id="ugcDetailSection"');
+    assert.ok(homeStart >= 0 && detailStart >= 0, "both page sections exist");
+    const tags = /<\/?section\b[^>]*>/gi;
+    tags.lastIndex = homeStart;
+    let depth = 0;
+    let homeEnd = -1;
+    let match;
+    while ((match = tags.exec(html))) {
+        if (/^<section\b/i.test(match[0])) depth++;
+        else depth--;
+        if (depth === 0) { homeEnd = tags.lastIndex; break; }
+    }
+    assert.ok(homeEnd > homeStart && homeEnd < detailStart,
+        "hiding #homePage must not hide #ugcDetailSection");
+});
+
+test("UGC visibility migration uses the same protected public/private RPC contract as the UI", () => {
+    assert.match(visibilitySql,/create or replace function public\.publish_worth_it_ugc_calculator\(p_id uuid,p_visibility text\)/);
+    assert.match(visibilitySql,/create or replace function public\.set_worth_it_ugc_visibility\(p_id uuid,p_visibility text\)/);
+    assert.match(visibilitySql,/where id=p_id and owner_user_id=v_user_id and status='published'/);
+    assert.match(visibilitySql,/NOTIFY pgrst, 'reload schema'/i);
+    assert.match(visibilitySql,/using errcode='P0001'/);
+});
+
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
     for (const id of [
         "ugcCommunitySection", "ugcCalculatorGrid", "ugcCreateButton", "ugcMakerModal",
@@ -127,6 +153,10 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(html.includes('data-ugc-sort="my-drafts"'));
     assert.ok(maker.includes('state.sort==="my-drafts"'));
     assert.ok(maker.includes("set_worth_it_ugc_visibility"));
+    assert.match(maker,/publish_worth_it_ugc_calculator",\{p_id:id,p_visibility:visibility\}/);
+    assert.match(maker,/set_worth_it_ugc_visibility",\{p_id:id,p_visibility:target\}/);
+    assert.match(maker,/state\.editingId=id;\s*state\.editingVisibility=visibility;/,
+        "a saved draft ID is retained if the first publication attempt fails, so retries do not create duplicate calculators");
     assert.ok(html.includes("ugcMakerVisibilityWrap"));
     assert.ok(maker.includes("AI-selected categories"));
     assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
