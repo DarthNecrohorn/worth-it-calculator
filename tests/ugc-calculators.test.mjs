@@ -677,5 +677,5 @@ test("square UGC cards use responsive columns and explain creator reaction limit
     assert.ok(paginationCss.includes(".ugc-calculator-grid{"));
     assert.ok(paginationCss.includes("grid-template-columns:repeat(auto-fit,minmax"));
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
-    assert.match(maker, /const reactionNote=\\$\\("ugcDetailReactionNote"\\);if\\(reactionNote\\)reactionNote\\.hidden=canReact/);
+    assert.ok(maker.includes('const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact'));
 });
