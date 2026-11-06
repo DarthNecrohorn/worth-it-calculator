@@ -82,7 +82,10 @@ function renderCatalog(rows){
   if(categoryChips.childElementCount)card.appendChild(categoryChips);
   card.appendChild(text("p","ugc-card-description",item.description||"No description provided."));
   card.appendChild(text("p","ugc-card-more","Open calculator to see all the info →"));
-  const owner=text("a","ugc-card-owner",item.owner_display_name||item.owner_username||"Worth It member");
+  const ownerUsername=String(item.owner_username||"").trim().replace(/^@+/,"");
+  const ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member";
+  const owner=text("a","ugc-card-owner",ownerLabel);
+  owner.setAttribute("aria-label",ownerLabel);
   if(item.owner_worth_it_id)owner.href="/profile/"+item.owner_worth_it_id;else owner.href="#";
   owner.addEventListener("click",event=>{if(!item.owner_worth_it_id)event.preventDefault();});
   card.appendChild(owner);
@@ -389,7 +392,8 @@ function detailShow(calculator,fromUrl){
  if(categoryHost){categoryHost.replaceChildren();getCategoryLabels(calculator).forEach(label=>categoryHost.appendChild(text("span","ugc-subcategory-chip",label)));}
  if(description)description.textContent=calculator.description||"No description provided.";
  if(owner){
-  owner.textContent=calculator.owner_display_name||calculator.owner_username||"Worth It member";
+  const ownerUsername=String(calculator.owner_username||"").trim().replace(/^@+/,"");
+  owner.textContent=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member";
   owner.href=calculator.owner_worth_it_id?"/profile/"+calculator.owner_worth_it_id:"#";
  }
  renderDetailStats(calculator);
