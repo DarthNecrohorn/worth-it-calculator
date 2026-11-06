@@ -689,7 +689,7 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
     assert.match(responsiveTileCss, /min-height:0!important/);
     assert.match(responsiveTileCss, /aspect-ratio:1 \/ 1/);
     assert.match(maker, /const ownerUsername=String\(item\.owner_username\|\|\"\"\)\.trim\(\)\.replace\(\/\^@\+\/\,\"\"\)/);
-    assert.match(maker, /Made by \"\+ownerUsername/);
+    assert.ok(maker.includes('ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member"'));
 });
 
 test("UGC detail favourite sits in the header and reactions sit beside author and stats", () => {
@@ -703,5 +703,5 @@ test("UGC detail favourite sits in the header and reactions sit beside author an
     assert.match(detailHeader, /id="ugcDetailLike"/);
     assert.match(detailHeader, /id="ugcDetailDislike"/);
     assert.doesNotMatch(html.slice(html.indexOf('id="ugcDetailUsagePriceDisplay"')), /id="ugcDetailFavorite"/);
-    assert.match(maker, /Made by \"\+ownerUsername/);
+    assert.ok(maker.includes('ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member"'));
 });
