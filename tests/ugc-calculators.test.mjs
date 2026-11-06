@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
 import { onRequestPost, onRequestOptions } from "../functions/api/ugc-maker.js";
 
@@ -61,6 +62,40 @@ test("AI Maker can be closed only with its X button; backdrop clicks never dismi
     assert.ok(!maker.includes('addEventListener("click",event=>{\n  const shouldClose='), "there is no backdrop click-to-close handler");
     assert.ok(!maker.includes('makerBackdropPointerDown'), "there is no pointer-based backdrop dismissal");
     assert.ok(!maker.includes('$("ugcMakerOverlay")?.addEventListener("click"'), "clicking the calculator card never dismisses the maker");
+});
+
+test("AI Maker test mode recalculates locally with the restricted formula engine and never charges CALC", () => {
+    const engineStart = maker.indexOf("function compileExpression");
+    const engineEnd = maker.indexOf("async function refreshAiEditQuota", engineStart);
+    assert.ok(engineStart >= 0 && engineEnd > engineStart, "the restricted formula engine is present");
+    const engineSource = maker.slice(engineStart, engineEnd);
+    const engine = runInNewContext(engineSource + "\n({ compileExpression, evaluate, formatResult })");
+    const keys = new Set(["current_monthly_cost", "new_monthly_cost", "switching_fee", "period_months"]);
+    const values = { current_monthly_cost: 30, new_monthly_cost: 10, switching_fee: 0, period_months: 12 };
+    const expressions = [
+        "current_monthly_cost * period_months",
+        "new_monthly_cost * period_months + switching_fee",
+        "current_monthly_cost * period_months - (new_monthly_cost * period_months + switching_fee)",
+        "(current_monthly_cost * period_months - (new_monthly_cost * period_months + switching_fee)) / period_months"
+    ];
+    const results = expressions.map(expression => engine.evaluate(engine.compileExpression(expression, keys), values));
+    assert.deepEqual(results, [360, 120, 240, 20], "the same evaluator should calculate the subscription example correctly");
+
+    assert.match(maker, /button\("▶ Test calculator","ugc-maker-test-toggle"/);
+    assert.match(maker, /function renderMakerTestPanel\(preserveValues\)/);
+    assert.match(maker, /function updateMakerTestResults\(panel\)/);
+    assert.match(maker, /control\.addEventListener\("input",\(\)=>updateMakerTestResults\(panel\)\)/);
+    assert.match(maker, /compileExpression\(item\.expression,keys\)/);
+    assert.match(maker, /evaluate\(ast,values\)/);
+    assert.match(maker, /control\.dataset\.ugcMakerTestKey=String\(item\.key\)/);
+    assert.match(maker, /control\.min=String\(item\.min\)/);
+    assert.match(maker, /control\.max=String\(item\.max\)/);
+    assert.match(maker, /renderMakerTestPanel\(true\)/, "formula edits refresh the open test panel while keeping sample values");
+    const localTestCode = maker.slice(maker.indexOf("function refreshMakerTestIfOpen"), maker.indexOf("async function generateWithAI"));
+    assert.match(localTestCode, /Free local test/);
+    assert.doesNotMatch(localTestCode, /calc_wallet_(?:reserve|settle|refund)|\.rpc\(|fetch\(/, "test mode must never charge CALC or call a server");
+    assert.match(paginationCss, /\.ugc-maker-test-panel/);
+    assert.match(paginationCss, /\.ugc-maker-test-results-grid/);
 });
 
 test("the UGC gallery, detail route, maker modal and profile sections are wired", () => {
