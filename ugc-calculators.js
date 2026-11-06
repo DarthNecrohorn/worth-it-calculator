@@ -778,7 +778,14 @@ async function init(){
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
  const makerModal=$("ugcMakerModal");
- makerModal?.addEventListener("click",event=>{if(event.target===makerModal)closeMaker();});
+ let makerBackdropPointerDown=false;
+ makerModal?.addEventListener("pointerdown",event=>{makerBackdropPointerDown=event.target===makerModal;});
+ makerModal?.addEventListener("pointercancel",()=>{makerBackdropPointerDown=false;});
+ makerModal?.addEventListener("click",event=>{
+  const shouldClose=makerBackdropPointerDown&&event.target===makerModal;
+  makerBackdropPointerDown=false;
+  if(shouldClose)closeMaker();
+ });
  $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
