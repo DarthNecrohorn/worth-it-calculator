@@ -224,7 +224,7 @@ begin
             null,'Premium fourth draft','','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when program_limit_exceeded then blocked:=true;
+    exception when raise_exception then blocked:=true;
     end;
     if not blocked then raise exception 'Premium created more than three calculators in a UTC day.'; end if;
 end
@@ -247,7 +247,7 @@ begin
             null,'Premium Lite third draft','','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when program_limit_exceeded then blocked:=true;
+    exception when raise_exception then blocked:=true;
     end;
     if not blocked then raise exception 'Premium Lite created more than two calculators in a UTC day.'; end if;
 end
