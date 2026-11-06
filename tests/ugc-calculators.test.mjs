@@ -634,3 +634,38 @@ test("public UGC publications notify current followers and stop after unfollow",
     assert.ok(paginationFixture.includes("Unfollowing did not remove prior UGC publication notifications"));
     assert.ok(paginationFixture.includes("A former follower received a later public UGC publication"));
 });
+
+
+test("UGC calculator cards are square, compact, and do not duplicate the parent category", () => {
+    assert.match(maker, /mainCategory=CATEGORY_LABELS\[item\.category\]/);
+    assert.match(maker, /getCategoryLabels\(item\)\.filter\(label=>label!==mainCategory\)/);
+    assert.match(maker, /ugc-card-more.*Open calculator to see all the info/);
+    assert.match(paginationCss, /\.ugc-calculator-card\{[\s\S]*?aspect-ratio:1 \/ 1/);
+    assert.match(paginationCss, /-webkit-line-clamp:3/);
+    assert.match(paginationCss, /\.ugc-card-head\{[\s\S]*?padding-right:48px/);
+});
+
+test("UGC page jump stays editable on a single page and explains unavailable future pages", () => {
+    assert.match(maker, /input\.disabled=false/);
+    assert.doesNotMatch(maker, /input\.disabled=pages<=1/);
+    assert.match(maker, /if\(requested>state\.totalPages\)/);
+    assert.match(maker, /More pages will appear when enough community calculators have been published/);
+    assert.match(html, /id="ugcPageInput" class="ugc-page-input" type="number"/);
+});
+
+test("UGC detail page exposes owner pricing, favourites, and only valid public reactions", () => {
+    assert.ok(html.includes('id="ugcDetailUsagePrice"'));
+    assert.ok(html.includes('max="0.5"'));
+    assert.ok(html.includes('id="ugcDetailSaveUsagePrice"'));
+    assert.ok(html.includes('id="ugcDetailFavorite"'));
+    assert.match(maker, /set_worth_it_ugc_usage_price/);
+    assert.match(maker, /p_calculator_id:calculator\.id/);
+    assert.match(maker, /const canReact=calculator\.is_owner!==true&&calculator\.visibility==="public"/);
+    assert.match(maker, /calculator\.my_reaction==="like"/);
+    assert.match(maker, /calculator\.my_reaction==="dislike"/);
+    assert.match(maker, /bindWorthItUGCFavoriteButton/);
+    assert.ok(community.includes("window.bindWorthItUGCFavoriteButton=function"));
+    assert.match(read("supabase/worth-it-ugc-pricing.sql"), /usage_price_milli between 100 and 500/);
+    assert.match(read("supabase/worth-it-ugc-pricing.sql"), /drop function if exists public\.calc_wallet_reserve\(uuid, text\)/);
+    assert.match(read("supabase/worth-it-ugc-pricing.sql"), /p_calculator_id uuid default null/);
+});
