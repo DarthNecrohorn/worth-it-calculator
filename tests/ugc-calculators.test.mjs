@@ -679,3 +679,29 @@ test("square UGC cards use responsive columns and explain creator reaction limit
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
     assert.ok(maker.includes('const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact'));
 });
+
+
+test("UGC cards use four desktop columns and two phone columns with a true square footprint", () => {
+    const responsiveTileCss = paginationCss.slice(paginationCss.lastIndexOf("/* Responsive square UGC catalogue tiles"));
+    assert.match(responsiveTileCss, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
+    assert.match(responsiveTileCss, /@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
+    assert.match(responsiveTileCss, /@media\(max-width:640px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+    assert.match(responsiveTileCss, /min-height:0!important/);
+    assert.match(responsiveTileCss, /aspect-ratio:1 \/ 1/);
+    assert.match(maker, /const ownerUsername=String\(item\.owner_username\|\|\"\"\)\.trim\(\)\.replace\(\/\^@\+\/\,\"\"\)/);
+    assert.match(maker, /Made by \"\+ownerUsername/);
+});
+
+test("UGC detail favourite sits in the header and reactions sit beside author and stats", () => {
+    const detailHeader = html.match(/<header class="ugc-detail-header">[\s\S]*?<\/header>/)?.[0] || "";
+    assert.match(detailHeader, /id="ugcDetailFavorite"/);
+    assert.match(detailHeader, /class="ugc-detail-meta-row"/);
+    assert.match(detailHeader, /id="ugcDetailOwner"/);
+    assert.match(detailHeader, /id="ugcDetailCategories"/);
+    assert.match(detailHeader, /id="ugcDetailStats"/);
+    assert.match(detailHeader, /class="ugc-detail-actions"/);
+    assert.match(detailHeader, /id="ugcDetailLike"/);
+    assert.match(detailHeader, /id="ugcDetailDislike"/);
+    assert.doesNotMatch(html.slice(html.indexOf('id="ugcDetailUsagePriceDisplay"')), /id="ugcDetailFavorite"/);
+    assert.match(maker, /Made by \"\+ownerUsername/);
+});
