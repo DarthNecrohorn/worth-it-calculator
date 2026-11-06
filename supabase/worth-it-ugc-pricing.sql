@@ -130,7 +130,7 @@ $$;
 -- Keep legacy two-argument callers working through the new NULL default.
 drop function if exists public.calc_wallet_reserve(uuid, text);
 
-create function public.calc_wallet_reserve(
+create or replace function public.calc_wallet_reserve(
     p_request_id uuid,
     p_reason text,
     p_calculator_id uuid default null
