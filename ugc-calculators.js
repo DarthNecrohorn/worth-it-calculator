@@ -540,6 +540,92 @@ function closeMaker(){
  const modal=$("ugcMakerModal");if(modal){modal.hidden=true;modal.setAttribute("aria-hidden","true");}
  document.body.classList.remove("ugc-maker-open");
 }
+function refreshMakerTestIfOpen(){
+ const panel=$("ugcMakerTestPanel");
+ if(panel&&!panel.hidden)renderMakerTestPanel(true);
+}
+function renderMakerTestPanel(preserveValues){
+ const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
+ if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
+ const previous=new Map();
+ if(preserveValues){
+  panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{
+   if(control.value!==""&&Number.isFinite(control.valueAsNumber))previous.set(control.dataset.ugcMakerTestKey,control.valueAsNumber);
+  });
+ }
+ panel.replaceChildren();
+ const heading=document.createElement("div");heading.className="ugc-maker-test-head";
+ const intro=document.createElement("div");
+ intro.append(text("h4","","Try your calculator"),text("p","","Change the sample values below. Results recalculate instantly using the same restricted formulas as the saved calculator."));
+ const reset=button("Reset values","ugc-maker-test-reset",()=>renderMakerTestPanel(false));
+ reset.setAttribute("aria-label","Reset test values to the calculator defaults");
+ heading.append(intro,reset);panel.appendChild(heading);
+ const inputGrid=document.createElement("div");inputGrid.className="ugc-maker-test-inputs";
+ spec.inputs.forEach(item=>{
+  const label=document.createElement("label");label.className="ugc-maker-test-input";
+  label.appendChild(text("span","",item.label||item.key));
+  const control=document.createElement("input");control.type="number";control.name=item.key;control.required=true;
+  if(item.min!==undefined)control.min=String(item.min);
+  if(item.max!==undefined)control.max=String(item.max);
+  control.step=String(item.step||"any");
+  control.dataset.ugcMakerTestKey=String(item.key);
+  const previousValue=previous.get(item.key);
+  const candidate=Number.isFinite(previousValue)?previousValue:Number(item.default);
+  control.value=String(Number.isFinite(candidate)?candidate:"");
+  control.addEventListener("input",()=>updateMakerTestResults(panel));
+  label.appendChild(control);
+  if(item.unit)label.appendChild(text("small","",item.unit));
+  inputGrid.appendChild(label);
+ });
+ panel.appendChild(inputGrid);
+ panel.appendChild(text("h4","ugc-maker-test-results-heading","Live results"));
+ const results=document.createElement("div");results.className="ugc-maker-test-results-grid";results.setAttribute("aria-live","polite");
+ panel.appendChild(results);
+ const statusNode=text("p","ugc-maker-test-status","");
+ statusNode.setAttribute("role","status");statusNode.setAttribute("aria-live","polite");
+ panel.appendChild(statusNode);
+ panel.appendChild(text("p","ugc-maker-test-note","Free local test · No CALC is charged, no AI request is sent, and nothing is saved."));
+ updateMakerTestResults(panel);
+}
+function updateMakerTestResults(panel){
+ const spec=state.aiDraft?.spec;
+ if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
+ const controls=Array.from(panel.querySelectorAll("[data-ugc-maker-test-key]")),values={};
+ let invalidControl=null;
+ controls.forEach(control=>{
+  const valid=control.value!==""&&Number.isFinite(control.valueAsNumber)&&control.validity.valid;
+  control.setAttribute("aria-invalid",String(!valid));
+  if(!valid&&!invalidControl)invalidControl=control;
+  if(valid)values[control.dataset.ugcMakerTestKey]=control.valueAsNumber;
+ });
+ const output=panel.querySelector(".ugc-maker-test-results-grid"),statusNode=panel.querySelector(".ugc-maker-test-status");
+ if(!output||!statusNode)return;
+ output.replaceChildren();
+ if(invalidControl){
+  statusNode.textContent="Enter a valid value within the allowed minimum, maximum and step for every input.";
+  return;
+ }
+ const keys=new Set(spec.inputs.map(item=>item.key));
+ let formulaErrors=0;
+ spec.results.forEach((item,index)=>{
+  const card=document.createElement("article");card.className="ugc-maker-test-result";
+  card.appendChild(text("span","",item.label||"Result "+(index+1)));
+  try{
+   const ast=compileExpression(item.expression,keys);
+   const value=evaluate(ast,values);
+   card.appendChild(text("strong","",formatResult(item,value)));
+  }catch(error){
+   formulaErrors++;
+   card.classList.add("is-error");
+   card.appendChild(text("strong","","Cannot calculate"));
+   card.appendChild(text("small","",error?.message||"Check this formula."));
+  }
+  output.appendChild(card);
+ });
+ statusNode.textContent=formulaErrors
+  ?" "+formulaErrors+" result formula"+(formulaErrors===1?" needs":"s need")+" attention. Check the highlighted result"+(formulaErrors===1?".":"s.")
+  :"Results are updating automatically as you change the sample values.";
+}
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();
@@ -567,7 +653,7 @@ function renderMakerPreview(definition){
    const label=document.createElement("label");label.textContent=labelText;
    const input=document.createElement("input");input.type=type;input.value=String(value??"");
    if(type==="number")input.step="any";
-   input.addEventListener("input",()=>onChange(input.value));
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();});
    label.appendChild(input);grid.appendChild(label);
   };
   addInput("Label","text",item.label,value=>{item.label=String(value).trim().slice(0,60);});
@@ -599,11 +685,20 @@ function renderMakerPreview(definition){
    const option=document.createElement("option");option.value=value;option.textContent=label;formatSelect.appendChild(option);
   });
   formatSelect.value=item.format||"number";
-  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;});
+  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;refreshMakerTestIfOpen();});
   formatLabel.appendChild(formatSelect);grid.appendChild(formatLabel);
   addInput("Currency (ISO code)","text",item.currency||"EUR",value=>{item.currency=String(value).toUpperCase().slice(0,3);});
   group.appendChild(grid);host.appendChild(group);
  });
+ const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
+ const testToggle=button("▶ Test calculator","ugc-maker-test-toggle",()=>{
+  testPanel.hidden=!testPanel.hidden;
+  testToggle.setAttribute("aria-expanded",String(!testPanel.hidden));
+  testToggle.textContent=testPanel.hidden?"▶ Test calculator":"▾ Hide test";
+  if(!testPanel.hidden)renderMakerTestPanel(false);
+ });
+ testToggle.setAttribute("aria-expanded","false");
+ host.append(testToggle,testPanel);
  host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: +, −, ×, ÷, powers, parentheses and min, max, abs, round, floor, ceil, sqrt, pow. Arbitrary JavaScript is never run."));
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;
