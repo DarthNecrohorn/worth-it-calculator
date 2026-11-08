@@ -304,7 +304,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  }
  .nav-inner>.logo>span:last-child{display:inline!important}
  .nav-inner>.calc-economy-nav{
-  grid-column:3 / 4;
+  grid-column:2 / 4;
   grid-row:2;
   justify-self:start;
   display:flex!important;
@@ -320,7 +320,6 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   overflow:visible;
   position:relative!important;
   z-index:2;
-  transform:translateX(-50px)!important;
  }
  .nav-inner>.nav-links{display:none!important}
  .nav-inner>.nav-right-stack{display:contents!important}
@@ -453,7 +452,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 @media(max-width:560px){
  .nav .container.nav-inner > a.logo{
   position:relative!important;
-  transform:translate(-20px,-4px)!important;
+  transform:translate(-20px,-10px)!important;
   z-index:2;
  }
 }
