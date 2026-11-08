@@ -107,8 +107,10 @@ function renderCatalog(rows){
   owner.setAttribute("aria-label",ownerLabel);
   if(item.owner_worth_it_id)owner.href="/profile/"+item.owner_worth_it_id;else owner.href="#";
   owner.addEventListener("click",event=>{if(!item.owner_worth_it_id)event.preventDefault();});
-  card.appendChild(owner);
+  const byline=document.createElement("div");byline.className="ugc-card-byline";
+  byline.appendChild(owner);
   if(state.sort==="mine"){
+   card.appendChild(byline);
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    actions.append(
     button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)),
@@ -117,6 +119,7 @@ function renderCatalog(rows){
    );
    card.appendChild(actions);
   }else if(state.sort==="my-drafts"){
+   card.appendChild(byline);
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    const label=text("label","ugc-publish-visibility-label","Publish as");
    const select=document.createElement("select");select.className="ugc-publish-visibility";select.setAttribute("aria-label","Visibility when publishing this draft");
@@ -127,7 +130,8 @@ function renderCatalog(rows){
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
    stats.append(statItem("👁",Number(item.views||0),"Views"),statItem("👍",Number(item.likes||0),"Likes"),statItem("★",Number(item.favorites||0),"Favourites"),statItem("👎",Number(item.dislikes||0),"Dislikes"));
-   card.appendChild(stats);
+   byline.appendChild(stats);
+   card.appendChild(byline);
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    actions.append(button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)));
    card.appendChild(actions);
