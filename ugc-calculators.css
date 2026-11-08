@@ -957,3 +957,221 @@ body.ugc-maker-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
  .ugc-calculator-card>.calc-favorite-toggle{transition:none!important}
 }
+
+
+/* Mobile catalogue cards: replace the long description with the clear detail prompt. */
+@media(max-width:640px){
+ .ugc-calculator-card .ugc-card-description{display:none!important}
+ .ugc-calculator-card .ugc-card-more{
+  display:block!important;
+  margin:0;
+  color:var(--primary2);
+  font-size:9px;
+  font-weight:800;
+  line-height:1.25;
+  white-space:normal;
+ }
+}
+
+/* Member profile favourites use the same clean UGC card language as the catalogue. */
+.worth-it-profile-favourite-grid{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:13px;
+ align-items:stretch;
+}
+.worth-it-profile-favourite-card{
+ display:flex;
+ flex-direction:column;
+ min-width:0;
+ min-height:210px;
+ height:auto;
+ box-sizing:border-box;
+ gap:7px;
+ padding:13px;
+ border:1px solid var(--border);
+ border-radius:15px;
+ background:var(--card);
+ color:var(--text);
+ text-decoration:none;
+ overflow:hidden;
+ transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.worth-it-profile-favourite-card:hover{
+ border-color:color-mix(in srgb,var(--primary) 55%,var(--border));
+ transform:translateY(-2px);
+ box-shadow:0 9px 22px rgba(45,42,100,.12);
+}
+.worth-it-profile-favourite-head{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:4px;
+ min-width:0;
+ padding-right:0;
+}
+.worth-it-profile-favourite-number,
+.worth-it-profile-favourite-category,
+.worth-it-profile-favourite-tag{
+ display:inline-flex;
+ align-items:center;
+ min-height:18px;
+ max-width:100%;
+ padding:2px 7px;
+ border:1px solid var(--border);
+ border-radius:999px;
+ background:var(--surface-soft);
+ color:var(--muted);
+ font-size:9px;
+ font-weight:850;
+ line-height:1.2;
+ white-space:nowrap;
+}
+.worth-it-profile-favourite-number{
+ color:var(--primary2);
+ border-color:color-mix(in srgb,var(--primary) 40%,var(--border));
+}
+.worth-it-profile-favourite-category{
+ color:var(--text);
+}
+.worth-it-profile-favourite-tag{
+ color:var(--primary2);
+ border-color:color-mix(in srgb,var(--primary) 28%,var(--border));
+}
+.worth-it-profile-favourite-title{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ line-clamp:2;
+ overflow:hidden;
+ margin:0;
+ color:var(--text);
+ font-size:15px;
+ font-weight:900;
+ line-height:1.2;
+ overflow-wrap:anywhere;
+}
+.worth-it-profile-favourite-description{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ line-clamp:2;
+ overflow:hidden;
+ margin:0;
+ color:var(--muted);
+ font-size:11px;
+ line-height:1.35;
+ overflow-wrap:anywhere;
+}
+.worth-it-profile-favourite-more{
+ margin:0;
+ color:var(--primary2);
+ font-size:10px;
+ font-weight:800;
+ line-height:1.25;
+}
+.worth-it-profile-favourite-owner{
+ display:block;
+ min-width:0;
+ margin-top:auto;
+ color:var(--primary2);
+ font-size:13px;
+ font-weight:900;
+ line-height:1.25;
+ overflow-wrap:anywhere;
+}
+.worth-it-profile-favourite-stats{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:5px 10px;
+ min-width:0;
+}
+.worth-it-profile-ugc-stat{
+ display:inline-flex;
+ align-items:center;
+ gap:4px;
+ color:var(--muted);
+ font-size:11px;
+ line-height:1.2;
+ white-space:nowrap;
+}
+.worth-it-profile-ugc-stat-icon{
+ display:inline-grid;
+ place-items:center;
+ font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+ font-size:16px;
+ line-height:1;
+}
+.worth-it-profile-ugc-stat-count{
+ color:var(--text);
+ font-size:11px;
+ font-weight:900;
+ font-variant-numeric:tabular-nums;
+}
+.worth-it-profile-favourite-open{
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ width:100%;
+ min-height:32px;
+ margin-top:1px;
+ padding:6px 9px;
+ border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));
+ border-radius:9px;
+ background:linear-gradient(115deg,var(--primary),var(--primary2));
+ color:#fff!important;
+ font-size:10px;
+ font-weight:900;
+ line-height:1.15;
+ text-align:center;
+ text-decoration:none;
+}
+.worth-it-profile-favourite-open:hover{filter:brightness(1.08)}
+.ugc-detail-reaction-button:disabled{
+ opacity:.62;
+ filter:saturate(.45);
+ cursor:not-allowed;
+ box-shadow:none;
+}
+.ugc-detail-reaction-button:disabled:hover{
+ transform:none;
+}
+@media(max-width:900px){
+ .worth-it-profile-favourite-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:640px){
+ .worth-it-profile-favourite-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+ }
+ .worth-it-profile-favourite-card{
+  min-height:215px;
+  padding:9px;
+  gap:6px;
+  border-radius:13px;
+ }
+ .worth-it-profile-favourite-head{gap:3px}
+ .worth-it-profile-favourite-number,
+ .worth-it-profile-favourite-category,
+ .worth-it-profile-favourite-tag{
+  min-height:17px;
+  padding:2px 5px;
+  font-size:8px;
+ }
+ .worth-it-profile-favourite-title{font-size:12px;line-height:1.18}
+ .worth-it-profile-favourite-description{font-size:9px;line-height:1.27}
+ .worth-it-profile-favourite-more{font-size:8px}
+ .worth-it-profile-favourite-owner{
+  font-size:12px;
+  line-height:1.2;
+ }
+ .worth-it-profile-favourite-stats{gap:4px 7px}
+ .worth-it-profile-ugc-stat{gap:2px;font-size:9px}
+ .worth-it-profile-ugc-stat-icon{font-size:14px}
+ .worth-it-profile-ugc-stat-count{font-size:10px}
+ .worth-it-profile-favourite-open{min-height:29px;font-size:9px;padding:5px}
+}
+@media(prefers-reduced-motion:reduce){
+ .worth-it-profile-favourite-card{transition:none}
+}
