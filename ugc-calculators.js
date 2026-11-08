@@ -11,6 +11,25 @@ const PERIODS=[
 ];
 const SORTS=["latest","popular","liked","favorited","disliked","mine","my-drafts","my-favorites"];
 const CATEGORY_LABELS={"cars":"Cars","car-ownership":"Car ownership","ev-ownership":"Electric vehicles","fuel-costs":"Fuel costs","vehicle-financing":"Car financing","car-insurance":"Insurance","car-maintenance":"Maintenance & repairs","depreciation-resale":"Depreciation & resale","vehicle-comparison":"Vehicle comparisons","money":"Money","budgeting":"Budgeting","saving":"Saving","investing":"Investing","loans-debt":"Loans & debt","mortgages":"Mortgages","taxes":"Taxes","income-salary":"Income & salary","retirement":"Retirement","technology":"Technology","smartphones":"Smartphones","computers":"Computers","gaming":"Gaming","software-subscriptions":"Software & subscriptions","internet-connectivity":"Internet & connectivity","consumer-electronics":"Consumer electronics","tech-comparison":"Technology comparisons","home":"Home Costs","utilities-energy":"Utilities & energy","rent-housing":"Rent & housing","home-buying":"Home buying","renovation-repairs":"Renovations & repairs","home-appliances":"Home appliances","home-maintenance":"Home maintenance","household-budget":"Household budget","other":"Other","travel":"Travel","education-career":"Education & career","health-fitness":"Health & fitness","food-groceries":"Food & groceries","business":"Business","lifestyle":"Lifestyle","general-comparison":"General comparisons"};
+const CURRENCIES=[
+ ["EUR","Euro"],["USD","US dollar"],["GBP","Pound sterling"],["RSD","Serbian dinar"],["CHF","Swiss franc"],
+ ["CAD","Canadian dollar"],["AUD","Australian dollar"],["NZD","New Zealand dollar"],["JPY","Japanese yen"],
+ ["CNY","Chinese yuan"],["INR","Indian rupee"],["PLN","Polish zloty"],["CZK","Czech koruna"],["HUF","Hungarian forint"],
+ ["SEK","Swedish krona"],["NOK","Norwegian krone"],["DKK","Danish krone"],["BGN","Bulgarian lev"],["RON","Romanian leu"],
+ ["TRY","Turkish lira"],["BRL","Brazilian real"],["MXN","Mexican peso"],["ZAR","South African rand"],["SGD","Singapore dollar"],
+ ["HKD","Hong Kong dollar"],["KRW","South Korean won"],["AED","UAE dirham"],["SAR","Saudi riyal"],["UAH","Ukrainian hryvnia"],
+ ["ILS","Israeli new shekel"],["THB","Thai baht"],["IDR","Indonesian rupiah"],["MYR","Malaysian ringgit"],["PHP","Philippine peso"],
+ ["VND","Vietnamese dong"],["ISK","Icelandic krona"],["QAR","Qatari riyal"],["KWD","Kuwaiti dinar"],["JOD","Jordanian dinar"],
+ ["EGP","Egyptian pound"],["PKR","Pakistani rupee"],["BDT","Bangladeshi taka"],["NGN","Nigerian naira"],["KES","Kenyan shilling"]
+];
+const UNIT_OPTIONS=[
+ ["","No unit"],
+ ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
+ ["%","Percent"],["months","Months"],["years","Years"],["days","Days"],["weeks","Weeks"],
+ ["hours","Hours"],["minutes","Minutes"],["km","Kilometres"],["miles","Miles"],["kWh","Kilowatt-hours"],
+ ["W","Watts"],["kW","Kilowatts"],["L","Litres"],["kg","Kilograms"],["m²","Square metres"],
+ ["items","Items"],["units","Units"]
+];
 function getCategoryLabels(item){
  const main=CATEGORY_LABELS[item?.category]||"Other";
  const keys=Array.isArray(item?.subcategories)?item.subcategories:(Array.isArray(item?.spec?.subcategories)?item.spec.subcategories:[]);
@@ -107,10 +126,10 @@ function renderCatalog(rows){
    card.appendChild(actions);
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
-   stats.append(text("span","","◉ "+Number(item.views||0)),text("span","","♥ "+Number(item.likes||0)),text("span","","★ "+Number(item.favorites||0)),text("span","","▼ "+Number(item.dislikes||0)));
+   stats.append(statItem("👁",Number(item.views||0),"Views"),statItem("👍",Number(item.likes||0),"Likes"),statItem("★",Number(item.favorites||0),"Favourites"),statItem("👎",Number(item.dislikes||0),"Dislikes"));
    card.appendChild(stats);
    const actions=document.createElement("div");actions.className="ugc-card-actions";
-   actions.append(button("♡ Like","ugc-action-secondary",()=>react(item.id,"like")),button("♧ Dislike","ugc-action-secondary",()=>react(item.id,"dislike")),button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)));
+   actions.append(button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)));
    card.appendChild(actions);
   }
   host.appendChild(card);
@@ -378,9 +397,22 @@ async function refreshCalcWallet(){
  if(typeof window.refreshWorthItCalcWallet==="function")return window.refreshWorthItCalcWallet();
  try{await sb().rpc("calc_wallet_summary");}catch(_){}
 }
+function statItem(icon,value,label){
+ const count=Number.isFinite(Number(value))?Math.max(0,Number(value)):0;
+ const node=text("span","ugc-stat-item","");
+ node.title=label+": "+count;
+ node.setAttribute("aria-label",label+": "+count);
+ node.append(text("span","ugc-stat-icon",icon),text("span","ugc-stat-count",count));
+ return node;
+}
 function renderDetailStats(calculator){
  const stats=$("ugcDetailStats");if(!stats)return;
- stats.textContent="♥ "+Number(calculator.likes||0)+" likes · ★ "+Number(calculator.favorites||0)+" favourites · ◉ "+Number(calculator.views||0)+" views";
+ stats.replaceChildren(
+  statItem("👁",calculator.views,"Views"),
+  statItem("👍",calculator.likes,"Likes"),
+  statItem("★",calculator.favorites,"Favourites"),
+  statItem("👎",calculator.dislikes,"Dislikes")
+ );
 }
 function detailShow(calculator,fromUrl){
  state.activeCalculator=calculator;state.activeId=String(calculator.id);
@@ -416,12 +448,12 @@ function detailShow(calculator,fromUrl){
  const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact;
  const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
  if(likeButton){
-  likeButton.hidden=!canReact;likeButton.textContent=calculator.my_reaction==="like"?"♥ Liked":"♥ Like";
+  likeButton.hidden=!canReact;likeButton.textContent=calculator.my_reaction==="like"?"👍 Liked":"👍 Like";
   likeButton.classList.toggle("is-active",calculator.my_reaction==="like");
   likeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="like"));
  }
  if(dislikeButton){
-  dislikeButton.hidden=!canReact;dislikeButton.textContent=calculator.my_reaction==="dislike"?"▼ Disliked":"▼ Dislike";
+  dislikeButton.hidden=!canReact;dislikeButton.textContent=calculator.my_reaction==="dislike"?"👎 Disliked":"👎 Dislike";
   dislikeButton.classList.toggle("is-active",calculator.my_reaction==="dislike");
   dislikeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="dislike"));
  }
@@ -760,7 +792,24 @@ function renderMakerPreview(definition){
   addInput("Minimum","number",item.min,value=>{if(value!==""&&Number.isFinite(Number(value)))item.min=Number(value);});
   addInput("Maximum","number",item.max,value=>{if(value!==""&&Number.isFinite(Number(value)))item.max=Number(value);});
   addInput("Step","number",item.step||1,value=>{if(value!==""&&Number.isFinite(Number(value)))item.step=Number(value);});
-  addInput("Unit (optional)","text",item.unit||"",value=>{item.unit=String(value).trim().slice(0,16);});
+
+  const unitLabel=document.createElement("label");unitLabel.className="ugc-maker-unit-field";unitLabel.appendChild(text("span","","Unit or currency"));
+  const unitSelect=document.createElement("select");unitSelect.setAttribute("aria-label","Unit or currency for "+(item.label||item.key));
+  UNIT_OPTIONS.forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;unitSelect.appendChild(option);});
+  const customUnitOption=document.createElement("option");customUnitOption.value="__custom__";customUnitOption.textContent="Other custom unit…";unitSelect.appendChild(customUnitOption);
+  const currentUnit=String(item.unit||"");
+  const isKnownUnit=UNIT_OPTIONS.some(([value])=>value===currentUnit);
+  unitSelect.value=isKnownUnit?currentUnit:"__custom__";
+  const customUnit=document.createElement("input");customUnit.type="text";customUnit.maxLength=16;customUnit.placeholder="Custom unit (max 16 characters)";customUnit.value=isKnownUnit?"":currentUnit;customUnit.hidden=isKnownUnit;
+  customUnit.addEventListener("input",()=>{item.unit=String(customUnit.value).trim().slice(0,16);refreshMakerTestIfOpen();});
+  unitSelect.addEventListener("change",()=>{
+   const custom=unitSelect.value==="__custom__";
+   customUnit.hidden=!custom;
+   if(custom){customUnit.focus();item.unit=String(customUnit.value).trim().slice(0,16);}
+   else{item.unit=unitSelect.value;customUnit.value="";}
+   refreshMakerTestIfOpen();
+  });
+  unitLabel.append(unitSelect,customUnit);grid.appendChild(unitLabel);
   group.appendChild(grid);host.appendChild(group);
  });
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator results"));
@@ -784,11 +833,39 @@ function renderMakerPreview(definition){
    const option=document.createElement("option");option.value=value;option.textContent=label;formatSelect.appendChild(option);
   });
   formatSelect.value=item.format||"number";
-  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;refreshMakerTestIfOpen();});
   formatLabel.appendChild(formatSelect);grid.appendChild(formatLabel);
-  addInput("Currency (ISO code)","text",item.currency||"EUR",value=>{item.currency=String(value).toUpperCase().slice(0,3);});
+
+  const currencyLabel=document.createElement("label");currencyLabel.className="ugc-maker-currency-field";currencyLabel.appendChild(text("span","","Result currency"));
+  const currencySelect=document.createElement("select");currencySelect.setAttribute("aria-label","Currency for "+(item.label||"this result"));
+  CURRENCIES.forEach(([code,name])=>{const option=document.createElement("option");option.value=code;option.textContent=code+" — "+name;currencySelect.appendChild(option);});
+  const customCurrencyOption=document.createElement("option");customCurrencyOption.value="__custom__";customCurrencyOption.textContent="Other ISO 4217 currency…";currencySelect.appendChild(customCurrencyOption);
+  const currentCurrency=String(item.currency||"EUR").toUpperCase();
+  const isKnownCurrency=CURRENCIES.some(([code])=>code===currentCurrency);
+  currencySelect.value=isKnownCurrency?currentCurrency:"__custom__";
+  const customCurrency=document.createElement("input");customCurrency.type="text";customCurrency.maxLength=3;customCurrency.inputMode="text";customCurrency.autocomplete="off";customCurrency.spellcheck=false;customCurrency.placeholder="ISO code, e.g. RSD";customCurrency.value=isKnownCurrency?"":currentCurrency;customCurrency.hidden=isKnownCurrency;
+  customCurrency.addEventListener("input",()=>{
+   item.currency=String(customCurrency.value).toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);
+   refreshMakerTestIfOpen();
+  });
+  currencySelect.addEventListener("change",()=>{
+   const custom=currencySelect.value==="__custom__";
+   customCurrency.hidden=!custom;
+   if(custom){customCurrency.focus();item.currency=String(customCurrency.value).toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);}
+   else{item.currency=currencySelect.value;customCurrency.value="";}
+   refreshMakerTestIfOpen();
+  });
+  const syncCurrencyEnabled=()=>{
+   const enabled=formatSelect.value==="currency";
+   currencySelect.disabled=!enabled;customCurrency.disabled=!enabled;
+   currencyLabel.classList.toggle("is-disabled",!enabled);
+  };
+  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;syncCurrencyEnabled();refreshMakerTestIfOpen();});
+  currencyLabel.append(currencySelect,customCurrency);grid.appendChild(currencyLabel);
+  syncCurrencyEnabled();
   group.appendChild(grid);host.appendChild(group);
  });
+ const currencyNote=text("p","ugc-maker-schema-summary","Each result can use a different currency. Selecting a currency changes how the value is displayed; it does not convert amounts or fetch exchange rates. For currency conversion, include the exchange rate as an explicit calculator input.");
+ host.appendChild(currencyNote);
  const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
  const testToggle=button("▶ Test calculator","ugc-maker-test-toggle",()=>{
   testPanel.hidden=!testPanel.hidden;
