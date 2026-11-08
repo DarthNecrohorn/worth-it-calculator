@@ -807,7 +807,7 @@ test("Phone header moves wallet controls left and search/account controls upward
     assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
     assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?transform:translateX\(-40px\)!important/);
     assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row\{[\s\S]*?transform:translateY\(-50px\)!important/);\n    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-secondary-row\{[\s\S]*?transform:translateY\(-50px\)!important/);
+    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-user-search-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.ai-chat-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.auth-wrap>\.profile-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-50px\)!important;/);
 });
 
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
@@ -816,5 +816,5 @@ test("Phone catalogue cards replace the long description with the calculator det
     assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
     assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?transform:translateX\(-40px\)!important/);
     assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row\{[\s\S]*?transform:translateY\(-50px\)!important/);\n    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-secondary-row\{[\s\S]*?transform:translateY\(-50px\)!important/);
+    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-user-search-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.ai-chat-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.auth-wrap>\.profile-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-50px\)!important;/);
 });
