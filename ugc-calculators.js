@@ -444,16 +444,29 @@ function detailShow(calculator,fromUrl){
   const previous=calculator.is_favorite===true;
   if(previous!==active){calculator.favorites=Math.max(0,Number(calculator.favorites||0)+(active?1:-1));calculator.is_favorite=active;renderDetailStats(calculator);}
  });
- const canReact=calculator.is_owner!==true&&calculator.visibility==="public";
- const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact;
+ const isPublicCalculator=calculator.visibility==="public";
+ const canReact=calculator.is_owner!==true&&isPublicCalculator;
+ const reactionNote=$("ugcDetailReactionNote");
+ if(reactionNote){
+  reactionNote.hidden=!isPublicCalculator||canReact;
+  reactionNote.textContent="Only other users can like or dislike a public calculator. The creator cannot rate their own calculator.";
+ }
  const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
  if(likeButton){
-  likeButton.hidden=!canReact;likeButton.textContent=calculator.my_reaction==="like"?"👍 Liked":"👍 Like";
+  likeButton.hidden=!isPublicCalculator;
+  likeButton.disabled=!canReact;
+  likeButton.setAttribute("aria-disabled",String(!canReact));
+  likeButton.title=canReact?"":"The creator cannot rate their own calculator.";
+  likeButton.textContent=calculator.my_reaction==="like"?"👍 Liked":"👍 Like";
   likeButton.classList.toggle("is-active",calculator.my_reaction==="like");
   likeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="like"));
  }
  if(dislikeButton){
-  dislikeButton.hidden=!canReact;dislikeButton.textContent=calculator.my_reaction==="dislike"?"👎 Disliked":"👎 Dislike";
+  dislikeButton.hidden=!isPublicCalculator;
+  dislikeButton.disabled=!canReact;
+  dislikeButton.setAttribute("aria-disabled",String(!canReact));
+  dislikeButton.title=canReact?"":"The creator cannot rate their own calculator.";
+  dislikeButton.textContent=calculator.my_reaction==="dislike"?"👎 Disliked":"👎 Dislike";
   dislikeButton.classList.toggle("is-active",calculator.my_reaction==="dislike");
   dislikeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="dislike"));
  }
