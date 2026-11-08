@@ -22,6 +22,7 @@ const paginationCss = read("ugc-calculators.css");
 const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
+const profileCardsSql = read("supabase/worth-it-ugc-profile-cards.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -663,7 +664,10 @@ test("UGC detail page exposes owner pricing, favourites, and only valid public r
     assert.ok(html.includes('id="ugcDetailFavorite"'));
     assert.match(maker, /set_worth_it_ugc_usage_price/);
     assert.match(maker, /p_calculator_id:calculator\.id/);
-    assert.match(maker, /const canReact=calculator\.is_owner!==true&&calculator\.visibility==="public"/);
+    assert.match(maker, /const canReact=calculator\.is_owner!==true&&isPublicCalculator/);
+    assert.match(maker, /likeButton\.hidden=!isPublicCalculator/);
+    assert.match(maker, /likeButton\.disabled=!canReact/);
+    assert.match(maker, /dislikeButton\.disabled=!canReact/);
     assert.match(maker, /calculator\.my_reaction==="like"/);
     assert.match(maker, /calculator\.my_reaction==="dislike"/);
     assert.match(maker, /bindWorthItUGCFavoriteButton/);
@@ -678,7 +682,7 @@ test("square UGC cards use responsive columns and explain creator reaction limit
     assert.ok(paginationCss.includes(".ugc-calculator-grid{"));
     assert.ok(paginationCss.includes("grid-template-columns:repeat(auto-fit,minmax"));
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
-    assert.ok(maker.includes('const reactionNote=$("ugcDetailReactionNote");if(reactionNote)reactionNote.hidden=canReact'));
+    assert.ok(maker.includes('reactionNote.hidden=!isPublicCalculator||canReact'));
 });
 
 
@@ -754,3 +758,32 @@ test("UGC save rejects incomplete custom ISO currency codes before the server wr
     assert.ok(saveFunction.indexOf("invalidCurrency") < saveFunction.indexOf("sb().rpc(\"save_worth_it_ugc_calculator\""));
 });
 
+
+
+test("Member profile UGC favourites render rich cards with tags, creator and all four statistics", () => {
+    assert.match(profile, /function appendProfileUgcStat/);
+    assert.match(profile, /PROFILE_UGC_CATEGORY_LABELS/);
+    assert.match(profile, /item\.subcategories\)\?item\.subcategories:\[\]/);
+    assert.match(profile, /subcategories\.slice\(0,3\)/);
+    assert.match(profile, /Made by @/);
+    assert.match(profile, /appendProfileUgcStat\(stats,"👁",item\.views,"Views"\)/);
+    assert.match(profile, /appendProfileUgcStat\(stats,"👍",item\.likes,"Likes"\)/);
+    assert.match(profile, /appendProfileUgcStat\(stats,"★",item\.favorites,"Favourites"\)/);
+    assert.match(profile, /appendProfileUgcStat\(stats,"👎",item\.dislikes,"Dislikes"\)/);
+    assert.match(profile, /Open calculator →/);
+    assert.match(profileCardsSql, /'subcategories',to_jsonb\(c\.subcategories\)/);
+    assert.match(profileCardsSql, /'views',\([\s\S]*?private\.worth_it_calculator_views/);
+    assert.match(profileCardsSql, /'likes',\([\s\S]*?private\.worth_it_calculator_reactions/);
+    assert.match(profileCardsSql, /'dislikes',\([\s\S]*?private\.worth_it_calculator_reactions/);
+    assert.match(profileCardsSql, /profile_visibility/);
+    assert.match(workflow, /supabase\/worth-it-ugc-profile-cards\.sql/);
+    assert.match(paginationCss, /\.worth-it-profile-favourite-owner[\s\S]*?font-size:13px/);
+    assert.match(paginationCss, /\.worth-it-profile-ugc-stat-icon[\s\S]*?font-size:16px/);
+});
+
+test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
+    assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
+    assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
+    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?\.nav-inner>\.calc-economy-nav[\s\S]*?left:-50px!important/);
+    assert.match(webShopCss, /\.nav-inner>\.logo[\s\S]*?left:-20px!important[\s\S]*?top:-10px!important/);
+});
