@@ -444,15 +444,16 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 }
 
 
-/* Fine-position the small-screen header elements without changing desktop navigation. */
+/* Phone-only header offsets applied to the actual direct children of the nav grid. */
 @media(max-width:560px){
- .nav-inner>.calc-economy-nav{
+ .nav .container.nav-inner > .calc-economy-nav{
+  translate:-50px 0!important;
   position:relative!important;
-  left:-50px!important;
+  z-index:2;
  }
- .nav-inner>.logo{
+ .nav .container.nav-inner > a.logo{
+  translate:-20px -10px!important;
   position:relative!important;
-  left:-20px!important;
-  top:-10px!important;
+  z-index:2;
  }
 }
