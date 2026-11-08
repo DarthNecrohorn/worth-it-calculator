@@ -19,6 +19,7 @@ const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
+const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
@@ -692,16 +693,52 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
     assert.ok(maker.includes('ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member"'));
 });
 
-test("UGC detail favourite sits in the header and reactions sit beside author and stats", () => {
+test("UGC detail favourite stays top-right and reactions align with author and categories", () => {
     const detailHeader = html.match(/<header class="ugc-detail-header">[\s\S]*?<\/header>/)?.[0] || "";
     assert.match(detailHeader, /id="ugcDetailFavorite"/);
-    assert.match(detailHeader, /class="ugc-detail-meta-row"/);
-    assert.match(detailHeader, /id="ugcDetailOwner"/);
-    assert.match(detailHeader, /id="ugcDetailCategories"/);
+    assert.match(detailHeader, /class="ugc-detail-meta-grid"/);
+    const detailRows = [...detailHeader.matchAll(/<div class="ugc-detail-meta-row">[\s\S]*?<\/div>/g)].map(match => match[0]);
+    assert.equal(detailRows.length, 2);
+    assert.match(detailRows[0], /id="ugcDetailOwner"[\s\S]*id="ugcDetailLike"/);
+    assert.match(detailRows[1], /id="ugcDetailCategories"[\s\S]*id="ugcDetailDislike"/);
     assert.match(detailHeader, /id="ugcDetailStats"/);
-    assert.match(detailHeader, /class="ugc-detail-actions"/);
-    assert.match(detailHeader, /id="ugcDetailLike"/);
-    assert.match(detailHeader, /id="ugcDetailDislike"/);
+    assert.doesNotMatch(detailHeader, /class="ugc-detail-actions"/);
     assert.doesNotMatch(html.slice(html.indexOf('id="ugcDetailUsagePriceDisplay"')), /id="ugcDetailFavorite"/);
     assert.ok(maker.includes('ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member"'));
+});
+
+test("Public UGC cards keep only the calculator CTA; reactions stay inside the detail page", () => {
+    const catalogRenderer = maker.slice(maker.indexOf("function renderCatalog(rows)"), maker.indexOf("function catalogPageKey()"));
+    assert.match(catalogRenderer, /button\("Open calculator →"/);
+    assert.doesNotMatch(catalogRenderer, /react\(item\.id,"like"\)/);
+    assert.doesNotMatch(catalogRenderer, /react\(item\.id,"dislike"\)/);
+    assert.match(catalogRenderer, /statItem\("👁"/);
+    assert.match(catalogRenderer, /statItem\("👍"/);
+    assert.match(catalogRenderer, /statItem\("★"/);
+    assert.match(catalogRenderer, /statItem\("👎"/);
+    assert.match(maker, /"👍 Like"/);
+    assert.match(maker, /"👎 Dislike"/);
+    assert.match(paginationCss, /\.ugc-stat-icon\{[\s\S]*?font-size:14px/);
+    assert.match(paginationCss, /\.ugc-calculator-card>\.calc-favorite-toggle/);
+    assert.match(paginationCss, /\.ugc-card-title\{[\s\S]*?padding-right:44px/);
+});
+
+test("UGC Maker offers multi-currency result formatting and selectable measurement units", () => {
+    assert.match(maker, /const CURRENCIES=\[/);
+    assert.match(maker, /\["RSD","Serbian dinar"\]/);
+    assert.match(maker, /const UNIT_OPTIONS=\[/);
+    assert.match(maker, /UNIT_OPTIONS\.forEach/);
+    assert.match(maker, /CURRENCIES\.forEach/);
+    assert.match(maker, /currencySelect\.value=isKnownCurrency\?currentCurrency:"__custom__"/);
+    assert.match(maker, /customCurrency\.maxLength=3/);
+    assert.match(maker, /Each result can use a different currency/);
+    assert.match(makerApi, /For monetary inputs, set unit to the relevant ISO 4217 currency code/);
+    assert.match(makerApi, /Only calculate currency conversion when an exchange rate is supplied/);
+});
+
+test("Mobile header keeps Web Shop, CALC and full WIP label inside their own responsive row", () => {
+    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?grid-template-columns:32px max-content minmax\(0,1fr\) max-content/);
+    assert.match(webShopCss, /grid-column:1 \/ 4/);
+    assert.match(webShopCss, /\.calc-wip-use\{[\s\S]*?display:block!important/);
+    assert.match(webShopCss, /body\{padding-top:98px!important\}/);
 });
