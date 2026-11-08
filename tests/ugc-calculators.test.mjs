@@ -790,6 +790,22 @@ test("UGC catalogue cards show up to three subcategories beside the public numbe
     assert.match(paginationCss, /\.ugc-card-head \.ugc-subcategory-chip/);
 });
 
+test("UGC card author and statistics share a byline lifted by 20px", () => {
+    const renderer = maker.slice(maker.indexOf("function renderCatalog(rows)"), maker.indexOf("function catalogPageKey()"));
+    assert.match(renderer, /const byline=document\.createElement\("div"\);byline\.className="ugc-card-byline"/);
+    assert.match(renderer, /byline\.appendChild\(owner\)/);
+    assert.match(renderer, /byline\.appendChild\(stats\)/);
+    assert.match(renderer, /card\.appendChild\(byline\)/);
+    assert.match(paginationCss, /\.ugc-card-byline\{[\s\S]*?margin-bottom:-20px[\s\S]*?top:-20px/);
+    assert.match(paginationCss, /\.ugc-card-byline \.ugc-card-owner\{[\s\S]*?font-size:12px/);
+    assert.match(paginationCss, /\.ugc-card-byline \.ugc-stat-icon\{[\s\S]*?font-size:16px/);
+});
+
+test("Phone header translates wallet controls left by 50px and logo left 20px/up 10px", () => {
+    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?\.nav \.container\.nav-inner > \.calc-economy-nav\{[\s\S]*?translate:-50px 0!important/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?translate:-20px -10px!important/);
+});
+
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
