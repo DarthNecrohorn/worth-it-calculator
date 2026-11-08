@@ -707,3 +707,253 @@ body.ugc-maker-open{overflow:hidden}
   white-space:normal;
  }
 }
+
+
+/* Final UGC card clarity, accessible statistics and detail reaction alignment. */
+.ugc-calculator-card>.calc-favorite-toggle{
+ top:9px!important;
+ right:9px!important;
+ width:34px!important;
+ height:34px!important;
+ min-width:34px!important;
+ padding:0!important;
+ border-radius:10px!important;
+ font-size:19px!important;
+}
+.ugc-card-title{
+ padding-right:44px;
+ overflow-wrap:anywhere;
+}
+.ugc-card-stats,.ugc-detail-stats{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:7px 10px;
+ min-width:0;
+}
+.ugc-stat-item{
+ display:inline-flex;
+ align-items:center;
+ justify-content:flex-start;
+ gap:4px;
+ min-width:0;
+ color:var(--muted);
+ font-size:10px;
+ line-height:1.2;
+ white-space:nowrap;
+}
+.ugc-stat-icon{
+ display:inline-grid;
+ place-items:center;
+ min-width:15px;
+ font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+ font-size:14px;
+ line-height:1;
+}
+.ugc-stat-count{
+ color:var(--text);
+ font-size:10px;
+ font-weight:800;
+ font-variant-numeric:tabular-nums;
+}
+.ugc-card-actions>button:only-child{
+ flex:1 1 100%;
+ width:100%;
+ min-height:29px;
+}
+.ugc-detail-header{
+ padding-right:76px;
+}
+.ugc-detail-header #ugcDetailFavorite{
+ position:absolute!important;
+ top:18px!important;
+ right:18px!important;
+ width:42px!important;
+ height:42px!important;
+ min-width:42px!important;
+ min-height:42px!important;
+ display:inline-grid!important;
+ place-items:center!important;
+ padding:0!important;
+ font-size:22px!important;
+ line-height:1!important;
+ z-index:3;
+}
+.ugc-detail-header h1{
+ padding-right:42px;
+ overflow-wrap:anywhere;
+}
+.ugc-detail-meta-grid{
+ display:grid;
+ gap:7px;
+ margin-top:14px;
+ min-width:0;
+}
+.ugc-detail-meta-row{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) auto;
+ align-items:center;
+ gap:12px;
+ min-width:0;
+}
+.ugc-detail-meta-row .ugc-detail-owner{
+ display:inline-flex;
+ min-width:0;
+ margin:0;
+ color:var(--primary2);
+ font-size:15px;
+ font-weight:900;
+ line-height:1.35;
+ overflow-wrap:anywhere;
+}
+.ugc-detail-meta-row .ugc-detail-categories{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:5px;
+ min-width:0;
+ margin:0;
+}
+.ugc-detail-reaction-button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ min-width:112px;
+ min-height:35px;
+ padding:7px 12px;
+ border-radius:10px;
+ font-size:12px;
+ font-weight:850;
+ white-space:nowrap;
+}
+.ugc-detail-reaction-button[hidden]{display:none!important}
+.ugc-detail-meta-grid .ugc-detail-stats{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:7px 12px;
+ margin:4px 0 0;
+}
+.ugc-detail-meta-grid .ugc-detail-owner-badges{margin-top:3px}
+.ugc-detail-reaction-note{margin-top:9px}
+.ugc-maker-unit-field,.ugc-maker-currency-field{min-width:0}
+.ugc-maker-unit-field select,.ugc-maker-currency-field select{
+ min-width:0;
+ width:100%;
+ padding:9px 30px 9px 10px;
+ border:1px solid var(--border);
+ border-radius:9px;
+ background:var(--card-solid);
+ color:var(--text);
+ font:inherit;
+ font-size:11px;
+}
+.ugc-maker-unit-field input,.ugc-maker-currency-field input{
+ min-width:0;
+ width:100%;
+ padding:9px 10px;
+ border:1px solid var(--border);
+ border-radius:9px;
+ background:var(--card-solid);
+ color:var(--text);
+ font:inherit;
+ font-size:11px;
+}
+.ugc-maker-unit-field select:focus,.ugc-maker-currency-field select:focus,
+.ugc-maker-unit-field input:focus,.ugc-maker-currency-field input:focus{
+ border-color:var(--primary);
+ box-shadow:var(--focus-ring);
+ outline:none;
+}
+.ugc-maker-currency-field.is-disabled{opacity:.55}
+.ugc-maker-unit-field [hidden],.ugc-maker-currency-field [hidden]{display:none!important}
+@media(max-width:640px){
+ .ugc-calculator-card{
+  padding:9px!important;
+  gap:4px;
+ }
+ .ugc-calculator-card>.calc-favorite-toggle{
+  top:7px!important;
+  right:7px!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  font-size:17px!important;
+ }
+ .ugc-card-head{padding-right:37px}
+ .ugc-card-title{
+  padding-right:37px;
+  font-size:11.5px!important;
+  line-height:1.18!important;
+  -webkit-line-clamp:2;
+ }
+ .ugc-card-categories{
+  display:flex!important;
+  max-height:16px;
+  overflow:hidden;
+ }
+ .ugc-card-categories .ugc-subcategory-chip{
+  font-size:8px;
+  line-height:1.2;
+  padding:2px 5px;
+ }
+ .ugc-card-description{
+  font-size:9px;
+  line-height:1.24;
+  -webkit-line-clamp:2;
+ }
+ .ugc-card-more{
+  display:block!important;
+  font-size:8px;
+  line-height:1.2;
+ }
+ .ugc-card-owner{
+  font-size:9px;
+  line-height:1.15;
+ }
+ .ugc-card-stats{
+  gap:3px 7px;
+ }
+ .ugc-stat-item{gap:2px;font-size:8px}
+ .ugc-stat-icon{min-width:12px;font-size:12px}
+ .ugc-stat-count{font-size:8px}
+ .ugc-card-actions{display:flex;flex-direction:row;gap:4px}
+ .ugc-card-actions>button:only-child{
+  min-height:26px;
+  padding:5px 3px;
+  font-size:9px;
+ }
+ .ugc-detail-header{padding:18px 58px 18px 15px}
+ .ugc-detail-header #ugcDetailFavorite{
+  top:12px!important;
+  right:12px!important;
+  width:38px!important;
+  height:38px!important;
+  min-width:38px!important;
+  min-height:38px!important;
+ }
+ .ugc-detail-header h1{padding-right:38px}
+ .ugc-detail-meta-grid{gap:7px;margin-top:12px}
+ .ugc-detail-meta-row{
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px;
+ }
+ .ugc-detail-meta-row .ugc-detail-owner{font-size:14px}
+ .ugc-detail-meta-row .ugc-detail-categories{gap:3px}
+ .ugc-detail-meta-row .ugc-subcategory-chip{font-size:9px;padding:3px 6px}
+ .ugc-detail-reaction-button{
+  min-width:88px;
+  min-height:32px;
+  padding:6px 8px;
+  font-size:10px;
+ }
+ .ugc-detail-meta-grid .ugc-detail-stats{gap:5px 8px}
+ .ugc-detail-meta-grid .ugc-detail-stats .ugc-stat-icon{font-size:13px}
+ .ugc-detail-meta-grid .ugc-detail-stats .ugc-stat-count{font-size:9px}
+ .ugc-maker-unit-field select,.ugc-maker-currency-field select,
+ .ugc-maker-unit-field input,.ugc-maker-currency-field input{font-size:12px;min-height:38px}
+}
+@media(prefers-reduced-motion:reduce){
+ .ugc-calculator-card>.calc-favorite-toggle{transition:none!important}
+}
