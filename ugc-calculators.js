@@ -91,14 +91,14 @@ function renderCatalog(rows){
   const publicNumber=Number(item.calculator_number);
   if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
   head.appendChild(text("span","ugc-category",CATEGORY_LABELS[item.category]||"Other"));
+  const mainCategory=CATEGORY_LABELS[item.category]||"Other";
+  getCategoryLabels(item).filter(label=>label!==mainCategory).slice(0,3).forEach(label=>{
+   head.appendChild(text("span","ugc-subcategory-chip",label));
+  });
   if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
   if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
-  const categoryChips=document.createElement("div");categoryChips.className="ugc-card-categories";
-  const mainCategory=CATEGORY_LABELS[item.category]||"Other";
-  getCategoryLabels(item).filter(label=>label!==mainCategory).forEach(label=>categoryChips.appendChild(text("span","ugc-subcategory-chip",label)));
-  if(categoryChips.childElementCount)card.appendChild(categoryChips);
   card.appendChild(text("p","ugc-card-description",item.description||"No description provided."));
   card.appendChild(text("p","ugc-card-more","Open calculator to see all the info →"));
   const ownerUsername=String(item.owner_username||"").trim().replace(/^@+/,"");
