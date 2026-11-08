@@ -175,7 +175,7 @@ begin
     if (item->>'calculator_number')::bigint<>51
        or item->>'category'<>'money'
        or item->>'owner_username'<>'creator'
-       or not (item->'subcategories' @> '["budgeting","saving"]'::jsonb) then
+       or not (item->'subcategories' @> '["budgeting"]'::jsonb) then
         raise exception 'The profile favourite card is missing its number, tags, or creator: %',item;
     end if;
     if (item->>'views')::integer<>1
