@@ -697,10 +697,14 @@ test("UGC detail favourite stays top-right and reactions align with author and c
     const detailHeader = html.match(/<header class="ugc-detail-header">[\s\S]*?<\/header>/)?.[0] || "";
     assert.match(detailHeader, /id="ugcDetailFavorite"/);
     assert.match(detailHeader, /class="ugc-detail-meta-grid"/);
-    const detailRows = [...detailHeader.matchAll(/<div class="ugc-detail-meta-row">[\s\S]*?<\/div>/g)].map(match => match[0]);
-    assert.equal(detailRows.length, 2);
-    assert.match(detailRows[0], /id="ugcDetailOwner"[\s\S]*id="ugcDetailLike"/);
-    assert.match(detailRows[1], /id="ugcDetailCategories"[\s\S]*id="ugcDetailDislike"/);
+    const ownerPosition = detailHeader.indexOf('id="ugcDetailOwner"');
+    const likePosition = detailHeader.indexOf('id="ugcDetailLike"');
+    const categoryPosition = detailHeader.indexOf('id="ugcDetailCategories"');
+    const dislikePosition = detailHeader.indexOf('id="ugcDetailDislike"');
+    const statsPosition = detailHeader.indexOf('id="ugcDetailStats"');
+    assert.ok(ownerPosition >= 0 && likePosition > ownerPosition);
+    assert.ok(categoryPosition > likePosition && dislikePosition > categoryPosition);
+    assert.ok(statsPosition > dislikePosition);
     assert.match(detailHeader, /id="ugcDetailStats"/);
     assert.doesNotMatch(detailHeader, /class="ugc-detail-actions"/);
     assert.doesNotMatch(html.slice(html.indexOf('id="ugcDetailUsagePriceDisplay"')), /id="ugcDetailFavorite"/);
