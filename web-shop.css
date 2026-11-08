@@ -320,7 +320,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   overflow:visible;
   position:relative!important;
   z-index:2;
-  transform:translateX(-40px)!important;
+  transform:translate(-50px,-10px)!important;
  }
  .nav-inner>.nav-links{display:none!important}
  .nav-inner>.nav-right-stack{display:contents!important}
@@ -430,11 +430,10 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   line-height:1.15!important;
   white-space:nowrap;
  }
-  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-user-search-btn,
+  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-notification-wrap>.worth-it-notification-bell,
+  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-chat-nav-wrap>.worth-it-chat-nav-btn,
   .nav-inner>.nav-right-stack>.nav-top-row>.ai-chat-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn{
+  .nav-inner>.nav-right-stack>.auth-wrap>.profile-nav-btn{
    transform:translateY(-50px)!important;
   }
  body{padding-top:98px!important}
