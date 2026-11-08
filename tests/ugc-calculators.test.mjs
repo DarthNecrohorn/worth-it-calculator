@@ -746,3 +746,11 @@ test("Mobile header keeps Web Shop, CALC and full WIP label inside their own res
     assert.match(webShopCss, /\.calc-wip-use\{[\s\S]*?display:block!important/);
     assert.match(webShopCss, /body\{padding-top:98px!important\}/);
 });
+
+test("UGC save rejects incomplete custom ISO currency codes before the server write", () => {
+    const saveFunction = maker.slice(maker.indexOf("async function saveMakerDraft(publish)"), maker.indexOf("function setExploreInitialView"));
+    assert.match(saveFunction, /invalidCurrency=\(state\.aiDraft\.spec\?\.results\|\|\[\]\)\.find\(item=>item\.format==="currency"&&!\/\^\[A-Z\]\{3\}\$\//);
+    assert.match(saveFunction, /valid three-letter ISO 4217 currency code/);
+    assert.ok(saveFunction.indexOf("invalidCurrency") < saveFunction.indexOf("sb().rpc(\"save_worth_it_ugc_calculator\""));
+});
+
