@@ -334,7 +334,6 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   min-width:0;
   margin:0;
   gap:3px!important;
-  transform:translateY(-50px)!important;
  }
  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions{
   display:flex!important;
@@ -355,7 +354,6 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   min-width:0;
   margin:0;
   gap:4px!important;
-  transform:translateY(-50px)!important;
  }
  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn,
@@ -432,6 +430,13 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   line-height:1.15!important;
   white-space:nowrap;
  }
+  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-user-search-btn,
+  .nav-inner>.nav-right-stack>.nav-top-row>.ai-chat-nav-btn,
+  .nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn,
+  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
+  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn{
+   transform:translateY(-50px)!important;
+  }
  body{padding-top:98px!important}
 }
 @media(max-width:380px){
