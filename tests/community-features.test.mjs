@@ -37,7 +37,7 @@ test("calculator favourites are stored per account with row-level ownership poli
  assert.ok(js.includes('return id?"ugc:"+id:""'));
  assert.ok(js.includes('if(!favouritesUserId){toast("Sign in to save a user-created calculator.")'));
 
- assert.ok(html.includes('id="favoriteCalculatorsToggle"'));
+ assert.ok(!html.includes('id="favoriteCalculatorsToggle"'),"The broken built-in calculator Favourites filter stays out of the toolbar.");
  assert.ok(js.includes("worth_it_calculator_favorites"));
  assert.ok(sql.includes("Users can view their own calculator favourites"));
  assert.ok(sql.includes("Users can save their own calculator favourites"));
