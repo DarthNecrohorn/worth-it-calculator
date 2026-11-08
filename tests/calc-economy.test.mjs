@@ -218,3 +218,11 @@ test("Web Shop transaction history is account-scoped in the database and UI", ()
     assert.match(html,/50 <small>WIP \/ 15 days<\/small>/);
     assert.match(read("tests/fixtures/calc-economy-postgres-smoke.sql"), /history-hidden-other-user-marker/);
 });
+
+test("Basic calculator toolbar has no broken Favourites toggle and keeps normal filters", () => {
+    assert.doesNotMatch(html, /id="favoriteCalculatorsToggle"/);
+    assert.doesNotMatch(html, /class="calculator-favourites-toggle"/);
+    assert.match(html, /id="calculatorSearch"/);
+    assert.match(html, /id="categoryFilter"/);
+    assert.match(html, /id="clearCalculatorFilters"/);
+});
