@@ -163,10 +163,27 @@ reset role;
 select set_config('test.ugc_id', :'calculator_id', false);
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
 do $test$
-declare result jsonb;
+declare
+    result jsonb;
+    item jsonb;
 begin
     result:=public.get_worth_it_profile_favorite_calculators(102);
-    if jsonb_array_length(result)<>1 then raise exception 'The owner profile did not return the expected favourite.'; end if;
+    if jsonb_array_length(result)<>1 then
+        raise exception 'The owner profile did not return the expected favourite.';
+    end if;
+    item:=result->0;
+    if (item->>'calculator_number')::bigint<>51
+       or item->>'category'<>'money'
+       or item->>'owner_username'<>'creator'
+       or not (item->'subcategories' @> '["budgeting","saving"]'::jsonb) then
+        raise exception 'The profile favourite card is missing its number, tags, or creator: %',item;
+    end if;
+    if (item->>'views')::integer<>1
+       or (item->>'likes')::integer<>1
+       or (item->>'favorites')::integer<>1
+       or (item->>'dislikes')::integer<>0 then
+        raise exception 'The profile favourite card statistics are incomplete: %',item;
+    end if;
 end
 $test$;
 
