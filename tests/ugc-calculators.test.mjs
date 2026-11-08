@@ -781,6 +781,15 @@ test("Member profile UGC favourites render rich cards with tags, creator and all
     assert.match(paginationCss, /\.worth-it-profile-ugc-stat-icon[\s\S]*?font-size:16px/);
 });
 
+test("UGC catalogue cards show up to three subcategories beside the public number and main category", () => {
+    const renderer = maker.slice(maker.indexOf("function renderCatalog(rows)"), maker.indexOf("function catalogPageKey()"));
+    assert.match(renderer, /head\.appendChild\(text\("span","ugc-category"/);
+    assert.match(renderer, /getCategoryLabels\(item\)\.filter\(label=>label!==mainCategory\)\.slice\(0,3\)/);
+    assert.match(renderer, /head\.appendChild\(text\("span","ugc-subcategory-chip",label\)\)/);
+    assert.doesNotMatch(renderer, /card\.appendChild\(categoryChips\)/);
+    assert.match(paginationCss, /\.ugc-card-head \.ugc-subcategory-chip/);
+});
+
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
