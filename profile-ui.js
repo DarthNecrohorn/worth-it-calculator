@@ -304,6 +304,30 @@ async function loadWorthItProfileBadges(worthItId,isOwn){
  }
 }
 function textBadgeMessage(message){const node=document.createElement("p");node.className="ugc-detail-status";node.textContent=message;return node;}
+const PROFILE_UGC_CATEGORY_LABELS={
+ cars:"Cars",money:"Money",technology:"Technology",home:"Home",other:"Other",
+ "car-ownership":"Car ownership","ev-ownership":"Electric vehicles","fuel-costs":"Fuel costs",
+ "vehicle-financing":"Car financing","car-insurance":"Insurance","car-maintenance":"Maintenance & repairs",
+ "depreciation-resale":"Depreciation & resale","vehicle-comparison":"Vehicle comparisons",
+ budgeting:"Budgeting",saving:"Saving",investing:"Investing","loans-debt":"Loans & debt",
+ mortgages:"Mortgages",taxes:"Taxes","income-salary":"Income & salary",retirement:"Retirement",
+ smartphones:"Smartphones",computers:"Computers",gaming:"Gaming","software-subscriptions":"Software & subscriptions",
+ "internet-connectivity":"Internet & connectivity","consumer-electronics":"Consumer electronics",
+ "tech-comparison":"Technology comparisons","utilities-energy":"Utilities & energy","rent-housing":"Rent & housing",
+ "home-buying":"Home buying","renovation-repairs":"Renovations & repairs","home-appliances":"Home appliances",
+ "home-maintenance":"Home maintenance","household-budget":"Household budget",travel:"Travel",
+ "education-career":"Education & career","health-fitness":"Health & fitness",
+ "food-groceries":"Food & groceries",business:"Business",lifestyle:"Lifestyle",
+ "general-comparison":"General comparisons"
+};
+function appendProfileUgcStat(host,icon,value,label){
+ const amount=Math.max(0,Number(value)||0);
+ const item=document.createElement("span");item.className="worth-it-profile-ugc-stat";
+ item.title=label+": "+amount;item.setAttribute("aria-label",label+": "+amount);
+ const glyph=document.createElement("span");glyph.className="worth-it-profile-ugc-stat-icon";glyph.setAttribute("aria-hidden","true");glyph.textContent=icon;
+ const count=document.createElement("strong");count.className="worth-it-profile-ugc-stat-count";count.textContent=String(amount);
+ item.append(glyph,count);host.appendChild(item);
+}
 async function loadWorthItProfileFavorites(worthItId){
  const section=$("worthItProfileFavouritesSection"),host=$("worthItProfileFavouriteCalculators"),empty=$("worthItProfileFavouritesEmpty");
  if(!section||!host)return;
@@ -314,11 +338,47 @@ async function loadWorthItProfileFavorites(worthItId){
   const rows=Array.isArray(result.data)?result.data:[];
   if(!rows.length){section.hidden=false;if(empty)empty.hidden=false;return;}
   rows.forEach(item=>{
-   const link=document.createElement("a");link.className="worth-it-profile-favourite-card";
-   link.href="/calculator/ugc/"+String(item.id||"");
-   const title=document.createElement("strong");title.textContent=String(item.title||"Community calculator");
-   const owner=document.createElement("small");owner.textContent="Created by "+String(item.owner_display_name||item.owner_username||"Worth It member");
-   link.append(title,owner);host.appendChild(link);
+   const card=document.createElement("article");card.className="worth-it-profile-favourite-card";
+   const head=document.createElement("div");head.className="worth-it-profile-favourite-head";
+   const number=Number(item.calculator_number);
+   if(Number.isSafeInteger(number)&&number>=51){
+    const idTag=document.createElement("span");idTag.className="worth-it-profile-favourite-number";idTag.textContent="#"+number;head.appendChild(idTag);
+   }
+   const category=document.createElement("span");category.className="worth-it-profile-favourite-category";
+   category.textContent=PROFILE_UGC_CATEGORY_LABELS[item.category]||"Other";head.appendChild(category);
+   const subcategories=Array.isArray(item.subcategories)?item.subcategories:[];
+   subcategories.slice(0,3).forEach(key=>{
+    const label=PROFILE_UGC_CATEGORY_LABELS[String(key)]||"";
+    if(!label)return;
+    const tag=document.createElement("span");tag.className="worth-it-profile-favourite-tag";tag.textContent=label;head.appendChild(tag);
+   });
+   card.appendChild(head);
+
+   const title=document.createElement("h3");title.className="worth-it-profile-favourite-title";
+   title.textContent=String(item.title||"Community calculator");card.appendChild(title);
+   const description=document.createElement("p");description.className="worth-it-profile-favourite-description";
+   description.textContent=String(item.description||"No description provided.");card.appendChild(description);
+   card.appendChild(textBadgeMessage("Open calculator to see all the info →")).classList.add("worth-it-profile-favourite-more");
+
+   const ownerUsername=String(item.owner_username||"").trim().replace(/^@+/,"");
+   const ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member";
+   const owner=document.createElement("a");owner.className="worth-it-profile-favourite-owner";
+   owner.textContent=ownerLabel;owner.setAttribute("aria-label",ownerLabel);
+   owner.href=item.owner_worth_it_id?"/profile/"+encodeURIComponent(String(item.owner_worth_it_id)):"#";
+   if(!item.owner_worth_it_id)owner.addEventListener("click",event=>event.preventDefault());
+   card.appendChild(owner);
+
+   const stats=document.createElement("div");stats.className="worth-it-profile-favourite-stats";
+   appendProfileUgcStat(stats,"👁",item.views,"Views");
+   appendProfileUgcStat(stats,"👍",item.likes,"Likes");
+   appendProfileUgcStat(stats,"★",item.favorites,"Favourites");
+   appendProfileUgcStat(stats,"👎",item.dislikes,"Dislikes");
+   card.appendChild(stats);
+
+   const open=document.createElement("a");open.className="worth-it-profile-favourite-open";
+   open.href="/calculator/ugc/"+encodeURIComponent(String(item.id||""));
+   open.textContent="Open calculator →";card.appendChild(open);
+   host.appendChild(card);
   });
   section.hidden=false;
  }catch(error){
