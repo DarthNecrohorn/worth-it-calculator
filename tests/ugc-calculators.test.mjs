@@ -745,8 +745,9 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
 });
 
 test("Mobile header keeps Web Shop, CALC and full WIP label inside their own responsive row", () => {
-    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?grid-template-columns:32px max-content minmax\(0,1fr\) max-content/);
-    assert.match(webShopCss, /grid-column:1 \/ 4/);
+    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?grid-template-rows:minmax\(40px,auto\) minmax\(40px,auto\)/);
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
     assert.match(webShopCss, /\.calc-wip-use\{[\s\S]*?display:block!important/);
     assert.match(webShopCss, /body\{padding-top:98px!important\}/);
 });
@@ -802,8 +803,9 @@ test("UGC card author and statistics share a byline lifted by 20px", () => {
 });
 
 test("Phone header translates wallet controls left by 50px and logo left 20px/up 10px", () => {
-    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?\.nav \.container\.nav-inner > \.calc-economy-nav\{[\s\S]*?translate:-50px 0!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?translate:-20px -10px!important/);
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
+    assert.doesNotMatch(webShopCss, /\.nav-right-stack[^}]*transform:/);
 });
 
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
