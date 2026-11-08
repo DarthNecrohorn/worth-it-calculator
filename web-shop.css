@@ -257,3 +257,188 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 @media(max-width:560px){
     html[data-worth-it-custom-theme] .calc-economy-nav:has(>button:not([hidden])){padding:2px 3px;border-radius:10px}
 }
+
+
+/* Mobile header: give the economy controls a full, unclipped row of their own. */
+@media(max-width:560px){
+ .nav-inner{
+  display:grid!important;
+  grid-template-columns:32px max-content minmax(0,1fr) max-content;
+  grid-template-rows:minmax(40px,auto) minmax(42px,auto);
+  align-items:center!important;
+  justify-content:stretch!important;
+  gap:5px 6px!important;
+  height:auto!important;
+  min-height:0!important;
+  padding:6px 10px!important;
+  box-sizing:border-box!important;
+ }
+ .nav-inner>.menu-btn{
+  grid-column:1;
+  grid-row:1;
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  min-width:32px;
+  height:34px;
+  padding:0;
+  font-size:16px;
+ }
+ .nav-inner>.logo{
+  grid-column:2;
+  grid-row:1;
+  display:flex!important;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  white-space:nowrap;
+  font-size:14px;
+  line-height:1;
+ }
+ .nav-inner>.logo .logo-mark{
+  flex:0 0 32px;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+ }
+ .nav-inner>.logo>span:last-child{display:inline!important}
+ .nav-inner>.calc-economy-nav{
+  grid-column:1 / 4;
+  grid-row:2;
+  display:flex!important;
+  align-items:center;
+  justify-content:flex-start;
+  flex-wrap:nowrap;
+  gap:6px!important;
+  width:100%;
+  min-width:0;
+  margin:0;
+  padding:0;
+  overflow:visible;
+ }
+ .nav-inner>.nav-links{display:none!important}
+ .nav-inner>.nav-right-stack{display:contents!important}
+ .nav-inner>.nav-right-stack>.nav-top-row{
+  grid-column:3 / 5;
+  grid-row:1;
+  display:flex!important;
+  align-items:center;
+  justify-content:flex-end;
+  width:auto!important;
+  min-width:0;
+  margin:0;
+  gap:3px!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions{
+  display:flex!important;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:nowrap;
+  width:100%!important;
+  min-width:0;
+  gap:3px!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-secondary-row{
+  grid-column:4;
+  grid-row:2;
+  display:flex!important;
+  align-items:center;
+  justify-content:flex-end;
+  width:auto!important;
+  min-width:0;
+  margin:0;
+  gap:4px!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn,
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.admin-panel-nav-btn{
+  width:31px!important;
+  min-width:31px!important;
+  max-width:31px!important;
+  height:32px!important;
+  min-height:32px!important;
+  max-height:32px!important;
+  flex:0 0 31px!important;
+  padding:3px!important;
+  font-size:14px!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn span,
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.admin-panel-nav-btn span{display:none!important}
+ .nav-inner>.nav-right-stack>.nav-top-row .ai-chat-nav-btn{
+  width:31px!important;
+  min-width:31px!important;
+  max-width:31px!important;
+  height:32px!important;
+  min-height:32px!important;
+  max-height:32px!important;
+  padding:3px!important;
+  font-size:15px!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-top-row .ai-chat-nav-btn span{display:none!important}
+ .calc-shop-nav{
+  width:38px!important;
+  min-width:38px!important;
+  height:38px!important;
+  min-height:38px!important;
+  padding:5px!important;
+  flex:0 0 38px!important;
+ }
+ .calc-shop-nav-label{display:none!important}
+ .calc-wallet-nav{
+  min-width:58px!important;
+  min-height:38px!important;
+  height:auto!important;
+  padding:5px 7px!important;
+  gap:4px!important;
+  flex:0 0 auto!important;
+ }
+ .calc-wallet-coin{width:17px;height:17px}
+ .calc-wallet-value{font-size:12px}
+ .calc-wallet-unit{display:inline!important;font-size:9px}
+ .calc-wip-nav{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  align-content:center!important;
+  flex:0 0 82px!important;
+  width:82px!important;
+  min-width:82px!important;
+  max-width:82px!important;
+  min-height:40px!important;
+  height:auto!important;
+  padding:4px 5px!important;
+  gap:2px 4px!important;
+  overflow:visible!important;
+  line-height:1.1!important;
+ }
+ .calc-wip-icon{font-size:12px;line-height:1}
+ .calc-wip-value{font-size:12px;line-height:1}
+ .calc-wip-unit{font-size:9px;line-height:1}
+ .calc-wip-use{
+  display:block!important;
+  flex:0 0 100%!important;
+  width:100%;
+  margin:0!important;
+  text-align:center!important;
+  font-size:7.5px!important;
+  line-height:1.15!important;
+  white-space:nowrap;
+ }
+ body{padding-top:98px!important}
+}
+@media(max-width:380px){
+ .nav-inner{grid-template-columns:29px max-content minmax(0,1fr) max-content;gap:4px 4px!important;padding-inline:8px!important}
+ .nav-inner>.menu-btn{width:29px;min-width:29px}
+ .nav-inner>.logo{font-size:13px;gap:5px}
+ .nav-inner>.logo .logo-mark{flex-basis:29px;width:29px;height:29px}
+ .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions{gap:2px!important}
+ .nav-inner>.nav-right-stack>.nav-top-row .ai-chat-nav-btn,
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
+ .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn{width:27px!important;min-width:27px!important;max-width:27px!important;flex-basis:27px!important}
+ .nav-inner>.nav-right-stack>.nav-top-row .worth-it-user-search-btn{width:27px!important;min-width:27px!important;height:27px!important;min-height:27px!important;flex-basis:27px!important}
+ .calc-shop-nav{width:35px!important;min-width:35px!important;flex-basis:35px!important}
+ .calc-wallet-nav{min-width:52px!important;padding-inline:5px!important}
+ .calc-wallet-unit{display:none!important}
+ .calc-wip-nav{flex-basis:77px!important;width:77px!important;min-width:77px!important;max-width:77px!important}
+}
