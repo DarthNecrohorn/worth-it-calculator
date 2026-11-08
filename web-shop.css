@@ -264,10 +264,10 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  .nav-inner{
   display:grid!important;
   grid-template-columns:32px max-content minmax(0,1fr) max-content;
-  grid-template-rows:minmax(40px,auto) minmax(42px,auto);
+  grid-template-rows:minmax(40px,auto) minmax(40px,auto);
   align-items:center!important;
   justify-content:stretch!important;
-  gap:5px 6px!important;
+  gap:2px 6px!important;
   height:auto!important;
   min-height:0!important;
   padding:6px 10px!important;
@@ -304,18 +304,23 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  }
  .nav-inner>.logo>span:last-child{display:inline!important}
  .nav-inner>.calc-economy-nav{
-  grid-column:1 / 4;
+  grid-column:3 / 4;
   grid-row:2;
+  justify-self:start;
   display:flex!important;
   align-items:center;
   justify-content:flex-start;
   flex-wrap:nowrap;
   gap:6px!important;
-  width:100%;
+  width:max-content!important;
+  max-width:none!important;
   min-width:0;
   margin:0;
   padding:0;
   overflow:visible;
+  position:relative!important;
+  z-index:2;
+  transform:translateX(-50px)!important;
  }
  .nav-inner>.nav-links{display:none!important}
  .nav-inner>.nav-right-stack{display:contents!important}
@@ -444,16 +449,11 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 }
 
 
-/* Phone-only header offsets applied to the actual direct children of the nav grid. */
+/* Phone-only logo adjustment; other navigation controls keep their own layout. */
 @media(max-width:560px){
- .nav .container.nav-inner > .calc-economy-nav{
-  translate:-50px 0!important;
-  position:relative!important;
-  z-index:2;
- }
  .nav .container.nav-inner > a.logo{
-  translate:-20px -10px!important;
   position:relative!important;
+  transform:translate(-20px,-4px)!important;
   z-index:2;
  }
 }
