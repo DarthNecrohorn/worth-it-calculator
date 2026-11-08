@@ -1175,3 +1175,22 @@ body.ugc-maker-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
  .worth-it-profile-favourite-card{transition:none}
 }
+
+
+/* Subcategory tags sit beside the public number and primary category. */
+.ugc-card-head .ugc-subcategory-chip{
+ display:inline-flex;
+ align-items:center;
+ max-width:100%;
+ padding:2px 6px;
+ border-radius:999px;
+ font-size:9px;
+ line-height:1.2;
+ white-space:nowrap;
+}
+@media(max-width:640px){
+ .ugc-card-head .ugc-subcategory-chip{
+  padding:2px 5px;
+  font-size:8px;
+ }
+}
