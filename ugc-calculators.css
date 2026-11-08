@@ -1194,3 +1194,45 @@ body.ugc-maker-open{overflow:hidden}
   font-size:8px;
  }
 }
+
+
+/* Catalogue card attribution: lift the author and statistics together by 20px. */
+.ugc-card-byline{
+ display:flex;
+ flex-direction:column;
+ align-items:flex-start;
+ gap:7px;
+ min-width:0;
+ margin-top:auto;
+ margin-bottom:-20px;
+ position:relative;
+ top:-20px;
+}
+.ugc-card-byline .ugc-card-owner{
+ margin-top:0;
+ font-size:12px;
+ line-height:1.25;
+ font-weight:900;
+}
+.ugc-card-byline .ugc-card-stats{
+ gap:6px 10px;
+}
+.ugc-card-byline .ugc-stat-item{
+ gap:4px;
+ font-size:11px;
+}
+.ugc-card-byline .ugc-stat-icon{
+ min-width:17px;
+ font-size:16px;
+}
+.ugc-card-byline .ugc-stat-count{
+ font-size:11px;
+}
+@media(max-width:640px){
+ .ugc-card-byline{gap:6px;margin-bottom:-20px}
+ .ugc-card-byline .ugc-card-owner{font-size:10px;line-height:1.2}
+ .ugc-card-byline .ugc-card-stats{gap:4px 8px}
+ .ugc-card-byline .ugc-stat-item{gap:3px;font-size:9px}
+ .ugc-card-byline .ugc-stat-icon{min-width:14px;font-size:14px}
+ .ugc-card-byline .ugc-stat-count{font-size:9px}
+}
