@@ -906,6 +906,8 @@ async function saveMakerDraft(publish){
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
  if(title.length<3){$("ugcMakerStatus").textContent="Enter a title with at least 3 characters.";return;}
+ const invalidCurrency=(state.aiDraft.spec?.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
+ if(invalidCurrency){$("ugcMakerStatus").textContent="Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.";return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
  let savedIdAfterWrite="";
