@@ -746,8 +746,9 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
 
 test("Mobile header keeps Web Shop, CALC and full WIP label inside their own responsive row", () => {
     assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?grid-template-rows:minmax\(40px,auto\) minmax\(40px,auto\)/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
+    assert.doesNotMatch(webShopCss, /\.nav-inner>\.calc-economy-nav\{[^}]*transform:/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
     assert.match(webShopCss, /\.calc-wip-use\{[\s\S]*?display:block!important/);
     assert.match(webShopCss, /body\{padding-top:98px!important\}/);
 });
@@ -802,16 +803,18 @@ test("UGC card author and statistics share a byline lifted by 20px", () => {
     assert.match(paginationCss, /\.ugc-card-byline \.ugc-stat-icon\{[\s\S]*?font-size:16px/);
 });
 
-test("Phone header translates only wallet controls left and gives the logo a restrained offset", () => {
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
+test("Phone header anchors wallet controls beside the logo and keeps unrelated controls fixed", () => {
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
+    assert.doesNotMatch(webShopCss, /\.nav-inner>\.calc-economy-nav\{[^}]*transform:/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
     assert.doesNotMatch(webShopCss, /\.nav-right-stack[^}]*transform:/);
 });
 
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
+    assert.doesNotMatch(webShopCss, /\.nav-inner>\.calc-economy-nav\{[^}]*transform:/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
     assert.doesNotMatch(webShopCss, /\.nav-right-stack[^}]*transform:/);
 });
