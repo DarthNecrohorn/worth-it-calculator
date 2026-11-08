@@ -442,3 +442,17 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  .calc-wallet-unit{display:none!important}
  .calc-wip-nav{flex-basis:77px!important;width:77px!important;min-width:77px!important;max-width:77px!important}
 }
+
+
+/* Fine-position the small-screen header elements without changing desktop navigation. */
+@media(max-width:560px){
+ .nav-inner>.calc-economy-nav{
+  position:relative!important;
+  left:-50px!important;
+ }
+ .nav-inner>.logo{
+  position:relative!important;
+  left:-20px!important;
+  top:-10px!important;
+ }
+}
