@@ -802,7 +802,7 @@ test("UGC card author and statistics share a byline lifted by 20px", () => {
     assert.match(paginationCss, /\.ugc-card-byline \.ugc-stat-icon\{[\s\S]*?font-size:16px/);
 });
 
-test("Phone header translates wallet controls left by 50px and logo left 20px/up 10px", () => {
+test("Phone header translates only wallet controls left and gives the logo a restrained offset", () => {
     assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
     assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
     assert.doesNotMatch(webShopCss, /\.nav-right-stack[^}]*transform:/);
@@ -811,6 +811,7 @@ test("Phone header translates wallet controls left by 50px and logo left 20px/up
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
-    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?\.nav \.container\.nav-inner > \.calc-economy-nav\{[\s\S]*?translate:-50px 0!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?translate:-20px -10px!important/);
+    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:3 \/ 4[\s\S]*?transform:translateX\(-50px\)!important/);
+    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-4px\)!important/);
+    assert.doesNotMatch(webShopCss, /\.nav-right-stack[^}]*transform:/);
 });
