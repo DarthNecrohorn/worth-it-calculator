@@ -320,6 +320,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   overflow:visible;
   position:relative!important;
   z-index:2;
+  transform:translateX(-40px)!important;
  }
  .nav-inner>.nav-links{display:none!important}
  .nav-inner>.nav-right-stack{display:contents!important}
@@ -333,6 +334,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   min-width:0;
   margin:0;
   gap:3px!important;
+  transform:translateY(-50px)!important;
  }
  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions{
   display:flex!important;
@@ -353,6 +355,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   min-width:0;
   margin:0;
   gap:4px!important;
+  transform:translateY(-50px)!important;
  }
  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn,
