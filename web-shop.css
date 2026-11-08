@@ -433,7 +433,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-notification-wrap>.worth-it-notification-bell,
   .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-chat-nav-wrap>.worth-it-chat-nav-btn,
   .nav-inner>.nav-right-stack>.nav-top-row>.ai-chat-nav-btn,
-  .nav-inner>.nav-right-stack>.auth-wrap>.profile-nav-btn{
+  .nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn{
    transform:translateY(-50px)!important;
   }
  body{padding-top:98px!important}
