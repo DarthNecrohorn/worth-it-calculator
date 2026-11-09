@@ -984,3 +984,25 @@ test("Community Discovery sits immediately to the left of Create with AI in the 
     assert.match(paginationCss, /@media\(max-width:700px\)[\s\S]*?\.ugc-community-header-primary-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
     assert.equal((html.match(/id="ugcOpenDiscoveryButton"/g) || []).length, 1);
 });
+
+
+test("Community Discovery searches loaded top-100 results, preserves original ranks and supports secure member follows", () => {
+    assert.ok(html.includes('id="ugcDiscoverySearch"'));
+    assert.match(maker, /state\.discoverySearch/);
+    assert.match(maker, /rows\.map\(\(item,index\)=>\(\{item,index\}\)\)/);
+    assert.match(maker, /String\(index\+1\)/);
+    assert.match(maker, /kind==="members"&&!item\.is_self/);
+    assert.match(maker, /follow_worth_it_user/);
+    assert.match(maker, /unfollow_worth_it_user/);
+    assert.match(creatorLeaderboardsSql, /'is_self',is_self,'is_following',is_following/);
+    assert.match(creatorLeaderboardsSql, /mine\.follower_user_id=v_user_id[\s\S]*?mine\.followed_user_id=p\.user_id/);
+});
+
+test("Community Discovery explains ranking formulas and allows scroll chaining from its lists to the page", () => {
+    assert.match(html, /How rankings work/);
+    assert.match(html, /current followers \(25%\)[\s\S]*?likes in the selected period \(20%\)/);
+    assert.match(html, /Breakout combines follower growth \(55%\) and engagement \(45%\)/);
+    assert.match(paginationCss, /overscroll-behavior-y:auto/);
+    assert.doesNotMatch(paginationCss, /\.ugc-creator-list\{[^}]*overscroll-behavior:contain/);
+    assert.match(paginationCss, /\.ugc-creator-follow-button/);
+});
