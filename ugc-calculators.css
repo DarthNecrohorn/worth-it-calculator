@@ -1270,7 +1270,7 @@ body.ugc-maker-open{overflow:hidden}
  padding-bottom:3px;
 }
 .ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
- margin-top:-10px;
+ transform:translateY(-10px);
 }
 
 /* Keep the calculator detail as a normal page surface beneath global panels. */
