@@ -966,8 +966,8 @@ test("Community Discovery is a separate slide with 100 ranked profiles and respo
     assert.match(maker, /switchCalculatorExploreView\("community"\)/);
     assert.match(maker, /window\.setInterval\(refreshCreatorDiscoveryWhenVisible,60000\)/);
     assert.match(maker, /window\.addEventListener\("popstate"/);
-    assert.match(paginationCss, /\.ugc-creator-list\{[\s\S]*?max-height:680px[\s\S]*?overflow-y:auto/);
-    assert.match(paginationCss, /@media\(max-width:700px\)[\s\S]*?\.ugc-creator-list\{max-height:330px\}/);
+    assert.match(paginationCss, /\.ugc-creator-list\{[\s\S]*?max-height:743px[\s\S]*?overflow-y:auto/);
+    assert.match(paginationCss, /@media\(max-width:700px\)[\s\S]*?\.ugc-creator-list\{max-height:343px\}/);
     assert.equal((creatorLeaderboardsSql.match(/limit 100/gi) || []).length, 3);
     assert.match(routing, /window\.backFromWorthItProfile[\s\S]*?window\.history\.back\(\)/);
 });
