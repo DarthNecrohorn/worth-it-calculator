@@ -1477,12 +1477,18 @@ body.ugc-maker-open{overflow:hidden}
 
 
 /* Community Discovery is a separate slide from the UGC catalogue. */
-.ugc-community-heading-copy{
- display:grid;
- justify-items:start;
- align-content:start;
- gap:10px;
+.ugc-community-heading-copy{min-width:0}
+.ugc-community-header-primary-actions{
+ display:flex;
+ align-items:stretch;
+ justify-content:flex-end;
+ gap:9px;
+}
+.ugc-community-header-primary-actions>button{
+ flex:1 1 auto;
  min-width:0;
+ width:auto!important;
+ white-space:nowrap;
 }
 .ugc-open-discovery-button,.ugc-discovery-back-button{
  display:inline-flex;
@@ -1559,7 +1565,15 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-creator-list::-webkit-scrollbar-track{background:transparent}
 @media(max-width:700px){
  .ugc-community-heading-copy{width:100%}
- .ugc-open-discovery-button{width:100%}
+ .ugc-community-header-primary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .ugc-community-header-primary-actions>button{
+  min-height:46px;
+  padding:8px 7px;
+  font-size:10px;
+  line-height:1.25;
+  white-space:normal;
+  overflow-wrap:anywhere;
+ }
  .ugc-community-discovery-section{padding:18px 0 32px}
  .ugc-discovery-page-header{grid-template-columns:minmax(0,1fr);gap:13px;padding:13px}
  .ugc-discovery-back-button{width:100%}
