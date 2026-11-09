@@ -36,7 +36,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -119,6 +119,36 @@ function creatorSubstats(item,kind){
  }
  return compactCount(item.followers)+" followers · "+compactCount(item.public_calculators)+" public calculators";
 }
+async function toggleCreatorFollow(item,control){
+ const targetId=Number(item?.worth_it_id);
+ if(!Number.isSafeInteger(targetId)||targetId<1||item?.is_self||control?.disabled)return;
+ if(!state.userId){
+  toast("Sign in to follow community members.");
+  if(typeof window.openAuthModal==="function")window.openAuthModal("signin");
+  return;
+ }
+ const wasFollowing=Boolean(item.is_following);
+ control.disabled=true;
+ control.textContent=wasFollowing?"Unfollowing…":"Following…";
+ try{
+  const response=await sb().rpc(wasFollowing?"unfollow_worth_it_user":"follow_worth_it_user",{target_worth_it_id:targetId});
+  if(response.error)throw response.error;
+  const result=normalizeObject(response.data);
+  if(result?.success===false)throw new Error(result.message||result.error||"The follow action could not be completed.");
+  const member=state.creatorData?.community_members?.find(row=>Number(row.worth_it_id)===targetId);
+  if(member){
+   member.is_following=!wasFollowing;
+   member.followers=Math.max(0,(Number(member.followers)||0)+(wasFollowing?-1:1));
+  }
+  renderCreatorLeaderboards(state.creatorData);
+  await loadCreatorLeaderboards();
+  toast(wasFollowing?"You unfollowed this member.":"You are now following this member.");
+ }catch(error){
+  control.disabled=false;
+  control.textContent=wasFollowing?"Following ✓":"Follow";
+  toast(error?.message||"Could not update this follow. Please try again.");
+ }
+}
 function renderCreatorBoard(hostId,rows,kind,emptyMessage){
  const host=$(hostId);if(!host)return;
  host.replaceChildren();
@@ -126,7 +156,18 @@ function renderCreatorBoard(hostId,rows,kind,emptyMessage){
   host.appendChild(text("p","ugc-creator-list-status",emptyMessage||"No matching members were found for this period yet."));
   return;
  }
- rows.forEach((item,index)=>{
+ const query=String(state.discoverySearch||"").trim().toLocaleLowerCase();
+ const filteredRows=rows.map((item,index)=>({item,index})).filter(({item})=>{
+  if(!query)return true;
+  const username=String(item.username||"").replace(/^@+/,"");
+  const searchable=[item.display_name,username,"@"+username,item.worth_it_id,"#"+item.worth_it_id].join(" ").toLocaleLowerCase();
+  return searchable.includes(query);
+ });
+ if(!filteredRows.length){
+  host.appendChild(text("p","ugc-creator-list-status","No creators or members match your search."));
+  return;
+ }
+ filteredRows.forEach(({item,index})=>{
   const row=document.createElement("article");row.className="ugc-creator-row";
   row.appendChild(text("span","ugc-creator-rank",String(index+1)));
   const profile=document.createElement("a");
@@ -149,6 +190,13 @@ function renderCreatorBoard(hostId,rows,kind,emptyMessage){
   profile.appendChild(text("span","ugc-creator-metric",creatorMetric(item,kind)));
   row.appendChild(profile);
   row.appendChild(text("span","ugc-creator-substats",creatorSubstats(item,kind)));
+  if(kind==="members"&&!item.is_self){
+   row.classList.add("ugc-creator-row-with-follow");
+   const follow=button(item.is_following?"Following ✓":"Follow","ugc-creator-follow-button",()=>{void toggleCreatorFollow(item,follow);});
+   follow.setAttribute("aria-pressed",String(Boolean(item.is_following)));
+   follow.setAttribute("aria-label",(item.is_following?"Unfollow ":"Follow ")+String(item.display_name||item.username||"member"));
+   row.appendChild(follow);
+  }
   host.appendChild(row);
  });
 }
@@ -1258,6 +1306,7 @@ async function init(){
  $("ugcTopCreatorSort")?.addEventListener("change",event=>{const value=String(event.target.value||"overall");state.topCreatorSort=TOP_CREATOR_SORTS.includes(value)?value:"overall";void loadCreatorLeaderboards();});
  $("ugcRisingCreatorSort")?.addEventListener("change",event=>{const value=String(event.target.value||"growth");state.risingCreatorSort=RISING_CREATOR_SORTS.includes(value)?value:"growth";void loadCreatorLeaderboards();});
  $("ugcCommunityMemberSort")?.addEventListener("change",event=>{const value=String(event.target.value||"followers");state.communityMemberSort=COMMUNITY_MEMBER_SORTS.includes(value)?value:"followers";void loadCreatorLeaderboards();});
+ $("ugcDiscoverySearch")?.addEventListener("input",event=>{state.discoverySearch=String(event.target.value||"").trim();if(state.creatorData)renderCreatorLeaderboards(state.creatorData);});
  $("ugcCategoryFilter")?.addEventListener("change",event=>{state.category=String(event.target.value||"all");void loadCatalog();});
  $("ugcPagePrevious")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()-1));
  $("ugcPageNext")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()+1));
