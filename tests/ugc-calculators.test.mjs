@@ -898,11 +898,12 @@ test("opening Settings or another page hides UGC detail, and UGC Back restores t
 
 
 test("UGC calculator card title descenders stay visible and the description sits 10px higher", () => {
-    assert.ok(paginationCss.includes("@media(min-width:641px){"));
-    assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-title{"));
+    assert.ok(paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-title{"));
     assert.ok(paginationCss.includes("line-height:1.35!important;"));
     assert.ok(paginationCss.includes("padding-bottom:3px;"));
-    assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n  margin-top:-10px;"));
+    assert.ok(paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{\n margin-top:-10px;"));
+    assert.ok(maker.includes('normalizedCardTitle==="subscription savings calculator"'));
+    assert.ok(maker.includes('card.classList.add("ugc-card-subscription-savings")'));
 });
 
 
