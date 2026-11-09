@@ -885,6 +885,8 @@ test("UGC catalogue descriptions use the same 120-character preview and placemen
     assert.ok(sqlEnhancements.includes("char_length(v_description)>500"));
     assert.ok(visibilitySql.includes("char_length(v_description)>500"));
     assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n transform:translateY(0px);\n}"));
+    assert.match(paginationCss, /@media\(min-width:701px\)\{\s*\.ugc-calculator-card \.ugc-card-description\{\s*transform:translateY\(-10px\);\s*\}\s*\}/);
+    assert.doesNotMatch(paginationCss, /@media\(max-width:700px\)\{[^}]*\.ugc-calculator-card \.ugc-card-description\{[^}]*transform:translateY\(-10px\)/);
     assert.ok(!paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description"));
 });
 
