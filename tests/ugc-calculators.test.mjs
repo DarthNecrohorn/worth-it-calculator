@@ -666,7 +666,7 @@ test("UGC detail page exposes owner pricing, favourites, and only valid public r
     assert.ok(html.includes('id="ugcDetailFavorite"'));
     assert.match(maker, /set_worth_it_ugc_usage_price/);
     assert.match(maker, /p_calculator_id:calculator\.id/);
-    assert.match(maker, /const canReact=calculator\.is_owner!==true&&isPublicCalculator/);
+    assert.match(maker, /const canReact=!isOwner&&isPublicCalculator&&Boolean\(state\.userId\)/);
     assert.match(maker, /likeButton\.hidden=!isPublicCalculator/);
     assert.match(maker, /likeButton\.disabled=!canReact/);
     assert.match(maker, /dislikeButton\.disabled=!canReact/);
@@ -684,7 +684,7 @@ test("square UGC cards use responsive columns and explain creator reaction limit
     assert.ok(paginationCss.includes(".ugc-calculator-grid{"));
     assert.ok(paginationCss.includes("grid-template-columns:repeat(auto-fit,minmax"));
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
-    assert.ok(maker.includes('reactionNote.hidden=!isPublicCalculator||canReact'));
+    assert.ok(maker.includes('reactionNote.hidden=!isPublicCalculator||!isOwner'));
 });
 
 
@@ -850,7 +850,9 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
     const scrollAndDesktopPolish = paginationCss.slice(paginationCss.lastIndexOf("/* Let the page continue scrolling"));
     assert.match(scrollAndDesktopPolish, /overscroll-behavior-y:auto!important/);
     assert.match(scrollAndDesktopPolish, /@media\(min-width:701px\)/);
-    assert.match(scrollAndDesktopPolish, /-webkit-line-clamp:5!important/);
+    assert.match(scrollAndDesktopPolish, /display:block!important/);
+    assert.match(scrollAndDesktopPolish, /-webkit-line-clamp:unset!important/);
+    assert.match(scrollAndDesktopPolish, /overflow:visible!important/);
     assert.match(scrollAndDesktopPolish, /\.ugc-card-byline\{\s*margin-top:0!important/);
     assert.match(scrollAndDesktopPolish, /\.ugc-card-actions\{\s*margin-top:auto/);
 });
@@ -859,7 +861,7 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
 test("UGC catalogue descriptions end with a visible three-dot continuation while detail descriptions stay full", () => {
     assert.match(maker, /function cardDescriptionPreview\(description\)/);
     assert.match(maker, /const limit=150/);
-    assert.match(maker, /replace\(\/\[.!?…\]\+\$\/,""\)\+"\.\.\."/);
+    assert.ok(maker.includes('replace(/[.!?…]+$/,"")+"..."'));
     assert.match(maker, /descriptionNode\.title=fullDescription/);
     assert.match(maker, /description\.textContent=calculator\.description\|\|"No description provided\."/);
     assert.match(maker, /descInput\.maxLength=500/);
