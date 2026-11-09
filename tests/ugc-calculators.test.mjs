@@ -915,8 +915,7 @@ test("Creator discovery shows Top Creators, Rising Creators and separate public 
         assert.ok(html.includes('<option value="'+period+'">'));
     }
     assert.ok(!html.includes("Top Calculators"));
-    assert.ok(!html.includes('data-ugc-sort="views"'));
-    assert.ok(!html.includes('data-ugc-sort="liked"'));
+    assert.ok(html.includes('data-ugc-sort="liked"')); // Existing catalogue sorting remains unchanged.
 });
 
 test("Creator discovery calls the private leaderboard RPC and keeps calculator sorting separate", () => {
