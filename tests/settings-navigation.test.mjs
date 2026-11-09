@@ -62,7 +62,7 @@ test("dedicated section URLs support direct navigation and browser back/forward"
     assert.match(routing, /window\.addEventListener\("popstate"/);
     assert.match(settings, /openSettingsCategory = function\(panelId\)/);
     assert.match(settings, /window\[config\.openFunction\]\(\)/);
-    assert.match(html, /onclick="openFullSettings\(\)">← Back to Settings/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/settings'\)">← Back to Settings/);
     for (const path of ["/settings", ...sections.map(section => section.path), appearance.path]) {
         assert.ok(routing.includes('"' + path + '"'), "Missing route " + path);
     }
