@@ -59,6 +59,7 @@ begin
           from private.worth_it_user_calculators
          where id=p_id
            and status='published'
+           and visibility='public'
            and owner_user_id<>v_user_id
     ) then
         return jsonb_build_object('success',false,'counted',false);

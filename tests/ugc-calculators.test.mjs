@@ -826,6 +826,7 @@ test("UGC views count each signed-in account once per calculator for its lifetim
     assert.match(uniqueViewsSql, /row_number\(\) over \(\s*partition by calculator_id,viewer_user_id/);
     assert.match(uniqueViewsSql, /primary key \(calculator_id,viewer_user_id\)/);
     assert.match(uniqueViewsSql, /on conflict \(calculator_id,viewer_user_id\) do nothing/);
+    assert.match(uniqueViewsSql, /visibility='public'/);
     assert.match(uniqueViewsSql, /owner_user_id<>v_user_id/);
     assert.match(uniqueViewsFixture, /2026-10-01 12:00:00\+00/);
     assert.match(uniqueViewsFixture, /2026-10-02 12:00:00\+00/);
