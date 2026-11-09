@@ -1420,6 +1420,90 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" id="ugcCreateButton" class="ugc-primary-button">✦ Create with AI</button>
           </div>
         </header>
+        <section class="ugc-creator-discovery" aria-label="Community creator and member rankings">
+          <header class="ugc-creator-discovery-header">
+            <div>
+              <span class="ugc-community-kicker">COMMUNITY DISCOVERY</span>
+              <h3>Discover creators and members</h3>
+              <p>Explore established creators, rising talent and other members across Worth It.</p>
+            </div>
+            <label class="ugc-creator-period-control" for="ugcCreatorPeriodFilter">
+              Activity period
+              <select id="ugcCreatorPeriodFilter">
+                <option value="7d" selected>Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="6m">Last 6 months</option>
+                <option value="12m">Last 12 months</option>
+                <option value="3y">Last 3 years</option>
+                <option value="5y">Last 5 years</option>
+                <option value="10y">Last 10 years</option>
+              </select>
+            </label>
+          </header>
+          <div class="ugc-creator-leaderboards">
+            <section class="ugc-creator-board" aria-labelledby="ugcTopCreatorsHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcTopCreatorsHeading">🌟 Top Creators</h3>
+                  <p>Creators ranked by the quality and engagement of their public calculators.</p>
+                </div>
+                <label for="ugcTopCreatorSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcTopCreatorSort">
+                    <option value="overall" selected>Top Overall</option>
+                    <option value="followers">Most Followers</option>
+                    <option value="likes">Most Liked</option>
+                    <option value="favorites">Most Favorited</option>
+                    <option value="views">Most Viewed</option>
+                    <option value="engagement">Highest Engagement</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcTopCreatorsList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover community creators.</p>
+              </div>
+            </section>
+            <section class="ugc-creator-board" aria-labelledby="ugcRisingCreatorsHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcRisingCreatorsHeading">🚀 Rising Creators</h3>
+                  <p>Creators whose public calculators are gaining momentum.</p>
+                </div>
+                <label for="ugcRisingCreatorSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcRisingCreatorSort">
+                    <option value="growth" selected>Fastest Growing</option>
+                    <option value="engagement">Rising Engagement</option>
+                    <option value="new">New Creators to Watch</option>
+                    <option value="breakout">Breakout Creators</option>
+                    <option value="consistent">Consistent Creators</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcRisingCreatorsList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover rising creators.</p>
+              </div>
+            </section>
+            <section class="ugc-creator-board ugc-creator-board-members" aria-labelledby="ugcCommunityMembersHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcCommunityMembersHeading">👥 Community Members</h3>
+                  <p>Discover other public members, including people who have not published a community calculator.</p>
+                </div>
+                <label for="ugcCommunityMemberSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcCommunityMemberSort">
+                    <option value="followers" selected>Most Followers</option>
+                    <option value="growth">Rising Members</option>
+                    <option value="new">New Members</option>
+                    <option value="following">Most Following</option>
+                    <option value="connected">Most Connections</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcCommunityMembersList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover community members.</p>
+              </div>
+            </section>
+          </div>
+        </section>
         <nav class="ugc-sort-tabs" aria-label="Community calculator sorting">
           <button type="button" class="ugc-sort-tab active" data-ugc-sort="latest" aria-pressed="true">Latest</button>
           <button type="button" class="ugc-sort-tab" data-ugc-sort="popular" aria-pressed="false">Most Popular</button>
