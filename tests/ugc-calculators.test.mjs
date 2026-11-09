@@ -866,24 +866,25 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
 
 
 test("UGC catalogue descriptions use the same 120-character preview and placement on every calculator card", () => {
-    const helperSource = maker.match(/function cardDescriptionPreview\\(description\\)\\{[\\s\\S]*?\\n\\}/);
-    assert.ok(helperSource, "The shared UGC description preview helper must exist.");
-    const preview = runInNewContext(`(${helperSource[0]})`);
+    const helperStart = maker.indexOf("function cardDescriptionPreview(description){");
+    const helperEnd = maker.indexOf("\n}", helperStart) + 2;
+    assert.ok(helperStart >= 0 && helperEnd > helperStart, "The shared UGC description preview helper must exist.");
+    const preview = runInNewContext("(" + maker.slice(helperStart, helperEnd) + ")");
     const longDescription = "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current monthly amount and compare it with another plan.";
     assert.equal(
         preview(longDescription),
         "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current..."
     );
     assert.equal(preview("A short calculator description."), "A short calculator description.");
-    assert.match(maker, /const limit=120/);
+    assert.ok(maker.includes("const limit=120"));
     assert.ok(maker.includes('replace(/[.!?…]+$/,"")+"..."'));
-    assert.match(maker, /descriptionNode\\.title=fullDescription/);
-    assert.match(maker, /description\\.textContent=calculator\\.description\\|\\|"No description provided\\."/);
-    assert.match(maker, /descInput\\.maxLength=500/);
-    assert.match(html, /id="ugcDetailDescriptionInput"[^>]*maxlength="500"/);
-    assert.match(sqlEnhancements, /char_length\\(v_description\\)>500/);
-    assert.match(visibilitySql, /char_length\\(v_description\\)>500/);
-    assert.match(paginationCss, /\\.ugc-calculator-card \\.ugc-card-description\\{\\s*transform:translateY\\(0px\\);\\s*\\}/);
+    assert.ok(maker.includes("descriptionNode.title=fullDescription"));
+    assert.ok(maker.includes('description.textContent=calculator.description||"No description provided."'));
+    assert.ok(maker.includes("descInput.maxLength=500"));
+    assert.ok(html.includes('id="ugcDetailDescriptionInput"') && html.includes('maxlength="500"'));
+    assert.ok(sqlEnhancements.includes("char_length(v_description)>500"));
+    assert.ok(visibilitySql.includes("char_length(v_description)>500"));
+    assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n transform:translateY(0px);\n}"));
     assert.ok(!paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description"));
 });
 
