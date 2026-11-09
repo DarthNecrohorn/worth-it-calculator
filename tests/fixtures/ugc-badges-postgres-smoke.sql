@@ -222,8 +222,11 @@ begin
     v_creator:=v_rankings->'top_creators'->0;
     if v_creator->>'username'<>'creator'
        or (v_creator->>'followers')::integer<>1
-       or (v_creator->>'public_calculators')::integer<>1 then
-        raise exception 'Top Creators did not rank current followers and public calculators correctly: %',v_creator;
+       or (v_creator->>'period_followers')::integer<>1
+       or (v_creator->>'public_calculators')::integer<>1
+       or (v_creator->>'likes')::integer<>1
+       or (v_creator->>'views')::integer<>1 then
+        raise exception 'Top Creators did not rank followers, period activity and public calculators correctly: %',v_creator;
     end if;
     if not exists(
         select 1
