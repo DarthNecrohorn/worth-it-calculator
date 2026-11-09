@@ -116,7 +116,13 @@ begin
         select p.user_id,p.worth_it_id,p.username,p.display_name,p.avatar_url,p.created_at,
                coalesce(f.current_followers,0) as current_followers,
                coalesce(f.period_followers,0) as period_followers,
-               coalesce(g.current_following,0) as current_following
+               coalesce(g.current_following,0) as current_following,
+               (p.user_id=v_user_id) as is_self,
+               exists(
+                   select 1 from public.worth_it_follows mine
+                    where mine.follower_user_id=v_user_id
+                      and mine.followed_user_id=p.user_id
+               ) as is_following
           from public.worth_it_profiles p
           left join public.worth_it_user_preferences pref on pref.user_id=p.user_id
           left join follower_stats f on f.user_id=p.user_id
@@ -270,7 +276,8 @@ begin
             select jsonb_agg(jsonb_build_object(
                 'worth_it_id',worth_it_id,'username',username,'display_name',display_name,'avatar_url',avatar_url,
                 'created_at',created_at,'followers',current_followers,'period_followers',period_followers,
-                'following',current_following,'connections',current_followers+current_following
+                'following',current_following,'connections',current_followers+current_following,
+                'is_self',is_self,'is_following',is_following
             ) order by
                 case when v_member_sort='followers' then current_followers end desc,
                 case when v_member_sort='growth' then period_followers end desc,
