@@ -1477,6 +1477,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </header>
     <section class="ugc-creator-discovery" aria-label="Community creator and member rankings">
       <header class="ugc-creator-discovery-header">
+        <label class="ugc-discovery-search-control" for="ugcDiscoverySearch">
+          Search the top 100
+          <input id="ugcDiscoverySearch" type="search" maxlength="80" autocomplete="off" placeholder="Name, @username or profile number" aria-describedby="ugcDiscoverySearchNote">
+          <span class="ugc-discovery-search-note" id="ugcDiscoverySearchNote">Searches the up to 100 results already loaded in each ranking.</span>
+        </label>
         <label class="ugc-creator-period-control" for="ugcCreatorPeriodFilter">
               Activity period
               <select id="ugcCreatorPeriodFilter">
@@ -1490,6 +1495,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
               </select>
             </label>
       </header>
+      <details class="ugc-ranking-method">
+        <summary>ⓘ How rankings work</summary>
+        <div class="ugc-ranking-method-body">
+          <p><strong>Top Creators — Top Overall:</strong> a weighted score based on current followers (25%), likes in the selected period (20%), favourites (15%), views (15%), new followers (10%), engagement rate (10%) and the like-to-reaction ratio (5%). Each part is compared across creators, so the score is not simply a sum of raw totals.</p>
+          <p><strong>Rising Creators:</strong> Growth ranks new followers; Engagement combines period likes, favourites, views and new followers; New Creators uses the first public calculator date; Breakout combines follower growth (55%) and engagement (45%); Consistent Creators ranks active weeks.</p>
+          <p><strong>Community Members:</strong> Most Followers uses the current follower total; Rising Members uses new followers in the selected period; New Members uses account creation date; Most Following uses current following totals; Most Connections adds followers and following.</p>
+          <p>The activity period changes time-based metrics. Most Followers remains a current total. The rankings return up to 100 profiles per board; search filters those results and does not change their original rank.</p>
+        </div>
+      </details>
       <div class="ugc-creator-leaderboards">
             <section class="ugc-creator-board" aria-labelledby="ugcTopCreatorsHeading">
               <header class="ugc-creator-board-header">
