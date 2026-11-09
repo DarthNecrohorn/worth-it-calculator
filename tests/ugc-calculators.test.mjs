@@ -583,14 +583,18 @@ test("community calculators use secure 30-item server pagination for every view 
 });
 
 
-test("calculator explorer settles and restores exactly one visible panel after tab changes", () => {
+test("calculator explorer animates between Basic, UGC and Discovery while restoring one visible panel", () => {
     assert.match(maker, /let pendingExploreTransitionFinish=null/);
+    assert.match(maker, /const EXPLORE_VIEWS=\["basic","community","discovery"\]/);
+    assert.match(maker, /function explorePanel\(view\)/);
     assert.match(maker, /function reconcileExplorePanels\(\)/);
     assert.match(maker, /pendingExploreTransitionFinish=finish/);
     assert.match(maker, /document\.addEventListener\("visibilitychange"/);
     assert.match(maker, /window\.addEventListener\("pageshow",reconcileExplorePanels\)/);
-    assert.match(maker, /window\.addEventListener\("focus",reconcileExplorePanels\)/);
-    assert.match(maker, /basic\.hidden=active!=="basic";community\.hidden=active!=="community"/);
+    assert.match(maker, /window\.addEventListener\("focus",\(\)=>\{reconcileExplorePanels\(\);refreshCreatorDiscoveryWhenVisible\(\);\}\)/);
+    assert.match(maker, /panel\.hidden=name!==active;panel\.inert=name!==active/);
+    assert.match(maker, /state\[exploreScrollKey\(fromView\)\]=from\.scrollTop/);
+    assert.match(maker, /to\.scrollTop=state\[exploreScrollKey\(next\)\]\|\|0/);
     assert.match(maker, /fallbackTimer=window\.setTimeout\(finish,duration\+160\)/);
     assert.match(paginationCss, /visibility:\s*hidden\s*!important/);
     assert.match(paginationCss, /pointer-events:\s*none\s*!important/);
@@ -603,8 +607,9 @@ test("community catalogue is synchronously reset to Basic on sign-in and sign-ou
     assert.match(maker, /state\.session=session\|\|null/);
     assert.match(maker, /state\.userId=state\.session\?\.user\?\.id\|\|""/);
     assert.match(maker, /if\(!state\.userId\|\|accountChanged\)\{\s*setExploreInitialView\("basic"\)/);
-    assert.match(maker, /communityActive=Boolean\(state\.userId && state\.exploreView==="community"\)/);
-    assert.match(maker, /if\(gallery\)gallery\.hidden=!communityActive/);
+    assert.match(maker, /reconcileExplorePanels\(\);\s*const navActions=\$\("ugcNavigationActions"\)/);
+    assert.match(maker, /if\(navActions\)navActions\.hidden=!state\.userId/);
+    assert.match(maker, /const EXPLORE_VIEWS=\["basic","community","discovery"\]/);
     assert.match(maker, /setExploreInitialView\(window\.location\.pathname\.startsWith\("\/calculator\/ugc\/"\)\?"community":"basic"\)/);
     assert.doesNotMatch(maker, /onAuthStateChange\(async\(\)=>[\s\S]*?await getSession\(\)/);
     assert.match(maker, /ugcDetailCalculatorForm"\)\?\.replaceChildren\(\)/);
