@@ -886,7 +886,8 @@ test("UGC views, reactions and favourites refresh their matching statistic count
     assert.match(maker, /renderDetailStats\(active\)/);
     assert.match(maker, /calculator\.favorites=Math\.max\(0,Number\(calculator\.favorites\|\|0\)\+\(active\?1:-1\)\)/);
     assert.match(community, /notify\(\)/);
-    assert.match(maker, /await loadCatalog\(\);\s*if\(state\.activeId===String\(id\)\)await openDetail\(id,\{fromUrl:true\}\)/);
+    assert.ok(maker.includes("await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);"));
+    assert.match(maker, /if\(state\.activeId===String\(id\)\)await openDetail\(id,\{fromUrl:true\}\)/);
 });
 
 test("opening Settings or another page hides UGC detail, and UGC Back restores the previous route", () => {
