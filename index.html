@@ -73,7 +73,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     <link rel="stylesheet" href="web-shop.css?v=web-shop-heading-back-20261105a&amp;mobile-wallet-grid-20261108a&amp;phone-header-position=20261108b&amp;mobile-header-grid-layout=20261109a">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
 <link rel="stylesheet" href="community-features.css?v=hamburger-instant-20261105a&amp;ugc-detail-favorite=20261106a">
-<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-leaderboards=20261109a&amp;subscription-card-spacing=20261109b">
+<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-slide-100=20261109a&amp;subscription-card-spacing=20261109b">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a">
@@ -1410,24 +1410,74 @@ html[data-theme="light"].worth-it-initial-paint::before {
     <section id="ugcCommunitySection" class="ugc-community-section calculator-explore-panel" hidden aria-label="Worth It community calculators">
       <div class="ugc-community-shell">
         <header class="ugc-community-header">
-          <div>
+          <div class="ugc-community-heading-copy">
+            <button type="button" id="ugcOpenDiscoveryButton" class="ugc-open-discovery-button">🌐 Community Discovery →</button>
+            <div>
             <span class="ugc-community-kicker">WORTH IT COMMUNITY</span>
             <h2>Community calculators</h2>
             <p>Discover calculators created by Worth It members, or build your own with Worth It AI.</p>
+            </div>
           </div>
           <div class="ugc-community-header-actions">
             <button type="button" id="ugcBackToBasicButton" class="ugc-action-secondary">← Go back to regular calculators</button>
             <button type="button" id="ugcCreateButton" class="ugc-primary-button">✦ Create with AI</button>
           </div>
         </header>
-        <section class="ugc-creator-discovery" aria-label="Community creator and member rankings">
-          <header class="ugc-creator-discovery-header">
-            <div>
-              <span class="ugc-community-kicker">COMMUNITY DISCOVERY</span>
-              <h3>Discover creators and members</h3>
-              <p>Activity and growth use the selected period; Most Followers always shows the current total.</p>
-            </div>
-            <label class="ugc-creator-period-control" for="ugcCreatorPeriodFilter">
+                <nav class="ugc-sort-tabs" aria-label="Community calculator sorting">
+          <button type="button" class="ugc-sort-tab active" data-ugc-sort="latest" aria-pressed="true">Latest</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="popular" aria-pressed="false">Most Popular</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="liked" aria-pressed="false">Most Liked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="favorited" aria-pressed="false">Most Favorited</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="disliked" aria-pressed="false">Most Disliked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="mine" aria-pressed="false">My Calculators</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-drafts" aria-pressed="false">My Drafts</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-favorites" aria-pressed="false">My Favourites</button>
+        </nav>
+        <div class="ugc-catalog-tools">
+          <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
+          <select id="ugcCategoryFilter" aria-label="Filter community calculators by category">
+            <option value="all">All categories</option><optgroup label="Cars"><option value="cars">Cars — all</option><option value="car-ownership">Car ownership</option><option value="ev-ownership">Electric vehicles</option><option value="fuel-costs">Fuel costs</option><option value="vehicle-financing">Car financing</option><option value="car-insurance">Insurance</option><option value="car-maintenance">Maintenance & repairs</option><option value="depreciation-resale">Depreciation & resale</option><option value="vehicle-comparison">Vehicle comparisons</option></optgroup><optgroup label="Money"><option value="money">Money — all</option><option value="budgeting">Budgeting</option><option value="saving">Saving</option><option value="investing">Investing</option><option value="loans-debt">Loans & debt</option><option value="mortgages">Mortgages</option><option value="taxes">Taxes</option><option value="income-salary">Income & salary</option><option value="retirement">Retirement</option></optgroup><optgroup label="Technology"><option value="technology">Technology — all</option><option value="smartphones">Smartphones</option><option value="computers">Computers</option><option value="gaming">Gaming</option><option value="software-subscriptions">Software & subscriptions</option><option value="internet-connectivity">Internet & connectivity</option><option value="consumer-electronics">Consumer electronics</option><option value="tech-comparison">Technology comparisons</option></optgroup><optgroup label="Home Costs"><option value="home">Home Costs — all</option><option value="utilities-energy">Utilities & energy</option><option value="rent-housing">Rent & housing</option><option value="home-buying">Home buying</option><option value="renovation-repairs">Renovations & repairs</option><option value="home-appliances">Home appliances</option><option value="home-maintenance">Home maintenance</option><option value="household-budget">Household budget</option></optgroup><optgroup label="Other"><option value="other">Other — all</option><option value="travel">Travel</option><option value="education-career">Education & career</option><option value="health-fitness">Health & fitness</option><option value="food-groceries">Food & groceries</option><option value="business">Business</option><option value="lifestyle">Lifestyle</option><option value="general-comparison">General comparisons</option></optgroup>
+          </select>
+          <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="1m">Last month</option>
+            <option value="3m">Last 3 months</option>
+            <option value="6m">Last 6 months</option>
+            <option value="12m">Last 12 months</option>
+            <option value="3y">Last 3 years</option>
+            <option value="6y">Last 6 years</option>
+            <option value="12y" selected>Last 12 years</option>
+          </select>
+        </div>
+        <h3 id="ugcCatalogHeading">Latest calculators</h3>
+        <p id="ugcCatalogStatus" class="ugc-catalog-status" role="status" aria-live="polite">Sign in to browse, create and use community calculators.</p>
+        <div id="ugcCalculatorGrid" class="ugc-calculator-grid" aria-live="polite"></div>
+        <nav id="ugcPagination" class="ugc-pagination" aria-label="Community calculator pages" hidden>
+          <button type="button" id="ugcPagePrevious" class="ugc-page-step" aria-label="Previous page" disabled>←</button>
+          <div class="ugc-page-current" aria-live="polite"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
+          <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
+          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Jump to page" title="Enter a page number and press Enter">
+        </nav>
+        <p class="ugc-pagination-note">The catalogue shows up to 30 calculators per page, not 30 in total. Use the arrows or enter a page number to browse the rest.</p>
+        <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
+      </div>
+    </section>
+
+<section id="ugcCommunityDiscoverySection" class="ugc-community-discovery-section calculator-explore-panel" hidden aria-label="Community creator and member discovery">
+  <div class="ugc-community-shell">
+    <header class="ugc-discovery-page-header">
+      <button type="button" id="ugcBackToUgcButton" class="ugc-discovery-back-button">← Back to community calculators</button>
+      <div class="ugc-discovery-page-heading">
+        <span class="ugc-community-kicker">COMMUNITY DISCOVERY</span>
+        <h2>Discover creators and members</h2>
+        <p>Activity and growth use the selected period; Most Followers always shows the current total.</p>
+      </div>
+    </header>
+    <section class="ugc-creator-discovery" aria-label="Community creator and member rankings">
+      <header class="ugc-creator-discovery-header">
+        <label class="ugc-creator-period-control" for="ugcCreatorPeriodFilter">
               Activity period
               <select id="ugcCreatorPeriodFilter">
                 <option value="7d" selected>Last 7 days</option>
@@ -1439,8 +1489,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <option value="10y">Last 10 years</option>
               </select>
             </label>
-          </header>
-          <div class="ugc-creator-leaderboards">
+      </header>
+      <div class="ugc-creator-leaderboards">
             <section class="ugc-creator-board" aria-labelledby="ugcTopCreatorsHeading">
               <header class="ugc-creator-board-header">
                 <div>
@@ -1503,48 +1553,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
               </div>
             </section>
           </div>
-        </section>
-        <nav class="ugc-sort-tabs" aria-label="Community calculator sorting">
-          <button type="button" class="ugc-sort-tab active" data-ugc-sort="latest" aria-pressed="true">Latest</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="popular" aria-pressed="false">Most Popular</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="liked" aria-pressed="false">Most Liked</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="favorited" aria-pressed="false">Most Favorited</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="disliked" aria-pressed="false">Most Disliked</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="mine" aria-pressed="false">My Calculators</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-drafts" aria-pressed="false">My Drafts</button>
-          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-favorites" aria-pressed="false">My Favourites</button>
-        </nav>
-        <div class="ugc-catalog-tools">
-          <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
-          <select id="ugcCategoryFilter" aria-label="Filter community calculators by category">
-            <option value="all">All categories</option><optgroup label="Cars"><option value="cars">Cars — all</option><option value="car-ownership">Car ownership</option><option value="ev-ownership">Electric vehicles</option><option value="fuel-costs">Fuel costs</option><option value="vehicle-financing">Car financing</option><option value="car-insurance">Insurance</option><option value="car-maintenance">Maintenance & repairs</option><option value="depreciation-resale">Depreciation & resale</option><option value="vehicle-comparison">Vehicle comparisons</option></optgroup><optgroup label="Money"><option value="money">Money — all</option><option value="budgeting">Budgeting</option><option value="saving">Saving</option><option value="investing">Investing</option><option value="loans-debt">Loans & debt</option><option value="mortgages">Mortgages</option><option value="taxes">Taxes</option><option value="income-salary">Income & salary</option><option value="retirement">Retirement</option></optgroup><optgroup label="Technology"><option value="technology">Technology — all</option><option value="smartphones">Smartphones</option><option value="computers">Computers</option><option value="gaming">Gaming</option><option value="software-subscriptions">Software & subscriptions</option><option value="internet-connectivity">Internet & connectivity</option><option value="consumer-electronics">Consumer electronics</option><option value="tech-comparison">Technology comparisons</option></optgroup><optgroup label="Home Costs"><option value="home">Home Costs — all</option><option value="utilities-energy">Utilities & energy</option><option value="rent-housing">Rent & housing</option><option value="home-buying">Home buying</option><option value="renovation-repairs">Renovations & repairs</option><option value="home-appliances">Home appliances</option><option value="home-maintenance">Home maintenance</option><option value="household-budget">Household budget</option></optgroup><optgroup label="Other"><option value="other">Other — all</option><option value="travel">Travel</option><option value="education-career">Education & career</option><option value="health-fitness">Health & fitness</option><option value="food-groceries">Food & groceries</option><option value="business">Business</option><option value="lifestyle">Lifestyle</option><option value="general-comparison">General comparisons</option></optgroup>
-          </select>
-          <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
-            <option value="today">Today</option>
-            <option value="7d">Last 7 days</option>
-            <option value="14d">Last 14 days</option>
-            <option value="1m">Last month</option>
-            <option value="3m">Last 3 months</option>
-            <option value="6m">Last 6 months</option>
-            <option value="12m">Last 12 months</option>
-            <option value="3y">Last 3 years</option>
-            <option value="6y">Last 6 years</option>
-            <option value="12y" selected>Last 12 years</option>
-          </select>
-        </div>
-        <h3 id="ugcCatalogHeading">Latest calculators</h3>
-        <p id="ugcCatalogStatus" class="ugc-catalog-status" role="status" aria-live="polite">Sign in to browse, create and use community calculators.</p>
-        <div id="ugcCalculatorGrid" class="ugc-calculator-grid" aria-live="polite"></div>
-        <nav id="ugcPagination" class="ugc-pagination" aria-label="Community calculator pages" hidden>
-          <button type="button" id="ugcPagePrevious" class="ugc-page-step" aria-label="Previous page" disabled>←</button>
-          <div class="ugc-page-current" aria-live="polite"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
-          <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
-          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Jump to page" title="Enter a page number and press Enter">
-        </nav>
-        <p class="ugc-pagination-note">The catalogue shows up to 30 calculators per page, not 30 in total. Use the arrows or enter a page number to browse the rest.</p>
-        <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
-      </div>
     </section>
+  </div>
+</section>
+
 </div>
 
 
@@ -5776,7 +5788,7 @@ if($("carResults")){
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
-<script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a&amp;visibility-restore=20261105a&amp;rev=ugc-publish-detail-routing-20261106a&amp;rev=ugc-square-card-pricing-favorites-20261106a-creator-username-label-20261106a-currency-units-stats-20261108a-save-currency-check-20261108a-owner-reaction-controls-20261108a-catalogue-inline-tags-20261108a&amp;card-preview-ellipsis-20261109a&amp;live-stat-sync-20261109a&amp;creator-leaderboards=20261109a&amp;subscription-card-spacing=20261109a"></script>
+<script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a&amp;visibility-restore=20261105a&amp;rev=ugc-publish-detail-routing-20261106a&amp;rev=ugc-square-card-pricing-favorites-20261106a-creator-username-label-20261106a-currency-units-stats-20261108a-save-currency-check-20261108a-owner-reaction-controls-20261108a-catalogue-inline-tags-20261108a&amp;card-preview-ellipsis-20261109a&amp;live-stat-sync-20261109a&amp;creator-discovery-slide-100=20261109a&amp;subscription-card-spacing=20261109a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104b&amp;web-shop-settings-back=20261105a&amp;generic-route-back-20261109a&amp;hide-ugc-detail-on-route-20261109a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
