@@ -212,7 +212,7 @@ begin
            case when v_top_sort='views' then period_views end desc,
            case when v_top_sort='engagement' then engagement_rate end desc,
            period_engagement desc,current_followers desc,worth_it_id
-         limit 10
+         limit 100
     ),
     member_top_rows as (
         select * from member_rows
@@ -224,7 +224,7 @@ begin
            case when v_member_sort='following' then current_following end desc,
            case when v_member_sort='connected' then current_followers+current_following end desc,
            current_followers desc,period_followers desc,created_at desc,worth_it_id
-         limit 10
+         limit 100
     ),
     rising_rows as (
         select * from ranked
@@ -238,7 +238,7 @@ begin
            case when v_rising_sort='consistent' then active_weeks end desc,
            case when v_rising_sort='new' then extract(epoch from first_publication_at) end desc,
            period_engagement desc,period_followers desc,current_followers desc,worth_it_id
-         limit 10
+         limit 100
     )
     select jsonb_build_object(
         'period',v_period,
