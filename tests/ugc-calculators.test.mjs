@@ -6,6 +6,7 @@ import { onRequestPost, onRequestOptions } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
+const style = read("style.css");
 const routing = read("routing.js");
 const guest = read("guest-mode.js");
 const maker = read("ugc-calculators.js");
@@ -914,7 +915,7 @@ test("Subscription Savings card keeps a three-line ellipsis preview and moves it
 
 test("Profile avatar is enlarged on desktop only and keeps mobile dimensions", () => {
     assert.match(style, /@media\(min-width:701px\)[\s\S]*?\.profile-nav-btn > #profileNavIcon\{[\s\S]*?width:40px;[\s\S]*?\.profile-nav-btn \.auth-avatar,[\s\S]*?height:40px;/);
-    assert.match(style, /@media\(max-width:700px\)[\s\S]*?\.profile-nav-btn\{[\s\S]*?width:40px;/);
+    assert.match(style, /@media\(max-width:700px\)\{\s*\.profile-nav-btn\{\s*width:40px;\s*height:40px;\s*flex-basis:40px;\s*padding:3px;\s*\}\s*\.profile-nav-btn \.auth-avatar,\s*\.profile-nav-btn \.auth-avatar-fallback\{\s*width:32px;\s*height:32px;\s*flex-basis:32px;\s*\}\s*\}/);
 });
 
 
