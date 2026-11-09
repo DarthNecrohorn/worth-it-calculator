@@ -915,15 +915,16 @@ test("opening Settings or another page hides UGC detail, and UGC Back restores t
 });
 
 
-test("Subscription Savings card keeps a three-line ellipsis preview and moves it 20px lower on desktop", () => {
+test("Subscription Savings keeps its title spacing while descriptions use the shared UGC card position", () => {
     assert.ok(paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-title{"));
     assert.ok(paginationCss.includes("line-height:1.35!important;"));
     assert.ok(paginationCss.includes("padding-bottom:3px;"));
-    assert.match(paginationCss, /\.ugc-calculator-card\.ugc-card-subscription-savings \.ugc-card-description\{[\s\S]*?-webkit-line-clamp:3;[\s\S]*?transform:translateY\(10px\);/);
-    assert.match(paginationCss, /@media\(min-width:701px\)[\s\S]*?\.ugc-calculator-card\.ugc-card-subscription-savings \.ugc-card-description/);
     assert.ok(maker.includes('normalizedCardTitle==="subscription savings calculator"'));
     assert.ok(maker.includes('card.classList.add("ugc-card-subscription-savings")'));
+    assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n transform:translateY(0px);\n}"));
+    assert.ok(!paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description"));
 });
+
 
 test("Profile avatar is enlarged on desktop only and keeps mobile dimensions", () => {
     assert.match(style, /@media\(min-width:701px\)[\s\S]*?\.profile-nav-btn > #profileNavIcon\{[\s\S]*?width:40px;[\s\S]*?\.profile-nav-btn \.auth-avatar,[\s\S]*?height:40px;/);
