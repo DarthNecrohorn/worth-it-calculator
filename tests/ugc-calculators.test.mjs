@@ -893,3 +893,9 @@ test("opening Settings or another page hides UGC detail, and UGC Back restores t
     assert.match(routing, /route\.kind !== "ugc-calculator"[\s\S]*?ugcDetail\.hidden = true/);
     assert.match(maker, /window\.backFromWorthItRoute\("\/calculators"\)/);
 });
+
+
+test("UGC calculator card title descenders stay visible and the description sits 10px higher", () => {
+    assert.match(paginationCss, /@media\\(min-width:641px\\)[\\s\\S]*?\\.ugc-calculator-card \\.ugc-card-title\\{[\\s\\S]*?line-height:1\\.35!important;[\\s\\S]*?padding-bottom:3px;/);
+    assert.match(paginationCss, /\\.ugc-calculator-card \\.ugc-card-description\\{\\s*margin-top:-10px;/);
+});
