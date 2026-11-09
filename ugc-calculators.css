@@ -823,11 +823,11 @@ body.ugc-maker-open{overflow:hidden}
  display:inline-flex;
  align-items:center;
  justify-content:center;
- min-width:112px;
- min-height:35px;
- padding:7px 12px;
- border-radius:10px;
- font-size:12px;
+ min-width:128px;
+ min-height:40px;
+ padding:8px 14px;
+ border-radius:11px;
+ font-size:13px;
  font-weight:850;
  white-space:nowrap;
 }
@@ -948,10 +948,10 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-detail-meta-row .ugc-detail-categories{gap:3px}
  .ugc-detail-meta-row .ugc-subcategory-chip{font-size:9px;padding:3px 6px}
  .ugc-detail-reaction-button{
-  min-width:88px;
-  min-height:32px;
-  padding:6px 8px;
-  font-size:10px;
+  min-width:96px;
+  min-height:36px;
+  padding:7px 9px;
+  font-size:11px;
  }
  .ugc-detail-meta-grid .ugc-detail-stats{gap:5px 8px}
  .ugc-detail-meta-grid .ugc-detail-stats .ugc-stat-icon{font-size:13px}
