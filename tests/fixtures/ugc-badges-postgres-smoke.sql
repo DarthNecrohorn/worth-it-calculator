@@ -233,6 +233,15 @@ begin
         raise exception 'A public member without a published public calculator was not shown separately: %',v_rankings->'community_members';
     end if;
 
+    v_rankings:=public.get_worth_it_creator_leaderboards('7d','followers','growth','new');
+    if exists(
+        select 1
+          from jsonb_array_elements(v_rankings->'community_members') as member(item)
+         where item->>'username'='viewer'
+    ) then
+        raise exception 'New Members must only include accounts created in the selected period.';
+    end if;
+
     foreach v_period in array array['7d','30d','6m','12m','3y','5y','10y'] loop
         v_rankings:=public.get_worth_it_creator_leaderboards(v_period,'overall','breakout','connected');
         if v_rankings->>'period'<>v_period then
