@@ -1262,6 +1262,19 @@ body.ugc-maker-open{overflow:hidden}
 }
 
 
+
+
+/* Keep UGC card titles fully legible and bring the description closer to the title. */
+@media(min-width:641px){
+ .ugc-calculator-card .ugc-card-title{
+  line-height:1.35!important;
+  padding-bottom:3px;
+ }
+ .ugc-calculator-card .ugc-card-description{
+  margin-top:-10px;
+ }
+}
+
 /* Keep the calculator detail as a normal page surface beneath global panels. */
 #ugcDetailSection{
  position:relative;
