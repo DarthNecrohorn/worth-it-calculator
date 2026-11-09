@@ -842,7 +842,7 @@ test("UGC like and dislike controls are wired, debounced during writes, and supp
     assert.match(maker, /set_worth_it_ugc_reaction/);
     assert.match(sql, /on conflict\(calculator_id,user_id\) do update set reaction=excluded\.reaction/);
     assert.match(paginationFixture, /A repeated dislike removes the current reaction/);
-    assert.match(paginationFixture, /Switching from like to dislike updates the existing reaction/);
+    assert.match(paginationFixture, /Switching from like to dislike did not update the existing reaction/);
 });
 
 test("Basic and UGC panels allow page scroll chaining and desktop cards show longer descriptions", () => {
