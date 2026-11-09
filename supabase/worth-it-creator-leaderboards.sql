@@ -207,6 +207,7 @@ begin
     ),
     member_top_rows as (
         select * from member_rows
+         where v_member_sort<>'new' or created_at>=v_cutoff
          order by
            case when v_member_sort='followers' then current_followers end desc,
            case when v_member_sort='growth' then period_followers end desc,
