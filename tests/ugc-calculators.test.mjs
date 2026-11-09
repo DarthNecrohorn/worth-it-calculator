@@ -971,3 +971,16 @@ test("Community Discovery is a separate slide with 100 ranked profiles and respo
     assert.equal((creatorLeaderboardsSql.match(/limit 100/gi) || []).length, 3);
     assert.match(routing, /window\.backFromWorthItProfile[\s\S]*?window\.history\.back\(\)/);
 });
+
+
+test("Community Discovery sits immediately to the left of Create with AI in the UGC header", () => {
+    const headerStart = html.indexOf('<header class="ugc-community-header">');
+    const headerEnd = html.indexOf('</header>', headerStart);
+    const header = html.slice(headerStart, headerEnd);
+    const primaryActions = header.slice(header.indexOf('class="ugc-community-header-primary-actions"'));
+    assert.ok(primaryActions.indexOf('id="ugcOpenDiscoveryButton"') >= 0);
+    assert.ok(primaryActions.indexOf('id="ugcOpenDiscoveryButton"') < primaryActions.indexOf('id="ugcCreateButton"'));
+    assert.match(paginationCss, /\.ugc-community-header-primary-actions\{[\s\S]*?display:flex/);
+    assert.match(paginationCss, /@media\(max-width:700px\)[\s\S]*?\.ugc-community-header-primary-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+    assert.equal((html.match(/id="ugcOpenDiscoveryButton"/g) || []).length, 1);
+});
