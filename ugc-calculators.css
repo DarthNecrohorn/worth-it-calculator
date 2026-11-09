@@ -1275,7 +1275,13 @@ body.ugc-maker-open{overflow:hidden}
  padding-bottom:3px;
 }
 .ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
- transform:translateY(-10px);
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:3;
+ overflow:hidden;
+ max-height:4.5em;
+ text-overflow:ellipsis;
+ transform:translateY(10px);
 }
 
 /* Keep the calculator detail as a normal page surface beneath global panels. */
@@ -1683,4 +1689,14 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-creator-row-with-follow .ugc-creator-avatar,
  .ugc-creator-row-with-follow .ugc-creator-avatar-fallback{width:28px;height:28px}
  .ugc-creator-row-with-follow .ugc-creator-metric{max-width:76px;padding:4px 5px;font-size:8px}
+}
+
+
+/* Desktop-only refinements requested for the catalogue card and profile avatar. */
+@media(min-width:701px){
+ .ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
+  -webkit-line-clamp:3;
+  max-height:4.5em;
+  transform:translateY(10px);
+ }
 }
