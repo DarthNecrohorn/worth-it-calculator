@@ -36,7 +36,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -76,6 +76,120 @@ function updateCatalogHeading(){
  const node=$("ugcCatalogHeading");
  if(node)node.textContent=state.sort==="mine"?"My Calculators":state.sort==="my-drafts"?"My Drafts":state.sort==="my-favorites"?"My Favourites":
   ({latest:"Latest calculators",popular:"Most popular",liked:"Most liked",favorited:"Most favorited",disliked:"Most disliked"}[state.sort]||"Community calculators");
+}
+const CREATOR_PERIODS=["7d","30d","6m","12m","3y","5y","10y"];
+const TOP_CREATOR_SORTS=["overall","followers","likes","favorites","views","engagement"];
+const RISING_CREATOR_SORTS=["growth","engagement","new","breakout","consistent"];
+const COMMUNITY_MEMBER_SORTS=["followers","growth","new","following","connected"];
+function compactCount(value){
+ const amount=Math.max(0,Number(value)||0);
+ return new Intl.NumberFormat(undefined,{notation:"compact",maximumFractionDigits:1}).format(amount);
+}
+function creatorMetric(item,kind){
+ if(kind==="top"){
+  switch(state.topCreatorSort){
+   case "followers":return compactCount(item.followers)+" followers";
+   case "likes":return compactCount(item.likes)+" likes";
+   case "favorites":return compactCount(item.favorites)+" favourites";
+   case "views":return compactCount(item.views)+" views";
+   case "engagement":return Number(item.engagement_rate||0).toFixed(1)+"% engagement";
+   default:return "Top overall";
+  }
+ }
+ if(kind==="rising"){
+  switch(state.risingCreatorSort){
+   case "engagement":return compactCount(item.engagement)+" engagement";
+   case "new":return "Published "+(item.first_publication_at?new Date(item.first_publication_at).toLocaleDateString():"recently");
+   case "breakout":return Math.round((Number(item.breakout_score)||0)*100)+" breakout";
+   case "consistent":return compactCount(item.active_weeks)+" active weeks";
+   default:return "+"+compactCount(item.period_followers)+" followers";
+  }
+ }
+ switch(state.communityMemberSort){
+  case "growth":return "+"+compactCount(item.period_followers)+" followers";
+  case "new":return "Joined "+(item.created_at?new Date(item.created_at).toLocaleDateString():"recently");
+  case "following":return compactCount(item.following)+" following";
+  case "connected":return compactCount(item.connections)+" connections";
+  default:return compactCount(item.followers)+" followers";
+ }
+}
+function creatorSubstats(item,kind){
+ if(kind==="members"){
+  return compactCount(item.followers)+" followers · "+compactCount(item.following)+" following";
+ }
+ return compactCount(item.followers)+" followers · "+compactCount(item.public_calculators)+" public calculators";
+}
+function renderCreatorBoard(hostId,rows,kind,emptyMessage){
+ const host=$(hostId);if(!host)return;
+ host.replaceChildren();
+ if(!Array.isArray(rows)||!rows.length){
+  host.appendChild(text("p","ugc-creator-list-status",emptyMessage||"No matching members were found for this period yet."));
+  return;
+ }
+ rows.forEach((item,index)=>{
+  const row=document.createElement("article");row.className="ugc-creator-row";
+  row.appendChild(text("span","ugc-creator-rank",String(index+1)));
+  const profile=document.createElement("a");
+  profile.className="ugc-creator-profile-link";
+  profile.href="/profile/"+encodeURIComponent(String(item.worth_it_id||""));
+  profile.setAttribute("aria-label","Open "+String(item.display_name||item.username||"member")+"'s profile");
+  const avatarUrl=String(item.avatar_url||"").trim();
+  if(/^https:\/\//i.test(avatarUrl)){
+   const avatar=document.createElement("img");
+   avatar.className="ugc-creator-avatar";avatar.src=avatarUrl;avatar.alt="";avatar.loading="lazy";avatar.referrerPolicy="no-referrer";
+   avatar.addEventListener("error",()=>{const fallback=text("span","ugc-creator-avatar-fallback",String(item.display_name||item.username||"?").trim().charAt(0).toUpperCase()||"?");if(avatar.isConnected)avatar.replaceWith(fallback);},{once:true});
+   profile.appendChild(avatar);
+  }else{
+   profile.appendChild(text("span","ugc-creator-avatar-fallback",String(item.display_name||item.username||"?").trim().charAt(0).toUpperCase()||"?"));
+  }
+  const identity=document.createElement("span");identity.className="ugc-creator-identity";
+  identity.appendChild(text("span","ugc-creator-name",item.display_name||item.username||"Worth It member"));
+  identity.appendChild(text("span","ugc-creator-username",item.username?"@"+String(item.username).replace(/^@+/,""):"Worth It member"));
+  profile.appendChild(identity);
+  profile.appendChild(text("span","ugc-creator-metric",creatorMetric(item,kind)));
+  row.appendChild(profile);
+  row.appendChild(text("span","ugc-creator-substats",creatorSubstats(item,kind)));
+  host.appendChild(row);
+ });
+}
+function renderCreatorLeaderboards(payload,errorMessage){
+ const data=payload&&typeof payload==="object"?payload:{};
+ renderCreatorBoard("ugcTopCreatorsList",data.top_creators,"top",errorMessage||"No public calculator creators have been ranked for this period yet.");
+ renderCreatorBoard("ugcRisingCreatorsList",data.rising_creators,"rising",errorMessage||"No rising creators match this period yet.");
+ renderCreatorBoard("ugcCommunityMembersList",data.community_members,"members",errorMessage||"No other public members match this period yet.");
+}
+async function loadCreatorLeaderboards(){
+ if(!state.userId){
+  renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");
+  return;
+ }
+ const request=++state.creatorRequest;
+ renderCreatorLeaderboards(null,"Loading community rankings…");
+ try{
+  const result=await sb().rpc("get_worth_it_creator_leaderboards",{
+   p_period:state.creatorPeriod,
+   p_top_sort:state.topCreatorSort,
+   p_rising_sort:state.risingCreatorSort,
+   p_member_sort:state.communityMemberSort
+  });
+  if(result.error)throw result.error;
+  if(request!==state.creatorRequest)return;
+  const payload=normalizeObject(result.data);
+  if(!payload||!Array.isArray(payload.top_creators)||!Array.isArray(payload.rising_creators)||!Array.isArray(payload.community_members)){
+   throw new Error("Creator leaderboard response was incomplete.");
+  }
+  state.creatorData=payload;
+  renderCreatorLeaderboards(payload);
+ }catch(error){
+  if(request!==state.creatorRequest)return;
+  state.creatorData=null;
+  const message=String(error?.message||error?.details||"");
+  const unavailable=/get_worth_it_creator_leaderboards|schema cache|does not exist|could not find/i.test(message)
+   ?"Creator rankings are not available until the creator leaderboard migration is installed in this Preview database."
+   :"Could not load creator rankings. Please try again.";
+  renderCreatorLeaderboards(null,unavailable);
+  console.warn("Creator leaderboard load failed:",error);
+ }
 }
 function cardDescriptionPreview(description){
  const full=String(description||"").trim().replace(/\s+/g," ");
@@ -569,7 +683,7 @@ async function react(id,reaction){
    active.my_reaction=nextReaction;
    renderDetailStats(active);
   }
-  await loadCatalog();
+  await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);
   if(state.activeId===String(id))await openDetail(id,{fromUrl:true});
  }catch(error){toast(error?.message||"Could not save your reaction.");}
  finally{
@@ -1117,6 +1231,10 @@ async function init(){
  $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
  document.querySelectorAll("[data-ugc-sort]").forEach(node=>node.addEventListener("click",()=>{setActiveSort(node.dataset.ugcSort);void loadCatalog();}));
  $("ugcPeriodFilter")?.addEventListener("change",event=>{state.period=event.target.value;void loadCatalog();});
+ $("ugcCreatorPeriodFilter")?.addEventListener("change",event=>{const value=String(event.target.value||"7d");state.creatorPeriod=CREATOR_PERIODS.includes(value)?value:"7d";void loadCreatorLeaderboards();});
+ $("ugcTopCreatorSort")?.addEventListener("change",event=>{const value=String(event.target.value||"overall");state.topCreatorSort=TOP_CREATOR_SORTS.includes(value)?value:"overall";void loadCreatorLeaderboards();});
+ $("ugcRisingCreatorSort")?.addEventListener("change",event=>{const value=String(event.target.value||"growth");state.risingCreatorSort=RISING_CREATOR_SORTS.includes(value)?value:"growth";void loadCreatorLeaderboards();});
+ $("ugcCommunityMemberSort")?.addEventListener("change",event=>{const value=String(event.target.value||"followers");state.communityMemberSort=COMMUNITY_MEMBER_SORTS.includes(value)?value:"followers";void loadCreatorLeaderboards();});
  $("ugcCategoryFilter")?.addEventListener("change",event=>{state.category=String(event.target.value||"all");void loadCatalog();});
  $("ugcPagePrevious")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()-1));
  $("ugcPageNext")?.addEventListener("click",()=>goToCatalogPage(currentCatalogPage()+1));
@@ -1150,10 +1268,10 @@ async function init(){
   if(gallery)gallery.hidden=!communityActive;
   if(navActions)navActions.hidden=!state.userId;
   state.catalogRequest++;
-  if(state.userId)void loadCatalog();
-  else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");}
+  if(state.userId){void loadCatalog();void loadCreatorLeaderboards();}
+  else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");state.creatorRequest++;state.creatorData=null;renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
  });
- if(state.userId)await loadCatalog();else status("Sign in to browse, create and use community calculators.");
+ if(state.userId)await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);else{status("Sign in to browse, create and use community calculators.");renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
 }
 window.loadWorthItUGCCatalog=loadCatalog;
 window.recordWorthItUgcView=async id=>{
@@ -1167,7 +1285,7 @@ window.recordWorthItUgcView=async id=>{
     state.activeCalculator.views=Math.max(0,Number(state.activeCalculator.views)||0)+1;
     renderDetailStats(state.activeCalculator);
    }
-   await loadCatalog();
+   await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);
   }
   return recorded;
  }catch(error){
