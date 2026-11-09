@@ -83,7 +83,9 @@ begin
     reaction_stats as (
         select c.owner_user_id as user_id,
                count(*) filter(where r.reaction='like')::integer as total_likes,
-               count(*) filter(where r.reaction='like' and r.created_at>=v_cutoff)::integer as period_likes
+               count(*) filter(where r.reaction='like' and r.created_at>=v_cutoff)::integer as period_likes,
+               count(*) filter(where r.reaction='dislike')::integer as total_dislikes,
+               count(*) filter(where r.reaction='dislike' and r.created_at>=v_cutoff)::integer as period_dislikes
           from public_calculators c
           join private.worth_it_calculator_reactions r on r.calculator_id=c.id
          group by c.owner_user_id
@@ -159,6 +161,12 @@ begin
                coalesce(f.period_followers,0) as period_followers,
                coalesce(r.total_likes,0) as total_likes,
                coalesce(r.period_likes,0) as period_likes,
+               coalesce(r.total_dislikes,0) as total_dislikes,
+               coalesce(r.period_dislikes,0) as period_dislikes,
+               case when coalesce(r.period_likes,0)+coalesce(r.period_dislikes,0)>0
+                    then coalesce(r.period_likes,0)::numeric/
+                         (coalesce(r.period_likes,0)+coalesce(r.period_dislikes,0))
+                    else 0.5::numeric end as reaction_quality,
                coalesce(fav.total_favorites,0) as total_favorites,
                coalesce(fav.period_favorites,0) as period_favorites,
                coalesce(v.total_views,0) as total_views,
@@ -180,12 +188,13 @@ begin
     ranked as (
         select m.*,
                (
-                 percent_rank() over(order by current_followers)*0.30
+                 percent_rank() over(order by current_followers)*0.25
                  +percent_rank() over(order by period_likes)*0.20
                  +percent_rank() over(order by period_favorites)*0.15
                  +percent_rank() over(order by period_views)*0.15
                  +percent_rank() over(order by period_followers)*0.10
                  +percent_rank() over(order by engagement_rate)*0.10
+                 +percent_rank() over(order by reaction_quality)*0.05
                ) as overall_score,
                (
                  percent_rank() over(order by period_followers)*0.55
@@ -242,6 +251,7 @@ begin
                 'public_calculators',public_calculators,'first_publication_at',first_publication_at,
                 'followers',current_followers,'period_followers',period_followers,
                 'likes',period_likes,'total_likes',total_likes,
+                'dislikes',period_dislikes,'total_dislikes',total_dislikes,'reaction_quality',reaction_quality,
                 'favorites',period_favorites,'total_favorites',total_favorites,
                 'views',period_views,'total_views',total_views,
                 'engagement',period_engagement,'engagement_rate',engagement_rate,
