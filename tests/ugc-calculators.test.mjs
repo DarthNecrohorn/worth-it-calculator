@@ -744,13 +744,17 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
     assert.match(makerApi, /Only calculate currency conversion when an exchange rate is supplied/);
 });
 
-test("Mobile header keeps Web Shop, CALC and full WIP label inside their own responsive row", () => {
-    assert.match(webShopCss, /@media\(max-width:560px\)[\s\S]*?grid-template-rows:minmax\(40px,auto\) minmax\(40px,auto\)/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?transform:translate\(-50px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
-    assert.match(webShopCss, /\.calc-wip-use\{[\s\S]*?display:block!important/);
-    assert.match(webShopCss, /body\{padding-top:98px!important\}/);
+test("Mobile header uses two aligned rows with economy controls below the logo", () => {
+    assert.ok(webShopCss.includes("grid-template-rows:minmax(40px,auto) minmax(40px,auto)"));
+    assert.ok(webShopCss.includes(".nav-inner>.logo{\n  grid-column:2;\n  grid-row:1;"));
+    assert.ok(webShopCss.includes(".nav-inner>.calc-economy-nav{\n  grid-column:2 / 4;\n  grid-row:2;"));
+    assert.ok(webShopCss.includes(".nav-inner>.nav-right-stack>.nav-top-row{\n  grid-column:3 / 5;\n  grid-row:1;"));
+    assert.ok(webShopCss.includes("width:auto!important;\n  min-width:0;\n  flex:0 1 auto!important;"));
+    assert.ok(webShopCss.includes(".nav-inner>.nav-right-stack>.nav-secondary-row{\n  grid-column:4;\n  grid-row:2;"));
+    assert.ok(webShopCss.includes(".calc-shop-nav-label{display:inline!important}"));
+    assert.ok(webShopCss.includes(".calc-wip-use{\n  display:block!important;"));
+    assert.doesNotMatch(webShopCss, /translate\(-50px,-10px\)|translate\(-20px,-10px\)|translateY\(-40px\)|translateY\(10px\)/);
+    assert.ok(webShopCss.includes("body{padding-top:98px!important}"));
 });
 
 test("UGC save rejects incomplete custom ISO currency codes before the server write", () => {
@@ -803,22 +807,15 @@ test("UGC card author and statistics share a byline lifted by 20px", () => {
     assert.match(paginationCss, /\.ugc-card-byline \.ugc-stat-icon\{[\s\S]*?font-size:16px/);
 });
 
-test("Phone header positions AI, profile, sign-out and settings up, with bell and chat down", () => {
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?transform:translate\(-50px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.ai-chat-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.auth-wrap>\.profile-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-40px\)!important;/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-notification-wrap>\.worth-it-notification-bell,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-chat-nav-wrap>\.worth-it-chat-nav-btn\{\s*transform:translateY\(10px\)!important;/);
-    assert.doesNotMatch(webShopCss, /\.worth-it-user-search-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-50px\)!important;/);
+test("Phone header controls stay in their assigned rows without pixel-offset transforms", () => {
+    assert.ok(webShopCss.includes(".nav-inner>.nav-right-stack>.nav-top-row .ai-chat-nav-btn{"));
+    assert.ok(webShopCss.includes(".nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn{\n  transform:none!important;"));
+    assert.ok(webShopCss.includes(".nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,"));
+    assert.ok(webShopCss.includes("transform:none!important;"));
+    assert.doesNotMatch(webShopCss, /translateY\(-40px\)|translateY\(10px\)/);
 });
 
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?grid-column:2 \/ 4[\s\S]*?justify-self:start/);
-    assert.match(webShopCss, /\.nav-inner>\.calc-economy-nav\{[\s\S]*?transform:translate\(-50px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav \.container\.nav-inner > a\.logo\{[\s\S]*?transform:translate\(-20px,-10px\)!important/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.ai-chat-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.auth-wrap>\.profile-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-40px\)!important;/);
-    assert.match(webShopCss, /\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-notification-wrap>\.worth-it-notification-bell,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-top-row>\.nav-actions>\.worth-it-chat-nav-wrap>\.worth-it-chat-nav-btn\{\s*transform:translateY\(10px\)!important;/);
-    assert.doesNotMatch(webShopCss, /\.worth-it-user-search-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.signout-nav-btn,[\s\S]*?\.nav-inner>\.nav-right-stack>\.nav-secondary-row>\.settings-btn\{\s*transform:translateY\(-50px\)!important;/);
 });

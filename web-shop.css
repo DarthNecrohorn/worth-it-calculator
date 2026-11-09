@@ -259,7 +259,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 }
 
 
-/* Mobile header: give the economy controls a full, unclipped row of their own. */
+/* Mobile header: two stable rows, with no per-control offset hacks. */
 @media(max-width:560px){
  .nav-inner{
   display:grid!important;
@@ -295,6 +295,9 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   white-space:nowrap;
   font-size:14px;
   line-height:1;
+  position:relative!important;
+  transform:none!important;
+  z-index:2;
  }
  .nav-inner>.logo .logo-mark{
   flex:0 0 32px;
@@ -307,11 +310,12 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   grid-column:2 / 4;
   grid-row:2;
   justify-self:start;
+  align-self:center;
   display:flex!important;
   align-items:center;
   justify-content:flex-start;
   flex-wrap:nowrap;
-  gap:6px!important;
+  gap:4px!important;
   width:max-content!important;
   max-width:none!important;
   min-width:0;
@@ -320,7 +324,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   overflow:visible;
   position:relative!important;
   z-index:2;
-  transform:translate(-50px,-10px)!important;
+  transform:none!important;
  }
  .nav-inner>.nav-links{display:none!important}
  .nav-inner>.nav-right-stack{display:contents!important}
@@ -330,7 +334,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   display:flex!important;
   align-items:center;
   justify-content:flex-end;
-  width:auto!important;
+  width:100%!important;
   min-width:0;
   margin:0;
   gap:3px!important;
@@ -340,8 +344,9 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   align-items:center;
   justify-content:flex-end;
   flex-wrap:nowrap;
-  width:100%!important;
+  width:auto!important;
   min-width:0;
+  flex:0 1 auto!important;
   gap:3px!important;
  }
  .nav-inner>.nav-right-stack>.nav-secondary-row{
@@ -350,6 +355,8 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   display:flex!important;
   align-items:center;
   justify-content:flex-end;
+  justify-self:end;
+  align-self:center;
   width:auto!important;
   min-width:0;
   margin:0;
@@ -367,6 +374,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   flex:0 0 31px!important;
   padding:3px!important;
   font-size:14px!important;
+  transform:none!important;
  }
  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn span,
  .nav-inner>.nav-right-stack>.nav-secondary-row>.admin-panel-nav-btn span{display:none!important}
@@ -379,23 +387,33 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   max-height:32px!important;
   padding:3px!important;
   font-size:15px!important;
+  transform:none!important;
  }
  .nav-inner>.nav-right-stack>.nav-top-row .ai-chat-nav-btn span{display:none!important}
+ .nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn{
+  transform:none!important;
+ }
+ .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-notification-wrap>.worth-it-notification-bell,
+ .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-chat-nav-wrap>.worth-it-chat-nav-btn{
+  transform:none!important;
+ }
  .calc-shop-nav{
-  width:38px!important;
-  min-width:38px!important;
+  width:auto!important;
+  min-width:0!important;
   height:38px!important;
   min-height:38px!important;
-  padding:5px!important;
-  flex:0 0 38px!important;
- }
- .calc-shop-nav-label{display:none!important}
- .calc-wallet-nav{
-  min-width:58px!important;
-  min-height:38px!important;
-  height:auto!important;
   padding:5px 7px!important;
   gap:4px!important;
+  flex:0 0 auto!important;
+  font-size:11px!important;
+ }
+ .calc-shop-nav-label{display:inline!important}
+ .calc-wallet-nav{
+  min-width:0!important;
+  min-height:38px!important;
+  height:auto!important;
+  padding:5px 5px!important;
+  gap:3px!important;
   flex:0 0 auto!important;
  }
  .calc-wallet-coin{width:17px;height:17px}
@@ -406,14 +424,14 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   align-items:center!important;
   justify-content:center!important;
   align-content:center!important;
-  flex:0 0 82px!important;
-  width:82px!important;
-  min-width:82px!important;
-  max-width:82px!important;
+  flex:0 0 78px!important;
+  width:78px!important;
+  min-width:78px!important;
+  max-width:78px!important;
   min-height:40px!important;
   height:auto!important;
-  padding:4px 5px!important;
-  gap:2px 4px!important;
+  padding:4px 4px!important;
+  gap:2px 3px!important;
   overflow:visible!important;
   line-height:1.1!important;
  }
@@ -430,16 +448,6 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
   line-height:1.15!important;
   white-space:nowrap;
  }
-  .nav-inner>.nav-right-stack>.nav-top-row>.ai-chat-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-top-row>.auth-wrap>.profile-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
-  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn{
-   transform:translateY(-40px)!important;
-  }
-  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-notification-wrap>.worth-it-notification-bell,
-  .nav-inner>.nav-right-stack>.nav-top-row>.nav-actions>.worth-it-chat-nav-wrap>.worth-it-chat-nav-btn{
-   transform:translateY(10px)!important;
-  }
  body{padding-top:98px!important}
 }
 @media(max-width:380px){
@@ -452,18 +460,9 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  .nav-inner>.nav-right-stack>.nav-secondary-row>.signout-nav-btn,
  .nav-inner>.nav-right-stack>.nav-secondary-row>.settings-btn{width:27px!important;min-width:27px!important;max-width:27px!important;flex-basis:27px!important}
  .nav-inner>.nav-right-stack>.nav-top-row .worth-it-user-search-btn{width:27px!important;min-width:27px!important;height:27px!important;min-height:27px!important;flex-basis:27px!important}
- .calc-shop-nav{width:35px!important;min-width:35px!important;flex-basis:35px!important}
+ .calc-shop-nav{width:35px!important;min-width:35px!important;flex-basis:35px!important;padding:5px!important}
+ .calc-shop-nav-label{display:none!important}
  .calc-wallet-nav{min-width:52px!important;padding-inline:5px!important}
  .calc-wallet-unit{display:none!important}
  .calc-wip-nav{flex-basis:77px!important;width:77px!important;min-width:77px!important;max-width:77px!important}
-}
-
-
-/* Phone-only logo adjustment; other navigation controls keep their own layout. */
-@media(max-width:560px){
- .nav .container.nav-inner > a.logo{
-  position:relative!important;
-  transform:translate(-20px,-10px)!important;
-  z-index:2;
- }
 }
