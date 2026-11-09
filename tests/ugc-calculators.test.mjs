@@ -945,3 +945,24 @@ test("Creator leaderboard SQL ranks only public profiles and separates non-creat
         'grant execute on function public.get_worth_it_creator_leaderboards(text,text,text,text) to authenticated'
     ]) assert.ok(creatorLeaderboardsSql.includes(part), 'Missing creator SQL contract: '+part);
 });
+
+
+test("Community Discovery is a separate slide with 100 ranked profiles and responsive scroll windows", () => {
+    const communityStart = html.indexOf('id="ugcCommunitySection"');
+    const discoveryStart = html.indexOf('id="ugcCommunityDiscoverySection"');
+    const stageEnd = html.indexOf('id="ugcMakerModal"');
+    assert.ok(communityStart >= 0 && discoveryStart > communityStart && stageEnd > discoveryStart);
+    const communityPanel = html.slice(communityStart, discoveryStart);
+    assert.doesNotMatch(communityPanel, /ugc-creator-discovery|ugcTopCreatorsList|ugcRisingCreatorsList|ugcCommunityMembersList/);
+    assert.match(html, /id="ugcOpenDiscoveryButton"/);
+    assert.match(html, /id="ugcBackToUgcButton"/);
+    assert.match(maker, /"ugcCommunityDiscoverySection"/);
+    assert.match(maker, /switchCalculatorExploreView\("discovery"\)/);
+    assert.match(maker, /switchCalculatorExploreView\("community"\)/);
+    assert.match(maker, /window\.setInterval\(refreshCreatorDiscoveryWhenVisible,60000\)/);
+    assert.match(maker, /window\.addEventListener\("popstate"/);
+    assert.match(paginationCss, /\.ugc-creator-list\{[\s\S]*?max-height:680px[\s\S]*?overflow-y:auto/);
+    assert.match(paginationCss, /@media\(max-width:700px\)[\s\S]*?\.ugc-creator-list\{max-height:330px\}/);
+    assert.equal((creatorLeaderboardsSql.match(/limit 100/gi) || []).length, 3);
+    assert.match(routing, /window\.backFromWorthItProfile[\s\S]*?window\.history\.back\(\)/);
+});
