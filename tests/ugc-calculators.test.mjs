@@ -706,6 +706,16 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
     assert.ok(maker.includes('ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member"'));
 });
 
+test("UGC detail like and dislike buttons have larger desktop and mobile tap targets", () => {
+    const desktop = paginationCss.slice(paginationCss.indexOf(".ugc-detail-reaction-button{"), paginationCss.indexOf(".ugc-detail-reaction-button{") + 360);
+    assert.match(desktop, /min-width:128px/);
+    assert.match(desktop, /min-height:40px/);
+    assert.match(desktop, /font-size:13px/);
+    const mobileStart = paginationCss.lastIndexOf("@media(max-width:700px)");
+    const mobile = paginationCss.slice(mobileStart);
+    assert.match(mobile, /\.ugc-detail-reaction-button\{\s*min-width:96px;\s*min-height:36px;\s*padding:7px 9px;\s*font-size:11px;/);
+});
+
 test("UGC detail favourite stays top-right and reactions align with author and categories", () => {
     const detailHeader = html.match(/<header class="ugc-detail-header">[\s\S]*?<\/header>/)?.[0] || "";
     assert.match(detailHeader, /id="ugcDetailFavorite"/);
