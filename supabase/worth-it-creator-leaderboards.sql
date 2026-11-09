@@ -11,7 +11,8 @@ create index if not exists worth_it_calculator_favorites_key_created_idx
 create or replace function public.get_worth_it_creator_leaderboards(
     p_period text default '7d',
     p_top_sort text default 'overall',
-    p_rising_sort text default 'growth'
+    p_rising_sort text default 'growth',
+    p_member_sort text default 'followers'
 )
 returns jsonb
 language plpgsql
@@ -24,6 +25,7 @@ declare
     v_period text := lower(coalesce(p_period,'7d'));
     v_top_sort text := lower(coalesce(p_top_sort,'overall'));
     v_rising_sort text := lower(coalesce(p_rising_sort,'growth'));
+    v_member_sort text := lower(coalesce(p_member_sort,'followers'));
     v_cutoff timestamptz;
     v_result jsonb;
 begin
@@ -39,6 +41,10 @@ begin
     end if;
     if v_rising_sort not in ('growth','engagement','new','breakout','consistent') then
         v_rising_sort:='growth';
+    end if;
+
+    if v_member_sort not in ('followers','growth','new','following','connected') then
+        v_member_sort:='followers';
     end if;
 
     v_cutoff:=case v_period
@@ -98,6 +104,23 @@ begin
           from public_calculators c
           join private.worth_it_calculator_views v on v.calculator_id=c.id
          group by c.owner_user_id
+    ),
+    following_stats as (
+        select f.follower_user_id as user_id,count(*)::integer as current_following
+          from public.worth_it_follows f
+         group by f.follower_user_id
+    ),
+    member_rows as (
+        select p.user_id,p.worth_it_id,p.username,p.display_name,p.avatar_url,p.created_at,
+               coalesce(f.current_followers,0) as current_followers,
+               coalesce(f.period_followers,0) as period_followers,
+               coalesce(g.current_following,0) as current_following
+          from public.worth_it_profiles p
+          left join public.worth_it_user_preferences pref on pref.user_id=p.user_id
+          left join follower_stats f on f.user_id=p.user_id
+          left join following_stats g on g.user_id=p.user_id
+         where coalesce(pref.profile_visibility,'public')='public'
+           and not exists(select 1 from public_calculators c where c.owner_user_id=p.user_id)
     ),
     activity_events as (
         select c.owner_user_id as user_id,c.published_at as occurred_at
@@ -182,6 +205,17 @@ begin
            period_engagement desc,current_followers desc,worth_it_id
          limit 10
     ),
+    member_top_rows as (
+        select * from member_rows
+         order by
+           case when v_member_sort='followers' then current_followers end desc,
+           case when v_member_sort='growth' then period_followers end desc,
+           case when v_member_sort='new' then extract(epoch from created_at) end desc,
+           case when v_member_sort='following' then current_following end desc,
+           case when v_member_sort='connected' then current_followers+current_following end desc,
+           current_followers desc,period_followers desc,created_at desc,worth_it_id
+         limit 10
+    ),
     rising_rows as (
         select * from ranked
          where case when v_rising_sort='new'
@@ -200,6 +234,7 @@ begin
         'period',v_period,
         'top_sort',v_top_sort,
         'rising_sort',v_rising_sort,
+        'member_sort',v_member_sort,
         'top_creators',coalesce((
             select jsonb_agg(jsonb_build_object(
                 'worth_it_id',worth_it_id,'username',username,'display_name',display_name,'avatar_url',avatar_url,
@@ -219,6 +254,20 @@ begin
                 case when v_top_sort='engagement' then engagement_rate end desc,
                 period_engagement desc,current_followers desc,worth_it_id)
               from top_rows
+        ),'[]'::jsonb),
+        'community_members',coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'worth_it_id',worth_it_id,'username',username,'display_name',display_name,'avatar_url',avatar_url,
+                'created_at',created_at,'followers',current_followers,'period_followers',period_followers,
+                'following',current_following,'connections',current_followers+current_following
+            ) order by
+                case when v_member_sort='followers' then current_followers end desc,
+                case when v_member_sort='growth' then period_followers end desc,
+                case when v_member_sort='new' then extract(epoch from created_at) end desc,
+                case when v_member_sort='following' then current_following end desc,
+                case when v_member_sort='connected' then current_followers+current_following end desc,
+                current_followers desc,period_followers desc,created_at desc,worth_it_id)
+              from member_top_rows
         ),'[]'::jsonb),
         'rising_creators',coalesce((
             select jsonb_agg(jsonb_build_object(
@@ -243,8 +292,8 @@ begin
 end;
 $$;
 
-revoke all on function public.get_worth_it_creator_leaderboards(text,text,text) from public,anon;
-grant execute on function public.get_worth_it_creator_leaderboards(text,text,text) to authenticated;
+revoke all on function public.get_worth_it_creator_leaderboards(text,text,text,text) from public,anon;
+grant execute on function public.get_worth_it_creator_leaderboards(text,text,text,text) to authenticated;
 
 notify pgrst,'reload schema';
 commit;
