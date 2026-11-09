@@ -208,6 +208,8 @@ function renderCatalog(rows){
  rows.forEach(item=>{
   const card=document.createElement("article");card.className="calc-card ugc-calculator-card";
   card.dataset.calculatorOrigin="ugc";card.dataset.ugcId=String(item.id||"");
+  const normalizedCardTitle=String(item.title||"").trim().toLowerCase().replace(/\\s+/g," ");
+  if(normalizedCardTitle==="subscription savings calculator")card.classList.add("ugc-card-subscription-savings");
   const head=document.createElement("div");head.className="ugc-card-head";
   const publicNumber=Number(item.calculator_number);
   if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
