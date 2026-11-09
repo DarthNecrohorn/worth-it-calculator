@@ -1688,3 +1688,10 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-calculator-card .ugc-card-description{
  transform:translateY(0px);
 }
+
+/* Desktop only: move every UGC card description 10px further upward. */
+@media(min-width:701px){
+ .ugc-calculator-card .ugc-card-description{
+  transform:translateY(-10px);
+ }
+}
