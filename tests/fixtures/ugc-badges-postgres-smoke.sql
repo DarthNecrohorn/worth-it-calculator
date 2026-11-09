@@ -203,6 +203,47 @@ begin
 end
 $viewer_check$;
 
+-- Creator and non-creator leaderboards respect periods and public-profile visibility.
+do $creator_leaderboards$
+declare
+    v_rankings jsonb;
+    v_creator jsonb;
+    v_member jsonb;
+    v_period text;
+begin
+    v_rankings:=public.get_worth_it_creator_leaderboards('30d','followers','growth','followers');
+    if v_rankings->>'period'<>'30d' then
+        raise exception 'Creator leaderboard did not preserve the selected period: %',v_rankings;
+    end if;
+    if jsonb_array_length(v_rankings->'top_creators')<1
+       or jsonb_array_length(v_rankings->'rising_creators')<1 then
+        raise exception 'The public calculator creator is missing from creator rankings: %',v_rankings;
+    end if;
+    v_creator:=v_rankings->'top_creators'->0;
+    if v_creator->>'username'<>'creator'
+       or (v_creator->>'followers')::integer<>1
+       or (v_creator->>'public_calculators')::integer<>1 then
+        raise exception 'Top Creators did not rank current followers and public calculators correctly: %',v_creator;
+    end if;
+    v_member:=v_rankings->'community_members'->0;
+    if v_member->>'username'<>'viewer' then
+        raise exception 'A public member without a published public calculator was not shown separately: %',v_rankings->'community_members';
+    end if;
+
+    foreach v_period in array array['7d','30d','6m','12m','3y','5y','10y'] loop
+        v_rankings:=public.get_worth_it_creator_leaderboards(v_period,'overall','breakout','connected');
+        if v_rankings->>'period'<>v_period then
+            raise exception 'Unsupported creator leaderboard period % was not retained.',v_period;
+        end if;
+        if jsonb_typeof(v_rankings->'top_creators')<>'array'
+           or jsonb_typeof(v_rankings->'rising_creators')<>'array'
+           or jsonb_typeof(v_rankings->'community_members')<>'array' then
+            raise exception 'Creator leaderboard returned an invalid collection for period %.',v_period;
+        end if;
+    end loop;
+end
+$creator_leaderboards$;
+
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
 do $second_viewer$
 declare
