@@ -536,12 +536,22 @@ window.closeWorthItUGCCalculator=function(){
 };
 async function react(id,reaction){
  if(!requireAccount())return;
+ const reactionButtons=[$("ugcDetailLike"),$("ugcDetailDislike")].filter(Boolean);
+ if(reactionButtons.some(button=>button.disabled))return;
+ reactionButtons.forEach(button=>{button.disabled=true;});
  try{
   const result=await sb().rpc("set_worth_it_ugc_reaction",{p_id:id,p_reaction:reaction});
   if(result.error)throw result.error;
+  const saved=normalizeObject(result.data);
+  if(saved?.success===false)throw new Error(saved.error||"Could not save your reaction.");
   await loadCatalog();
   if(state.activeId===String(id))await openDetail(id,{fromUrl:true});
  }catch(error){toast(error?.message||"Could not save your reaction.");}
+ finally{
+  const active=state.activeCalculator;
+  const canReact=Boolean(active&&String(active.id)===String(state.activeId)&&active.is_owner!==true&&active.visibility==="public"&&state.userId);
+  reactionButtons.forEach(button=>{if(button.isConnected)button.disabled=!canReact;});
+ }
 }
 async function saveUsagePrice(){
  const calculator=state.activeCalculator;
@@ -1121,7 +1131,25 @@ async function init(){
  if(state.userId)await loadCatalog();else status("Sign in to browse, create and use community calculators.");
 }
 window.loadWorthItUGCCatalog=loadCatalog;
-window.recordWorthItUgcView=async id=>{if(!state.userId)return;try{await sb().rpc("record_worth_it_ugc_view",{p_id:id});}catch(_){}};
+window.recordWorthItUgcView=async id=>{
+ if(!state.userId)return null;
+ try{
+  const result=await sb().rpc("record_worth_it_ugc_view",{p_id:id});
+  if(result.error)throw result.error;
+  const recorded=normalizeObject(result.data);
+  if(recorded?.success===true&&recorded.counted===true){
+   if(state.activeCalculator&&String(state.activeCalculator.id)===String(id)){
+    state.activeCalculator.views=Math.max(0,Number(state.activeCalculator.views)||0)+1;
+    renderDetailStats(state.activeCalculator);
+   }
+   await loadCatalog();
+  }
+  return recorded;
+ }catch(error){
+  console.warn("UGC view recording failed:",error);
+  return null;
+ }
+};
 window.openWorthItUGCCalculatorFromRoute=id=>openDetail(id,{fromUrl:true});
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>void init(),{once:true});else void init();
 })();

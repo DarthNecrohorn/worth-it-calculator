@@ -5,6 +5,27 @@ begin;
 -- Keep the public ID contract deterministic across repeated disposable smoke runs.
 select setval('private.worth_it_user_calculator_number_seq'::regclass,51,false);
 
+-- The migration must retain one earliest record for this account/calculator pair.
+do $legacy_views$
+declare
+    v_count integer;
+    v_first_view timestamptz;
+begin
+    select count(*)::integer,min(created_at)
+      into v_count,v_first_view
+      from private.worth_it_calculator_views
+     where calculator_id='99999999-9999-4999-8999-999999999999'::uuid
+       and viewer_user_id='88888888-8888-4888-8888-888888888888'::uuid;
+    if v_count<>1 then
+        raise exception 'Legacy daily views must be consolidated to one account-level row; found %.',v_count;
+    end if;
+    if v_first_view is distinct from timestamptz '2026-10-01 12:00:00+00' then
+        raise exception 'The earliest historical view must be preserved, found %.',v_first_view;
+    end if;
+end
+$legacy_views$;
+
+
 insert into auth.users(id,email,email_confirmed_at) values
  ('11111111-1111-4111-8111-111111111111','creator@example.test',now()),
  ('22222222-2222-4222-8222-222222222222','viewer@example.test',now()),
@@ -102,10 +123,15 @@ do $owner_check$
 declare
     v_detail jsonb;
     v_mine jsonb;
+    v_view jsonb;
 begin
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if (v_detail->>'is_owner')::boolean is distinct from true then
         raise exception 'The calculator owner cannot open their own published calculator.';
+    end if;
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_view->>'counted')::boolean is distinct from false then
+        raise exception 'The calculator owner must not count as a view.';
     end if;
     v_mine:=public.get_worth_it_my_ugc_calculators('');
     if jsonb_array_length(v_mine)<>2 then
@@ -121,6 +147,7 @@ declare
     v_catalog jsonb;
     v_reaction jsonb;
     v_view jsonb;
+    v_views integer;
 begin
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if (v_detail->>'is_owner')::boolean is distinct from false then
@@ -130,16 +157,73 @@ begin
     if jsonb_array_length(v_catalog->'items')<1 then
         raise exception 'Published UGC calculator is missing from the latest catalogue.';
     end if;
+
     v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
     if v_reaction->>'reaction' is distinct from 'like' then
         raise exception 'The like reaction was not stored.';
     end if;
+    v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'dislike');
+    if v_reaction->>'reaction' is distinct from 'dislike' then
+        raise exception 'Switching from like to dislike did not update the existing reaction.';
+    end if;
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_detail->>'likes')::integer<>0 or (v_detail->>'dislikes')::integer<>1
+       or v_detail->>'my_reaction'<>'dislike' then
+        raise exception 'Reaction totals did not update after switching to dislike.';
+    end if;
+    v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'dislike');
+    if v_reaction->>'reaction' is not null then
+        raise exception 'A repeated dislike removes the current reaction.';
+    end if;
+    v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
+    if v_reaction->>'reaction' is distinct from 'like' then
+        raise exception 'The viewer could not restore the like reaction.';
+    end if;
+
     v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
-    if (v_view->>'success')::boolean is distinct from true then
-        raise exception 'The calculator view could not be recorded.';
+    if (v_view->>'success')::boolean is distinct from true
+       or (v_view->>'counted')::boolean is distinct from true then
+        raise exception 'The first calculator view could not be recorded.';
+    end if;
+    update private.worth_it_calculator_views
+       set viewed_on=current_date-1
+     where calculator_id=current_setting('test.ugc_calculator_id')::uuid
+       and viewer_user_id='22222222-2222-4222-8222-222222222222';
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_view->>'counted')::boolean is distinct from false then
+        raise exception 'A repeat visit by the same account must not increase lifetime views.';
+    end if;
+    select count(*)::integer into v_views
+      from private.worth_it_calculator_views
+     where calculator_id=current_setting('test.ugc_calculator_id')::uuid
+       and viewer_user_id='22222222-2222-4222-8222-222222222222';
+    if v_views<>1 then
+        raise exception 'One account must have only one lifetime view row per calculator, found %.',v_views;
     end if;
 end
 $viewer_check$;
+
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $second_viewer$
+declare
+    v_view jsonb;
+    v_views integer;
+begin
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_view->>'counted')::boolean is distinct from true then
+        raise exception 'A different account must add a separate unique view.';
+    end if;
+    v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_view->>'counted')::boolean is distinct from false then
+        raise exception 'The second account must also count only once.';
+    end if;
+    select count(*)::integer into v_views from private.worth_it_calculator_views
+     where calculator_id=current_setting('test.ugc_calculator_id')::uuid;
+    if v_views<>2 then
+        raise exception 'Two different accounts must count as exactly two lifetime views, found %.',v_views;
+    end if;
+end
+$second_viewer$;
 
 -- Favourites are insertable only for the authenticated user's own row.
 select set_config('test.ugc_id', :'calculator_id', false);
@@ -178,7 +262,7 @@ begin
        or not (item->'subcategories' @> '["budgeting"]'::jsonb) then
         raise exception 'The profile favourite card is missing its number, tags, or creator: %',item;
     end if;
-    if (item->>'views')::integer<>1
+    if (item->>'views')::integer<>2
        or (item->>'likes')::integer<>1
        or (item->>'favorites')::integer<>1
        or (item->>'dislikes')::integer<>0 then

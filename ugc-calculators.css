@@ -1236,3 +1236,25 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-card-byline .ugc-stat-icon{min-width:14px;font-size:14px}
  .ugc-card-byline .ugc-stat-count{font-size:9px}
 }
+
+
+/* Let the page continue scrolling after either nested calculator panel reaches an edge. */
+.calculator-explore-stage>.calculator-explore-panel{
+ overscroll-behavior-y:auto!important;
+}
+
+/* Desktop UGC cards: show more of the description and keep the byline close to it. */
+@media(min-width:701px){
+ .ugc-calculator-card .ugc-card-description{
+  -webkit-line-clamp:5!important;
+  line-height:1.45;
+ }
+ .ugc-calculator-card .ugc-card-byline{
+  margin-top:0!important;
+  margin-bottom:0;
+  top:0;
+ }
+ .ugc-calculator-card .ugc-card-actions{
+  margin-top:auto;
+ }
+}

@@ -15,6 +15,8 @@ const chat = read("chat-ui.js");
 const community = read("community-features.js");
 const economy = read("calc-economy.js");
 const sql = read("supabase/worth-it-ugc-badges.sql");
+const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
+const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
@@ -818,4 +820,36 @@ test("Phone header controls stay in their assigned rows without pixel-offset tra
 test("Phone catalogue cards replace the long description with the calculator detail prompt", () => {
     assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-calculator-card \.ugc-card-description\{display:none!important\}/);
     assert.match(paginationCss, /\.ugc-calculator-card \.ugc-card-more\{[\s\S]*?display:block!important/);
+});
+
+test("UGC views count each signed-in account once per calculator for its lifetime", () => {
+    assert.match(uniqueViewsSql, /row_number\(\) over \(\s*partition by calculator_id,viewer_user_id/);
+    assert.match(uniqueViewsSql, /primary key \(calculator_id,viewer_user_id\)/);
+    assert.match(uniqueViewsSql, /on conflict \(calculator_id,viewer_user_id\) do nothing/);
+    assert.match(uniqueViewsSql, /owner_user_id<>v_user_id/);
+    assert.match(uniqueViewsFixture, /2026-10-01 12:00:00\+00/);
+    assert.match(uniqueViewsFixture, /2026-10-02 12:00:00\+00/);
+    assert.match(maker, /window\.recordWorthItUgcView=async id=>/);
+    assert.match(maker, /recorded\?\.success===true&&recorded\.counted===true/);
+    assert.match(maker, /if\(state\.activeCalculator&&String\(state\.activeCalculator\.id\)===String\(id\)\)/);
+    assert.match(paginationFixture, /A repeat visit by the same account must not increase lifetime views/);
+});
+
+test("UGC like and dislike controls are wired, debounced during writes, and support toggling", () => {
+    assert.match(maker, /ugcDetailLike"\)\?\.addEventListener\("click",\(\)=>state\.activeId&&react\(state\.activeId,"like"\)\)/);
+    assert.match(maker, /ugcDetailDislike"\)\?\.addEventListener\("click",\(\)=>state\.activeId&&react\(state\.activeId,"dislike"\)\)/);
+    assert.match(maker, /reactionButtons\.some\(button=>button\.disabled\)/);
+    assert.match(maker, /set_worth_it_ugc_reaction/);
+    assert.match(sql, /on conflict\(calculator_id,user_id\) do update set reaction=excluded\.reaction/);
+    assert.match(paginationFixture, /A repeated dislike removes the current reaction/);
+    assert.match(paginationFixture, /Switching from like to dislike updates the existing reaction/);
+});
+
+test("Basic and UGC panels allow page scroll chaining and desktop cards show longer descriptions", () => {
+    const scrollAndDesktopPolish = paginationCss.slice(paginationCss.lastIndexOf("/* Let the page continue scrolling"));
+    assert.match(scrollAndDesktopPolish, /overscroll-behavior-y:auto!important/);
+    assert.match(scrollAndDesktopPolish, /@media\(min-width:701px\)/);
+    assert.match(scrollAndDesktopPolish, /-webkit-line-clamp:5!important/);
+    assert.match(scrollAndDesktopPolish, /\.ugc-card-byline\{\s*margin-top:0!important/);
+    assert.match(scrollAndDesktopPolish, /\.ugc-card-actions\{\s*margin-top:auto/);
 });
