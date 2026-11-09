@@ -16,6 +16,7 @@ const community = read("community-features.js");
 const economy = read("calc-economy.js");
 const sql = read("supabase/worth-it-ugc-badges.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
+const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
@@ -901,4 +902,40 @@ test("UGC calculator card title descenders stay visible and the description sits
     assert.ok(paginationCss.includes("line-height:1.35!important;"));
     assert.ok(paginationCss.includes("padding-bottom:3px;"));
     assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n  margin-top:-10px;"));
+});
+
+
+test("Creator discovery shows Top Creators, Rising Creators and separate public community members", () => {
+    assert.match(html, /id="ugcTopCreatorsHeading"[^>]*>🌟 Top Creators/);
+    assert.match(html, /id="ugcRisingCreatorsHeading"[^>]*>🚀 Rising Creators/);
+    assert.match(html, /id="ugcCommunityMembersHeading"[^>]*>👥 Community Members/);
+    assert.match(html, /id="ugcCreatorPeriodFilter"[\\s\\S]*?<option value="7d"/);
+    for (const period of ["7d","30d","6m","12m","3y","5y","10y"]) {
+        assert.match(html, new RegExp('id="ugcCreatorPeriodFilter"[\\\\s\\\\S]*?<option value="'+period+'"'));
+    }
+    assert.doesNotMatch(html, /Top Calculators/);
+    assert.doesNotMatch(html, /data-ugc-sort="views"/);
+    assert.doesNotMatch(html, /data-ugc-sort="liked"/);
+});
+
+test("Creator discovery calls the private leaderboard RPC and keeps calculator sorting separate", () => {
+    assert.match(maker, /get_worth_it_creator_leaderboards/);
+    assert.match(maker, /p_period:state\.creatorPeriod/);
+    assert.match(maker, /p_top_sort:state\.topCreatorSort/);
+    assert.match(maker, /p_rising_sort:state\.risingCreatorSort/);
+    assert.match(maker, /p_member_sort:state\.communityMemberSort/);
+    assert.match(maker, /creatorRequest/);
+    assert.match(maker, /renderCreatorLeaderboards\(payload\)/);
+    assert.match(maker, /CREATOR_PERIODS=\["7d","30d","6m","12m","3y","5y","10y"\]/);
+});
+
+test("Creator leaderboard SQL ranks only public profiles and separates non-creators", () => {
+    assert.match(creatorLeaderboardsSql, /create or replace function public\.get_worth_it_creator_leaderboards\([\\s\\S]*?p_member_sort text default 'followers'/);
+    assert.match(creatorLeaderboardsSql, /coalesce\(pref\.profile_visibility,'public'\)='public'/);
+    assert.match(creatorLeaderboardsSql, /not exists\(select 1 from public_calculators c where c\.owner_user_id=p\.user_id\)/);
+    assert.match(creatorLeaderboardsSql, /'top_creators'/);
+    assert.match(creatorLeaderboardsSql, /'rising_creators'/);
+    assert.match(creatorLeaderboardsSql, /'community_members'/);
+    assert.match(creatorLeaderboardsSql, /revoke all on function public\.get_worth_it_creator_leaderboards\(text,text,text,text\) from public,anon/);
+    assert.match(creatorLeaderboardsSql, /grant execute on function public\.get_worth_it_creator_leaderboards\(text,text,text,text\) to authenticated/);
 });
