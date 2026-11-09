@@ -36,7 +36,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -1119,56 +1119,65 @@ async function saveMakerDraft(publish){
  }
  finally{if(save)save.disabled=false;if(publishButton)publishButton.disabled=false;}
 }
+const EXPLORE_VIEWS=["basic","community","discovery"];
+function explorePanel(view){
+ return $(view==="basic"?"calculators":view==="community"?"ugcCommunitySection":"ugcCommunityDiscoverySection");
+}
+function exploreScrollKey(view){
+ return view==="basic"?"basicScrollTop":view==="community"?"communityScrollTop":"discoveryScrollTop";
+}
 function setExploreInitialView(view){
- const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
- if(!stage||!basic||!community)return;
+ const stage=$("calculatorExploreStage");
+ if(!stage)return;
  if(pendingExploreTransitionFinish)pendingExploreTransitionFinish();
- const target=view==="community"&&state.userId?"community":"basic";
- state.exploreView=target;state.exploreBusy=false;stage.dataset.activeView=target;stage.dataset.transitioning="false";
- basic.hidden=target!=="basic";community.hidden=target!=="community";
- basic.inert=target!=="basic";community.inert=target!=="community";
- [basic,community].forEach(panel=>{
+ const target=state.userId&&EXPLORE_VIEWS.includes(view)&&view!=="basic"?view:"basic";
+ state.exploreView=target;state.exploreBusy=false;
+ stage.dataset.activeView=target;stage.dataset.transitioning="false";
+ EXPLORE_VIEWS.forEach(name=>{
+  const panel=explorePanel(name);if(!panel)return;
+  panel.hidden=name!==target;panel.inert=name!==target;
   panel.style.removeProperty("transform");
   panel.style.removeProperty("transition");
   panel.style.removeProperty("z-index");
  });
 }
 function reconcileExplorePanels(){
- const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
- if(!stage||!basic||!community)return;
+ const stage=$("calculatorExploreStage");
+ if(!stage)return;
  if(state.exploreBusy&&pendingExploreTransitionFinish){
   pendingExploreTransitionFinish();
   return;
  }
- const active=state.exploreView==="community"&&state.userId?"community":"basic";
+ const active=state.userId&&EXPLORE_VIEWS.includes(state.exploreView)?state.exploreView:"basic";
  state.exploreView=active;state.exploreBusy=false;
  stage.dataset.activeView=active;stage.dataset.transitioning="false";
- basic.hidden=active!=="basic";community.hidden=active!=="community";
- basic.inert=active!=="basic";community.inert=active!=="community";
- [basic,community].forEach(panel=>{
+ EXPLORE_VIEWS.forEach(name=>{
+  const panel=explorePanel(name);if(!panel)return;
+  panel.hidden=name!==active;panel.inert=name!==active;
   panel.style.removeProperty("transform");
   panel.style.removeProperty("transition");
   panel.style.removeProperty("z-index");
  });
- stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=false;});
+ stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton,#ugcOpenDiscoveryButton,#ugcBackToUgcButton").forEach(button=>{button.disabled=false;});
 }
 function switchCalculatorExploreView(target){
- const next=target==="community"?"community":"basic";
- const stage=$("calculatorExploreStage"),basic=$("calculators"),community=$("ugcCommunitySection");
- if(!stage||!basic||!community)return Promise.resolve(false);
+ const next=EXPLORE_VIEWS.includes(target)?target:"basic";
+ const stage=$("calculatorExploreStage");
+ if(!stage||EXPLORE_VIEWS.some(name=>!explorePanel(name)))return Promise.resolve(false);
  if(state.exploreBusy)return Promise.resolve(false);
  if(next===state.exploreView)return Promise.resolve(true);
- if(next==="community"&&!state.userId){
+ if(next!=="basic"&&!state.userId){
   toast("Sign in to browse and create community calculators.");
   if(typeof window.openAuthModal==="function")window.openAuthModal("signup");
   return Promise.resolve(false);
  }
- const from=state.exploreView==="community"?community:basic;
- const to=next==="community"?community:basic;
- const direction=next==="community"?1:-1;
- if(from===basic)state.basicScrollTop=from.scrollTop;else state.communityScrollTop=from.scrollTop;
+ const fromView=state.exploreView;
+ const from=explorePanel(fromView),to=explorePanel(next);
+ if(!from||!to)return Promise.resolve(false);
+ const direction=EXPLORE_VIEWS.indexOf(next)>EXPLORE_VIEWS.indexOf(fromView)?1:-1;
+ state[exploreScrollKey(fromView)]=from.scrollTop;
  state.exploreBusy=true;stage.dataset.transitioning="true";
- stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=true;});
+ stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton,#ugcOpenDiscoveryButton,#ugcBackToUgcButton").forEach(button=>{button.disabled=true;});
  to.hidden=false;to.inert=false;from.inert=true;
  to.style.transition="none";to.style.transform="translateX("+(direction*100)+"%)";to.style.zIndex="2";
  from.style.transition="none";from.style.transform="translateX(0)";from.style.zIndex="1";
@@ -1188,9 +1197,9 @@ function switchCalculatorExploreView(target){
    to.hidden=false;to.inert=false;
    from.style.removeProperty("transform");from.style.removeProperty("transition");from.style.removeProperty("z-index");
    to.style.removeProperty("transform");to.style.removeProperty("transition");to.style.removeProperty("z-index");
-   to.scrollTop=next==="community"?state.communityScrollTop:state.basicScrollTop;
+   to.scrollTop=state[exploreScrollKey(next)]||0;
    state.exploreView=next;state.exploreBusy=false;stage.dataset.activeView=next;stage.dataset.transitioning="false";
-   stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton").forEach(button=>{button.disabled=false;});
+   stage.querySelectorAll("#ugcNavigationActions button,#ugcBackToBasicButton,#ugcOpenDiscoveryButton,#ugcBackToUgcButton").forEach(button=>{button.disabled=false;});
    resolve(true);
   };
   pendingExploreTransitionFinish=finish;
@@ -1212,9 +1221,19 @@ document.addEventListener("visibilitychange",()=>{
   return;
  }
  reconcileExplorePanels();
+ refreshCreatorDiscoveryWhenVisible();
 });
 window.addEventListener("pageshow",reconcileExplorePanels);
-window.addEventListener("focus",reconcileExplorePanels);
+function creatorDiscoveryIsVisible(){
+ const panel=$("ugcCommunityDiscoverySection");
+ return Boolean(state.userId&&state.exploreView==="discovery"&&panel&&!panel.hidden&&document.visibilityState==="visible"&&panel.getClientRects().length);
+}
+function refreshCreatorDiscoveryWhenVisible(){
+ if(creatorDiscoveryIsVisible())void loadCreatorLeaderboards();
+}
+window.addEventListener("focus",()=>{reconcileExplorePanels();refreshCreatorDiscoveryWhenVisible();});
+window.addEventListener("popstate",()=>window.setTimeout(refreshCreatorDiscoveryWhenVisible,0));
+window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
 function openNewCalculatorMaker(){
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;openMaker();
  $("ugcMakerVisibility").value="private";
@@ -1231,6 +1250,8 @@ async function init(){
  $("ugcCatalogJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
  $("ugcMakerJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community").then(openNewCalculatorMaker);});
  $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
+ $("ugcOpenDiscoveryButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("discovery");});
+ $("ugcBackToUgcButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
  document.querySelectorAll("[data-ugc-sort]").forEach(node=>node.addEventListener("click",()=>{setActiveSort(node.dataset.ugcSort);void loadCatalog();}));
  $("ugcPeriodFilter")?.addEventListener("change",event=>{state.period=event.target.value;void loadCatalog();});
  $("ugcCreatorPeriodFilter")?.addEventListener("change",event=>{const value=String(event.target.value||"7d");state.creatorPeriod=CREATOR_PERIODS.includes(value)?value:"7d";void loadCreatorLeaderboards();});
@@ -1265,9 +1286,8 @@ async function init(){
    state.pages={};state.lastPage=1;
    state.sort="latest";setActiveSort("latest");
   }
-  const gallery=$("ugcCommunitySection"),navActions=$("ugcNavigationActions");
-  const communityActive=Boolean(state.userId && state.exploreView==="community");
-  if(gallery)gallery.hidden=!communityActive;
+  reconcileExplorePanels();
+  const navActions=$("ugcNavigationActions");
   if(navActions)navActions.hidden=!state.userId;
   state.catalogRequest++;
   if(state.userId){void loadCatalog();void loadCreatorLeaderboards();}
