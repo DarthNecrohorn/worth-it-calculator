@@ -217,9 +217,14 @@ body.ugc-maker-open{overflow:hidden}
     display:none!important;
 }
 .calculator-explore-stage[data-active-view="basic"]>#calculators{z-index:2}
-.calculator-explore-stage[data-active-view="basic"]>#ugcCommunitySection{z-index:1}
-.calculator-explore-stage[data-active-view="community"]>#calculators{z-index:1}
+.calculator-explore-stage[data-active-view="basic"]>#ugcCommunitySection,
+.calculator-explore-stage[data-active-view="basic"]>#ugcCommunityDiscoverySection{z-index:1}
+.calculator-explore-stage[data-active-view="community"]>#calculators,
+.calculator-explore-stage[data-active-view="community"]>#ugcCommunityDiscoverySection{z-index:1}
 .calculator-explore-stage[data-active-view="community"]>#ugcCommunitySection{z-index:2}
+.calculator-explore-stage[data-active-view="discovery"]>#calculators,
+.calculator-explore-stage[data-active-view="discovery"]>#ugcCommunitySection{z-index:1}
+.calculator-explore-stage[data-active-view="discovery"]>#ugcCommunityDiscoverySection{z-index:2}
 .ugc-calculator-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
 .ugc-calculator-card{min-width:0;max-width:none}
 .ugc-card-title{font-size:clamp(13px,1vw,17px)!important}
@@ -1468,4 +1473,83 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-creator-avatar,.ugc-creator-avatar-fallback{width:32px;height:32px}
  .ugc-creator-name{font-size:10px}
  .ugc-creator-metric{max-width:102px;padding:5px 6px;font-size:8px}
+}
+
+
+/* Community Discovery is a separate slide from the UGC catalogue. */
+.ugc-community-heading-copy{
+ display:grid;
+ justify-items:start;
+ align-content:start;
+ gap:10px;
+ min-width:0;
+}
+.ugc-open-discovery-button,.ugc-discovery-back-button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:8px;
+ width:max-content;
+ max-width:100%;
+ min-height:38px;
+ padding:8px 13px;
+ border:1px solid color-mix(in srgb,var(--primary) 48%,var(--border));
+ border-radius:11px;
+ background:color-mix(in srgb,var(--primary) 9%,var(--surface-soft));
+ color:var(--text);
+ font:inherit;
+ font-size:12px;
+ font-weight:850;
+ cursor:pointer;
+ transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.ugc-open-discovery-button:hover,.ugc-discovery-back-button:hover{
+ transform:translateY(-1px);
+ border-color:var(--primary);
+ background:color-mix(in srgb,var(--primary) 15%,var(--surface-soft));
+ box-shadow:0 7px 18px color-mix(in srgb,var(--primary) 15%,transparent);
+}
+.ugc-community-discovery-section{padding:28px 0 44px}
+.ugc-discovery-page-header{
+ display:grid;
+ grid-template-columns:minmax(190px,auto) minmax(0,1fr);
+ align-items:center;
+ gap:20px;
+ margin:0 auto 17px;
+ padding:18px;
+ border:1px solid color-mix(in srgb,var(--primary) 28%,var(--border));
+ border-radius:17px;
+ background:var(--card);
+}
+.ugc-discovery-page-heading{min-width:0}
+.ugc-discovery-page-heading h2{
+ margin:2px 0 5px;
+ color:var(--text);
+ font-size:clamp(20px,2vw,27px);
+ line-height:1.2;
+}
+.ugc-discovery-page-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.ugc-community-discovery-section .ugc-creator-discovery{margin:0 0 20px}
+.ugc-creator-discovery-header{justify-content:flex-end;align-items:end}
+.ugc-creator-list{
+ max-height:680px;
+ overflow-y:auto;
+ overflow-x:hidden;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ scrollbar-width:thin;
+ -webkit-overflow-scrolling:touch;
+}
+.ugc-creator-list::-webkit-scrollbar{width:7px}
+.ugc-creator-list::-webkit-scrollbar-thumb{border-radius:8px;background:color-mix(in srgb,var(--primary) 42%,var(--border))}
+.ugc-creator-list::-webkit-scrollbar-track{background:transparent}
+@media(max-width:700px){
+ .ugc-community-heading-copy{width:100%}
+ .ugc-open-discovery-button{width:100%}
+ .ugc-community-discovery-section{padding:18px 0 32px}
+ .ugc-discovery-page-header{grid-template-columns:minmax(0,1fr);gap:13px;padding:13px}
+ .ugc-discovery-back-button{width:100%}
+ .ugc-discovery-page-heading h2{font-size:20px}
+ .ugc-creator-discovery-header{align-items:stretch}
+ .ugc-creator-list{max-height:330px}
 }
