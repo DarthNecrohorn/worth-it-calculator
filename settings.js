@@ -56,6 +56,8 @@ function prepareWorthItSettingsPage() {
     }
 
     if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
+    const ugcDetail = document.getElementById("ugcDetailSection");
+    if (ugcDetail) ugcDetail.hidden = true;
     if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(true);
     if (typeof window.refreshWorthItCustomTheme === "function") void window.refreshWorthItCustomTheme();
 

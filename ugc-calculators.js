@@ -77,6 +77,13 @@ function updateCatalogHeading(){
  if(node)node.textContent=state.sort==="mine"?"My Calculators":state.sort==="my-drafts"?"My Drafts":state.sort==="my-favorites"?"My Favourites":
   ({latest:"Latest calculators",popular:"Most popular",liked:"Most liked",favorited:"Most favorited",disliked:"Most disliked"}[state.sort]||"Community calculators");
 }
+function cardDescriptionPreview(description){
+ const full=String(description||"").trim().replace(/\s+/g," ");
+ if(!full)return "No description provided.";
+ const limit=150;
+ if(full.length<=limit)return full;
+ return full.slice(0,limit).trimEnd().replace(/[.!?…]+$/,"")+"...";
+}
 function renderCatalog(rows){
  const host=$("ugcCalculatorGrid");if(!host)return;
  host.replaceChildren();
@@ -99,7 +106,10 @@ function renderCatalog(rows){
   if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
-  card.appendChild(text("p","ugc-card-description",item.description||"No description provided."));
+  const fullDescription=String(item.description||"").trim();
+  const descriptionNode=text("p","ugc-card-description",cardDescriptionPreview(fullDescription));
+  if(fullDescription)descriptionNode.title=fullDescription;
+  card.appendChild(descriptionNode);
   card.appendChild(text("p","ugc-card-more","Open calculator to see all the info →"));
   const ownerUsername=String(item.owner_username||"").trim().replace(/^@+/,"");
   const ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member";
@@ -449,18 +459,21 @@ function detailShow(calculator,fromUrl){
   if(previous!==active){calculator.favorites=Math.max(0,Number(calculator.favorites||0)+(active?1:-1));calculator.is_favorite=active;renderDetailStats(calculator);}
  });
  const isPublicCalculator=calculator.visibility==="public";
- const canReact=calculator.is_owner!==true&&isPublicCalculator;
+ const isOwner=calculator.is_owner===true;
+ const canReact=!isOwner&&isPublicCalculator&&Boolean(state.userId);
  const reactionNote=$("ugcDetailReactionNote");
  if(reactionNote){
-  reactionNote.hidden=!isPublicCalculator||canReact;
-  reactionNote.textContent="Only other users can like or dislike a public calculator. The creator cannot rate their own calculator.";
+  reactionNote.hidden=!isPublicCalculator||!isOwner;
+  reactionNote.textContent=isOwner
+   ?"You created this calculator, so you cannot like or dislike it. Other members can rate it."
+   :"";
  }
  const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
  if(likeButton){
   likeButton.hidden=!isPublicCalculator;
   likeButton.disabled=!canReact;
   likeButton.setAttribute("aria-disabled",String(!canReact));
-  likeButton.title=canReact?"":"The creator cannot rate their own calculator.";
+  likeButton.title=canReact?"":isOwner?"Creators cannot rate their own calculators.":"This calculator cannot be rated by this account.";
   likeButton.textContent=calculator.my_reaction==="like"?"👍 Liked":"👍 Like";
   likeButton.classList.toggle("is-active",calculator.my_reaction==="like");
   likeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="like"));
@@ -469,7 +482,7 @@ function detailShow(calculator,fromUrl){
   dislikeButton.hidden=!isPublicCalculator;
   dislikeButton.disabled=!canReact;
   dislikeButton.setAttribute("aria-disabled",String(!canReact));
-  dislikeButton.title=canReact?"":"The creator cannot rate their own calculator.";
+  dislikeButton.title=canReact?"":isOwner?"Creators cannot rate their own calculators.":"This calculator cannot be rated by this account.";
   dislikeButton.textContent=calculator.my_reaction==="dislike"?"👎 Disliked":"👎 Dislike";
   dislikeButton.classList.toggle("is-active",calculator.my_reaction==="dislike");
   dislikeButton.setAttribute("aria-pressed",String(calculator.my_reaction==="dislike"));
@@ -531,8 +544,11 @@ window.closeWorthItUGCCalculator=function(){
  if(state.descriptionStatusTimer){clearInterval(state.descriptionStatusTimer);state.descriptionStatusTimer=null;}
  state.descriptionStatusRequest++;
  const section=$("ugcDetailSection");if(section)section.hidden=true;
+ if(window.location.pathname.startsWith("/calculator/ugc/")&&typeof window.backFromWorthItRoute==="function"){
+  window.backFromWorthItRoute("/calculators");
+  return;
+ }
  const home=$("homePage");if(home)home.style.display="block";
- if(window.location.pathname.startsWith("/calculator/ugc/"))window.history.pushState({worthItRoute:true},"","/calculators");
 };
 async function react(id,reaction){
  if(!requireAccount())return;
@@ -544,6 +560,15 @@ async function react(id,reaction){
   if(result.error)throw result.error;
   const saved=normalizeObject(result.data);
   if(saved?.success===false)throw new Error(saved.error||"Could not save your reaction.");
+  const active=state.activeCalculator;
+  const nextReaction=saved?.reaction==="like"||saved?.reaction==="dislike"?saved.reaction:null;
+  if(active&&String(active.id)===String(id)&&active.my_reaction!==nextReaction){
+   const previousReaction=active.my_reaction||null;
+   active.likes=Math.max(0,Number(active.likes)||0)+(nextReaction==="like"?1:0)-(previousReaction==="like"?1:0);
+   active.dislikes=Math.max(0,Number(active.dislikes)||0)+(nextReaction==="dislike"?1:0)-(previousReaction==="dislike"?1:0);
+   active.my_reaction=nextReaction;
+   renderDetailStats(active);
+  }
   await loadCatalog();
   if(state.activeId===String(id))await openDetail(id,{fromUrl:true});
  }catch(error){toast(error?.message||"Could not save your reaction.");}

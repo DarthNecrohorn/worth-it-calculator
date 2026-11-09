@@ -854,3 +854,40 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
     assert.match(scrollAndDesktopPolish, /\.ugc-card-byline\{\s*margin-top:0!important/);
     assert.match(scrollAndDesktopPolish, /\.ugc-card-actions\{\s*margin-top:auto/);
 });
+
+
+test("UGC catalogue descriptions end with a visible three-dot continuation while detail descriptions stay full", () => {
+    assert.match(maker, /function cardDescriptionPreview\(description\)/);
+    assert.match(maker, /const limit=150/);
+    assert.match(maker, /replace\(\/\[.!?…\]\+\$\/,""\)\+"\.\.\."/);
+    assert.match(maker, /descriptionNode\.title=fullDescription/);
+    assert.match(maker, /description\.textContent=calculator\.description\|\|"No description provided\."/);
+    assert.match(maker, /descInput\.maxLength=500/);
+    assert.match(html, /id="ugcDetailDescriptionInput"[^>]*maxlength="500"/);
+    assert.match(sqlEnhancements, /char_length\(v_description\)>500/);
+    assert.match(visibilitySql, /char_length\(v_description\)>500/);
+});
+
+test("UGC reaction buttons are enabled only for public calculators owned by another account", () => {
+    assert.match(visibilitySql, /'visibility',c\.visibility/);
+    assert.match(visibilitySql, /c\.owner_user_id=v_user_id or \(c\.status='published' and c\.visibility='public'\)/);
+    assert.match(visibilitySql, /status='published' and visibility='public' and owner_user_id<>v_user_id/);
+    assert.match(maker, /const canReact=!isOwner&&isPublicCalculator&&Boolean\(state\.userId\)/);
+    assert.match(maker, /You created this calculator, so you cannot like or dislike it/);
+    assert.match(maker, /active\.likes=Math\.max\(0,Number\(active\.likes\)\|\|0\)/);
+    assert.match(maker, /active\.dislikes=Math\.max\(0,Number\(active\.dislikes\)\|\|0\)/);
+});
+
+test("UGC views, reactions and favourites refresh their matching statistic counters", () => {
+    assert.match(maker, /state\.activeCalculator\.views=Math\.max\(0,Number\(state\.activeCalculator\.views\)\|\|0\)\+1/);
+    assert.match(maker, /renderDetailStats\(active\)/);
+    assert.match(maker, /calculator\.favorites=Math\.max\(0,Number\(calculator\.favorites\|\|0\)\+\(active\?1:-1\)\)/);
+    assert.match(community, /notify\(\)/);
+    assert.match(maker, /await loadCatalog\(\);\s*if\(state\.activeId===String\(id\)\)await openDetail\(id,\{fromUrl:true\}\)/);
+});
+
+test("opening Settings or another page hides UGC detail, and UGC Back restores the previous route", () => {
+    assert.match(routing, /name !== "openWorthItUGCCalculator"[\s\S]*?ugcDetail\.hidden = true/);
+    assert.match(routing, /route\.kind !== "ugc-calculator"[\s\S]*?ugcDetail\.hidden = true/);
+    assert.match(maker, /window\.backFromWorthItRoute\("\/calculators"\)/);
+});

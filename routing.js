@@ -102,6 +102,10 @@
 
         originalFunctions[name] = original;
         window[name] = function () {
+            if (name !== "openWorthItUGCCalculator") {
+                const ugcDetail = document.getElementById("ugcDetailSection");
+                if (ugcDetail) ugcDetail.hidden = true;
+            }
             if (name !== "openFullSettings") {
                 if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
                 const settingsPage = document.getElementById("settingsPage");
@@ -302,6 +306,10 @@
         const route = resolveRoute(normalized);
         if (!route) return;
 
+        if (route.kind !== "ugc-calculator") {
+            const ugcDetail = document.getElementById("ugcDetailSection");
+            if (ugcDetail) ugcDetail.hidden = true;
+        }
         if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
         const settingsPage = document.getElementById("settingsPage");
         if (settingsPage) settingsPage.style.display = "none";
@@ -366,7 +374,9 @@
         }
     }
 
-    window.backFromWebShop = function () {
+    // Return to the exact in-app route that opened the current page. Direct
+    // links without a recorded predecessor use the caller's safe fallback route.
+    window.backFromWorthItRoute = function (fallbackPath) {
         const state = window.history.state && typeof window.history.state === "object"
             ? window.history.state
             : {};
@@ -375,22 +385,39 @@
             : "";
         let previousPath = "";
         try {
-            if (previousRoute) {
+            if (previousRoute.startsWith("/")) {
                 previousPath = normalizePath(new URL(previousRoute, window.location.origin).pathname);
             }
         } catch (_) {}
 
-        if (
-            normalizePath(window.location.pathname) === "/web-shop" &&
-            (previousPath === "/settings" || previousPath.startsWith("/settings/"))
-        ) {
+        const currentPath = normalizePath(window.location.pathname);
+        if (previousPath && previousPath !== currentPath && window.history.length > 1) {
             window.history.back();
-            return;
+            return true;
         }
 
-        const showHome = originalFunctions.showHome || window.showHome;
-        if (typeof showHome === "function") showHome.call(window);
+        const fallback = String(fallbackPath || "/");
+        let fallbackUrl;
+        try {
+            fallbackUrl = new URL(fallback, window.location.origin);
+        } catch (_) {
+            fallbackUrl = new URL("/", window.location.origin);
+        }
+        const target = normalizePath(fallbackUrl.pathname);
+        const targetUrl = target + fallbackUrl.search + fallbackUrl.hash;
+        window.history.replaceState({
+            worthItRoute: true,
+            worthItRoutePath: target,
+            worthItRoutePrevious: null
+        }, "", targetUrl);
+        applyRoute(target, { initial: false });
+        return false;
     };
+
+    window.backFromWebShop = function () {
+        return window.backFromWorthItRoute("/");
+    };
+
 
     window.addEventListener("popstate", function () {
         applyRoute(window.location.pathname, { initial: false });

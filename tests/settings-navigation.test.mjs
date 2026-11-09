@@ -135,9 +135,31 @@ test("Web Shop Back sits beside its title and restores the exact Settings route"
     assert.match(shop, /onclick="backFromWebShop\(\)"/);
     assert.doesNotMatch(shop, /onclick="showHome\(\)">← Back to Worth It/);
     assert.match(routing, /window\.backFromWebShop = function \(\)/);
-    assert.match(routing, /previousPath === "\/settings" \|\| previousPath\.startsWith\("\/settings\/"\)/);
-    assert.match(routing, /window\.history\.back\(\)/);
-    assert.match(routing, /originalFunctions\.showHome \|\| window\.showHome/);
+    assert.match(routing, /window\.backFromWebShop = function \(\)\s*\{\s*return window\.backFromWorthItRoute\("\/"\);/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
     assert.match(webShopCss, /web-shop-heading-row/);
     assert.match(webShopCss, /@media\(max-width:600px\)[\s\S]*?web-shop-heading-row/);
+});
+
+
+test("Settings Back returns to the route that opened it, with safe direct-link fallbacks", () => {
+    assert.match(html, /onclick="backFromWorthItRoute\('\/'\)">← Back to Worth It/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/settings'\)">← Back to Settings/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
+    assert.match(routing, /state\.worthItRoutePrevious/);
+    assert.match(routing, /previousPath && previousPath !== currentPath && window\.history\.length > 1/);
+    assert.match(routing, /window\.history\.back\(\)/);
+    assert.match(routing, /worthItRoutePrevious: null/);
+    assert.match(routing, /applyRoute\(target, \{ initial: false \}\)/);
+});
+
+test("opening a different page hides the UGC detail instead of stacking the next page below it", () => {
+    assert.match(settings, /ugcDetail\.hidden = true/);
+    assert.match(routing, /route\.kind !== "ugc-calculator"[\s\S]*?ugcDetail\.hidden = true/);
+    assert.match(html, /id="ugcDetailSection"/);
+});
+
+test("Web Shop and calculator Back buttons use the shared route-aware return helper", () => {
+    assert.match(routing, /window\.backFromWebShop = function \(\)\s*\{\s*return window\.backFromWorthItRoute\("\/"\);/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/calculators'\)">← Back/);
 });
