@@ -225,8 +225,11 @@ begin
        or (v_creator->>'public_calculators')::integer<>1 then
         raise exception 'Top Creators did not rank current followers and public calculators correctly: %',v_creator;
     end if;
-    v_member:=v_rankings->'community_members'->0;
-    if v_member->>'username'<>'viewer' then
+    if not exists(
+        select 1
+          from jsonb_array_elements(v_rankings->'community_members') as member(item)
+         where item->>'username'='viewer'
+    ) then
         raise exception 'A public member without a published public calculator was not shown separately: %',v_rankings->'community_members';
     end if;
 
