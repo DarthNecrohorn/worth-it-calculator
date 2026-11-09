@@ -11,7 +11,7 @@
 .ugc-sort-tab{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;background:var(--surface-soft);color:var(--muted);font-size:12px;font-weight:750;cursor:pointer}
 .ugc-sort-tab.active{border-color:rgba(124,92,255,.65);color:var(--text);background:rgba(124,92,255,.14);box-shadow:0 0 0 1px rgba(124,92,255,.12) inset}
 .ugc-catalog-tools{display:flex;gap:10px;align-items:center;margin:0 0 16px}
-.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea{min-width:0;width:100%;border:1px solid var(--border);border-radius:11px;background:var(--card-solid);color:var(--text);padding:10px 12px;outline:none}
+.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea{min-width:0;width:100%;border:1px solid var(--border);border-radius:11px;background:var(--card,var(--surface-soft));color:var(--text);padding:10px 12px;outline:none}
 .ugc-catalog-tools input:focus,.ugc-catalog-tools select:focus,.ugc-maker-card input:focus,.ugc-maker-card textarea:focus,.ugc-maker-card select:focus,.ugc-detail-description-editor textarea:focus{border-color:var(--primary);box-shadow:var(--focus-ring)}
 .ugc-catalog-tools select{max-width:210px}
 .ugc-catalog-status,.ugc-detail-status,.ugc-maker-status{min-height:20px;margin:0 0 12px;color:var(--muted);font-size:12px}
@@ -1264,15 +1264,13 @@ body.ugc-maker-open{overflow:hidden}
 
 
 
-/* Keep UGC card titles fully legible and bring the description closer to the title. */
-@media(min-width:641px){
- .ugc-calculator-card .ugc-card-title{
-  line-height:1.35!important;
-  padding-bottom:3px;
- }
- .ugc-calculator-card .ugc-card-description{
-  margin-top:-10px;
- }
+/* Correct only the requested Subscription Savings calculator card. */
+.ugc-calculator-card.ugc-card-subscription-savings .ugc-card-title{
+ line-height:1.35!important;
+ padding-bottom:3px;
+}
+.ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
+ margin-top:-10px;
 }
 
 /* Keep the calculator detail as a normal page surface beneath global panels. */
