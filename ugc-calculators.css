@@ -1274,15 +1274,7 @@ body.ugc-maker-open{overflow:hidden}
  line-height:1.35!important;
  padding-bottom:3px;
 }
-.ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
- display:-webkit-box;
- -webkit-box-orient:vertical;
- -webkit-line-clamp:3;
- overflow:hidden;
- max-height:4.5em;
- text-overflow:ellipsis;
- transform:translateY(10px);
-}
+
 
 /* Keep the calculator detail as a normal page surface beneath global panels. */
 #ugcDetailSection{
@@ -1692,11 +1684,7 @@ body.ugc-maker-open{overflow:hidden}
 }
 
 
-/* Desktop-only refinements requested for the catalogue card and profile avatar. */
-@media(min-width:701px){
- .ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description{
-  -webkit-line-clamp:3;
-  max-height:4.5em;
-  transform:translateY(10px);
- }
+/* Every current and future UGC catalogue card shares the same description position. */
+.ugc-calculator-card .ugc-card-description{
+ transform:translateY(0px);
 }
