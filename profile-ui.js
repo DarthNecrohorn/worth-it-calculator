@@ -961,7 +961,10 @@ window.openWorthItProfileConnectionsForCurrent = function(category) {
 };
 window.openWorthItProfileConnectionsBack = function() {
  const id = Number(currentDisplayedProfileId);
- if (Number.isSafeInteger(id) && id > 0) return window.openWorthItProfile(id);
+ if (Number.isSafeInteger(id) && id > 0) {
+  if (typeof window.backFromWorthItRoute === "function") return window.backFromWorthItRoute("/profile/" + id);
+  return window.openWorthItProfile(id);
+ }
 };
 window.openWorthItProfileConnections = async function(idValue, categoryValue, options) {
  const id = Number(idValue);

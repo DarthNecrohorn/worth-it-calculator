@@ -8,6 +8,7 @@ const routing = readFileSync(new URL("../routing.js", import.meta.url), "utf8");
 const redirects = readFileSync(new URL("../_redirects", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const webShopCss = readFileSync(new URL("../web-shop.css", import.meta.url), "utf8");
+const profile = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
 
 const sections = [
     { key: "account", path: "/settings/account", panel: "accountProfilePanel", card: "settingsAccount", fn: "openSettingsAccount" },
@@ -162,4 +163,11 @@ test("opening a different page hides the UGC detail instead of stacking the next
 test("Web Shop and calculator Back buttons use the shared route-aware return helper", () => {
     assert.match(routing, /window\.backFromWebShop = function \(\)\s*\{\s*return window\.backFromWorthItRoute\("\/"\);/);
     assert.match(html, /onclick="backFromWorthItRoute\('\/calculators'\)">← Back/);
+});
+
+
+test("Profile connection-list Back restores the prior profile entry without adding history", () => {
+    assert.match(profile, /window\.backFromWorthItRoute\("\/profile\/" \+ id\)/);
+    assert.match(profile, /window\.openWorthItProfileConnectionsBack = function\(\)/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
 });
