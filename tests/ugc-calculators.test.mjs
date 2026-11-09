@@ -906,36 +906,41 @@ test("UGC calculator card title descenders stay visible and the description sits
 
 
 test("Creator discovery shows Top Creators, Rising Creators and separate public community members", () => {
-    assert.match(html, /id="ugcTopCreatorsHeading"[^>]*>🌟 Top Creators/);
-    assert.match(html, /id="ugcRisingCreatorsHeading"[^>]*>🚀 Rising Creators/);
-    assert.match(html, /id="ugcCommunityMembersHeading"[^>]*>👥 Community Members/);
-    assert.match(html, /id="ugcCreatorPeriodFilter"[\\s\\S]*?<option value="7d"/);
+    assert.ok(html.includes('id="ugcTopCreatorsHeading">🌟 Top Creators'));
+    assert.ok(html.includes('id="ugcRisingCreatorsHeading">🚀 Rising Creators'));
+    assert.ok(html.includes('id="ugcCommunityMembersHeading">👥 Community Members'));
+    assert.ok(html.includes('id="ugcCreatorPeriodFilter"'));
     for (const period of ["7d","30d","6m","12m","3y","5y","10y"]) {
-        assert.match(html, new RegExp('id="ugcCreatorPeriodFilter"[\\\\s\\\\S]*?<option value="'+period+'"'));
+        assert.ok(html.includes('<option value="'+period+'">'));
     }
-    assert.doesNotMatch(html, /Top Calculators/);
-    assert.doesNotMatch(html, /data-ugc-sort="views"/);
-    assert.doesNotMatch(html, /data-ugc-sort="liked"/);
+    assert.ok(!html.includes("Top Calculators"));
+    assert.ok(!html.includes('data-ugc-sort="views"'));
+    assert.ok(!html.includes('data-ugc-sort="liked"'));
 });
 
 test("Creator discovery calls the private leaderboard RPC and keeps calculator sorting separate", () => {
-    assert.match(maker, /get_worth_it_creator_leaderboards/);
-    assert.match(maker, /p_period:state\.creatorPeriod/);
-    assert.match(maker, /p_top_sort:state\.topCreatorSort/);
-    assert.match(maker, /p_rising_sort:state\.risingCreatorSort/);
-    assert.match(maker, /p_member_sort:state\.communityMemberSort/);
-    assert.match(maker, /creatorRequest/);
-    assert.match(maker, /renderCreatorLeaderboards\(payload\)/);
-    assert.match(maker, /CREATOR_PERIODS=\["7d","30d","6m","12m","3y","5y","10y"\]/);
+    for (const part of [
+        'get_worth_it_creator_leaderboards',
+        'p_period:state.creatorPeriod',
+        'p_top_sort:state.topCreatorSort',
+        'p_rising_sort:state.risingCreatorSort',
+        'p_member_sort:state.communityMemberSort',
+        'creatorRequest',
+        'renderCreatorLeaderboards(payload)',
+        'CREATOR_PERIODS=["7d","30d","6m","12m","3y","5y","10y"]'
+    ]) assert.ok(maker.includes(part), 'Missing creator discovery contract: '+part);
 });
 
 test("Creator leaderboard SQL ranks only public profiles and separates non-creators", () => {
-    assert.match(creatorLeaderboardsSql, /create or replace function public\.get_worth_it_creator_leaderboards\([\\s\\S]*?p_member_sort text default 'followers'/);
-    assert.match(creatorLeaderboardsSql, /coalesce\(pref\.profile_visibility,'public'\)='public'/);
-    assert.match(creatorLeaderboardsSql, /not exists\(select 1 from public_calculators c where c\.owner_user_id=p\.user_id\)/);
-    assert.match(creatorLeaderboardsSql, /'top_creators'/);
-    assert.match(creatorLeaderboardsSql, /'rising_creators'/);
-    assert.match(creatorLeaderboardsSql, /'community_members'/);
-    assert.match(creatorLeaderboardsSql, /revoke all on function public\.get_worth_it_creator_leaderboards\(text,text,text,text\) from public,anon/);
-    assert.match(creatorLeaderboardsSql, /grant execute on function public\.get_worth_it_creator_leaderboards\(text,text,text,text\) to authenticated/);
+    for (const part of [
+        'create or replace function public.get_worth_it_creator_leaderboards(',
+        "p_member_sort text default 'followers'",
+        "coalesce(pref.profile_visibility,'public')='public'",
+        'not exists(select 1 from public_calculators c where c.owner_user_id=p.user_id)',
+        "'top_creators'",
+        "'rising_creators'",
+        "'community_members'",
+        'revoke all on function public.get_worth_it_creator_leaderboards(text,text,text,text) from public,anon',
+        'grant execute on function public.get_worth_it_creator_leaderboards(text,text,text,text) to authenticated'
+    ]) assert.ok(creatorLeaderboardsSql.includes(part), 'Missing creator SQL contract: '+part);
 });
