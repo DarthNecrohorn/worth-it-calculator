@@ -242,7 +242,7 @@ async function loadCreatorLeaderboards(){
 function cardDescriptionPreview(description){
  const full=String(description||"").trim().replace(/\s+/g," ");
  if(!full)return "No description provided.";
- const limit=150;
+ const limit=120;
  if(full.length<=limit)return full;
  return full.slice(0,limit).trimEnd().replace(/[.!?…]+$/,"")+"...";
 }
