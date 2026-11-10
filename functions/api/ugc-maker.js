@@ -14,50 +14,57 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
     name: "worth_it_calculator",
     strict: true,
     schema: {
-        anyOf: Object.entries(ALLOWED_SUBCATEGORIES).map(([category,subcategories])=>({
-            type: "object",
-            properties: {
-                title: { type: "string" },
-                description: { type: "string" },
-                category: { type: "string", enum: [category] },
-                subcategories: { type: "array", items: { type: "string", enum: [...subcategories] } },
-                inputs: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            key: { type: "string" },
-                            label: { type: "string" },
-                            min: { type: "number" },
-                            max: { type: "number" },
-                            default: { type: "number" },
-                            step: { type: "number" },
-                            unit: { type: "string" }
-                        },
-                        required: ["key","label","min","max","default","step","unit"],
-                        additionalProperties: false
-                    }
-                },
-                results: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            label: { type: "string" },
-                            expression: { type: "string" },
-                            format: { type: "string", enum: ["number","currency","percent"] },
-                            currency: { type: "string" },
-                            prefix: { type: "string" },
-                            suffix: { type: "string" }
-                        },
-                        required: ["label","expression","format","currency","prefix","suffix"],
-                        additionalProperties: false
-                    }
+        type: "object",
+        properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+            classification: {
+                anyOf: Object.entries(ALLOWED_SUBCATEGORIES).map(([category,subcategories])=>({
+                    type: "object",
+                    properties: {
+                        category: { type: "string", enum: [category] },
+                        subcategories: { type: "array", items: { type: "string", enum: [...subcategories] } }
+                    },
+                    required: ["category","subcategories"],
+                    additionalProperties: false
+                }))
+            },
+            inputs: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        key: { type: "string" },
+                        label: { type: "string" },
+                        min: { type: "number" },
+                        max: { type: "number" },
+                        default: { type: "number" },
+                        step: { type: "number" },
+                        unit: { type: "string" }
+                    },
+                    required: ["key","label","min","max","default","step","unit"],
+                    additionalProperties: false
                 }
             },
-            required: ["title","description","category","subcategories","inputs","results"],
-            additionalProperties: false
-        }))
+            results: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        label: { type: "string" },
+                        expression: { type: "string" },
+                        format: { type: "string", enum: ["number","currency","percent"] },
+                        currency: { type: "string" },
+                        prefix: { type: "string" },
+                        suffix: { type: "string" }
+                    },
+                    required: ["label","expression","format","currency","prefix","suffix"],
+                    additionalProperties: false
+                }
+            }
+        },
+        required: ["title","description","classification","inputs","results"],
+        additionalProperties: false
     }
 };
 
@@ -182,6 +189,12 @@ async function generateWithGemini(apiKey,system,prompt){
     return content;
 }
 async function generateWithGroq(apiKey,system,prompt){
+    const groqSystem=[
+        system,
+        "For this provider's structured response, put the primary category and its subcategories together inside a root field named classification.",
+        "The classification object must contain category and subcategories. Do not put category or subcategories at the root level.",
+        "Keep title, description, inputs and results as root fields. The server converts classification into the calculator's saved category fields."
+    ].join(" ");
     const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
         method:"POST",
         headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
@@ -191,7 +204,7 @@ async function generateWithGroq(apiKey,system,prompt){
             max_tokens:1300,
             reasoning_effort:"low",
             response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
-            messages:[{role:"system",content:system},{role:"user",content:prompt}]
+            messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
         })
     });
     if(!response.ok){
@@ -201,7 +214,17 @@ async function generateWithGroq(apiKey,system,prompt){
     const data=await response.json();
     const content=data?.choices?.[0]?.message?.content;
     if(typeof content!=="string"||!content.trim())throw new Error("Groq returned an empty calculator definition.");
-    return content.trim();
+    const generated=content.trim();
+    try{
+        const parsed=JSON.parse(generated);
+        if(parsed?.classification&&typeof parsed.classification==="object"){
+            parsed.category=parsed.classification.category;
+            parsed.subcategories=parsed.classification.subcategories;
+            delete parsed.classification;
+            return JSON.stringify(parsed);
+        }
+    }catch(_){}
+    return generated;
 }
 async function verifyUser(env,token){
     const base=String(env.SUPABASE_URL||"").trim().replace(/\/$/,"");

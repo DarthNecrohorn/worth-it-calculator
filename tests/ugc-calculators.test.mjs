@@ -465,7 +465,8 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
         assert.equal(body.reasoning_effort, "low");
-        const categorySchemas=body.response_format.json_schema.schema.anyOf;
+        assert.equal(body.response_format.json_schema.schema.type,"object");
+        const categorySchemas=body.response_format.json_schema.schema.properties.classification.anyOf;
         assert.equal(categorySchemas.length,5);
         const carsSchema=categorySchemas.find(item=>item.properties.category.enum[0]==="cars");
         const moneySchema=categorySchemas.find(item=>item.properties.category.enum[0]==="money");
@@ -473,7 +474,10 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.ok(!carsSchema.properties.subcategories.items.enum.includes("budgeting"));
         assert.ok(moneySchema.properties.subcategories.items.enum.includes("budgeting"));
         assert.ok(!moneySchema.properties.subcategories.items.enum.includes("fuel-costs"));
-        assert.ok(categorySchemas.every(item=>item.required.includes("inputs")&&item.additionalProperties===false));
+        assert.ok(categorySchemas.every(item=>item.required.includes("category")&&item.required.includes("subcategories")&&item.additionalProperties===false));
+        assert.ok(body.response_format.json_schema.schema.required.includes("classification"));
+        assert.equal(body.response_format.json_schema.schema.additionalProperties,false);
+        assert.match(body.messages[0].content,/classification object/);
         assert.match(body.messages[0].content, /restricted arithmetic parser/);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(validDefinition) } }]
@@ -532,8 +536,9 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"low"/);
-    assert.match(makerApi, /schema:\s*\{\s*anyOf:/);
+    assert.match(makerApi, /classification:\s*\{\s*anyOf:/);
     assert.match(makerApi, /items:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.subcategories\]/);
+    assert.match(makerApi, /parsed\.category=parsed\.classification\.category/);
     assert.match(makerApi, /trying strict Groq fallback/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
     assert.equal(options.status, 204);
@@ -622,12 +627,16 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             const body=JSON.parse(options.body);
             assert.equal(body.response_format.type,"json_schema");
             assert.equal(body.response_format.json_schema.strict,true);
-            const branches=body.response_format.json_schema.schema.anyOf;
+            const branches=body.response_format.json_schema.schema.properties.classification.anyOf;
             assert.ok(branches.some(item=>item.properties.category.enum[0]==="money"
                 &&item.properties.subcategories.items.enum.includes("budgeting")
                 &&!item.properties.subcategories.items.enum.includes("fuel-costs")));
+            const groqDefinition=structuredClone(validDefinition);
+            delete groqDefinition.category;
+            delete groqDefinition.subcategories;
+            groqDefinition.classification={category:"money",subcategories:["budgeting","saving"]};
             return new Response(JSON.stringify({
-                choices:[{message:{content:JSON.stringify(validDefinition)}}]
+                choices:[{message:{content:JSON.stringify(groqDefinition)}}]
             }),{status:200});
         }
         throw new Error("Unexpected request in category fallback test: "+path);
