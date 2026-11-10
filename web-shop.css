@@ -494,7 +494,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
         position:relative!important;
         left:0!important;
         right:auto!important;
-        transform:none!important;
+        transform:translateY(5px)!important;
         overflow:visible!important;
         z-index:5!important;
     }
