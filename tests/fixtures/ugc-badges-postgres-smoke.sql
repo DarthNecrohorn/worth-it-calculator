@@ -327,12 +327,18 @@ $creator_leaderboards$;
 -- calculator use to rate immediately; turning it back on protects new reactions.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 do $owner_rating_policy$
-declare result jsonb;
+declare
+    result jsonb;
+    detail jsonb;
 begin
     result:=public.set_worth_it_ugc_reaction_policy(current_setting('test.ugc_calculator_id')::uuid,false);
     if (result->>'success')::boolean is distinct from true
        or (result->>'require_test_before_reaction')::boolean is distinct from false then
         raise exception 'The owner could not disable the rating usage requirement: %',result;
+    end if;
+    detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (detail->>'require_test_before_reaction')::boolean is distinct from false then
+        raise exception 'The calculator owner must see their saved disabled setting.';
     end if;
 end
 $owner_rating_policy$;
