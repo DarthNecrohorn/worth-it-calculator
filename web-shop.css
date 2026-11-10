@@ -468,9 +468,8 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 }
 
 /* Mobile-only positioning for the requested controls.
-   The economy controls use the first three grid columns so all three buttons
-   have a dedicated row area and are not clipped behind the right-side actions.
-   Search and all other header controls retain their original positions. */
+   Put the whole currency group in a wide, unshared second-row grid area.
+   Keep its intrinsic button widths so CALC and WIP cannot be squeezed or clipped. */
 @media(max-width:560px){
     .nav-inner > .menu-btn{
         transform:translateX(-10px)!important;
@@ -480,14 +479,51 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
     }
     .nav-inner > .calc-economy-nav{
         grid-column:1 / 4!important;
-        justify-self:stretch!important;
+        grid-row:2!important;
+        justify-self:start!important;
+        align-self:center!important;
+        display:flex!important;
+        flex-wrap:nowrap!important;
+        width:max-content!important;
+        min-width:max-content!important;
+        max-width:none!important;
+        margin:0 0 0 15px!important;
+        padding:0!important;
+        gap:4px!important;
+        box-sizing:content-box!important;
+        position:relative!important;
+        left:0!important;
+        right:auto!important;
+        transform:none!important;
+        overflow:visible!important;
+        z-index:5!important;
+    }
+    .nav-inner > .calc-economy-nav > .calc-shop-nav,
+    .nav-inner > .calc-economy-nav > .calc-wallet-nav,
+    .nav-inner > .calc-economy-nav > .calc-wip-nav{
+        display:inline-flex!important;
+        flex:0 0 auto!important;
+        visibility:visible!important;
+        opacity:1!important;
+        white-space:nowrap!important;
+    }
+    .nav-inner > .calc-economy-nav > .calc-shop-nav{
         width:auto!important;
-        min-width:0!important;
-        box-sizing:border-box!important;
-        padding-left:40px!important;
-        transform:translate(-50px,-5px)!important;
+        min-width:max-content!important;
+        max-width:none!important;
+    }
+    .nav-inner > .calc-economy-nav > .calc-wallet-nav{
+        width:max-content!important;
+        min-width:max-content!important;
+        max-width:none!important;
+    }
+    .nav-inner > .calc-economy-nav > .calc-wip-nav{
+        flex:0 0 78px!important;
+        width:78px!important;
+        min-width:78px!important;
+        max-width:78px!important;
     }
     html[data-worth-it-custom-theme] .nav-inner > .calc-economy-nav:has(>button:not([hidden])){
-        padding-left:40px!important;
+        padding:0!important;
     }
 }
