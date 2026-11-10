@@ -728,6 +728,7 @@ export async function onRequestPost(context){
                 :"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used.";
             return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error},503,origin);
         }
+        if(contentProvider==="groq")groqFallbackAttempted=true;
 
         let parsed;
         let definition;
