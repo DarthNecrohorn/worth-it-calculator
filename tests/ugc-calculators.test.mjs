@@ -693,20 +693,19 @@ test("UGC rating policy is owner-only, defaults on, and requires a completed cal
     assert.match(html, /id="ugcDetailRequireTestBeforeReaction" checked/);
     assert.ok(html.includes('id="ugcDetailReactionPolicyStatus"'));
     assert.ok(html.includes('id="ugcDetailReactionNote"'));
-    assert.match(maker, /policy\\.hidden=!isOwner/);
-    assert.match(maker, /policyInput\\.checked=calculator\\.require_test_before_reaction!==false/);
-    assert.match(maker, /set_worth_it_ugc_reaction_policy/);
-    assert.match(maker, /You must complete one calculation before you can like or dislike this calculator/);
-    assert.match(maker, /calculator\\.has_used=true/);
-    assert.match(reactionPolicySql, /require_test_before_reaction boolean not null default true/);
-    assert.match(reactionPolicySql, /create table if not exists private\\.worth_it_calculator_uses/);
-    assert.match(reactionPolicySql, /t\\.status = 'completed'/);
-    assert.match(reactionPolicySql, /private\\.worth_it_calculator_uses/);
-    assert.match(reactionPolicySql, /set_worth_it_ugc_reaction_policy/);
-    assert.match(reactionPolicySql, /You must complete one calculation before you can like or dislike this calculator/);
-    assert.match(reactionPolicySql, /create or replace function public\\.calc_wallet_settle/);
-    assert.match(reactionPolicySql, /t\\.metadata/);
-    assert.match(workflow, /supabase\\/worth-it-ugc-reaction-policy\\.sql/);
+    assert.ok(maker.includes("policy.hidden=!isOwner"));
+    assert.ok(maker.includes("policyInput.checked=calculator.require_test_before_reaction!==false"));
+    assert.ok(maker.includes("set_worth_it_ugc_reaction_policy"));
+    assert.ok(maker.includes("You must complete one calculation before you can like or dislike this calculator"));
+    assert.ok(maker.includes("calculator.has_used=true"));
+    assert.ok(reactionPolicySql.includes("require_test_before_reaction boolean not null default true"));
+    assert.ok(reactionPolicySql.includes("create table if not exists private.worth_it_calculator_uses"));
+    assert.ok(reactionPolicySql.includes("t.status = 'completed'"));
+    assert.ok(reactionPolicySql.includes("set_worth_it_ugc_reaction_policy"));
+    assert.ok(reactionPolicySql.includes("You must complete one calculation before you can like or dislike this calculator"));
+    assert.ok(reactionPolicySql.includes("create or replace function public.calc_wallet_settle"));
+    assert.ok(reactionPolicySql.includes("ugc_calculator_id"));
+    assert.ok(workflow.includes("supabase/worth-it-ugc-reaction-policy.sql"));
 });
 
 test("square UGC cards use responsive columns and explain creator reaction limits", () => {
