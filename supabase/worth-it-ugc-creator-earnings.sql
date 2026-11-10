@@ -62,6 +62,7 @@ begin
      where t.id = p_source_transaction_id
        and t.kind = 'calculator_spend'
        and t.status = 'completed'
+       and t.currency = 'CALC'
        and t.amount_milli < 0;
 
     if not found or coalesce(v_charged_milli, 0) <= 0 then
@@ -143,6 +144,7 @@ begin
             on c.id::text = t.metadata ->> 'ugc_calculator_id'
          where t.kind = 'calculator_spend'
            and t.status = 'completed'
+           and t.currency = 'CALC'
            and t.amount_milli < 0
            and nullif(t.metadata ->> 'ugc_calculator_id', '') is not null
            and c.owner_user_id <> t.user_id
