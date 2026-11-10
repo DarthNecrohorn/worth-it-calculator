@@ -697,7 +697,7 @@ test("UGC rating policy is owner-only, defaults on, and requires a completed cal
     assert.ok(maker.includes("policy.hidden=!isOwner"));
     assert.ok(maker.includes("policyInput.checked=calculator.require_test_before_reaction!==false"));
     assert.ok(maker.includes("set_worth_it_ugc_reaction_policy"));
-    assert.ok(maker.includes("You must complete one calculation before you can like or dislike this calculator"));
+    assert.ok(reactionPolicySql.includes("You must complete one calculation before you can like or dislike this calculator"));
     assert.ok(maker.includes("clearReactionNote()"));
     assert.ok(maker.includes('rpc("set_worth_it_ugc_reaction"'));
     assert.ok(reactionPolicySql.includes("case when c.owner_user_id = v_user_id then"));
