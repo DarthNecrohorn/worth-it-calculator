@@ -537,9 +537,11 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"low"/);
     assert.match(makerApi, /classification:\s*\{\s*anyOf:/);
-    assert.match(makerApi, /items:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.subcategories\]/);
-    assert.match(makerApi, /parsed\.category=parsed\.classification\.category/);
+    assert.match(makerApi, /subcategory_1:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.subcategories\]/);
+    assert.match(makerApi, /parsed\.category=classification\.category/);
+    assert.match(makerApi, /classification\.subcategory_1,classification\.subcategory_2,classification\.subcategory_3/);
     assert.match(makerApi, /trying strict Groq fallback/);
+    assert.match(makerApi, /trying targeted Groq regeneration/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
     assert.equal(options.status, 204);
 });
@@ -629,12 +631,15 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             assert.equal(body.response_format.json_schema.strict,true);
             const branches=body.response_format.json_schema.schema.properties.classification.anyOf;
             assert.ok(branches.some(item=>item.properties.category.enum[0]==="money"
-                &&item.properties.subcategories.items.enum.includes("budgeting")
-                &&!item.properties.subcategories.items.enum.includes("fuel-costs")));
+                &&item.properties.subcategory_1.enum.includes("budgeting")
+                &&!item.properties.subcategory_1.enum.includes("fuel-costs")
+                &&item.required.includes("subcategory_1")
+                &&item.required.includes("subcategory_2")
+                &&item.required.includes("subcategory_3")));
             const groqDefinition=structuredClone(validDefinition);
             delete groqDefinition.category;
             delete groqDefinition.subcategories;
-            groqDefinition.classification={category:"money",subcategories:["budgeting","saving"]};
+            groqDefinition.classification={category:"money",subcategory_1:"budgeting",subcategory_2:"saving",subcategory_3:null};
             return new Response(JSON.stringify({
                 choices:[{message:{content:JSON.stringify(groqDefinition)}}]
             }),{status:200});
@@ -655,6 +660,64 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         assert.equal(result.success,true);
         assert.equal(result.calculator.category,"money");
         assert.deepEqual(result.calculator.spec.subcategories,["budgeting","saving"]);
+        assert.deepEqual(requested,["reserve","gemini","groq"]);
+        assert.equal(quotaEvents.refunds||0,0);
+        assert.equal(quotaEvents.settlements,1);
+    },quotaEvents);
+});
+
+test("AI Maker retries an incomplete Gemini calculator with Groq and includes requested weekly and yearly totals", async () => {
+    const quotaEvents={refunds:0,settlements:0};
+    const requested=[];
+    const incomplete=structuredClone(validDefinition);
+    incomplete.results=[{label:"Monthly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}];
+    const complete=structuredClone(validDefinition);
+    complete.results=[
+        {label:"Weekly total",expression:"monthly_deposit*12/52",format:"currency",currency:"EUR"},
+        {label:"Yearly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
+    ];
+    await withFetch(async(url,options)=>{
+        const path=String(url);
+        if(path.endsWith("/auth/v1/user")){
+            return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        }
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
+            requested.push("reserve");
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+        }
+        if(path.includes("generativelanguage.googleapis.com")){
+            requested.push("gemini");
+            return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(incomplete)}]}}]}),{status:200});
+        }
+        if(path.includes("api.groq.com/openai/v1/chat/completions")){
+            requested.push("groq");
+            const body=JSON.parse(options.body);
+            assert.match(body.messages[1].content,/weekly result/);
+            assert.match(body.messages[1].content,/yearly result/);
+            assert.match(body.messages[1].content,/total weekly/);
+            assert.match(body.messages[1].content,/total yearly/);
+            const output=structuredClone(complete);
+            delete output.category;
+            delete output.subcategories;
+            output.classification={category:"money",subcategory_1:"budgeting",subcategory_2:"saving",subcategory_3:null};
+            return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(output)}}]}),{status:200});
+        }
+        throw new Error("Unexpected request during coverage fallback: "+path);
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({prompt:"Calculate weekly and yearly results and include total weekly and total yearly costs."},{token:"valid-token"}),
+            env:{
+                SUPABASE_URL:"https://supabase.example",
+                SUPABASE_PUBLISHABLE_KEY:"publishable",
+                GEMINI_API_KEY:"gemini-test",
+                GROQ_API_KEY:"groq-test"
+            }
+        });
+        assert.equal(response.status,200);
+        const result=await response.json();
+        assert.equal(result.success,true);
+        assert.ok(result.calculator.spec.results.some(item=>/weekly/i.test(item.label)&&/total/i.test(item.label)));
+        assert.ok(result.calculator.spec.results.some(item=>/yearly/i.test(item.label)&&/total/i.test(item.label)));
         assert.deepEqual(requested,["reserve","gemini","groq"]);
         assert.equal(quotaEvents.refunds||0,0);
         assert.equal(quotaEvents.settlements,1);
