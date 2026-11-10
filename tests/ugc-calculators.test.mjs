@@ -244,8 +244,8 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
         assert.doesNotMatch(body.messages[0].content,/1 to 4 result rows/);
         assert.match(body.messages[1].content,/Explicit result checklist from the user's Results section/);
-        const checklistText=body.messages[1].content.toLowerCase().replace(/\\bthe\\b/g,"");
-        for (const label of candidate.results.map(item=>item.label)) assert.ok(checklistText.includes(label.toLowerCase().replace(/\\bthe\\b/g,"")), "Missing explicit result checklist item: "+label);
+        const checklistText=body.messages[1].content.toLowerCase().replace(/\bthe\b/g,"");
+        for (const label of candidate.results.map(item=>item.label)) assert.ok(checklistText.includes(label.toLowerCase().replace(/\bthe\b/g,"")), "Missing explicit result checklist item: "+label);
         assert.equal((body.messages[1].content.match(/^- /gm)||[]).length,6);
         assert.doesNotMatch(body.messages[1].content,/^- Total weekly ownership cost/im);
         const groqCandidate=structuredClone(candidate);
