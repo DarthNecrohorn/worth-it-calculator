@@ -260,6 +260,8 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /ugc-maker-test-locale/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
+    assert.match(html, /Creating or improving a calculator does not spend CALC; daily AI generation limits still apply/);
+    assert.match(html, /Testing your calculator is always free and runs locally in your browser/);
     assert.match(maker, /24–500 characters/);
 });
 
