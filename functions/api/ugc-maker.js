@@ -1,7 +1,7 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.7-flash";
-const MAX_PROMPT_CHARS = 900;
+const MAX_PROMPT_CHARS = 1000;
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -450,7 +450,7 @@ export async function onRequestPost(context){
         const mode=body?.mode==="refine"?"refine":"create";
         const regionalDefaults=resolveRegionalDefaults(request);
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
-        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 900 characters."},400,origin);
+        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 1000 characters."},400,origin);
         const requestedCurrencies=resolveExplicitCurrencies(prompt);
         const requestedCurrency=requestedCurrencies.length===1?requestedCurrencies[0]:null;
         const defaultCurrency=requestedCurrency||regionalDefaults.currency;
