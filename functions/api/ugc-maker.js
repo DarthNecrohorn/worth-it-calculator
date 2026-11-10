@@ -48,7 +48,7 @@ const EXPLICIT_CURRENCY_RULES=[
  ["SGD",/\\b(?:sgd|singapore dollars?)\\b/i],
  ["HKD",/\\b(?:hkd|hong kong dollars?)\\b/i],
  ["KRW",/\\b(?:krw|south korean won)\\b/i],
- ["TRY",/\\b(?:try|turkish lira)\\b/i],
+ ["TRY",/(?:\\bTRY\\b|\\bturkish lira\\b)/],
  ["AED",/\\b(?:aed|uae dirhams?)\\b/i],
  ["SAR",/\\b(?:sar|saudi riyals?)\\b/i]
 ];
