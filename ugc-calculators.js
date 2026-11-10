@@ -479,6 +479,15 @@ function validateMakerSpec(spec){
    const low={...values};low[item.key]=Number(item.min);scenarios.push(low);
    const high={...values};high[item.key]=Number(item.max);scenarios.push(high);
   });
+  for(let left=0;left<inputs.length;left++){
+   for(let right=left+1;right<inputs.length;right++){
+    for(const leftValue of [Number(inputs[left].min),Number(inputs[left].max)]){
+     for(const rightValue of [Number(inputs[right].min),Number(inputs[right].max)]){
+      const pair={...values};pair[inputs[left].key]=leftValue;pair[inputs[right].key]=rightValue;scenarios.push(pair);
+     }
+    }
+   }
+  }
  }
  (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
   if(item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase())){
@@ -492,9 +501,8 @@ function validateMakerSpec(spec){
  return {errors:[...new Set(errors)]};
 }
 function makerCurrencyWarnings(spec){
- const known=new Set(CURRENCIES.map(([code])=>code));
- const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>known.has(unit));
- const outputCurrencies=(spec?.results||[]).filter(item=>item.format==="currency").map(item=>String(item.currency||"").trim().toUpperCase()).filter(code=>known.has(code));
+ const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>/^[A-Z]{3}$/.test(unit));
+ const outputCurrencies=(spec?.results||[]).filter(item=>item.format==="currency").map(item=>String(item.currency||"").trim().toUpperCase()).filter(code=>/^[A-Z]{3}$/.test(code));
  const allInputs=[...new Set(inputCurrencies)],allOutputs=[...new Set(outputCurrencies)];
  if(!allInputs.length||!allOutputs.length)return [];
  const warnings=[];
