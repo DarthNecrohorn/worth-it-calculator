@@ -11,6 +11,35 @@ const ALLOWED_SUBCATEGORIES = {
  other:new Set(["travel","education-career","health-fitness","food-groceries","business","lifestyle","general-comparison"])
 };
 const FUNCTIONS = new Set(["min","max","abs","round","floor","ceil","sqrt","pow"]);
+const COUNTRY_DEFAULTS = {
+ US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
+ CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
+ CZ:["CZK","cs-CZ"],HU:["HUF","hu-HU"],SE:["SEK","sv-SE"],NO:["NOK","nb-NO"],DK:["DKK","da-DK"],
+ IS:["ISK","is-IS"],TR:["TRY","tr-TR"],BR:["BRL","pt-BR"],MX:["MXN","es-MX"],ZA:["ZAR","en-ZA"],
+ SG:["SGD","en-SG"],HK:["HKD","zh-HK"],KR:["KRW","ko-KR"],AE:["AED","ar-AE"],SA:["SAR","ar-SA"],
+ TH:["THB","th-TH"],ID:["IDR","id-ID"],MY:["MYR","ms-MY"],PH:["PHP","en-PH"],VN:["VND","vi-VN"],
+ EG:["EGP","ar-EG"],PK:["PKR","ur-PK"],BD:["BDT","bn-BD"],NG:["NGN","en-NG"],KE:["KES","en-KE"],
+ RO:["RON","ro-RO"],BG:["EUR","bg-BG"],RS:["EUR","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
+ AT:["EUR","de-AT"],BE:["EUR","nl-BE"],CY:["EUR","el-CY"],EE:["EUR","et-EE"],FI:["EUR","fi-FI"],
+ FR:["EUR","fr-FR"],DE:["EUR","de-DE"],GR:["EUR","el-GR"],HR:["EUR","hr-HR"],IE:["EUR","en-IE"],
+ IT:["EUR","it-IT"],LV:["EUR","lv-LV"],LT:["EUR","lt-LT"],LU:["EUR","fr-LU"],MT:["EUR","mt-MT"],
+ NL:["EUR","nl-NL"],PT:["EUR","pt-PT"],SK:["EUR","sk-SK"],SI:["EUR","sl-SI"],ES:["EUR","es-ES"],
+ AD:["EUR","ca-AD"],MC:["EUR","fr-MC"],SM:["EUR","it-SM"],VA:["EUR","it-VA"]
+};
+export function resolveRegionalDefaults(request){
+ const country=String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
+ const regional=COUNTRY_DEFAULTS[country];
+ const header=String(request?.headers?.get?.("Accept-Language")||"");
+ const candidates=header.split(",").map((part,index)=>{
+  const pieces=part.trim().split(";"),tag=pieces[0].trim();
+  const quality=Number((pieces[1]||"").match(/q=([0-9.]+)/)?.[1]||1);
+  return {tag,quality,index};
+ }).filter(item=>/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(item.tag)&&Number.isFinite(item.quality))
+  .sort((a,b)=>b.quality-a.quality||a.index-b.index);
+ let acceptedLocale="";
+ for(const item of candidates){try{acceptedLocale=Intl.getCanonicalLocales(item.tag)[0]||"";if(acceptedLocale)break;}catch(_){}}
+ return {country:country||null,currency:regional?.[0]||"USD",locale:regional?.[1]||acceptedLocale||"en-US",currencySource:regional?"country":"global-default"};
+}
 
 function json(data,status,origin){
     return new Response(JSON.stringify(data),{
@@ -198,7 +227,41 @@ function evaluate(node,values){
     else if(node.name==="pow")result=Math.pow(args[0],args[1]);
     if(!Number.isFinite(result))throw new Error("A generated formula produces an invalid result.");return result;
 }
-function normalizeDefinition(raw){
+function findMissingRequestedCoverage(prompt,raw){
+ const request=String(prompt||"").toLowerCase();
+ const inputs=Array.isArray(raw?.inputs)?raw.inputs:[];
+ const results=Array.isArray(raw?.results)?raw.results:[];
+ const inputText=inputs.map(item=>String(item?.label||"")+" "+String(item?.key||"")).join(" ").toLowerCase();
+ const resultText=results.map(item=>String(item?.label||"")).join(" ").toLowerCase();
+ const missing=[];
+ const periodRules=[
+  {request:/\b(?:weekly|per week|each week|every week)\b/,result:/\b(?:weekly|per week|week)\b/,label:"weekly result"},
+  {request:/\b(?:monthly|per month|each month|every month)\b/,result:/\b(?:monthly|per month|month)\b/,label:"monthly result"},
+  {request:/\b(?:yearly|annually|annual|per year|each year|every year)\b/,result:/\b(?:yearly|annual|per year|year)\b/,label:"yearly result"},
+  {request:/\b(?:daily|per day|each day|every day)\b/,result:/\b(?:daily|per day|day)\b/,label:"daily result"},
+  {request:/\b(?:quarterly|per quarter|each quarter)\b/,result:/\b(?:quarterly|per quarter|quarter)\b/,label:"quarterly result"}
+ ];
+ periodRules.forEach(rule=>{if(rule.request.test(request)&&!rule.result.test(resultText))missing.push(rule.label);});
+ const requestedInputs=[
+  {request:/\b(?:fuel consumption|fuel efficiency|consumption rate)\b/,input:/\b(?:fuel|consumption|economy)\b/,label:"fuel consumption input"},
+  {request:/\bparking\b/,input:/\bparking\b/,label:"parking input"},
+  {request:/\b(?:daily|round[- ]?trip|commuting|commute) distance\b|\bdistance\b/,input:/\b(?:distance|mileage|kilomet(?:er|re)s?|miles?)\b/,label:"distance input"},
+  {request:/\bfuel price\b/,input:/\b(?:fuel|gas|petrol|diesel).{0,12}price\b|\bprice.{0,12}(?:fuel|gas|petrol|diesel)\b/,label:"fuel-price input"}
+ ];
+ requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
+ if(/\btotal\b/.test(request)){
+  periodRules.filter(rule=>rule.request.test(request)).forEach(rule=>{
+   const hasPeriodTotal=results.some(item=>{
+    const label=String(item?.label||"").toLowerCase();
+    return rule.result.test(label)&&/\b(?:total|overall|combined)\b/.test(label);
+   });
+   if(!hasPeriodTotal)missing.push("total "+rule.label.replace(" result",""));
+  });
+ }
+ return [...new Set(missing)];
+}
+function normalizeDefinition(raw,defaultCurrency){
+    const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
     const title=String(raw?.title||"").trim().slice(0,70);
     const description=String(raw?.description||"").trim().slice(0,500);
     const category=String(raw?.category||"other").toLowerCase();
@@ -212,25 +275,49 @@ function normalizeDefinition(raw){
     const inputs=raw.inputs.map((item)=>{
         const key=String(item?.key||"").trim().toLowerCase();
         const label=String(item?.label||"").trim().slice(0,60);
-        const min=Number(item?.min),max=Number(item?.max),value=Number(item?.default);
-        const step=Number(item?.step??1);
+        let min=Number(item?.min),max=Number(item?.max),value=Number(item?.default);
+        let step=Number(item?.step??1);
+        const semantic=(label+" "+key).toLowerCase();
+        const wholeDays=/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(semantic);
+        const mustBePositive=/\b(?:distance|mileage|fuel consumption|consumption|litres? per 100|liters? per 100|hours per week|number of passengers|number of employees)\b/.test(semantic);
         if(!/^[a-z][a-z0-9_]{0,31}$/.test(key)||seen.has(key)||!label||
             !Number.isFinite(min)||!Number.isFinite(max)||!Number.isFinite(value)||
             min>value||value>max||max-min>1e12||!Number.isFinite(step)||step<=0)throw new Error("The AI generated an invalid input field.");
+        if(wholeDays){
+            if(!Number.isInteger(value)||!Number.isInteger(max)||!Number.isInteger(step)||value<1||max<value)throw new Error("The AI generated an invalid whole-day input. Use positive whole numbers for days worked or travelled.");
+            min=Math.max(1,Math.ceil(min));step=Math.max(1,Math.round(step));
+        }else if(mustBePositive&&min<=0){
+            if(value<=0)throw new Error("The AI generated a non-positive default for "+label+". Use a positive default for this input.");
+            min=Math.min(value,step);
+        }
+        if(min>value||value>max)throw new Error("The AI generated an invalid range for "+label+".");
+        const stepPosition=(value-min)/step;
+        if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)throw new Error("The default value for "+label+" does not match its input step.");
+        let unit=String(item?.unit||"").trim().slice(0,16);
+        if(!unit&&/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic))unit=currencyFallback;
         seen.add(key);
-        return {key,label,min,max,default:value,step,unit:String(item?.unit||"").trim().slice(0,16)};
+        return {key,label,min,max,default:value,step,unit};
     });
     const values=Object.fromEntries(inputs.map(item=>[item.key,item.default]));
     const results=raw.results.map((item)=>{
         const label=String(item?.label||"").trim().slice(0,70);
         const expression=String(item?.expression||"").trim().slice(0,260);
         const format=["number","currency","percent"].includes(item?.format)?item.format:"number";
-        const currency=String(item?.currency||"EUR").toUpperCase();
+        const currency=String(item?.currency||currencyFallback).toUpperCase();
         if(!label||!expression||!/^([A-Z]{3})$/.test(currency))throw new Error("The AI generated an invalid result.");
         const ast=compileExpression(expression,seen);
-        evaluate(ast,values);
-        return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
+        return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),_ast:ast};
     });
+    const scenarios=[{...values},Object.fromEntries(inputs.map(item=>[item.key,item.min])),Object.fromEntries(inputs.map(item=>[item.key,item.max]))];
+    inputs.forEach(item=>{const low={...values};low[item.key]=item.min;scenarios.push(low);const high={...values};high[item.key]=item.max;scenarios.push(high);});
+    results.forEach(item=>{
+        scenarios.forEach((sample,index)=>{
+            try{evaluate(item._ast,sample);}
+            catch(error){throw new Error("The formula for "+item.label+" fails with a default, minimum or maximum input value (test "+(index+1)+"): "+String(error?.message||"invalid result"));}
+        });
+        delete item._ast;
+    });
+    if(description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
     return {version:1,subcategories,inputs,results};
 }
 export async function onRequestOptions(context){
@@ -298,6 +385,7 @@ export async function onRequestPost(context){
         let body;
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
         const mode=body?.mode==="refine"?"refine":"create";
+        const regionalDefaults=resolveRegionalDefaults(request);
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
         if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 900 characters."},400,origin);
 
@@ -376,11 +464,22 @@ export async function onRequestPost(context){
             "Expressions may use only input keys, decimal numbers, + - * / ^, parentheses, comma, and functions min,max,abs,round,floor,ceil,sqrt,pow; constants pi and e are allowed.",
             "Do not use assignment, comparisons, strings, arrays, object syntax, property access, or any other function.",
             "For percent values, express percentages in their ordinary human scale (e.g. 5 means 5 percent) and divide by 100 in the formula.",
-            "For currency outputs, set format to currency and use a valid ISO 4217 code. If the user does not name one, use EUR.",
+            "For currency outputs, set format to currency and use a valid ISO 4217 code. If the user names a currency, use it. Otherwise use the regional suggestion "+regionalDefaults.currency+".",
+            "For monetary inputs, use the same requested or suggested currency code in unit; never silently mix currencies.",
+            "Write the title, description, input labels and result labels in the same language as the user's prompt. If the prompt language is unclear, use the primary Accept-Language language; otherwise use English. Never choose the language from country alone.",
+            "The description is required and must be at least 24 characters. Use one or two concise, informative sentences: explain what is calculated, the important assumptions or included costs, and what the results represent. Do not add marketing claims or unsupported facts.",
+            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a clearly labelled result for each requested period. Do not silently omit requested inputs or output periods.",
+            "Use positive minimums for quantities that cannot logically be zero, such as working days, commute distance and fuel consumption. Use whole-number steps for counts of days or people. Zero is acceptable for optional charges such as parking or fees.",
+            "Check every formula at default values, all-minimum values, all-maximum values, and each input's individual minimum and maximum. Avoid divisions by zero, invalid square roots, overflow and non-finite results across the entire allowed input range.",
             "Keep the title within 70 characters and description within 500 characters."
         ];
         let system;
-        let userPrompt=prompt;
+        let userPrompt=[
+            "User request:",
+            prompt,
+            "Regional presentation suggestions (not mandatory): currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+". Use an explicitly requested currency in preference to these suggestions.",
+            "Keep currency selection separate from conversion: these suggestions only affect default units and formatting."
+        ].join("\n");
         if(mode==="refine"){
             system=[
                 "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
@@ -435,7 +534,7 @@ export async function onRequestPost(context){
             return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
         }
         let definition;
-        try{definition=normalizeDefinition(parsed);}
+        try{definition=normalizeDefinition(parsed,mode==="refine"?undefined:regionalDefaults.currency);}
         catch(error){
             await refundEditQuota();
             return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
@@ -466,7 +565,7 @@ export async function onRequestPost(context){
                 return json({success:false,code:"EDIT_QUOTA_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; please refresh and try again."},503,origin);
             }
             editQuotaSettled=true;
-            return json({success:true,mode:"refine",calculator:{
+            return json({success:true,mode:"refine",regionalDefaults,calculator:{
                 title:existingCalculator.title,
                 description:existingCalculator.description||"",
                 category:existingCalculator.category,
@@ -474,7 +573,12 @@ export async function onRequestPost(context){
             }},200,origin);
         }
 
-        return json({success:true,mode:"create",calculator:{
+        const missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+        if(missingCoverage.length){
+            return json({success:false,code:"INCOMPLETE_CALCULATOR",
+                error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included."},422,origin);
+        }
+        return json({success:true,mode:"create",regionalDefaults,calculator:{
             title:String(parsed.title).trim().slice(0,70),
             description:String(parsed.description||"").trim().slice(0,500),
             category:String(parsed.category).toLowerCase(),
