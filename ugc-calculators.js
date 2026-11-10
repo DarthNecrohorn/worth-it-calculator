@@ -458,7 +458,7 @@ function validateMakerSpec(spec){
  const values={};
  inputs.forEach(item=>{
   const label=String(item.label||item.key||"input"),min=Number(item.min),max=Number(item.max),value=Number(item.default),step=Number(item.step);
-  if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<=min||step<=0){errors.push(label+": check its minimum, maximum, default and step.");return;}
+  if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<min||step<=0){errors.push(label+": check its minimum, maximum, default and step.");return;}
   const text=(label+" "+item.key).toLowerCase();
   if(/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(text)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
    errors.push(label+": use positive whole days and a step of at least 1.");
@@ -468,6 +468,8 @@ function validateMakerSpec(spec){
   }
   const stepPosition=(value-min)/step;
   if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)errors.push(label+": the default value does not match its step.");
+  const maxStepPosition=(max-min)/step;
+  if(max>min&&(!Number.isFinite(maxStepPosition)||Math.abs(maxStepPosition-Math.round(maxStepPosition))>1e-7))errors.push(label+": the maximum value does not match its step.");
   values[item.key]=value;
  });
  const keys=new Set(inputs.map(item=>item.key));
@@ -1119,7 +1121,7 @@ function updateMakerTestResults(panel){
   ?" "+formulaErrors+" result formula"+(formulaErrors===1?" needs":"s need")+" attention. Check the highlighted result"+(formulaErrors===1?".":"s.")
   :validation.errors.length
    ?"Live calculation works for these values, but boundary validation needs attention: "+validation.errors.slice(0,2).join(" ")
-   :"Results are updating automatically. Default, minimum, maximum and one-input-at-a-time boundary checks also pass.";
+   :"Results are updating automatically. Default, minimum, maximum, single-input and pairwise boundary checks also pass.";
 }
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
@@ -1136,7 +1138,7 @@ function renderMakerPreview(definition){
  const desc=document.createElement("label");desc.textContent="Description";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId);desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
- const descriptionHelp=text("p","ugc-maker-schema-summary","Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
+ const descriptionHelp=text("p","ugc-maker-schema-summary",state.editingId?"This description is preserved exactly when you improve the calculator.":"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
  const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
  selected.appendChild(text("strong","","AI-selected categories"));
