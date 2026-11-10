@@ -633,6 +633,7 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             const body=JSON.parse(options.body);
             assert.equal(body.response_format.type,"json_schema");
             assert.equal(body.response_format.json_schema.strict,true);
+            assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs and results/);
             const branches=body.response_format.json_schema.schema.properties.classification.anyOf;
             assert.ok(branches.some(item=>item.properties.category.enum[0]==="money"
                 &&item.properties.subcategory_1.enum.includes("budgeting")
