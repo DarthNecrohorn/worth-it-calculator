@@ -102,7 +102,7 @@
                 ? () => window.WorthItGuestLite?.showAccountPrompt?.()
                 : () => {
                     const balance = state?.is_owner ? "Your owner CALC access is unlimited." :
-                        "You currently have " + Number(state?.balance || 0).toFixed(1) + " CALC. CALC is used for supported calculators and successful AI replies.";
+                        "You currently have " + formatCalcBalance(state?.balance || 0) + " CALC. CALC is used for supported calculators and successful AI replies.";
                     if(typeof window.showToast === "function") window.showToast(balance + " Open Web Shop using the separate Web Shop button.");
                 };
         }
@@ -143,7 +143,7 @@
             return;
         }
 
-        const label = state.is_owner ? "∞" : Number(state.balance || 0).toFixed(1);
+        const label = state.is_owner ? "∞" : formatCalcBalance(state.balance || 0);
         const currency = state.is_guest ? "CALC Lite" : "CALC";
         value.textContent = label;
         if(unit) unit.textContent = currency;
@@ -195,6 +195,14 @@
             status.textContent = String(message || "");
             status.classList.toggle("is-error",Boolean(error));
         }
+    }
+
+    function formatCalcBalance(value){
+        const number = Number(value || 0);
+        return (Number.isFinite(number) ? number : 0).toLocaleString(undefined,{
+            minimumFractionDigits:1,
+            maximumFractionDigits:3
+        });
     }
 
     function formatHistoryAmount(value){
