@@ -104,6 +104,9 @@ test("UGC creators receive an idempotent 50% share with a 0.10 CALC minimum", ()
     assert.ok(creatorEarnings.includes("revoke all on private.worth_it_ugc_creator_earnings from public, anon, authenticated, service_role"));
     assert.ok(creatorEarnings.includes("grant execute on function public.calc_wallet_settle(uuid) to authenticated"));
     assert.ok(economy.includes('ugc_creator_earning:"UGC calculator earnings"'));
+    assert.ok(economy.includes("function formatCalcBalance(value)"));
+    assert.ok(economy.includes("formatCalcBalance(state.balance || 0)"));
+    assert.ok(economy.includes("maximumFractionDigits:3"));
     const smoke = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
     assert.ok(smoke.includes("Historical 0.60 CALC spend should backfill exactly 0.30 CALC"));
     assert.ok(smoke.includes("A 0.10 CALC use must credit exactly 0.10 once"));
