@@ -122,7 +122,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
     const candidate = structuredClone(validDefinition);
     candidate.inputs[0].unit = "";
     candidate.results[0].currency = "";
-    const req = request({ prompt: "Create a monthly savings calculator and show all monetary inputs and results in RSD." }, { token: "valid-token" });
+    const req = request({ prompt: "Create a monthly savings calculator. Use RSD for all monetary inputs and results." }, { token: "valid-token" });
     Object.defineProperty(req, "cf", { value: { country: "RS", continent: "EU" } });
     await withFetch(async (url, options) => {
         if (String(url).endsWith("/auth/v1/user")) {
