@@ -221,7 +221,9 @@ async function generateWithGroq(apiKey,system,prompt){
         throw new Error("Groq calculator generation failed ("+response.status+"): "+details.slice(0,240));
     }
     const data=await response.json();
-    const content=data?.choices?.[0]?.message?.content;
+    const choice=data?.choices?.[0];
+    if(choice?.finish_reason==="length")throw new Error("Groq calculator output reached the token limit and was truncated.");
+    const content=choice?.message?.content;
     if(typeof content!=="string"||!content.trim())throw new Error("Groq returned an empty calculator definition.");
     const generated=content.trim();
     try{
