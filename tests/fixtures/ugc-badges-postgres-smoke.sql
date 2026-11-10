@@ -2,6 +2,33 @@
 \set ON_ERROR_STOP on
 begin;
 
+-- Backfill must credit historical completed paid uses exactly once:
+-- two uses at 0.30 CALC each produce 0.30 CALC for the calculator creator.
+do $creator_earnings_backfill$
+declare
+    v_balance integer;
+    v_earned integer;
+    v_records integer;
+begin
+    select balance_milli into v_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select coalesce(sum(e.earned_milli),0),count(*)::integer
+      into v_earned,v_records
+      from private.worth_it_ugc_creator_earnings e
+      join private.worth_it_calc_transactions t
+        on t.id=e.source_transaction_id
+     where t.request_id in (
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2'
+     );
+    if v_balance<>300 or v_earned<>300 or v_records<>2 then
+        raise exception 'Historical 0.60 CALC spend should backfill exactly 0.30 CALC to the creator: balance %, earned %, records %.',
+            v_balance,v_earned,v_records;
+    end if;
+end
+$creator_earnings_backfill$;
+
 -- Keep the public ID contract deterministic across repeated disposable smoke runs.
 select setval('private.worth_it_user_calculator_number_seq'::regclass,51,false);
 
@@ -153,6 +180,12 @@ declare
     v_views integer;
     v_settle jsonb;
     v_request_id uuid := gen_random_uuid();
+    v_extra_request_one uuid := gen_random_uuid();
+    v_extra_request_two uuid := gen_random_uuid();
+    v_source_transaction_id bigint;
+    v_creator_balance integer;
+    v_creator_earned integer;
+    v_creator_earning_records integer;
     v_use_count integer;
     v_blocked boolean := false;
 begin
@@ -202,6 +235,24 @@ begin
        or v_settle->>'status' is distinct from 'completed' then
         raise exception 'A successful calculator reservation did not settle: %',v_settle;
     end if;
+
+    -- The 0.10 CALC minimum applies to a 0.10 CALC use (not 0.05).
+    select id into v_source_transaction_id
+      from private.worth_it_calc_transactions
+     where user_id='22222222-2222-4222-8222-222222222222'
+       and request_id=v_request_id;
+    select coalesce(sum(earned_milli),0),count(*)::integer
+      into v_creator_earned,v_creator_earning_records
+      from private.worth_it_ugc_creator_earnings
+     where source_transaction_id=v_source_transaction_id;
+    select balance_milli into v_creator_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    if v_creator_earned<>100 or v_creator_earning_records<>1 or v_creator_balance<>400 then
+        raise exception 'A 0.10 CALC use must credit exactly 0.10 once; earned %, records %, creator balance %.',
+            v_creator_earned,v_creator_earning_records,v_creator_balance;
+    end if;
+
     select count(*)::integer into v_use_count
       from private.worth_it_calculator_uses
      where calculator_id=current_setting('test.ugc_calculator_id')::uuid
@@ -217,6 +268,47 @@ begin
     if (v_settle->>'ok')::boolean is distinct from true or v_use_count<>1 then
         raise exception 'Retrying a settled calculation must not duplicate the use record.';
     end if;
+    select balance_milli into v_creator_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select count(*)::integer into v_creator_earning_records
+      from private.worth_it_ugc_creator_earnings
+     where source_transaction_id=v_source_transaction_id;
+    if v_creator_balance<>400 or v_creator_earning_records<>1 then
+        raise exception 'Repeating settlement duplicated the creator payout.';
+    end if;
+
+    -- A 0.30 CALC price produces a 0.15 CALC creator share.
+    insert into private.worth_it_calc_transactions(
+        user_id,kind,currency,amount_milli,balance_after_milli,status,
+        request_id,description,metadata
+    ) values
+    (
+        '22222222-2222-4222-8222-222222222222','calculator_spend','CALC',-300,600,'reserved',
+        v_extra_request_one,'Community calculator use at 0.30 CALC',
+        jsonb_build_object('reason','calculator','ugc_calculator_id',current_setting('test.ugc_calculator_id'))
+    ),
+    (
+        '22222222-2222-4222-8222-222222222222','calculator_spend','CALC',-300,300,'reserved',
+        v_extra_request_two,'Community calculator use at 0.30 CALC',
+        jsonb_build_object('reason','calculator','ugc_calculator_id',current_setting('test.ugc_calculator_id'))
+    );
+    perform public.calc_wallet_settle(v_extra_request_one);
+    perform public.calc_wallet_settle(v_extra_request_two);
+    select coalesce(sum(e.earned_milli),0),count(*)::integer
+      into v_creator_earned,v_creator_earning_records
+      from private.worth_it_ugc_creator_earnings e
+      join private.worth_it_calc_transactions t
+        on t.id=e.source_transaction_id
+     where t.request_id in (v_extra_request_one,v_extra_request_two);
+    select balance_milli into v_creator_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    if v_creator_earned<>300 or v_creator_earning_records<>2 or v_creator_balance<>700 then
+        raise exception 'Two 0.30 CALC uses must credit a total of 0.30 CALC once; earned %, records %, creator balance %.',
+            v_creator_earned,v_creator_earning_records,v_creator_balance;
+    end if;
+
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if v_detail ? 'has_used' or v_detail ? 'require_test_before_reaction' then
         raise exception 'Use records and owner policy must remain private to the member/owner.';
@@ -266,6 +358,39 @@ begin
     end if;
 end
 $viewer_check$;
+
+-- The calculator creator cannot earn from their own use.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $creator_self_use$
+declare
+    v_request uuid := gen_random_uuid();
+    v_before integer;
+    v_after integer;
+    v_earning_count integer;
+begin
+    select balance_milli into v_before from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    insert into private.worth_it_calc_transactions(
+        user_id,kind,currency,amount_milli,balance_after_milli,status,
+        request_id,description,metadata
+    ) values (
+        '11111111-1111-4111-8111-111111111111','calculator_spend','CALC',-300,0,'reserved',
+        v_request,'Creator self-use',
+        jsonb_build_object('reason','calculator','ugc_calculator_id',current_setting('test.ugc_calculator_id'))
+    );
+    perform public.calc_wallet_settle(v_request);
+    select balance_milli into v_after from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select count(*)::integer into v_earning_count
+      from private.worth_it_ugc_creator_earnings e
+      join private.worth_it_calc_transactions t on t.id=e.source_transaction_id
+     where t.request_id=v_request;
+    if v_before<>v_after or v_earning_count<>0 then
+        raise exception 'Creators must not earn from their own calculator use.';
+    end if;
+end
+$creator_self_use$;
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
 
 -- Creator and non-creator leaderboards respect periods and public-profile visibility.
 do $creator_leaderboards$
