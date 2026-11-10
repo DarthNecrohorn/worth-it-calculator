@@ -38,7 +38,7 @@ export function resolveRegionalDefaults(request){
   .sort((a,b)=>b.quality-a.quality||a.index-b.index);
  let acceptedLocale="";
  for(const item of candidates){try{acceptedLocale=Intl.getCanonicalLocales(item.tag)[0]||"";if(acceptedLocale)break;}catch(_){}}
- return {country:country||null,currency:regional?.[0]||"USD",locale:regional?.[1]||acceptedLocale||"en-US",currencySource:regional?"country":"global-default"};
+ return {country:country||null,currency:regional?.[0]||"USD",locale:acceptedLocale||regional?.[1]||"en-US",currencySource:regional?"country":"global-default"};
 }
 
 function json(data,status,origin){
@@ -265,7 +265,8 @@ function findMissingRequestedCoverage(prompt,raw){
  }
  return [...new Set(missing)];
 }
-function normalizeDefinition(raw,defaultCurrency){
+function normalizeDefinition(raw,defaultCurrency,options={}){
+    const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
     const title=String(raw?.title||"").trim().slice(0,70);
     const description=String(raw?.description||"").trim().slice(0,500);
@@ -279,6 +280,7 @@ function normalizeDefinition(raw,defaultCurrency){
     const seen=new Set();
     const inputs=raw.inputs.map((item)=>{
         const key=String(item?.key||"").trim().toLowerCase();
+        const previousInput=Array.isArray(previousSpec?.inputs)?previousSpec.inputs.find(input=>String(input?.key||"")===key):null;
         const label=String(item?.label||"").trim().slice(0,60);
         let min=Number(item?.min),max=Number(item?.max),value=Number(item?.default);
         let step=Number(item?.step??1);
@@ -298,23 +300,36 @@ function normalizeDefinition(raw,defaultCurrency){
         if(min>value||value>max)throw new Error("The AI generated an invalid range for "+label+".");
         const stepPosition=(value-min)/step;
         if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)throw new Error("The default value for "+label+" does not match its input step.");
-        let unit=String(item?.unit||"").trim().slice(0,16);
+        let unit=String(item?.unit??previousInput?.unit??"").trim().slice(0,16);
         if(!unit&&/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic))unit=currencyFallback;
         seen.add(key);
         return {key,label,min,max,default:value,step,unit};
     });
     const values=Object.fromEntries(inputs.map(item=>[item.key,item.default]));
-    const results=raw.results.map((item)=>{
+    const results=raw.results.map((item,index)=>{
         const label=String(item?.label||"").trim().slice(0,70);
         const expression=String(item?.expression||"").trim().slice(0,260);
         const format=["number","currency","percent"].includes(item?.format)?item.format:"number";
-        const currency=String(item?.currency||currencyFallback).toUpperCase();
+        const previousCurrency=Array.isArray(previousSpec?.results)?previousSpec.results[index]?.currency:"";
+        const currency=String(item?.currency||previousCurrency||currencyFallback).toUpperCase();
         if(!label||!expression||!/^([A-Z]{3})$/.test(currency))throw new Error("The AI generated an invalid result.");
         const ast=compileExpression(expression,seen);
         return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),_ast:ast};
     });
     const scenarios=[{...values},Object.fromEntries(inputs.map(item=>[item.key,item.min])),Object.fromEntries(inputs.map(item=>[item.key,item.max]))];
     inputs.forEach(item=>{const low={...values};low[item.key]=item.min;scenarios.push(low);const high={...values};high[item.key]=item.max;scenarios.push(high);});
+    for(let left=0;left<inputs.length;left++){
+        for(let right=left+1;right<inputs.length;right++){
+            for(const leftValue of [inputs[left].min,inputs[left].max]){
+                for(const rightValue of [inputs[right].min,inputs[right].max]){
+                    const pair={...values};
+                    pair[inputs[left].key]=leftValue;
+                    pair[inputs[right].key]=rightValue;
+                    scenarios.push(pair);
+                }
+            }
+        }
+    }
     results.forEach(item=>{
         scenarios.forEach((sample,index)=>{
             try{evaluate(item._ast,sample);}
@@ -322,7 +337,7 @@ function normalizeDefinition(raw,defaultCurrency){
         });
         delete item._ast;
     });
-    if(description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
+    if(options?.requireDescription!==false&&description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
     return {version:1,subcategories,inputs,results};
 }
 export async function onRequestOptions(context){
@@ -493,6 +508,7 @@ export async function onRequestPost(context){
                 "Preserve the exact number, order and labels of all result rows. Improve only input labels, sensible bounds/defaults/steps/units and the formula expressions where useful.",
                 "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
                 "Keep all assumptions explicit and do not invent factual prices, interest rates, tariffs or current market values.",
+                "When improving an existing calculator, preserve its existing currency codes and monetary input units unless the user explicitly requests a currency or unit change.",
                 ...commonRules
             ].join(" ");
             userPrompt=[
@@ -539,7 +555,7 @@ export async function onRequestPost(context){
             return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
         }
         let definition;
-        try{definition=normalizeDefinition(parsed,mode==="refine"?undefined:regionalDefaults.currency);}
+        try{definition=normalizeDefinition(parsed,regionalDefaults.currency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine"});}
         catch(error){
             await refundEditQuota();
             return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
