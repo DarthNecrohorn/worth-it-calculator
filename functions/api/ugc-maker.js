@@ -339,6 +339,14 @@ function evaluate(node,values){
     else if(node.name==="pow")result=Math.pow(args[0],args[1]);
     if(!Number.isFinite(result))throw new Error("A generated formula produces an invalid result.");return result;
 }
+function extractRequestedResultItems(prompt){
+ const match=String(prompt||"").match(/\bresults?\s*:\s*([\s\S]*?)(?=\r?\n\s*\r?\n|\r?\n\s*(?:use|formulas?|assumptions?|notes?|requirements?)\b|$)/i);
+ if(!match)return [];
+ return match[1].split(/\r?\n|;/)
+  .map(item=>item.replace(/^\s*(?:[-*•]|\d+[.)])\s*/,"").replace(/[.!?]+$/,"").trim())
+  .filter(item=>item.length>=3&&item.length<=160)
+  .slice(0,12);
+}
 function findMissingRequestedCoverage(prompt,raw){
  const request=String(prompt||"").toLowerCase();
  const inputs=Array.isArray(raw?.inputs)?raw.inputs:[];
@@ -368,20 +376,23 @@ function findMissingRequestedCoverage(prompt,raw){
  ];
  requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
  // A global "total" request must not turn an average weekly figure into a required weekly total.
- const sharedTotalPeriodList=/\btotal\s+(?:(?:weekly|monthly|yearly|annual|annually|daily|quarterly)[,\s]+)+(?:and\s+)?(?:costs?|expenses?|results?|figures?|amounts?)\b/.test(request);
+ const requestClauses=request
+  .split(/(?:\r?\n|;|(?<=[.!?])\s+)/)
+  .map(clause=>clause.replace(/^\s*(?:[-*•]|\d+[.)])\s*/,"").trim())
+  .filter(Boolean);
  if(explicitPeriodOutput){
   const totalPeriodAliases={
-   "weekly result":/(?:weekly|per week|each week|every week)/,
-   "monthly result":/(?:monthly|per month|each month|every month)/,
-   "yearly result":/(?:yearly|annual|annually|per year|each year|every year)/,
-   "daily result":/(?:daily|per day|each day|every day)/,
-   "quarterly result":/(?:quarterly|per quarter|each quarter)/
+   "weekly result":/\b(?:weekly|per week|each week|every week)\b/,
+   "monthly result":/\b(?:monthly|per month|each month|every month)\b/,
+   "yearly result":/\b(?:yearly|annual|annually|per year|each year|every year)\b/,
+   "daily result":/\b(?:daily|per day|each day|every day)\b/,
+   "quarterly result":/\b(?:quarterly|per quarter|each quarter)\b/
   };
   periodRules.filter(rule=>rule.request.test(request)).forEach(rule=>{
    const period=totalPeriodAliases[rule.label];
-   const escapedPeriod=period.source;
-   const explicitlyRequestsTotal=sharedTotalPeriodList||
-    new RegExp("\\btotal\\b.{0,40}\\b"+escapedPeriod+"\\b|\\b"+escapedPeriod+"\\b.{0,40}\\btotal\\b").test(request);
+   const explicitlyRequestsTotal=requestClauses.some(clause=>
+    /\b(?:total|overall|combined)\b/.test(clause)&&period.test(clause)
+   );
    if(!explicitlyRequestsTotal)return;
    const hasPeriodTotal=results.some(item=>{
     const label=String(item?.label||"").toLowerCase();
@@ -389,7 +400,7 @@ function findMissingRequestedCoverage(prompt,raw){
    });
    if(!hasPeriodTotal)missing.push("total "+rule.label.replace(" result",""));
   });
- }
+ }}
  return [...new Set(missing)];
 }
 function normalizeDefinition(raw,defaultCurrency,options={}){
@@ -662,11 +673,12 @@ export async function onRequestPost(context){
             "For monetary inputs, use the same requested or suggested currency code in unit; never silently mix currencies.",
             "Write the title, description, input labels and result labels in the same language as the user's prompt. If the prompt language is unclear, use the primary Accept-Language language; otherwise use English. Never choose the language from country alone.",
             "For a new calculator, the description must be 24 to 500 characters and use one or two concise, informative sentences: explain what is calculated, the important assumptions or included costs, and what the results represent. During refinement, preserve the existing description exactly, even if it is shorter. Do not add marketing claims or unsupported facts.",
-            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a separate clearly labelled result row for each requested period. When the user requests a total for a period, its result label must also contain the word total. Do not treat a monthly or annual figure as a substitute for a separately requested weekly or yearly result. Do not silently omit requested inputs or output periods.",
+            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a separate clearly labelled result row for each requested period. Apply the word total only to the specific period/output item where the user requested a total; never infer a total weekly result from a separate total monthly or total yearly request. An average weekly result is not a total weekly result. Do not treat a monthly or annual figure as a substitute for a separately requested weekly or yearly result. Do not silently omit requested inputs or output periods.",
             "Use positive minimums for quantities that cannot logically be zero, such as working days, commute distance and fuel consumption. Use whole-number steps for counts of days or people. Zero is acceptable for optional charges such as parking or fees.",
             "Check every formula at default values, all-minimum values, all-maximum values, and each input's individual minimum and maximum. Avoid divisions by zero, invalid square roots, overflow and non-finite results across the entire allowed input range.",
             "Keep the title within 70 characters and description within 500 characters."
         ];
+        const requestedResultItems=extractRequestedResultItems(prompt);
         let system;
         let userPrompt=[
             "User request:",
@@ -674,7 +686,9 @@ export async function onRequestPost(context){
             "Regional presentation suggestions (not mandatory): currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+". Use an explicitly requested currency in preference to these suggestions.",
             "Explicitly requested currencies: "+(requestedCurrencies.length?requestedCurrencies.join(", "):"none detected")+". If exactly one is specified, it overrides regional suggestions for all monetary inputs and outputs. If multiple currencies are explicitly requested, preserve the requested multi-currency comparison.",
             "Keep currency selection separate from conversion: these suggestions only affect default units and formatting."
-        ].join("\n");
+        ].join("\n") + (requestedResultItems.length
+            ? "\n\nExplicit result checklist from the user's Results section. Every listed item requires its own separate result row; do not invent extra rows:\n- " + requestedResultItems.join("\n- ")
+            : "");
         if(mode==="refine"){
             system=[
                 "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
