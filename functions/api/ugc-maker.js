@@ -238,14 +238,14 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\b(?:weekly|per week|each week|every week)\b/,result:/\b(?:weekly|per week|week)\b/,label:"weekly result"},
   {request:/\b(?:monthly|per month|each month|every month)\b/,result:/\b(?:monthly|per month|month)\b/,label:"monthly result"},
   {request:/\b(?:yearly|annually|annual|per year|each year|every year)\b/,result:/\b(?:yearly|annual|per year|year)\b/,label:"yearly result"},
-  {request:/\b(?:daily|per day|each day|every day)\b/,result:/\b(?:daily|per day|day)\b/,label:"daily result"},
+  {request:/\b(?:per day|each day|every day|daily total|daily expenses?|daily results?|daily cost)\b/,result:/\b(?:daily|per day|day)\b/,label:"daily result"},
   {request:/\b(?:quarterly|per quarter|each quarter)\b/,result:/\b(?:quarterly|per quarter|quarter)\b/,label:"quarterly result"}
  ];
  const requestedPeriodCount=periodRules.filter(rule=>rule.request.test(request)).length;
  const explicitPeriodOutput=
-  /\\b(?:calculate|show|display|estimate|report|provide|include|break down|work out)\\b/.test(request)||
-  /\\b(?:weekly|monthly|yearly|annual|annually|daily|quarterly)\\s+(?:costs?|expenses?|results?|totals?|figures?|amounts?|breakdown)\\b/.test(request)||
-  requestedPeriodCount>=2&&/\\b(?:costs?|expenses?|results?|totals?|figures?|amounts?)\\b/.test(request);
+  /\b(?:calculate|show|display|estimate|report|provide|include|break down|work out)\b/.test(request)||
+  /\b(?:weekly|monthly|yearly|annual|annually|daily|quarterly)\s+(?:costs?|expenses?|results?|totals?|figures?|amounts?|breakdown)\b/.test(request)||
+  requestedPeriodCount>=2&&/\b(?:costs?|expenses?|results?|totals?|figures?|amounts?)\b/.test(request);
  if(explicitPeriodOutput)periodRules.forEach(rule=>{if(rule.request.test(request)&&!rule.result.test(resultText))missing.push(rule.label);});
  const requestedInputs=[
   {request:/\b(?:fuel consumption|fuel efficiency|consumption rate)\b/,input:/\b(?:fuel|consumption|economy)\b/,label:"fuel consumption input"},
@@ -254,7 +254,7 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\bfuel price\b/,input:/\b(?:fuel|gas|petrol|diesel).{0,12}price\b|\bprice.{0,12}(?:fuel|gas|petrol|diesel)\b/,label:"fuel-price input"}
  ];
  requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
- if(/\btotal\b/.test(request)){
+ if(explicitPeriodOutput&&/\btotal\b/.test(request)){
   periodRules.filter(rule=>rule.request.test(request)).forEach(rule=>{
    const hasPeriodTotal=results.some(item=>{
     const label=String(item?.label||"").toLowerCase();
