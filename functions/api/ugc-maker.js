@@ -697,7 +697,6 @@ export async function onRequestPost(context){
 
         let content="";
         let contentProvider="";
-        let groqFallbackAttempted=false;
         if(geminiKey){
             try{
                 content=await generateWithGemini(geminiKey,system,userPrompt);
@@ -720,8 +719,6 @@ export async function onRequestPost(context){
                 :"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used.";
             return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error},503,origin);
         }
-        if(contentProvider==="groq")groqFallbackAttempted=true;
-
         let parsed;
         let definition;
         let validationError=null;
@@ -742,7 +739,6 @@ export async function onRequestPost(context){
         // Retry a rejected Gemini draft with Groq's category-specific strict schema once,
         // keeping the same Maker reservation for this generation request.
         if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
-            groqFallbackAttempted=true;
             console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
             try{
                 content=await generateWithGroq(groqKey,system,userPrompt);
@@ -801,31 +797,48 @@ export async function onRequestPost(context){
         }
 
         let missingCoverage=findMissingRequestedCoverage(prompt,parsed);
-        if(missingCoverage.length&&mode==="create"&&groqKey&&!groqFallbackAttempted){
-            groqFallbackAttempted=true;
-            console.warn("Gemini UGC calculator omitted requested coverage; trying targeted Groq regeneration:",missingCoverage);
+        // A first Groq response may itself be the Gemini fallback. If it is valid but
+        // incomplete, allow one additional, targeted Groq repair call. This is the
+        // only extra provider call and is made only when explicit requested coverage
+        // is missing; the original valid draft is retained if repair fails.
+        if(missingCoverage.length&&mode==="create"&&groqKey){
+            const missingBeforeRepair=[...missingCoverage];
+            console.warn("UGC calculator omitted requested coverage; trying one targeted Groq regeneration:",{
+                missingCoverage:missingBeforeRepair,
+                initialProvider:contentProvider
+            });
             try{
                 const coverageRepairPrompt=[
                     "Original user request:",
                     prompt,
                     "",
                     "The previous draft was rejected because it omitted these explicitly requested items:",
-                    ...missingCoverage.map(item=>"- "+item),
+                    ...missingBeforeRepair.map(item=>"- "+item),
                     "",
                     "Generate a complete replacement calculator definition. Do not merely explain the missing items.",
-                    "Add a real result row with a valid formula for every missing output period. Result labels must clearly contain the requested period (for example, Weekly total and Yearly total).",
-                    "When a period total is requested, include the word total in that result label.",
-                    "Keep all original requested inputs, assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
+                    "The replacement MUST contain a separate result row for EVERY missing item listed above.",
+                    "For weekly result, add a real formula row whose label contains Weekly or per week.",
+                    "For yearly result, add a real formula row whose label contains Yearly, Annual or per year.",
+                    "For total weekly, the matching weekly row label MUST contain the word total.",
+                    "For total yearly, the matching yearly row label MUST contain the word total.",
+                    "Use the original inputs and their keys. Do not invent new inputs unless absolutely required by the requested calculation.",
+                    "Keep all original requested assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
                 ].join("\n");
-                content=await generateWithGroq(groqKey,system,coverageRepairPrompt);
-                contentProvider="groq";
-                const validated=parseAndValidate(content);
-                parsed=validated.candidate;
-                definition=validated.normalized;
-                missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+                const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt);
+                const repaired= parseAndValidate(repairedContent);
+                const repairedMissing=findMissingRequestedCoverage(prompt,repaired.candidate);
+                if(repairedMissing.length){
+                    missingCoverage=repairedMissing;
+                    console.warn("Groq UGC coverage repair remained incomplete:",repairedMissing);
+                }else{
+                    content=repairedContent;
+                    contentProvider="groq";
+                    parsed=repaired.candidate;
+                    definition=repaired.normalized;
+                    missingCoverage=[];
+                }
             }catch(error){
-                validationError=error;
-                console.error("Groq UGC calculator coverage fallback failed:",error);
+                console.error("Groq UGC calculator coverage repair failed; retaining the original incomplete draft:",error);
             }
         }
         if(validationError){
