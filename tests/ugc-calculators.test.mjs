@@ -67,7 +67,7 @@ function withFetch(mock, callback) {
 
 test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters", async () => {
     assert.match(html, /id="ugcMakerPrompt"[^>]*maxlength="1000"/);
-    assert.match(maker, /prompt\\.length<10\\|\\|prompt\\.length>1000/);
+    assert.ok(maker.includes("if(prompt.length<10||prompt.length>1000)"));
     assert.match(makerApi, /const MAX_PROMPT_CHARS = 1000;/);
     assert.match(makerApi, /10 to 1000 characters/);
 
