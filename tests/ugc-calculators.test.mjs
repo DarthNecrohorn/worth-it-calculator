@@ -120,7 +120,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
     assert.equal(resolveExplicitCurrency("Use euros for every result."), "EUR");
     assert.equal(resolveExplicitCurrency("Use U.S. dollars for every result."), "USD");
     assert.equal(resolveExplicitCurrency("Try this calculator."), null, "ordinary English try must not be mistaken for Turkish lira");
-    assert.deepEqual(resolveExplicitCurrencies("Compare USD and EUR using an exchange rate."), ["USD","EUR"]);
+    assert.deepEqual(resolveExplicitCurrencies("Compare USD and EUR using an exchange rate."), ["EUR","USD"]);
     assert.equal(resolveExplicitCurrency("Compare USD and EUR using an exchange rate."), null);
     const candidate = structuredClone(validDefinition);
     candidate.inputs[0].unit = "USD";
