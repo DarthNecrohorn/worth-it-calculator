@@ -76,6 +76,8 @@ test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria 
     assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("DE", "de-DE")).currency, "EUR");
     assert.equal(resolveRegionalDefaults(requestFor("BG", "bg-BG")).currency, "EUR");
+    assert.equal(resolveRegionalDefaults({ cf: { country: "RO", continent: "EU" }, headers: new Headers() }).currency, "EUR");
+    assert.equal(resolveRegionalDefaults({ cf: { country: "EG", continent: "AF" }, headers: new Headers() }).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).locale, "en-GB");
 });
