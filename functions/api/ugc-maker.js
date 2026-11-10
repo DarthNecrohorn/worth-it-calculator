@@ -367,8 +367,21 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\bfuel price\b/,input:/\b(?:fuel|gas|petrol|diesel).{0,12}price\b|\bprice.{0,12}(?:fuel|gas|petrol|diesel)\b/,label:"fuel-price input"}
  ];
  requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
- if(explicitPeriodOutput&&/\btotal\b/.test(request)){
+ const sharedTotalPeriodList=/\btotal\s+(?:(?:weekly|monthly|yearly|annual|annually|daily|quarterly)[,\s]+)+(?:and\s+)?(?:costs?|expenses?|results?|figures?|amounts?)\b/.test(request);
+ if(explicitPeriodOutput){
+  const totalPeriodAliases={
+   "weekly result":/(?:weekly|per week|each week|every week)/,
+   "monthly result":/(?:monthly|per month|each month|every month)/,
+   "yearly result":/(?:yearly|annual|annually|per year|each year|every year)/,
+   "daily result":/(?:daily|per day|each day|every day)/,
+   "quarterly result":/(?:quarterly|per quarter|each quarter)/
+  };
   periodRules.filter(rule=>rule.request.test(request)).forEach(rule=>{
+   const period=totalPeriodAliases[rule.label];
+   const escapedPeriod=period.source;
+   const explicitlyRequestsTotal=sharedTotalPeriodList||
+    new RegExp("\\btotal\\b.{0,40}\\b"+escapedPeriod+"\\b|\\b"+escapedPeriod+"\\b.{0,40}\\btotal\\b").test(request);
+   if(!explicitlyRequestsTotal)return;
    const hasPeriodTotal=results.some(item=>{
     const label=String(item?.label||"").toLowerCase();
     return rule.result.test(label)&&/\b(?:total|overall|combined)\b/.test(label);
@@ -690,7 +703,7 @@ export async function onRequestPost(context){
             system=[
                 "You design new calculator definitions for the Worth It website.",
                 "Create a useful calculator that directly matches the user's described decision or calculation.",
-                "Create 2 to 8 useful number inputs where possible (minimum 1, maximum 12), and 1 to 4 result rows (maximum 6).",
+                "Create 2 to 8 useful number inputs where possible (minimum 1, maximum 12). Include a separate result row for every output explicitly requested by the user; do not omit or combine requested results to fit a preferred row count. Support 1 to 6 result rows.",
                 ...commonRules
             ].join(" ");
         }
