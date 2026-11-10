@@ -12,7 +12,7 @@ declare
 begin
     select balance_milli into v_balance
       from private.worth_it_calc_wallets
-     where user_id='11111111-1111-4111-8111-111111111111';
+     where user_id='77777777-7777-4777-8777-777777777771';
     select coalesce(sum(e.earned_milli),0),count(*)::integer
       into v_earned,v_records
       from private.worth_it_ugc_creator_earnings e
