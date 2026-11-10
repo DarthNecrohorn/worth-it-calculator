@@ -118,6 +118,8 @@ test("AI Maker uses regional currency only as an editable default and never stor
 test("an explicit prompt currency overrides the EUR or USD regional suggestion", async () => {
     assert.equal(resolveExplicitCurrency("Show all amounts in RSD."), "RSD");
     assert.equal(resolveExplicitCurrency("Use euros for every result."), "EUR");
+    assert.equal(resolveExplicitCurrency("Use U.S. dollars for every result."), "USD");
+    assert.equal(resolveExplicitCurrency("Try this calculator."), null, "ordinary English try must not be mistaken for Turkish lira");
     assert.equal(resolveExplicitCurrency("Compare USD and EUR using an exchange rate."), null);
     const candidate = structuredClone(validDefinition);
     candidate.inputs[0].unit = "";
