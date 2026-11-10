@@ -19,27 +19,19 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
             title: { type: "string" },
             description: { type: "string" },
             classification: {
-                anyOf: Object.entries(ALLOWED_SUBCATEGORIES).map(([category,subcategories])=>({
-                    type: "object",
-                    properties: {
-                        category: { type: "string", enum: [category] },
-                        subcategory_1: { type: "string", enum: [...subcategories] },
-                        subcategory_2: {
-                            anyOf: [
-                                { type: "string", enum: [...subcategories] },
-                                { type: "null" }
-                            ]
-                        },
-                        subcategory_3: {
-                            anyOf: [
-                                { type: "string", enum: [...subcategories] },
-                                { type: "null" }
-                            ]
+                type: "object",
+                properties: {
+                    category: { type: "string", enum: [...ALLOWED_CATEGORIES] },
+                    subcategories: {
+                        type: "array",
+                        items: {
+                            type: "string",
+                            enum: [...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]
                         }
-                    },
-                    required: ["category","subcategory_1","subcategory_2","subcategory_3"],
-                    additionalProperties: false
-                }))
+                    }
+                },
+                required: ["category","subcategories"],
+                additionalProperties: false
             },
             inputs: {
                 type: "array",
@@ -205,8 +197,8 @@ async function generateWithGroq(apiKey,system,prompt){
         system,
         "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs and results. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
         "Put the primary category and its subcategories together inside the root field named classification.",
-        "The classification object must contain category, subcategory_1, subcategory_2 and subcategory_3. subcategory_1 is mandatory and must be one valid ID from the chosen category. Use null for each unused optional subcategory_2 or subcategory_3 field.",
-        "Never use an empty subcategory_1, never mix categories, and never put category or subcategory fields at the root level.",
+        "The classification object must contain exactly category and subcategories. category must be one of cars, money, technology, home or other. subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only.",
+        "Never use an empty subcategories array, never mix subcategories from different categories, and never put category or subcategory fields at the root level.",
         "Keep title, description, inputs and results as root fields. The server converts classification into the calculator's saved category fields."
     ].join(" ");
     const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
