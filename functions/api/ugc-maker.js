@@ -375,7 +375,7 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\bfuel price\b/,input:/\b(?:fuel|gas|petrol|diesel).{0,12}price\b|\bprice.{0,12}(?:fuel|gas|petrol|diesel)\b/,label:"fuel-price input"}
  ];
  requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
- // A global "total" request must not turn an average weekly figure into a required weekly total.
+ // Keep total coverage scoped to the same requested output clause; an average weekly figure is not a weekly total.
  const requestClauses=request
   .split(/(?:\r?\n|;|(?<=[.!?])\s+)/)
   .map(clause=>clause.replace(/^\s*(?:[-*•]|\d+[.)])\s*/,"").trim())
@@ -400,7 +400,7 @@ function findMissingRequestedCoverage(prompt,raw){
    });
    if(!hasPeriodTotal)missing.push("total "+rule.label.replace(" result",""));
   });
- }}
+ }
  return [...new Set(missing)];
 }
 function normalizeDefinition(raw,defaultCurrency,options={}){
