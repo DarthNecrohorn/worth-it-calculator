@@ -321,6 +321,7 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-badges-postgres-setup.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER TABLE private.worth_it_user_calculators ADD COLUMN IF NOT EXISTS usage_price_milli integer NOT NULL DEFAULT 100 CHECK (usage_price_milli BETWEEN 100 AND 500);"
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-enhancements.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-enhancements.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-security-hardening.sql
