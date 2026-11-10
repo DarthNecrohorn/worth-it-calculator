@@ -11,6 +11,8 @@ const sql = read("supabase/calc-economy.sql");
 const themeGate = read("supabase/worth-it-community-theme-premium-gate.sql");
 const economyFollowup = read("supabase/calc-economy-followup.sql");
 const creatorEarnings = read("supabase/worth-it-ugc-creator-earnings.sql");
+const creatorPriceCap = read("supabase/worth-it-ugc-creator-earnings-price-cap.sql");
+const ugc = read("ugc-calculators.js");
 const ai = read("functions/api/ai-chat.js");
 const mediaApi = read("functions/api/chat-media.js");
 const chat = read("chat-ui.js");
@@ -113,6 +115,21 @@ test("UGC creators receive an idempotent 50% share with a 0.10 CALC minimum", ()
     assert.ok(smoke.includes("A 0.10 CALC use must credit exactly 0.10 once"));
     assert.ok(smoke.includes("Two 0.30 CALC uses must credit a total of 0.30 CALC"));
     assert.ok(smoke.includes("Creators must not earn from their own calculator use"));
+});
+
+test("UGC creator earnings respect the owner-selected 0.10–0.50 CALC price range", () => {
+    assert.ok(creatorPriceCap.includes("v_charged_milli not between 100 and 500"));
+    assert.ok(creatorPriceCap.includes("(v_charged_milli % 10) <> 0"));
+    assert.ok(creatorPriceCap.includes("greatest(100, v_charged_milli / 2)"));
+    assert.ok(ugc.includes("value>0.5"));
+    assert.ok(ugc.includes("priceMilli%10!==0"));
+    assert.ok(ugc.includes("Choose a price from 0.10 to 0.50 CALC in 0.01 increments."));
+    assert.ok(ugc.includes("p_price_milli:priceMilli"));
+    const smoke = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
+    assert.ok(smoke.includes("set_worth_it_ugc_usage_price"));
+    assert.ok(smoke.includes("usage_price_milli')::integer<>500"));
+    assert.ok(smoke.includes("maximum 0.50 CALC use must pay its creator exactly 0.25 CALC"));
+    assert.ok(smoke.includes("creator balance %",));
 });
 
 test("the ordinary Basic/Advanced/Scientific calculator stays free", () => {
