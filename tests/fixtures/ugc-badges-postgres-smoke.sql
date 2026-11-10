@@ -129,6 +129,9 @@ begin
     if (v_detail->>'is_owner')::boolean is distinct from true then
         raise exception 'The calculator owner cannot open their own published calculator.';
     end if;
+    if (v_detail->>'require_test_before_reaction')::boolean is distinct from true then
+        raise exception 'The calculator owner must see the default-enabled rating setting.';
+    end if;
     v_view:=public.record_worth_it_ugc_view(current_setting('test.ugc_calculator_id')::uuid);
     if (v_view->>'counted')::boolean is distinct from false then
         raise exception 'The calculator owner must not count as a view.';
@@ -162,9 +165,8 @@ begin
         raise exception 'Published UGC calculator is missing from the latest catalogue.';
     end if;
 
-    if (v_detail->>'require_test_before_reaction')::boolean is distinct from true
-       or (v_detail->>'has_used')::boolean is distinct from false then
-        raise exception 'The one-use-before-rating policy must default to on for a new calculator.';
+    if v_detail ? 'require_test_before_reaction' or v_detail ? 'has_used' then
+        raise exception 'Non-owners must not receive the owner rating setting or usage marker.';
     end if;
 
     begin
@@ -216,8 +218,8 @@ begin
         raise exception 'Retrying a settled calculation must not duplicate the use record.';
     end if;
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
-    if (v_detail->>'has_used')::boolean is distinct from true then
-        raise exception 'A member who completed a calculation is not recognized as having used it.';
+    if v_detail ? 'has_used' or v_detail ? 'require_test_before_reaction' then
+        raise exception 'Use records and owner policy must remain private to the member/owner.';
     end if;
 
     v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
@@ -342,9 +344,8 @@ declare
     reaction jsonb;
 begin
     detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
-    if (detail->>'has_used')::boolean is distinct from false
-       or (detail->>'require_test_before_reaction')::boolean is distinct from false then
-        raise exception 'The member or disabled policy state was reported incorrectly: %',detail;
+    if detail ? 'has_used' or detail ? 'require_test_before_reaction' then
+        raise exception 'The disabled owner rating setting must remain private to non-owners.';
     end if;
     reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
     if reaction->>'reaction' is distinct from 'like' then
