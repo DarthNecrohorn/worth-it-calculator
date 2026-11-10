@@ -248,7 +248,7 @@ begin
     select balance_milli into v_creator_balance
       from private.worth_it_calc_wallets
      where user_id='11111111-1111-4111-8111-111111111111';
-    if v_creator_earned<>100 or v_creator_earning_records<>1 or v_creator_balance<>400 then
+    if v_creator_earned<>100 or v_creator_earning_records<>1 or v_creator_balance<>100 then
         raise exception 'A 0.10 CALC use must credit exactly 0.10 once; earned %, records %, creator balance %.',
             v_creator_earned,v_creator_earning_records,v_creator_balance;
     end if;
@@ -274,7 +274,7 @@ begin
     select count(*)::integer into v_creator_earning_records
       from private.worth_it_ugc_creator_earnings
      where source_transaction_id=v_source_transaction_id;
-    if v_creator_balance<>400 or v_creator_earning_records<>1 then
+    if v_creator_balance<>100 or v_creator_earning_records<>1 then
         raise exception 'Repeating settlement duplicated the creator payout.';
     end if;
 
@@ -304,7 +304,7 @@ begin
     select balance_milli into v_creator_balance
       from private.worth_it_calc_wallets
      where user_id='11111111-1111-4111-8111-111111111111';
-    if v_creator_earned<>300 or v_creator_earning_records<>2 or v_creator_balance<>700 then
+    if v_creator_earned<>300 or v_creator_earning_records<>2 or v_creator_balance<>400 then
         raise exception 'Two 0.30 CALC uses must credit a total of 0.30 CALC once; earned %, records %, creator balance %.',
             v_creator_earned,v_creator_earning_records,v_creator_balance;
     end if;
