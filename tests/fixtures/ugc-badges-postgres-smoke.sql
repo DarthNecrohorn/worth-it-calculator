@@ -1324,13 +1324,13 @@ begin
         raise exception 'Repeating a reservation ID must not increment the Maker counter twice: %',v_duplicate;
     end if;
 
-    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
     v_cross_account := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
     if v_cross_account->>'ok' <> 'false' or v_cross_account->>'code' <> 'RESERVATION_NOT_FOUND' then
         raise exception 'One account must not refund another account Maker reservation: %',v_cross_account;
     end if;
 
-    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    perform set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
     v_refunded := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
     if v_refunded->>'ok' <> 'true' or v_refunded->>'refunded' <> 'true'
        or (v_refunded->>'requests_used')::integer <> 0 then
@@ -1360,7 +1360,7 @@ begin
       from private.worth_it_ugc_maker_daily_usage
      where user_id='11111111-1111-4111-8111-111111111111'
        and usage_date=(now() at time zone 'UTC')::date;
-    if v_used <> 1 then
+    if v_used is distinct from 1 then
         raise exception 'Only the successful Maker generation should remain counted, got %.',v_used;
     end if;
 
