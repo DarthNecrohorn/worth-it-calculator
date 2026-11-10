@@ -24,7 +24,7 @@ function validSupabaseUrl(value) {
     try {
         const url = new URL(value);
         return url.protocol === "https:" &&
-            /^[a-z0-9-]+\\.supabase\\.co$/i.test(url.hostname) &&
+            /^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) &&
             url.pathname === "/" &&
             !url.username &&
             !url.password &&
@@ -62,7 +62,7 @@ export async function onRequestGet({ request, env }) {
     } else {
         // Production (including a future custom production domain) uses its
         // separately configured Cloudflare Production environment variables.
-        supabaseUrl = String(env?.SUPABASE_URL || "").trim().replace(/\\/+$/, "");
+        supabaseUrl = String(env?.SUPABASE_URL || "").trim().replace(/\/+$/, "");
         publishableKey = String(env?.SUPABASE_PUBLISHABLE_KEY || "").trim();
     }
 
@@ -76,7 +76,7 @@ export async function onRequestGet({ request, env }) {
     const publicConfig = JSON.stringify({
         url: supabaseUrl,
         publishableKey
-    }).replace(/</g, "\\\\u003c").replace(/\\u2028/g, "\\\\u2028").replace(/\\u2029/g, "\\\\u2029");
+    }).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 
     return jsonScript(
         "window.WORTH_IT_SUPABASE_CONFIG = Object.freeze(" + publicConfig + ");"
