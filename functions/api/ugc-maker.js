@@ -26,7 +26,7 @@ const COUNTRY_DEFAULTS = {
 };
 const EXPLICIT_CURRENCY_RULES=[
  ["EUR",/\b(?:eur|euros?)\b/i],
- ["USD",/\b(?:usd|us dollars?|u\\.?s\\.? dollars?|american dollars?)\b/i],
+ ["USD",/\b(?:usd|us dollars?|u\.?s\.? dollars?|american dollars?)\b/i],
  ["GBP",/\b(?:gbp|pounds? sterling|british pounds?)\b/i],
  ["RSD",/\b(?:rsd|serbian dinars?)\b/i],
  ["CHF",/\b(?:chf|swiss francs?)\b/i],
