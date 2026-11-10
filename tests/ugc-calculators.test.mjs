@@ -669,6 +669,7 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
     },quotaEvents);
 });
 
+// Covers the path where Gemini is unavailable and Groq first returns a valid but incomplete draft.
 test("AI Maker runs one targeted Groq coverage repair when Groq is already the Gemini fallback", async () => {
     const quotaEvents={refunds:0,settlements:0};
     const requested=[];
