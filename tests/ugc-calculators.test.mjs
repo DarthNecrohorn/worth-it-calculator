@@ -27,6 +27,7 @@ const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
 const profileCardsSql = read("supabase/worth-it-ugc-profile-cards.sql");
+const reactionPolicySql = read("supabase/worth-it-ugc-reaction-policy.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -687,6 +688,27 @@ test("UGC detail page exposes owner pricing, favourites, and only valid public r
 });
 
 
+test("UGC rating policy is owner-only, defaults on, and requires a completed calculator use", () => {
+    assert.ok(html.includes('id="ugcDetailReactionPolicy"'));
+    assert.match(html, /id="ugcDetailRequireTestBeforeReaction" checked/);
+    assert.ok(html.includes('id="ugcDetailReactionPolicyStatus"'));
+    assert.ok(html.includes('id="ugcDetailReactionNote"'));
+    assert.match(maker, /policy\\.hidden=!isOwner/);
+    assert.match(maker, /policyInput\\.checked=calculator\\.require_test_before_reaction!==false/);
+    assert.match(maker, /set_worth_it_ugc_reaction_policy/);
+    assert.match(maker, /You must complete one calculation before you can like or dislike this calculator/);
+    assert.match(maker, /calculator\\.has_used=true/);
+    assert.match(reactionPolicySql, /require_test_before_reaction boolean not null default true/);
+    assert.match(reactionPolicySql, /create table if not exists private\\.worth_it_calculator_uses/);
+    assert.match(reactionPolicySql, /t\\.status = 'completed'/);
+    assert.match(reactionPolicySql, /private\\.worth_it_calculator_uses/);
+    assert.match(reactionPolicySql, /set_worth_it_ugc_reaction_policy/);
+    assert.match(reactionPolicySql, /You must complete one calculation before you can like or dislike this calculator/);
+    assert.match(reactionPolicySql, /create or replace function public\\.calc_wallet_settle/);
+    assert.match(reactionPolicySql, /t\\.metadata/);
+    assert.match(workflow, /supabase\\/worth-it-ugc-reaction-policy\\.sql/);
+});
+
 test("square UGC cards use responsive columns and explain creator reaction limits", () => {
     assert.ok(paginationCss.includes(".ugc-calculator-grid{"));
     assert.ok(paginationCss.includes("grid-template-columns:repeat(auto-fit,minmax"));
@@ -708,10 +730,10 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
 
 test("UGC detail like and dislike buttons have larger desktop and mobile tap targets", () => {
     const desktop = paginationCss.slice(paginationCss.indexOf(".ugc-detail-reaction-button{"), paginationCss.indexOf(".ugc-detail-reaction-button{") + 360);
-    assert.match(desktop, /min-width:128px/);
-    assert.match(desktop, /min-height:40px/);
-    assert.match(desktop, /font-size:13px/);
-    assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-detail-reaction-button\{\s*min-width:96px;\s*min-height:36px;\s*padding:7px 9px;\s*font-size:11px;/);
+    assert.match(desktop, /min-width:136px/);
+    assert.match(desktop, /min-height:44px/);
+    assert.match(desktop, /font-size:14px/);
+    assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-detail-reaction-button\{\s*min-width:104px;\s*min-height:38px;\s*padding:7px 10px;\s*font-size:11.5px;/);
 });
 
 test("UGC detail favourite stays top-right and reactions align with author and categories", () => {
