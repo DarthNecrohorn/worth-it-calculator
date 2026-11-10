@@ -803,7 +803,7 @@ export async function onRequestPost(context){
         // is missing; the original valid draft is retained if repair fails.
         if(missingCoverage.length&&mode==="create"&&groqKey){
             const missingBeforeRepair=[...missingCoverage];
-            console.warn("UGC calculator omitted requested coverage; trying one targeted Groq regeneration:",{
+            console.warn("UGC calculator omitted requested coverage; trying targeted Groq regeneration (one attempt):",{
                 missingCoverage:missingBeforeRepair,
                 initialProvider:contentProvider
             });
