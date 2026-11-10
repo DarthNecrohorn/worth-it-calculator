@@ -470,11 +470,15 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(categorySchemas.length,5);
         const carsSchema=categorySchemas.find(item=>item.properties.category.enum[0]==="cars");
         const moneySchema=categorySchemas.find(item=>item.properties.category.enum[0]==="money");
-        assert.ok(carsSchema.properties.subcategories.items.enum.includes("fuel-costs"));
-        assert.ok(!carsSchema.properties.subcategories.items.enum.includes("budgeting"));
-        assert.ok(moneySchema.properties.subcategories.items.enum.includes("budgeting"));
-        assert.ok(!moneySchema.properties.subcategories.items.enum.includes("fuel-costs"));
-        assert.ok(categorySchemas.every(item=>item.required.includes("category")&&item.required.includes("subcategories")&&item.additionalProperties===false));
+        assert.ok(carsSchema.properties.subcategory_1.enum.includes("fuel-costs"));
+        assert.ok(!carsSchema.properties.subcategory_1.enum.includes("budgeting"));
+        assert.ok(moneySchema.properties.subcategory_1.enum.includes("budgeting"));
+        assert.ok(!moneySchema.properties.subcategory_1.enum.includes("fuel-costs"));
+        assert.ok(categorySchemas.every(item=>item.required.includes("category")
+            &&item.required.includes("subcategory_1")
+            &&item.required.includes("subcategory_2")
+            &&item.required.includes("subcategory_3")
+            &&item.additionalProperties===false));
         assert.ok(body.response_format.json_schema.schema.required.includes("classification"));
         assert.equal(body.response_format.json_schema.schema.additionalProperties,false);
         assert.match(body.messages[0].content,/classification object/);
