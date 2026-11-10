@@ -41,7 +41,7 @@ insert into private.worth_it_calc_transactions(
     jsonb_build_object('reason','calculator','ugc_calculator_id','77777777-7777-4777-8777-777777777777','usage_price_milli',300)
 ),
 (
-    '22222222-2222-4222-8222-222222222222',
+    '88888888-8888-4888-8888-888888888881',
     'calculator_spend',
     'CALC',
     -300,
