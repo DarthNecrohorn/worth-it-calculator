@@ -1745,11 +1745,24 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <div id="ugcDetailCategories" class="ugc-detail-categories" aria-label="AI-selected calculator categories"></div>
               <button type="button" id="ugcDetailDislike" class="ugc-action-secondary ugc-detail-reaction-button" hidden>👎 Dislike</button>
             </div>
+            <div class="ugc-detail-meta-row ugc-detail-reaction-feedback-row">
+              <span aria-hidden="true"></span>
+              <div class="ugc-detail-reaction-feedback">
+                <div id="ugcDetailReactionPolicy" class="ugc-detail-reaction-policy" hidden>
+                  <label for="ugcDetailRequireTestBeforeReaction">
+                    <input type="checkbox" id="ugcDetailRequireTestBeforeReaction" checked>
+                    <span>Require one completed calculation before rating</span>
+                    <small>Members must calculate once before they can Like or Dislike.</small>
+                  </label>
+                  <p id="ugcDetailReactionPolicyStatus" class="ugc-detail-reaction-policy-status" role="status" aria-live="polite"></p>
+                </div>
+                <p id="ugcDetailReactionNote" class="ugc-detail-reaction-note" role="status" aria-live="polite" hidden></p>
+              </div>
+            </div>
             <div id="ugcDetailStats" class="ugc-detail-stats" aria-label="Calculator statistics"></div>
             <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
           </div>
         </header>
-        <p id="ugcDetailReactionNote" class="ugc-detail-reaction-note" hidden>Only other users can like or dislike a public calculator. The creator cannot rate their own calculator.</p>
         <section id="ugcDetailDescriptionEditor" class="ugc-detail-description-editor" hidden>
           <label for="ugcDetailDescriptionInput">Your calculator description · optional · up to 500 characters</label>
           <textarea id="ugcDetailDescriptionInput" rows="3" maxlength="500" placeholder="Explain what this calculator does and when people should use it."></textarea>
