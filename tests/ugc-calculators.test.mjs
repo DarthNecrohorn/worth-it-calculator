@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
+import { onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -84,8 +84,8 @@ test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria 
 
 test("AI Maker uses regional currency only as an editable default and never stores or requests a raw IP address", async () => {
     const candidate = structuredClone(validDefinition);
-    candidate.inputs[0].unit = "";
-    candidate.results[0].currency = "";
+    candidate.inputs[0].unit = "USD";
+    candidate.results[0].currency = "USD";
     const req = request({ prompt: "Create a monthly savings calculator." }, { token: "valid-token" });
     Object.defineProperty(req, "cf", { value: { country: "RS" } });
     await withFetch(async (url, options) => {
@@ -120,10 +120,11 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
     assert.equal(resolveExplicitCurrency("Use euros for every result."), "EUR");
     assert.equal(resolveExplicitCurrency("Use U.S. dollars for every result."), "USD");
     assert.equal(resolveExplicitCurrency("Try this calculator."), null, "ordinary English try must not be mistaken for Turkish lira");
+    assert.deepEqual(resolveExplicitCurrencies("Compare USD and EUR using an exchange rate."), ["USD","EUR"]);
     assert.equal(resolveExplicitCurrency("Compare USD and EUR using an exchange rate."), null);
     const candidate = structuredClone(validDefinition);
-    candidate.inputs[0].unit = "";
-    candidate.results[0].currency = "";
+    candidate.inputs[0].unit = "USD";
+    candidate.results[0].currency = "USD";
     const req = request({ prompt: "Create a monthly savings calculator. Use RSD for all monetary inputs and results." }, { token: "valid-token" });
     Object.defineProperty(req, "cf", { value: { country: "RS", continent: "EU" } });
     await withFetch(async (url, options) => {
@@ -134,7 +135,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[1].content, /Explicitly requested single currency override: RSD/i);
+        assert.match(body.messages[1].content, /Explicitly requested currencies: RSD/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
         }), { status: 200 });
