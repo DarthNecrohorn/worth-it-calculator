@@ -201,6 +201,67 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
     });
 });
 
+test("AI Maker preserves all six explicitly requested car-cost results without inventing a weekly-total requirement", async () => {
+    const candidate={
+        title:"Monthly Car Ownership Cost Calculator",
+        description:"Estimate recurring vehicle costs from fuel, insurance, maintenance, parking, tolls and optional financing. Weekly and yearly figures assume monthly costs remain consistent over time.",
+        category:"cars",
+        subcategories:["car-ownership","fuel-costs"],
+        inputs:[
+            {key:"monthly_distance_km",label:"Monthly distance driven",min:1,max:10000,default:1200,step:1,unit:"km"},
+            {key:"fuel_consumption",label:"Fuel consumption",min:1,max:30,default:7,step:0.1,unit:"L/100 km"},
+            {key:"fuel_price_per_liter",label:"Fuel price per liter",min:0.1,max:10,default:1.5,step:0.01,unit:"EUR"},
+            {key:"monthly_insurance",label:"Monthly insurance",min:0,max:1000,default:50,step:1,unit:"EUR"},
+            {key:"monthly_maintenance",label:"Monthly maintenance and repairs",min:0,max:1500,default:75,step:1,unit:"EUR"},
+            {key:"monthly_parking",label:"Monthly parking",min:0,max:1000,default:50,step:1,unit:"EUR"},
+            {key:"monthly_tolls",label:"Monthly tolls",min:0,max:500,default:20,step:1,unit:"EUR"},
+            {key:"monthly_loan_payment",label:"Optional monthly loan or lease payment",min:0,max:5000,default:0,step:1,unit:"EUR"},
+            {key:"comparison_months",label:"Comparison period in months",min:1,max:120,default:12,step:1,unit:"months"}
+        ],
+        results:[
+            {label:"Monthly fuel cost",expression:"monthly_distance_km*fuel_consumption/100*fuel_price_per_liter",format:"currency",currency:"EUR"},
+            {label:"Total monthly ownership cost",expression:"monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment",format:"currency",currency:"EUR"},
+            {label:"Average weekly ownership cost",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*12/52",format:"currency",currency:"EUR"},
+            {label:"Total yearly ownership cost",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*12",format:"currency",currency:"EUR"},
+            {label:"Total cost over selected months",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*comparison_months",format:"currency",currency:"EUR"},
+            {label:"Cost per kilometer",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)/monthly_distance_km",format:"currency",currency:"EUR"}
+        ]
+    };
+    const requestPrompt=[
+        "Create a Monthly Car Ownership Cost Calculator in English.",
+        "Inputs: Monthly distance driven (km); Fuel consumption (L/100 km); Fuel price per liter; Monthly insurance; Monthly maintenance/repairs; Monthly parking; Monthly tolls; Optional monthly loan/lease payment (allow 0); Comparison period in months (integer, min 1, default 12).",
+        "Results: Monthly fuel cost; Total monthly ownership cost; Average weekly ownership cost; Total yearly ownership cost; Total cost over the selected months; Cost per kilometer.",
+        "Use correct, explicit formulas and avoid double-counting. Allow optional costs to be zero and use positive minimums for required quantities. Keep weekly, monthly and yearly figures mathematically consistent. Use one currency consistently for every monetary input and result; do not convert currencies. Choose realistic defaults and sensible minimums, maximums and steps. Add a concise description of included costs and assumptions."
+    ].join("\n");
+    let providerCalls=0;
+    await withFetch(async(url,options)=>{
+        const path=String(url);
+        if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+        providerCalls++;
+        const body=JSON.parse(options.body);
+        assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
+        assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
+        assert.doesNotMatch(body.messages[0].content,/1 to 4 result rows/);
+        const groqCandidate=structuredClone(candidate);
+        delete groqCandidate.category;
+        delete groqCandidate.subcategories;
+        groqCandidate.classification={category:"cars",subcategories:["car-ownership","fuel-costs"]};
+        return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(groqCandidate)}}]}),{status:200});
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({prompt:requestPrompt},{token:"valid-token"}),
+            env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
+        });
+        assert.equal(response.status,200);
+        const result=await response.json();
+        assert.equal(result.success,true);
+        assert.equal(result.calculator.spec.results.length,6);
+        assert.deepEqual(result.calculator.spec.results.map(item=>item.label),candidate.results.map(item=>item.label));
+        assert.equal(providerCalls,1);
+    });
+});
+
 test("AI Maker rejects omitted requested periods and required calculator inputs", async () => {
     const incomplete = {
         title: "Commute Cost Calculator",
