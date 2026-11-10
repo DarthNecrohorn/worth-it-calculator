@@ -465,7 +465,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
         assert.equal(body.reasoning_effort, "low");
-        assert.match(body.response_format.json_schema.schema.required, "inputs");
+        assert.ok(body.response_format.json_schema.schema.required.includes("inputs"));
         assert.match(body.messages[0].content, /restricted arithmetic parser/);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(validDefinition) } }]
@@ -553,7 +553,7 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
     }, async () => {
         const response = await onRequestPost({
             request: request({ prompt: "Create a calculator for monthly savings growth." }, { token: "valid-token" }),
-            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GEMINI_API_KEY: "gemini-test" }
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GEMINI_API_KEY: "gemini-test", GROQ_API_KEY: "groq-test" }
         });
         assert.equal(response.status, 200);
         assert.equal((await response.json()).success, true);
