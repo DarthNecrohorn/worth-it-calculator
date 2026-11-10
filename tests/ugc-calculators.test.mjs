@@ -295,6 +295,10 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         const body=providerRequest;
         assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
         assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
+        assert.match(body.messages[0].content,/genuinely informative description/i);
+        assert.match(body.messages[0].content,/140 to 380 characters/);
+        assert.match(body.messages[0].content,/time-basis conversions or consistency assumptions/);
+        assert.match(body.messages[0].content,/never invent exclusions, data sources, prices, rates, guarantees or unsupported claims/);
         assert.doesNotMatch(body.messages[0].content,/1 to 4 result rows/);
         assert.match(body.messages[1].content,/Explicit result checklist from the user's Results section/);
         const checklistText=body.messages[1].content.toLowerCase().replace(/\bthe\b/g,"").replace(/\s+/g," ");
