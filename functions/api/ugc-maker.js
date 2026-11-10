@@ -241,7 +241,12 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\b(?:daily|per day|each day|every day)\b/,result:/\b(?:daily|per day|day)\b/,label:"daily result"},
   {request:/\b(?:quarterly|per quarter|each quarter)\b/,result:/\b(?:quarterly|per quarter|quarter)\b/,label:"quarterly result"}
  ];
- periodRules.forEach(rule=>{if(rule.request.test(request)&&!rule.result.test(resultText))missing.push(rule.label);});
+ const requestedPeriodCount=periodRules.filter(rule=>rule.request.test(request)).length;
+ const explicitPeriodOutput=
+  /\\b(?:calculate|show|display|estimate|report|provide|include|break down|work out)\\b/.test(request)||
+  /\\b(?:weekly|monthly|yearly|annual|annually|daily|quarterly)\\s+(?:costs?|expenses?|results?|totals?|figures?|amounts?|breakdown)\\b/.test(request)||
+  requestedPeriodCount>=2&&/\\b(?:costs?|expenses?|results?|totals?|figures?|amounts?)\\b/.test(request);
+ if(explicitPeriodOutput)periodRules.forEach(rule=>{if(rule.request.test(request)&&!rule.result.test(resultText))missing.push(rule.label);});
  const requestedInputs=[
   {request:/\b(?:fuel consumption|fuel efficiency|consumption rate)\b/,input:/\b(?:fuel|consumption|economy)\b/,label:"fuel consumption input"},
   {request:/\bparking\b/,input:/\bparking\b/,label:"parking input"},
