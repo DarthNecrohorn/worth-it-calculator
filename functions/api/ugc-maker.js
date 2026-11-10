@@ -2,6 +2,7 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.7-flash";
 const MAX_PROMPT_CHARS = 1000;
+const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-10-output-coverage-v2";
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -147,7 +148,7 @@ function json(data,status,origin){
             "Cache-Control":"no-store",
             "Access-Control-Allow-Origin":origin||SITE_ORIGIN,
             "Access-Control-Allow-Headers":"Content-Type, Authorization",
-            "Access-Control-Allow-Methods":"POST, OPTIONS",
+            "Access-Control-Allow-Methods":"GET, POST, OPTIONS",
             "Vary":"Origin"
         }
     });
@@ -179,7 +180,7 @@ async function generateWithGemini(apiKey,system,prompt){
             body:JSON.stringify({
                 systemInstruction:{parts:[{text:system}]},
                 contents:[{role:"user",parts:[{text:prompt}]}],
-                generationConfig:{temperature:0.15,maxOutputTokens:1300,responseMimeType:"application/json"}
+                generationConfig:{temperature:0.15,maxOutputTokens:4096,responseMimeType:"application/json"}
             })
         }
     );
@@ -188,7 +189,9 @@ async function generateWithGemini(apiKey,system,prompt){
         throw new Error("Gemini calculator generation failed ("+response.status+"): "+details.slice(0,240));
     }
     const data=await response.json();
-    const content=data?.candidates?.[0]?.content?.parts?.map(part=>typeof part?.text==="string"?part.text:"").join("").trim();
+    const candidate=data?.candidates?.[0];
+    if(candidate?.finishReason==="MAX_TOKENS")throw new Error("Gemini calculator output reached the token limit and was truncated.");
+    const content=candidate?.content?.parts?.map(part=>typeof part?.text==="string"?part.text:"").join("").trim();
     if(!content)throw new Error("Gemini returned an empty calculator definition.");
     return content;
 }
@@ -207,7 +210,7 @@ async function generateWithGroq(apiKey,system,prompt){
         body:JSON.stringify({
             model:GROQ_MODEL,
             temperature:0.15,
-            max_tokens:1300,
+            max_tokens:4096,
             reasoning_effort:"low",
             response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
             messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
@@ -402,6 +405,42 @@ function findMissingRequestedCoverage(prompt,raw){
   });
  }
  return [...new Set(missing)];
+}
+export async function onRequestGet(context){
+ const request=context.request;
+ const origin=allowedOrigin(request);
+ if(!origin)return json({success:false,error:"This Preview diagnostic is available only from a Worth It Pages origin."},403,SITE_ORIGIN);
+ const url=new URL(request.url);
+ if(url.searchParams.get("diagnostic")!=="coverage")return json({success:false,error:"Use diagnostic=coverage."},405,origin);
+ const prompt=url.searchParams.get("prompt")||"";
+ if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Provide the calculator prompt (up to 1000 characters)."},400,origin);
+ const requestedResultItems=extractRequestedResultItems(prompt);
+ let suppliedLabels=[];
+ const rawLabels=url.searchParams.get("labels");
+ if(rawLabels){
+  try{
+   const parsed=JSON.parse(rawLabels);
+   if(Array.isArray(parsed))suppliedLabels=parsed.map(value=>String(value||"").trim()).filter(Boolean).slice(0,12);
+  }catch(_){return json({success:false,error:"The labels parameter must be a JSON array of result labels."},400,origin);}
+ }
+ const labelsToTest=suppliedLabels.length?suppliedLabels:requestedResultItems;
+ const sampleInputs=[
+  {key:"monthly_distance",label:"Monthly distance driven"},
+  {key:"fuel_consumption",label:"Fuel consumption"},
+  {key:"fuel_price",label:"Fuel price per liter"},
+  {key:"parking",label:"Monthly parking"}
+ ];
+ const missingCoverage=findMissingRequestedCoverage(prompt,{inputs:sampleInputs,results:labelsToTest.map(label=>({label}))});
+ return json({
+  success:true,
+  diagnostic:"ugc-maker-output-coverage",
+  build:UGC_MAKER_DIAGNOSTIC_VERSION,
+  promptLength:prompt.length,
+  requestedResultItems,
+  testedResultLabels:labelsToTest,
+  missingCoverage,
+  passed:missingCoverage.length===0
+ },200,origin);
 }
 function normalizeDefinition(raw,defaultCurrency,options={}){
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
@@ -825,6 +864,11 @@ export async function onRequestPost(context){
         }
 
         let missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+        const coverageAttempts=[{
+            provider:contentProvider,
+            resultLabels:(Array.isArray(parsed?.results)?parsed.results:[]).map(item=>String(item?.label||"")),
+            missingCoverage:[...missingCoverage]
+        }];
         // A first Groq response may itself be the Gemini fallback. If it is valid but
         // incomplete, allow one additional, targeted Groq repair call. This is the
         // only extra provider call and is made only when explicit requested coverage
@@ -842,6 +886,8 @@ export async function onRequestPost(context){
                     "",
                     "The previous draft was rejected because it omitted these explicitly requested items:",
                     ...missingBeforeRepair.map(item=>"- "+item),
+                    "The complete original result checklist is:",
+                    ...requestedResultItems.map(item=>"- "+item),
                     "",
                     "Generate a complete replacement calculator definition. Do not merely explain the missing items.",
                     "The replacement MUST contain a separate result row for EVERY missing item listed above.",
@@ -855,6 +901,11 @@ export async function onRequestPost(context){
                 const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt);
                 const repaired= parseAndValidate(repairedContent);
                 const repairedMissing=findMissingRequestedCoverage(prompt,repaired.candidate);
+                coverageAttempts.push({
+                    provider:"groq-repair",
+                    resultLabels:(Array.isArray(repaired.candidate?.results)?repaired.candidate.results:[]).map(item=>String(item?.label||"")),
+                    missingCoverage:[...repairedMissing]
+                });
                 if(repairedMissing.length){
                     missingCoverage=repairedMissing;
                     console.warn("Groq UGC coverage repair remained incomplete:",repairedMissing);
@@ -880,9 +931,22 @@ export async function onRequestPost(context){
             },invalidJson?502:422,origin);
         }
         if(missingCoverage.length){
+            const finalCoverageAttempt=coverageAttempts[coverageAttempts.length-1]||{resultLabels:[],missingCoverage};
+            const diagnostics={
+                build:UGC_MAKER_DIAGNOSTIC_VERSION,
+                provider:contentProvider,
+                requestedResultItems,
+                generatedResultLabels:finalCoverageAttempt.resultLabels,
+                generatedResultCount:finalCoverageAttempt.resultLabels.length,
+                missingCoverage:[...missingCoverage],
+                attempts:coverageAttempts
+            };
+            console.warn("UGC calculator coverage diagnostics:",diagnostics);
             await refundMakerQuota();
             return json({success:false,code:"INCOMPLETE_CALCULATOR",
-                error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included."},422,origin);
+                error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included.",
+                diagnostics
+            },422,origin);
         }
         try{await settleMakerQuota();}
         catch(error){
