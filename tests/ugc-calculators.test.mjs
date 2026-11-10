@@ -65,6 +65,43 @@ function withFetch(mock, callback) {
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
 
+test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters", async () => {
+    assert.match(html, /id="ugcMakerPrompt"[^>]*maxlength="1000"/);
+    assert.match(maker, /prompt\\.length<10\\|\\|prompt\\.length>1000/);
+    assert.match(makerApi, /const MAX_PROMPT_CHARS = 1000;/);
+    assert.match(makerApi, /10 to 1000 characters/);
+
+    const candidate = structuredClone(validDefinition);
+    let providerCalls = 0;
+    await withFetch(async url => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        providerCalls++;
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const env = { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" };
+        const accepted = await onRequestPost({
+            request: request({ prompt: "x".repeat(1000) }, { token: "valid-token" }),
+            env
+        });
+        assert.equal(accepted.status, 200, "exactly 1000 characters must be accepted");
+
+        const rejected = await onRequestPost({
+            request: request({ prompt: "x".repeat(1001) }, { token: "valid-token" }),
+            env
+        });
+        assert.equal(rejected.status, 400, "1001 characters must be rejected");
+        assert.match((await rejected.json()).error, /10 to 1000 characters/);
+        assert.equal(providerCalls, 1, "the over-limit prompt must be rejected before any AI provider call");
+    });
+});
+
 test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
     const requestFor = (country, language) => ({
         cf: country ? { country } : {},
