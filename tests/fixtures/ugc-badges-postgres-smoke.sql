@@ -182,10 +182,14 @@ declare
     v_request_id uuid := gen_random_uuid();
     v_extra_request_one uuid := gen_random_uuid();
     v_extra_request_two uuid := gen_random_uuid();
+    v_max_price_request uuid := gen_random_uuid();
     v_source_transaction_id bigint;
     v_creator_balance integer;
     v_creator_earned integer;
     v_creator_earning_records integer;
+    v_price_policy jsonb;
+    v_price_milli integer;
+    v_price_limit_blocked boolean := false;
     v_use_count integer;
     v_blocked boolean := false;
 begin
@@ -307,6 +311,75 @@ begin
     if v_creator_earned<>300 or v_creator_earning_records<>2 or v_creator_balance<>400 then
         raise exception 'Two 0.30 CALC uses must credit a total of 0.30 CALC once; earned %, records %, creator balance %.',
             v_creator_earned,v_creator_earning_records,v_creator_balance;
+    end if;
+
+    -- The owner may set the maximum supported price of 0.50 CALC.
+    -- A 0.50 CALC completed use must then credit 0.25 CALC to the owner.
+    perform set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    v_price_policy:=public.set_worth_it_ugc_usage_price(
+        current_setting('test.ugc_calculator_id')::uuid,500
+    );
+    if (v_price_policy->>'success')::boolean is distinct from true
+       or (v_price_policy->>'usage_price_milli')::integer<>500 then
+        raise exception 'The owner could not set the maximum usage price of 0.50 CALC: %',v_price_policy;
+    end if;
+
+    v_price_limit_blocked:=false;
+    begin
+        perform public.set_worth_it_ugc_usage_price(
+            current_setting('test.ugc_calculator_id')::uuid,510
+        );
+    exception when invalid_parameter_value then
+        v_price_limit_blocked:=true;
+    end;
+    if not v_price_limit_blocked then
+        raise exception 'The owner usage-price RPC accepted a price above the 0.50 CALC maximum.';
+    end if;
+    select usage_price_milli into v_price_milli
+      from private.worth_it_user_calculators
+     where id=current_setting('test.ugc_calculator_id')::uuid;
+    if v_price_milli<>500 then
+        raise exception 'The maximum usage price must remain 0.50 CALC after rejecting 0.51.';
+    end if;
+
+    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    insert into private.worth_it_calc_transactions(
+        user_id,kind,currency,amount_milli,balance_after_milli,status,
+        request_id,description,metadata
+    ) values (
+        '22222222-2222-4222-8222-222222222222',
+        'calculator_spend','CALC',-500,0,'reserved',v_max_price_request,
+        'Community calculator use at the maximum 0.50 CALC price',
+        jsonb_build_object('reason','calculator','ugc_calculator_id',current_setting('test.ugc_calculator_id'))
+    );
+    v_settle:=public.calc_wallet_settle(v_max_price_request);
+    if (v_settle->>'creator_earning_milli')::integer is distinct from 250 then
+        raise exception 'A 0.50 CALC maximum-price use must pay its creator exactly 0.25 CALC: %',v_settle;
+    end if;
+    select id into v_source_transaction_id
+      from private.worth_it_calc_transactions
+     where user_id='22222222-2222-4222-8222-222222222222'
+       and request_id=v_max_price_request;
+    select coalesce(sum(earned_milli),0),count(*)::integer
+      into v_creator_earned,v_creator_earning_records
+      from private.worth_it_ugc_creator_earnings
+     where source_transaction_id=v_source_transaction_id;
+    select balance_milli into v_creator_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    if v_creator_earned<>250 or v_creator_earning_records<>1 or v_creator_balance<>650 then
+        raise exception 'A maximum 0.50 CALC use must credit exactly 0.25 once; earned %, records %, creator balance %.',
+            v_creator_earned,v_creator_earning_records,v_creator_balance;
+    end if;
+    perform public.calc_wallet_settle(v_max_price_request);
+    select balance_milli into v_creator_balance
+      from private.worth_it_calc_wallets
+     where user_id='11111111-1111-4111-8111-111111111111';
+    select count(*)::integer into v_creator_earning_records
+      from private.worth_it_ugc_creator_earnings
+     where source_transaction_id=v_source_transaction_id;
+    if v_creator_balance<>650 or v_creator_earning_records<>1 then
+        raise exception 'Retrying the maximum-price settlement must not duplicate its 0.25 CALC reward.';
     end if;
 
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
