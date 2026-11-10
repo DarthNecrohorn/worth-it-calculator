@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestPost, onRequestOptions, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
+import { onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -112,6 +112,40 @@ test("AI Maker uses regional currency only as an editable default and never stor
         assert.equal(result.regionalDefaults.currency, "EUR");
         assert.equal(result.calculator.spec.inputs[0].unit, "EUR");
         assert.equal(result.calculator.spec.results[0].currency, "EUR");
+    });
+});
+
+test("an explicit prompt currency overrides the EUR or USD regional suggestion", async () => {
+    assert.equal(resolveExplicitCurrency("Show all amounts in RSD."), "RSD");
+    assert.equal(resolveExplicitCurrency("Use euros for every result."), "EUR");
+    assert.equal(resolveExplicitCurrency("Compare USD and EUR using an exchange rate."), null);
+    const candidate = structuredClone(validDefinition);
+    candidate.inputs[0].unit = "";
+    candidate.results[0].currency = "";
+    const req = request({ prompt: "Create a monthly savings calculator and show all monetary inputs and results in RSD." }, { token: "valid-token" });
+    Object.defineProperty(req, "cf", { value: { country: "RS", continent: "EU" } });
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        const body = JSON.parse(options.body);
+        assert.match(body.messages[0].content, /Explicitly requested single currency override: RSD/i);
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: req,
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 200);
+        const result = await response.json();
+        assert.equal(result.regionalDefaults.currency, "EUR");
+        assert.equal(result.calculator.spec.inputs[0].unit, "RSD");
+        assert.equal(result.calculator.spec.results[0].currency, "RSD");
     });
 });
 
