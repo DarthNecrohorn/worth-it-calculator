@@ -2,13 +2,18 @@
 -- Together they represent 0.60 CALC spent and should backfill 0.30 CALC to the creator.
 \set ON_ERROR_STOP on
 
+insert into auth.users(id,email,email_confirmed_at) values
+    ('77777777-7777-4777-8777-777777777771','historical-creator@example.test',now()),
+    ('88888888-8888-4888-8888-888888888881','historical-viewer@example.test',now())
+on conflict (id) do nothing;
+
 insert into private.worth_it_user_calculators(
     id, calculator_number, owner_user_id, title, description, category,
     spec, status, visibility, published_at, usage_price_milli
 ) values (
     '77777777-7777-4777-8777-777777777777',
     99999,
-    '11111111-1111-4111-8111-111111111111',
+    '77777777-7777-4777-8777-777777777771',
     'Creator earnings historical fixture',
     'A published fixture for historical earnings backfill.',
     'money',
@@ -25,7 +30,7 @@ insert into private.worth_it_calc_transactions(
     status, request_id, description, metadata
 ) values
 (
-    '22222222-2222-4222-8222-222222222222',
+    '88888888-8888-4888-8888-888888888881',
     'calculator_spend',
     'CALC',
     -300,
