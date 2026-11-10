@@ -28,6 +28,7 @@ const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
 const profileCardsSql = read("supabase/worth-it-ugc-profile-cards.sql");
 const reactionPolicySql = read("supabase/worth-it-ugc-reaction-policy.sql");
+const reactionPolicyPrivacySql = read("supabase/worth-it-ugc-reaction-policy-owner-privacy.sql");
 const workflow = read(".github/workflows/function-syntax-check.yml");
 
 const previewOrigin = "https://pr-preview.worth-it-calculator.pages.dev";
@@ -697,7 +698,12 @@ test("UGC rating policy is owner-only, defaults on, and requires a completed cal
     assert.ok(maker.includes("policyInput.checked=calculator.require_test_before_reaction!==false"));
     assert.ok(maker.includes("set_worth_it_ugc_reaction_policy"));
     assert.ok(maker.includes("You must complete one calculation before you can like or dislike this calculator"));
-    assert.ok(maker.includes("calculator.has_used=true"));
+    assert.ok(maker.includes("clearReactionNote()"));
+    assert.ok(maker.includes('rpc("set_worth_it_ugc_reaction"'));
+    assert.ok(reactionPolicySql.includes("case when c.owner_user_id = v_user_id then"));
+    assert.doesNotMatch(reactionPolicySql.slice(reactionPolicySql.indexOf("create or replace function public.get_worth_it_ugc_calculator"), reactionPolicySql.indexOf("create or replace function public.set_worth_it_ugc_reaction_policy")), /'has_used'/);
+    assert.match(reactionPolicyPrivacySql, /case when c.owner_user_id = v_user_id then[\\s\\S]*?require_test_before_reaction/);
+    assert.match(reactionPolicyPrivacySql, /else[\\s\\S]*?\{\}'::jsonb/);
     assert.ok(reactionPolicySql.includes("require_test_before_reaction boolean not null default true"));
     assert.ok(reactionPolicySql.includes("create table if not exists private.worth_it_calculator_uses"));
     assert.ok(reactionPolicySql.includes("t.status = 'completed'"));
@@ -706,6 +712,7 @@ test("UGC rating policy is owner-only, defaults on, and requires a completed cal
     assert.ok(reactionPolicySql.includes("create or replace function public.calc_wallet_settle"));
     assert.ok(reactionPolicySql.includes("ugc_calculator_id"));
     assert.ok(workflow.includes("supabase/worth-it-ugc-reaction-policy.sql"));
+    assert.ok(workflow.includes("supabase/worth-it-ugc-reaction-policy-owner-privacy.sql"));
 });
 
 test("square UGC cards use responsive columns and explain creator reaction limits", () => {
