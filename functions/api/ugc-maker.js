@@ -300,8 +300,9 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         if(min>value||value>max)throw new Error("The AI generated an invalid range for "+label+".");
         const stepPosition=(value-min)/step;
         if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)throw new Error("The default value for "+label+" does not match its input step.");
-        let unit=String(item?.unit??previousInput?.unit??"").trim().slice(0,16);
-        if(!unit&&/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic))unit=currencyFallback;
+        const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
+        let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
+        if(!unit&&!previousInput&&/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic))unit=currencyFallback;
         seen.add(key);
         return {key,label,min,max,default:value,step,unit};
     });
