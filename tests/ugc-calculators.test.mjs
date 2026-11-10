@@ -183,6 +183,35 @@ test("AI Maker tests formulas at boundary values and normalizes positive-only in
     });
 });
 
+test("AI Maker catches invalid formulas caused only by paired input extremes", async () => {
+    const candidate = structuredClone(validDefinition);
+    for (const item of candidate.inputs.slice(0, 2)) {
+        item.min = 0;
+        item.max = 10;
+        item.default = 5;
+        item.step = 1;
+    }
+    candidate.results[0].expression = "sqrt((starting_amount-5)*(monthly_deposit-5)+1)";
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a savings calculator." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 422);
+        assert.match((await response.json()).error, /fails with a default, minimum or maximum input value/i);
+    });
+});
+
 test("UGC Maker exposes editable regional number formatting, currency consistency warnings and free boundary tests", () => {
     assert.match(maker, /Regional suggestion:/);
     assert.match(maker, /Number format/);
