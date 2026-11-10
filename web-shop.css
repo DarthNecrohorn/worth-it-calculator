@@ -469,7 +469,7 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 
 /* Mobile-only positioning for the requested controls.
    The three wallet buttons keep intrinsic widths in a dedicated second-row area.
-   Their left edge is 40px left of the original second-row position; no other header actions are moved. */
+   Their final left offset is 50px from the original second-row position and their final vertical offset is 10px upward; no other header actions are moved. */
 @media(max-width:560px){
     .nav-inner > .menu-btn{
         transform:translateX(-10px)!important;
@@ -487,14 +487,14 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
         width:max-content!important;
         min-width:max-content!important;
         max-width:none!important;
-        margin:0 0 0 15px!important;
+        margin:0 0 0 5px!important;
         padding:0!important;
         gap:4px!important;
         box-sizing:content-box!important;
         position:relative!important;
         left:0!important;
         right:auto!important;
-        transform:translateY(5px)!important;
+        transform:translateY(-10px)!important;
         overflow:visible!important;
         z-index:5!important;
     }
