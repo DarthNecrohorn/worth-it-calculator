@@ -94,7 +94,7 @@ create table private.worth_it_calc_transactions (
     amount_milli integer not null default 0,
     balance_after_milli integer not null default 0,
     status text not null default 'reserved',
-    request_id uuid not null,
+    request_id uuid,
     description text not null default '',
     metadata jsonb not null default '{}'::jsonb,
     created_at timestamptz not null default now(),
