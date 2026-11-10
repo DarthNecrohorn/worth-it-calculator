@@ -367,6 +367,7 @@ function findMissingRequestedCoverage(prompt,raw){
   {request:/\bfuel price\b/,input:/\b(?:fuel|gas|petrol|diesel).{0,12}price\b|\bprice.{0,12}(?:fuel|gas|petrol|diesel)\b/,label:"fuel-price input"}
  ];
  requestedInputs.forEach(rule=>{if(rule.request.test(request)&&!rule.input.test(inputText))missing.push(rule.label);});
+ // A global "total" request must not turn an average weekly figure into a required weekly total.
  const sharedTotalPeriodList=/\btotal\s+(?:(?:weekly|monthly|yearly|annual|annually|daily|quarterly)[,\s]+)+(?:and\s+)?(?:costs?|expenses?|results?|figures?|amounts?)\b/.test(request);
  if(explicitPeriodOutput){
   const totalPeriodAliases={
