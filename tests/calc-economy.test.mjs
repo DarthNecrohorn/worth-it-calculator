@@ -91,18 +91,24 @@ test("daily rewards, guest non-stacking and calculator costs use exact milli-CAL
 
 
 test("UGC creators receive an idempotent 50% share with a 0.10 CALC minimum", () => {
-    assert.match(creatorEarnings, /ugc_creator_earning/);
-    assert.match(creatorEarnings, /greatest\(100, v_charged_milli \/ 2\)/);
-    assert.match(creatorEarnings, /t\.status = 'completed'/);
-    assert.match(creatorEarnings, /t\.amount_milli < 0/);
-    assert.match(creatorEarnings, /on conflict \(source_transaction_id\) do nothing/);
-    assert.match(creatorEarnings, /c\.owner_user_id = v_payer_user_id/);
-    assert.match(creatorEarnings, /worth_it_record_ugc_creator_earning/);
-    assert.match(creatorEarnings, /$backfill_ugc_creator_earnings\$/);
-    assert.match(creatorEarnings, /private\.worth_it_calculator_uses/);
-    assert.match(creatorEarnings, /revoke all on private\.worth_it_ugc_creator_earnings from public, anon, authenticated, service_role/);
-    assert.match(creatorEarnings, /grant execute on function public\.calc_wallet_settle\(uuid\) to authenticated/);
-    assert.match(economy, /ugc_creator_earning:"UGC calculator earnings"/);
+    assert.ok(creatorEarnings.includes("'ugc_creator_earning'"));
+    assert.ok(creatorEarnings.includes("greatest(100, v_charged_milli / 2)"));
+    assert.ok(creatorEarnings.includes("t.status = 'completed'"));
+    assert.ok(creatorEarnings.includes("t.amount_milli < 0"));
+    assert.ok(creatorEarnings.includes("on conflict (source_transaction_id) do nothing"));
+    assert.ok(creatorEarnings.includes("v_creator_user_id = v_payer_user_id"));
+    assert.ok(creatorEarnings.includes("worth_it_record_ugc_creator_earning"));
+    assert.ok(creatorEarnings.includes("$backfill_ugc_creator_earnings$"));
+    assert.ok(creatorEarnings.includes("private.worth_it_calculator_uses"));
+    assert.ok(creatorEarnings.includes("alter table private.worth_it_ugc_creator_earnings enable row level security"));
+    assert.ok(creatorEarnings.includes("revoke all on private.worth_it_ugc_creator_earnings from public, anon, authenticated, service_role"));
+    assert.ok(creatorEarnings.includes("grant execute on function public.calc_wallet_settle(uuid) to authenticated"));
+    assert.ok(economy.includes('ugc_creator_earning:"UGC calculator earnings"'));
+    const smoke = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
+    assert.ok(smoke.includes("Historical 0.60 CALC spend should backfill exactly 0.30 CALC"));
+    assert.ok(smoke.includes("A 0.10 CALC use must credit exactly 0.10 once"));
+    assert.ok(smoke.includes("Two 0.30 CALC uses must credit a total of 0.30 CALC"));
+    assert.ok(smoke.includes("Creators must not earn from their own calculator use"));
 });
 
 test("the ordinary Basic/Advanced/Scientific calculator stays free", () => {
