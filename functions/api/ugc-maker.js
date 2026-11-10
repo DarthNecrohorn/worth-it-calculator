@@ -203,7 +203,8 @@ async function generateWithGemini(apiKey,system,prompt){
 async function generateWithGroq(apiKey,system,prompt){
     const groqSystem=[
         system,
-        "For this provider's structured response, put the primary category and its subcategories together inside a root field named classification.",
+        "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs and results. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
+        "Put the primary category and its subcategories together inside the root field named classification.",
         "The classification object must contain category, subcategory_1, subcategory_2 and subcategory_3. subcategory_1 is mandatory and must be one valid ID from the chosen category. Use null for each unused optional subcategory_2 or subcategory_3 field.",
         "Never use an empty subcategory_1, never mix categories, and never put category or subcategory fields at the root level.",
         "Keep title, description, inputs and results as root fields. The server converts classification into the calculator's saved category fields."
