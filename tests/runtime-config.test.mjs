@@ -13,7 +13,7 @@ function request(host = "preview.worth-it-calculator.pages.dev") {
 }
 
 function parseConfig(script) {
-    const match = script.match(/window\\.WORTH_IT_SUPABASE_CONFIG = Object\\.freeze\\((.*)\\);/s);
+    const match = script.match(/window\.WORTH_IT_SUPABASE_CONFIG = Object\.freeze\((.*)\);/s);
     assert.ok(match, "the response assigns the public runtime configuration");
     return JSON.parse(match[1]);
 }
@@ -37,7 +37,7 @@ test("every hashed and branch Pages Preview hostname is pinned to the staging Su
         });
 
         assert.equal(response.status, 200);
-        assert.match(response.headers.get("content-type") || "", /application\\/javascript/i);
+        assert.match(response.headers.get("content-type") || "", /application\/javascript/i);
         assert.match(response.headers.get("cache-control") || "", /no-store/i);
         const script = await response.text();
         assert.deepEqual(parseConfig(script), STAGING_CONFIG);
@@ -105,6 +105,6 @@ test("the browser loads deployment configuration before creating the Supabase cl
     const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
     assert.ok(index.indexOf('src="/api/runtime-config"') < index.indexOf('src="app.js?'));
-    assert.match(app, /window\\.WORTH_IT_SUPABASE_CONFIG/);
-    assert.doesNotMatch(app, /https:\\/\\/diutcnylnubljvpezhmq\\.supabase\\.co/);
+    assert.match(app, /window\.WORTH_IT_SUPABASE_CONFIG/);
+    assert.doesNotMatch(app, /https:\/\/diutcnylnubljvpezhmq\.supabase\.co/);
 });
