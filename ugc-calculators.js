@@ -551,10 +551,8 @@ async function runCalculation(calculator){
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
   reserved=false;
   // calc_wallet_settle records successful public UGC use atomically with the
-  // completed CALC transaction; mirror that result in the open detail view.
-  calculator.has_used=true;
+  // completed CALC transaction. Clear any previous rating gate message.
   if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id)){
-   state.activeCalculator.has_used=true;
    clearReactionNote();
   }
   renderCalculationResults(results);
@@ -744,15 +742,10 @@ window.closeWorthItUGCCalculator=function(){
 };
 async function react(id,reaction){
  if(!requireAccount())return;
- const activeBefore=state.activeCalculator;
  const reactionButtons=[$("ugcDetailLike"),$("ugcDetailDislike")].filter(Boolean);
  if(reactionButtons.some(button=>button.disabled))return;
- if(activeBefore&&String(activeBefore.id)===String(id)
-    &&activeBefore.require_test_before_reaction!==false
-    &&activeBefore.has_used!==true){
-  showReactionNote("You must complete one calculation before you can like or dislike this calculator. The creator requires it.");
-  return;
- }
+ // The server is authoritative; the policy value is intentionally never
+ // sent to non-owners in get_worth_it_ugc_calculator.
  reactionButtons.forEach(button=>{button.disabled=true;});
  try{
   const result=await sb().rpc("set_worth_it_ugc_reaction",{p_id:id,p_reaction:reaction});
