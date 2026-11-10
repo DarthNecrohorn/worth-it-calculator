@@ -702,8 +702,9 @@ test("UGC rating policy is owner-only, defaults on, and requires a completed cal
     assert.ok(maker.includes('rpc("set_worth_it_ugc_reaction"'));
     assert.ok(reactionPolicySql.includes("case when c.owner_user_id = v_user_id then"));
     assert.doesNotMatch(reactionPolicySql.slice(reactionPolicySql.indexOf("create or replace function public.get_worth_it_ugc_calculator"), reactionPolicySql.indexOf("create or replace function public.set_worth_it_ugc_reaction_policy")), /'has_used'/);
-    assert.match(reactionPolicyPrivacySql, /case when c.owner_user_id = v_user_id then[\\s\\S]*?require_test_before_reaction/);
-    assert.match(reactionPolicyPrivacySql, /else[\\s\\S]*?\{\}'::jsonb/);
+    assert.ok(reactionPolicyPrivacySql.includes("case when c.owner_user_id = v_user_id then"));
+    assert.ok(reactionPolicyPrivacySql.includes("jsonb_build_object('require_test_before_reaction', c.require_test_before_reaction)"));
+    assert.ok(reactionPolicyPrivacySql.includes("'{}'::jsonb"));
     assert.ok(reactionPolicySql.includes("require_test_before_reaction boolean not null default true"));
     assert.ok(reactionPolicySql.includes("create table if not exists private.worth_it_calculator_uses"));
     assert.ok(reactionPolicySql.includes("t.status = 'completed'"));
