@@ -559,9 +559,9 @@ test("UGC Maker expands provider output limits and exposes safe result-coverage 
     assert.match(makerApi, /max_tokens:4096/);
     assert.match(makerApi, /maxOutputTokens:4096/);
     assert.match(makerApi, /finishReason==="MAX_TOKENS"/);
-    assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\\.resultLabels/);
-    assert.match(makerApi, /coverageAttempts\\.push\\(/);
-    assert.match(makerApi, /export async function onRequestGet\\(context\\)/);
+    assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\.resultLabels/);
+    assert.match(makerApi, /coverageAttempts\.push\(/);
+    assert.match(makerApi, /export async function onRequestGet\(context\)/);
 });
 
 test("AI Maker requires a confirmed account and emits restricted declarative calculator definitions", async () => {
