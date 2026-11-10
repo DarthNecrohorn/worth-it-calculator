@@ -187,7 +187,10 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /Regional suggestion:/);
     assert.match(maker, /Number format/);
     assert.match(maker, /validateMakerSpec/);
-    assert.match(maker, /one-input-at-a-time boundary checks/);
+    assert.match(maker, /single-input and pairwise boundary checks/);
+    assert.match(maker, /for\(let left=0;left<inputs.length;left\+\+\)/);
+    assert.match(maker, /maxStepPosition/);
+    assert.match(maker, /ugc-maker-test-locale/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
     assert.match(maker, /24–500 characters/);
