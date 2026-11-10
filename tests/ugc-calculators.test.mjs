@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestPost, onRequestOptions } from "../functions/api/ugc-maker.js";
+import { onRequestPost, onRequestOptions, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -64,6 +64,133 @@ function withFetch(mock, callback) {
     globalThis.fetch = mock;
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
+
+test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
+    const requestFor = (country, language) => ({
+        cf: country ? { country } : {},
+        headers: new Headers(language ? { "Accept-Language": language } : {})
+    });
+    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8")).currency, "EUR");
+    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS")).locale, "sr-Latn-RS");
+    assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
+    assert.equal(resolveRegionalDefaults(requestFor("DE", "de-DE")).currency, "EUR");
+    assert.equal(resolveRegionalDefaults(requestFor("BG", "bg-BG")).currency, "EUR");
+    assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).currency, "USD");
+    assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).locale, "en-GB");
+});
+
+test("AI Maker uses regional currency only as an editable default and never stores or requests a raw IP address", async () => {
+    const candidate = structuredClone(validDefinition);
+    candidate.inputs[0].unit = "";
+    candidate.results[0].currency = "";
+    const req = request({ prompt: "Create a monthly savings calculator." }, { token: "valid-token" });
+    Object.defineProperty(req, "cf", { value: { country: "RS" } });
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        const body = JSON.parse(options.body);
+        assert.match(body.messages[0].content, /regional suggestion EUR/i);
+        assert.match(body.messages[0].content, /same language as the user's prompt/i);
+        assert.doesNotMatch(JSON.stringify(body), /client.?ip|ip.?address/i);
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: req,
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 200);
+        const result = await response.json();
+        assert.equal(result.regionalDefaults.currency, "EUR");
+        assert.equal(result.calculator.spec.inputs[0].unit, "EUR");
+        assert.equal(result.calculator.spec.results[0].currency, "EUR");
+    });
+});
+
+test("AI Maker rejects omitted requested periods and required calculator inputs", async () => {
+    const incomplete = {
+        title: "Commute Cost Calculator",
+        description: "Estimate commute expenses from distance, fuel use, fuel price and parking assumptions.",
+        category: "cars",
+        subcategories: ["fuel-costs"],
+        inputs: [
+            { key: "commuting_days_per_week", label: "Commuting days per week", min: 0, max: 7, default: 5, step: 1, unit: "" },
+            { key: "daily_distance_km", label: "Daily round-trip distance", min: 0, max: 1000, default: 30, step: 0.1, unit: "km" },
+            { key: "fuel_consumption", label: "Fuel consumption", min: 0, max: 50, default: 7, step: 0.1, unit: "" },
+            { key: "fuel_price", label: "Fuel price", min: 0, max: 1000, default: 200, step: 0.1, unit: "" },
+            { key: "daily_parking_cost", label: "Daily parking cost", min: 0, max: 10000, default: 0, step: 0.1, unit: "" }
+        ],
+        results: [
+            { label: "Weekly fuel cost", expression: "commuting_days_per_week*(daily_distance_km*fuel_consumption/100)*fuel_price", format: "currency", currency: "EUR" },
+            { label: "Weekly parking cost", expression: "commuting_days_per_week*daily_parking_cost", format: "currency", currency: "EUR" },
+            { label: "Total weekly cost", expression: "commuting_days_per_week*((daily_distance_km*fuel_consumption/100)*fuel_price+daily_parking_cost)", format: "currency", currency: "EUR" }
+        ]
+    };
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(incomplete) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a commute cost calculator. Inputs: commuting days per week, daily round-trip distance, fuel consumption, fuel price and daily parking cost. Calculate fuel and parking costs, plus total weekly, monthly and yearly expenses." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 422);
+        const result = await response.json();
+        assert.equal(result.code, "INCOMPLETE_CALCULATOR");
+        assert.match(result.error, /monthly result/i);
+        assert.match(result.error, /yearly result/i);
+        assert.match(makerApi, /Cover every requested output and time period/);
+    });
+});
+
+test("AI Maker tests formulas at boundary values and normalizes positive-only inputs", async () => {
+    const candidate = structuredClone(validDefinition);
+    candidate.inputs[0] = {
+        key: "commuting_days_per_week", label: "Commuting days per week",
+        min: 0, max: 7, default: 5, step: 1, unit: ""
+    };
+    candidate.results[0].expression = "starting_amount/(years-1)";
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a savings calculator." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 422);
+        assert.match((await response.json()).error, /fails with a default, minimum or maximum input value/i);
+    });
+});
+
+test("UGC Maker exposes editable regional number formatting, currency consistency warnings and free boundary tests", () => {
+    assert.match(maker, /Regional suggestion:/);
+    assert.match(maker, /Number format/);
+    assert.match(maker, /validateMakerSpec/);
+    assert.match(maker, /one-input-at-a-time boundary checks/);
+    assert.match(maker, /Currency consistency warning/);
+    assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
+    assert.match(maker, /24–500 characters/);
+});
 
 test("AI Maker can be closed only with its X button; backdrop clicks never dismiss it", () => {
     assert.ok(maker.includes('$("ugcMakerClose")?.addEventListener("click",closeMaker);'), "the X button is wired to close the maker");
