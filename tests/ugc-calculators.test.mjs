@@ -669,6 +669,82 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
     },quotaEvents);
 });
 
+test("AI Maker runs one targeted Groq coverage repair when Groq is already the Gemini fallback", async () => {
+    const quotaEvents={refunds:0,settlements:0};
+    const requested=[];
+    const incomplete=structuredClone(validDefinition);
+    incomplete.results=[
+        {label:"Monthly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
+    ];
+    const complete=structuredClone(validDefinition);
+    complete.results=[
+        {label:"Weekly total",expression:"monthly_deposit*12/52",format:"currency",currency:"EUR"},
+        {label:"Yearly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
+    ];
+    const asGroqDefinition=definition=>{
+        const output=structuredClone(definition);
+        delete output.category;
+        delete output.subcategories;
+        output.classification={category:"money",subcategories:["budgeting","saving"]};
+        return output;
+    };
+    let groqCalls=0;
+    await withFetch(async(url,options)=>{
+        const path=String(url);
+        if(path.endsWith("/auth/v1/user")){
+            return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        }
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
+            requested.push("reserve");
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+        }
+        if(path.includes("generativelanguage.googleapis.com")){
+            requested.push("gemini");
+            return new Response(JSON.stringify({error:{code:503,status:"UNAVAILABLE"}}),{status:503});
+        }
+        if(path.includes("api.groq.com/openai/v1/chat/completions")){
+            groqCalls++;
+            requested.push("groq-"+groqCalls);
+            const body=JSON.parse(options.body);
+            assert.equal(body.response_format.type,"json_schema");
+            assert.equal(body.response_format.json_schema.strict,true);
+            if(groqCalls===1){
+                assert.match(body.messages[1].content,/User request:/);
+                return new Response(JSON.stringify({
+                    choices:[{message:{content:JSON.stringify(asGroqDefinition(incomplete))}}]
+                }),{status:200});
+            }
+            assert.match(body.messages[1].content,/weekly result/);
+            assert.match(body.messages[1].content,/yearly result/);
+            assert.match(body.messages[1].content,/total weekly/);
+            assert.match(body.messages[1].content,/total yearly/);
+            return new Response(JSON.stringify({
+                choices:[{message:{content:JSON.stringify(asGroqDefinition(complete))}}]
+            }),{status:200});
+        }
+        throw new Error("Unexpected request during Groq fallback coverage repair: "+path);
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({prompt:"Calculate weekly and yearly results and include total weekly and total yearly costs."},{token:"valid-token"}),
+            env:{
+                SUPABASE_URL:"https://supabase.example",
+                SUPABASE_PUBLISHABLE_KEY:"publishable",
+                GEMINI_API_KEY:"gemini-test",
+                GROQ_API_KEY:"groq-test"
+            }
+        });
+        assert.equal(response.status,200);
+        const result=await response.json();
+        assert.equal(result.success,true);
+        assert.ok(result.calculator.spec.results.some(item=>/weekly/i.test(item.label)&&/total/i.test(item.label)));
+        assert.ok(result.calculator.spec.results.some(item=>/yearly/i.test(item.label)&&/total/i.test(item.label)));
+        assert.equal(groqCalls,2,"one initial Groq fallback plus exactly one targeted coverage repair are allowed");
+        assert.deepEqual(requested,["reserve","gemini","groq-1","groq-2"]);
+        assert.equal(quotaEvents.refunds||0,0);
+        assert.equal(quotaEvents.settlements,1);
+    },quotaEvents);
+});
+
 test("AI Maker retries an incomplete Gemini calculator with Groq and includes requested weekly and yearly totals", async () => {
     const quotaEvents={refunds:0,settlements:0};
     const requested=[];
