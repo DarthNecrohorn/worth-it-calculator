@@ -171,7 +171,7 @@
                 : "Activate Premium Lite for 50 WIP and 15 days.";
         }
         if(!value) return;
-        value.textContent = state ? (state.is_owner ? "∞" : Number(state.balance || 0).toFixed(1)) : "—";
+        value.textContent = state ? (state.is_owner ? "∞" : formatCalcBalance(state.balance || 0)) : "—";
         const wipValue = $("webShopWipBalanceValue");
         if(wipValue) {
             const wipLabel = state ? (state.is_owner ? "∞" : Number(state.wip_balance || 0).toFixed(1)) : "—";
