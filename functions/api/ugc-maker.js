@@ -1,54 +1,6 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.7-flash";
-const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
-    name: "worth_it_calculator",
-    strict: true,
-    schema: {
-        type: "object",
-        properties: {
-            title: { type: "string" },
-            description: { type: "string" },
-            category: { type: "string", enum: ["cars","money","technology","home","other"] },
-            subcategories: { type: "array", items: { type: "string" } },
-            inputs: {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        min: { type: "number" },
-                        max: { type: "number" },
-                        default: { type: "number" },
-                        step: { type: "number" },
-                        unit: { type: "string" }
-                    },
-                    required: ["key","label","min","max","default","step","unit"],
-                    additionalProperties: false
-                }
-            },
-            results: {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: {
-                        label: { type: "string" },
-                        expression: { type: "string" },
-                        format: { type: "string", enum: ["number","currency","percent"] },
-                        currency: { type: "string" },
-                        prefix: { type: "string" },
-                        suffix: { type: "string" }
-                    },
-                    required: ["label","expression","format","currency","prefix","suffix"],
-                    additionalProperties: false
-                }
-            }
-        },
-        required: ["title","description","category","subcategories","inputs","results"],
-        additionalProperties: false
-    }
-};
 const MAX_PROMPT_CHARS = 1000;
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
@@ -58,6 +10,57 @@ const ALLOWED_SUBCATEGORIES = {
  home:new Set(["utilities-energy","rent-housing","home-buying","renovation-repairs","home-appliances","home-maintenance","household-budget"]),
  other:new Set(["travel","education-career","health-fitness","food-groceries","business","lifestyle","general-comparison"])
 };
+const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
+    name: "worth_it_calculator",
+    strict: true,
+    schema: {
+        anyOf: Object.entries(ALLOWED_SUBCATEGORIES).map(([category,subcategories])=>({
+            type: "object",
+            properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                category: { type: "string", enum: [category] },
+                subcategories: { type: "array", items: { type: "string", enum: [...subcategories] } },
+                inputs: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            key: { type: "string" },
+                            label: { type: "string" },
+                            min: { type: "number" },
+                            max: { type: "number" },
+                            default: { type: "number" },
+                            step: { type: "number" },
+                            unit: { type: "string" }
+                        },
+                        required: ["key","label","min","max","default","step","unit"],
+                        additionalProperties: false
+                    }
+                },
+                results: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            label: { type: "string" },
+                            expression: { type: "string" },
+                            format: { type: "string", enum: ["number","currency","percent"] },
+                            currency: { type: "string" },
+                            prefix: { type: "string" },
+                            suffix: { type: "string" }
+                        },
+                        required: ["label","expression","format","currency","prefix","suffix"],
+                        additionalProperties: false
+                    }
+                }
+            },
+            required: ["title","description","category","subcategories","inputs","results"],
+            additionalProperties: false
+        }))
+    }
+};
+
 const FUNCTIONS = new Set(["min","max","abs","round","floor","ceil","sqrt","pow"]);
 const COUNTRY_DEFAULTS = {
  US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
@@ -597,6 +600,8 @@ export async function onRequestPost(context){
             "technology subcategories: smartphones, computers, gaming, software-subscriptions, internet-connectivity, consumer-electronics, tech-comparison.",
             "home subcategories: utilities-energy, rent-housing, home-buying, renovation-repairs, home-appliances, home-maintenance, household-budget.",
             "other subcategories: travel, education-career, health-fitness, food-groceries, business, lifestyle, general-comparison.",
+            "Category compatibility is mandatory: every selected subcategory must come from the exact list belonging to the chosen primary category. Never mix subcategories between categories. If the calculator is mainly about a car, vehicle or fuel, choose cars; if mainly about personal money, budgeting, saving, debt or investing, choose money; if mainly about devices, software or connectivity, choose technology; if mainly about housing, utilities or appliances, choose home; use other only when none of those categories fits.",
+            "Before returning JSON, verify that category and all subcategories are a valid combination from the same category list. Do not translate category IDs or invent labels; use the exact lowercase IDs shown above.",
             "Each input has key, label, min, max, default, step, unit. Keys must match ^[a-z][a-z0-9_]{0,31}$ and be unique.",
             "For monetary inputs, set unit to the relevant ISO 4217 currency code. Common choices include EUR, USD, GBP, RSD, CHF, CAD, AUD, JPY, CNY, PLN and CZK.",
             "Each result may use its own ISO 4217 currency code. Currency selection controls formatting only; never imply that different currencies have been converted.",
@@ -658,13 +663,18 @@ export async function onRequestPost(context){
         }
 
         let content="";
+        let contentProvider="";
         if(geminiKey){
-            try{content=await generateWithGemini(geminiKey,system,userPrompt);}
-            catch(error){console.warn("Gemini UGC calculator request failed:",error);}
+            try{
+                content=await generateWithGemini(geminiKey,system,userPrompt);
+                if(content)contentProvider="gemini";
+            }catch(error){console.warn("Gemini UGC calculator request failed:",error);}
         }
         if(!content&&groqKey){
-            try{content=await generateWithGroq(groqKey,system,userPrompt);}
-            catch(error){console.error("Groq UGC calculator request failed:",error);}
+            try{
+                content=await generateWithGroq(groqKey,system,userPrompt);
+                if(content)contentProvider="groq";
+            }catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
         if(!content){
             const makerRefunded=mode==="create"?await refundMakerQuota():false;
@@ -678,18 +688,47 @@ export async function onRequestPost(context){
         }
 
         let parsed;
-        try{parsed=JSON.parse(content);}
-        catch(_){
-            await refundMakerQuota();
-            await refundEditQuota();
-            return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
-        }
         let definition;
-        try{definition=normalizeDefinition(parsed,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency});}
-        catch(error){
+        let validationError=null;
+        const parseAndValidate=generatedContent=>{
+            const candidate=JSON.parse(generatedContent);
+            const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency});
+            return {candidate,normalized};
+        };
+        try{
+            const validated=parseAndValidate(content);
+            parsed=validated.candidate;
+            definition=validated.normalized;
+        }catch(error){
+            validationError=error;
+        }
+
+        // Gemini's JSON mode guarantees JSON syntax, not category/subcategory compatibility.
+        // Retry a rejected Gemini draft with Groq's category-specific strict schema once,
+        // keeping the same Maker reservation for this generation request.
+        if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
+            console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
+            try{
+                content=await generateWithGroq(groqKey,system,userPrompt);
+                contentProvider="groq";
+                const validated=parseAndValidate(content);
+                parsed=validated.candidate;
+                definition=validated.normalized;
+                validationError=null;
+            }catch(error){
+                validationError=error;
+                console.error("Groq UGC calculator validation fallback failed:",error);
+            }
+        }
+        if(validationError){
             await refundMakerQuota();
             await refundEditQuota();
-            return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
+            const invalidJson=validationError instanceof SyntaxError;
+            return json({
+                success:false,
+                code:invalidJson?"INVALID_AI_JSON":"INVALID_AI_CALCULATOR",
+                error:validationError?.message||"The AI returned an invalid calculator definition."
+            },invalidJson?502:422,origin);
         }
 
         if(mode==="refine"){

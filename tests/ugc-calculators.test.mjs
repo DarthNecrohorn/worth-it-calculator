@@ -465,7 +465,15 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
         assert.equal(body.reasoning_effort, "low");
-        assert.ok(body.response_format.json_schema.schema.required.includes("inputs"));
+        const categorySchemas=body.response_format.json_schema.schema.anyOf;
+        assert.equal(categorySchemas.length,5);
+        const carsSchema=categorySchemas.find(item=>item.properties.category.enum[0]==="cars");
+        const moneySchema=categorySchemas.find(item=>item.properties.category.enum[0]==="money");
+        assert.ok(carsSchema.properties.subcategories.items.enum.includes("fuel-costs"));
+        assert.ok(!carsSchema.properties.subcategories.items.enum.includes("budgeting"));
+        assert.ok(moneySchema.properties.subcategories.items.enum.includes("budgeting"));
+        assert.ok(!moneySchema.properties.subcategories.items.enum.includes("fuel-costs"));
+        assert.ok(categorySchemas.every(item=>item.required.includes("inputs")&&item.additionalProperties===false));
         assert.match(body.messages[0].content, /restricted arithmetic parser/);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(validDefinition) } }]
@@ -524,6 +532,9 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"low"/);
+    assert.match(makerApi, /schema:\s*\{\s*anyOf:/);
+    assert.match(makerApi, /items:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.subcategories\]/);
+    assert.match(makerApi, /trying strict Groq fallback/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
     assert.equal(options.status, 204);
 });
@@ -583,6 +594,63 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
     });
 });
 
+
+
+test("AI Maker falls back to strict Groq when Gemini returns mismatched community categories", async () => {
+    const quotaEvents={refunds:0,settlements:0};
+    const geminiInvalid=structuredClone(validDefinition);
+    geminiInvalid.category="cars";
+    geminiInvalid.subcategories=["budgeting","saving"];
+    const requested=[];
+    await withFetch(async (url,options)=>{
+        const path=String(url);
+        if(path.endsWith("/auth/v1/user")){
+            return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+        }
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
+            requested.push("reserve");
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+        }
+        if(path.includes("generativelanguage.googleapis.com")){
+            requested.push("gemini");
+            return new Response(JSON.stringify({
+                candidates:[{content:{parts:[{text:JSON.stringify(geminiInvalid)}]}}]
+            }),{status:200});
+        }
+        if(path.includes("api.groq.com/openai/v1/chat/completions")){
+            requested.push("groq");
+            const body=JSON.parse(options.body);
+            assert.equal(body.response_format.type,"json_schema");
+            assert.equal(body.response_format.json_schema.strict,true);
+            const branches=body.response_format.json_schema.schema.anyOf;
+            assert.ok(branches.some(item=>item.properties.category.enum[0]==="money"
+                &&item.properties.subcategories.items.enum.includes("budgeting")
+                &&!item.properties.subcategories.items.enum.includes("fuel-costs")));
+            return new Response(JSON.stringify({
+                choices:[{message:{content:JSON.stringify(validDefinition)}}]
+            }),{status:200});
+        }
+        throw new Error("Unexpected request in category fallback test: "+path);
+    },async()=>{
+        const response=await onRequestPost({
+            request:request({prompt:"Create a calculator for monthly savings growth."},{token:"valid-token"}),
+            env:{
+                SUPABASE_URL:"https://supabase.example",
+                SUPABASE_PUBLISHABLE_KEY:"publishable",
+                GEMINI_API_KEY:"gemini-test",
+                GROQ_API_KEY:"groq-test"
+            }
+        });
+        assert.equal(response.status,200);
+        const result=await response.json();
+        assert.equal(result.success,true);
+        assert.equal(result.calculator.category,"money");
+        assert.deepEqual(result.calculator.spec.subcategories,["budgeting","saving"]);
+        assert.deepEqual(requested,["reserve","gemini","groq"]);
+        assert.equal(quotaEvents.refunds||0,0);
+        assert.equal(quotaEvents.settlements,1);
+    },quotaEvents);
+});
 
 test("AI Maker refunds its reserved daily generation when Gemini and Groq both fail", async () => {
     const quotaEvents = { refunds: 0, settlements: 0 };
