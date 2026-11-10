@@ -24,6 +24,39 @@ const COUNTRY_DEFAULTS = {
  NL:["EUR","nl-NL"],PT:["EUR","pt-PT"],SK:["EUR","sk-SK"],SI:["EUR","sl-SI"],ES:["EUR","es-ES"],
  AD:["EUR","ca-AD"],MC:["EUR","fr-MC"],SM:["EUR","it-SM"],VA:["EUR","it-VA"]
 };
+const EXPLICIT_CURRENCY_RULES=[
+ ["EUR",/\\b(?:eur|euros?)\\b/i],
+ ["USD",/\\b(?:usd|us dollars?|u\\.?s\\.? dollars?|american dollars?)\\b/i],
+ ["GBP",/\\b(?:gbp|pounds? sterling|british pounds?)\\b/i],
+ ["RSD",/\\b(?:rsd|serbian dinars?)\\b/i],
+ ["CHF",/\\b(?:chf|swiss francs?)\\b/i],
+ ["CAD",/\\b(?:cad|canadian dollars?)\\b/i],
+ ["AUD",/\\b(?:aud|australian dollars?)\\b/i],
+ ["NZD",/\\b(?:nzd|new zealand dollars?)\\b/i],
+ ["JPY",/\\b(?:jpy|japanese yen)\\b/i],
+ ["CNY",/\\b(?:cny|chinese yuan)\\b/i],
+ ["INR",/\\b(?:inr|indian rupees?)\\b/i],
+ ["PLN",/\\b(?:pln|polish zloty)\\b/i],
+ ["CZK",/\\b(?:czk|czech korunas?)\\b/i],
+ ["HUF",/\\b(?:huf|hungarian forints?)\\b/i],
+ ["SEK",/\\b(?:sek|swedish krona)\\b/i],
+ ["NOK",/\\b(?:nok|norwegian kroner?)\\b/i],
+ ["DKK",/\\b(?:dkk|danish kroner?)\\b/i],
+ ["BRL",/\\b(?:brl|brazilian reals?)\\b/i],
+ ["MXN",/\\b(?:mxn|mexican pesos?)\\b/i],
+ ["ZAR",/\\b(?:zar|south african rand)\\b/i],
+ ["SGD",/\\b(?:sgd|singapore dollars?)\\b/i],
+ ["HKD",/\\b(?:hkd|hong kong dollars?)\\b/i],
+ ["KRW",/\\b(?:krw|south korean won)\\b/i],
+ ["TRY",/\\b(?:try|turkish lira)\\b/i],
+ ["AED",/\\b(?:aed|uae dirhams?)\\b/i],
+ ["SAR",/\\b(?:sar|saudi riyals?)\\b/i]
+];
+export function resolveExplicitCurrency(prompt){
+ const value=String(prompt||"");
+ const matches=EXPLICIT_CURRENCY_RULES.filter(([,pattern])=>pattern.test(value)).map(([code])=>code);
+ return matches.length===1?matches[0]:null;
+}
 export function resolveRegionalDefaults(request){
  const country=String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
  const regional=COUNTRY_DEFAULTS[country];
@@ -411,6 +444,8 @@ export async function onRequestPost(context){
         const regionalDefaults=resolveRegionalDefaults(request);
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
         if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 900 characters."},400,origin);
+        const requestedCurrency=resolveExplicitCurrency(prompt);
+        const defaultCurrency=requestedCurrency||regionalDefaults.currency;
 
         const geminiKey=String(env.GEMINI_API_KEY||"").trim();
         const groqKey=String(env.GROQ_API_KEY||"").trim();
@@ -501,6 +536,7 @@ export async function onRequestPost(context){
             "User request:",
             prompt,
             "Regional presentation suggestions (not mandatory): currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+". Use an explicitly requested currency in preference to these suggestions.",
+            "Explicitly requested single currency override: "+(requestedCurrency||"none detected; use regional suggestion")+". If one is specified, use it consistently for monetary inputs and outputs unless the user explicitly requests a conversion or comparison between currencies.",
             "Keep currency selection separate from conversion: these suggestions only affect default units and formatting."
         ].join("\n");
         if(mode==="refine"){
@@ -558,7 +594,7 @@ export async function onRequestPost(context){
             return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
         }
         let definition;
-        try{definition=normalizeDefinition(parsed,regionalDefaults.currency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine"});}
+        try{definition=normalizeDefinition(parsed,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine"});}
         catch(error){
             await refundEditQuota();
             return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
