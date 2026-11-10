@@ -468,8 +468,8 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
 }
 
 /* Mobile-only positioning for the requested controls.
-   Put the whole currency group in a wide, unshared second-row grid area.
-   Keep its intrinsic button widths so CALC and WIP cannot be squeezed or clipped. */
+   The three wallet buttons keep intrinsic widths in a dedicated second-row area.
+   Their left edge is 40px left of the original second-row position; no other header actions are moved. */
 @media(max-width:560px){
     .nav-inner > .menu-btn{
         transform:translateX(-10px)!important;
@@ -498,26 +498,24 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
         overflow:visible!important;
         z-index:5!important;
     }
-    .nav-inner > .calc-economy-nav > .calc-shop-nav,
-    .nav-inner > .calc-economy-nav > .calc-wallet-nav,
-    .nav-inner > .calc-economy-nav > .calc-wip-nav{
+    .nav-inner > .calc-economy-nav > .calc-shop-nav:not([hidden]),
+    .nav-inner > .calc-economy-nav > .calc-wallet-nav:not([hidden]),
+    .nav-inner > .calc-economy-nav > .calc-wip-nav:not([hidden]){
         display:inline-flex!important;
         flex:0 0 auto!important;
-        visibility:visible!important;
-        opacity:1!important;
         white-space:nowrap!important;
     }
-    .nav-inner > .calc-economy-nav > .calc-shop-nav{
+    .nav-inner > .calc-economy-nav > .calc-shop-nav:not([hidden]){
         width:auto!important;
         min-width:max-content!important;
         max-width:none!important;
     }
-    .nav-inner > .calc-economy-nav > .calc-wallet-nav{
+    .nav-inner > .calc-economy-nav > .calc-wallet-nav:not([hidden]){
         width:max-content!important;
         min-width:max-content!important;
         max-width:none!important;
     }
-    .nav-inner > .calc-economy-nav > .calc-wip-nav{
+    .nav-inner > .calc-economy-nav > .calc-wip-nav:not([hidden]){
         flex:0 0 78px!important;
         width:78px!important;
         min-width:78px!important;
