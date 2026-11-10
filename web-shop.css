@@ -467,16 +467,27 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  .calc-wip-nav{flex-basis:77px!important;width:77px!important;min-width:77px!important;max-width:77px!important}
 }
 
-/* Mobile-only positioning adjustments for the specifically requested header controls.
-   Keep the user-search button and every other header action in their existing positions. */
+/* Mobile-only positioning for the requested controls.
+   The economy controls use the first three grid columns so all three buttons
+   have a dedicated row area and are not clipped behind the right-side actions.
+   Search and all other header controls retain their original positions. */
 @media(max-width:560px){
     .nav-inner > .menu-btn{
         transform:translateX(-10px)!important;
     }
     .nav-inner > .logo{
-        transform:translate(-20px,-5px)!important;
+        transform:translate(-20px,-4px)!important;
     }
     .nav-inner > .calc-economy-nav{
-        transform:translate(-30px,-10px)!important;
+        grid-column:1 / 4!important;
+        justify-self:stretch!important;
+        width:auto!important;
+        min-width:0!important;
+        box-sizing:border-box!important;
+        padding-left:40px!important;
+        transform:translate(-50px,-5px)!important;
+    }
+    html[data-worth-it-custom-theme] .nav-inner > .calc-economy-nav:has(>button:not([hidden])){
+        padding-left:40px!important;
     }
 }
