@@ -132,7 +132,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[0].content, /Explicitly requested single currency override: RSD/i);
+        assert.match(body.messages[1].content, /Explicitly requested single currency override: RSD/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
         }), { status: 200 });
