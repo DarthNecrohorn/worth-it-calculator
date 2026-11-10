@@ -211,7 +211,8 @@
             premium_lite_purchase:"Premium Lite activation",
             refund:"Refund",
             manual_adjustment:"Balance adjustment",
-            calc_pack_purchase:"CALC pack"
+            calc_pack_purchase:"CALC pack",
+            ugc_creator_earning:"UGC calculator earnings"
         };
         return labels[String(kind || "")] || String(kind || "Wallet transaction").replace(/_/g," ");
     }
