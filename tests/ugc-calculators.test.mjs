@@ -161,7 +161,7 @@ test("AI Maker tests formulas at boundary values and normalizes positive-only in
         key: "commuting_days_per_week", label: "Commuting days per week",
         min: 0, max: 7, default: 5, step: 1, unit: ""
     };
-    candidate.results[0].expression = "starting_amount/(years-1)";
+    candidate.results[0].expression = "monthly_deposit/(years-1)";
     await withFetch(async (url, options) => {
         if (String(url).endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
