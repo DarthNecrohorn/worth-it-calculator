@@ -17,9 +17,7 @@ const COUNTRY_DEFAULTS = {
  CZ:["CZK","cs-CZ"],HU:["HUF","hu-HU"],SE:["SEK","sv-SE"],NO:["NOK","nb-NO"],DK:["DKK","da-DK"],
  IS:["ISK","is-IS"],TR:["TRY","tr-TR"],BR:["BRL","pt-BR"],MX:["MXN","es-MX"],ZA:["ZAR","en-ZA"],
  SG:["SGD","en-SG"],HK:["HKD","zh-HK"],KR:["KRW","ko-KR"],AE:["AED","ar-AE"],SA:["SAR","ar-SA"],
- TH:["THB","th-TH"],ID:["IDR","id-ID"],MY:["MYR","ms-MY"],PH:["PHP","en-PH"],VN:["VND","vi-VN"],
- EG:["EGP","ar-EG"],PK:["PKR","ur-PK"],BD:["BDT","bn-BD"],NG:["NGN","en-NG"],KE:["KES","en-KE"],
- RO:["RON","ro-RO"],BG:["EUR","bg-BG"],RS:["EUR","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
+ BG:["EUR","bg-BG"],RS:["EUR","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
  AT:["EUR","de-AT"],BE:["EUR","nl-BE"],CY:["EUR","el-CY"],EE:["EUR","et-EE"],FI:["EUR","fi-FI"],
  FR:["EUR","fr-FR"],DE:["EUR","de-DE"],GR:["EUR","el-GR"],HR:["EUR","hr-HR"],IE:["EUR","en-IE"],
  IT:["EUR","it-IT"],LV:["EUR","lv-LV"],LT:["EUR","lt-LT"],LU:["EUR","fr-LU"],MT:["EUR","mt-MT"],
@@ -29,6 +27,8 @@ const COUNTRY_DEFAULTS = {
 export function resolveRegionalDefaults(request){
  const country=String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
  const regional=COUNTRY_DEFAULTS[country];
+ const continent=String(request?.cf?.continent||"").trim().toUpperCase();
+ const fallbackCurrency=continent==="EU"?"EUR":"USD";
  const header=String(request?.headers?.get?.("Accept-Language")||"");
  const candidates=header.split(",").map((part,index)=>{
   const pieces=part.trim().split(";"),tag=pieces[0].trim();
@@ -38,7 +38,7 @@ export function resolveRegionalDefaults(request){
   .sort((a,b)=>b.quality-a.quality||a.index-b.index);
  let acceptedLocale="";
  for(const item of candidates){try{acceptedLocale=Intl.getCanonicalLocales(item.tag)[0]||"";if(acceptedLocale)break;}catch(_){}}
- return {country:country||null,currency:regional?.[0]||"USD",locale:acceptedLocale||regional?.[1]||"en-US",currencySource:regional?"country":"global-default"};
+ return {country:country||null,currency:regional?.[0]||fallbackCurrency,locale:acceptedLocale||regional?.[1]||"en-US",currencySource:regional?"country":continent==="EU"?"continent-default":"global-default"};
 }
 
 function json(data,status,origin){
