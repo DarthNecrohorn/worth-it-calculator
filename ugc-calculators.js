@@ -36,7 +36,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -450,14 +450,78 @@ function evaluate(ast,values){
  }
  if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result. Check your inputs.");return n;
 }
-function formatResult(item,value){
- const prefix=String(item.prefix||""),suffix=String(item.suffix||"");
- if(item.format==="currency"){
-  try{return prefix+new Intl.NumberFormat(undefined,{style:"currency",currency:item.currency||"EUR",maximumFractionDigits:2}).format(value)+suffix;}
-  catch(_){}
+function validateMakerSpec(spec){
+ const errors=[];
+ if(!Array.isArray(spec?.inputs)||!spec.inputs.length)errors.push("Add at least one input.");
+ if(!Array.isArray(spec?.results)||!spec.results.length)errors.push("Add at least one result.");
+ const inputs=Array.isArray(spec?.inputs)?spec.inputs:[];
+ const values={};
+ inputs.forEach(item=>{
+  const label=String(item.label||item.key||"input"),min=Number(item.min),max=Number(item.max),value=Number(item.default),step=Number(item.step);
+  if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<=min||step<=0){errors.push(label+": check its minimum, maximum, default and step.");return;}
+  const text=(label+" "+item.key).toLowerCase();
+  if(/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(text)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
+   errors.push(label+": use positive whole days and a step of at least 1.");
+  }
+  if(/\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\b/.test(text)&&min<=0){
+   errors.push(label+": this input should have a positive minimum.");
+  }
+  const stepPosition=(value-min)/step;
+  if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)errors.push(label+": the default value does not match its step.");
+  values[item.key]=value;
+ });
+ const keys=new Set(inputs.map(item=>item.key));
+ const scenarios=[{...values}];
+ if(inputs.length){
+  scenarios.push(Object.fromEntries(inputs.map(item=>[item.key,Number(item.min)])));
+  scenarios.push(Object.fromEntries(inputs.map(item=>[item.key,Number(item.max)])));
+  inputs.forEach(item=>{
+   const low={...values};low[item.key]=Number(item.min);scenarios.push(low);
+   const high={...values};high[item.key]=Number(item.max);scenarios.push(high);
+  });
  }
- if(item.format==="percent")return prefix+new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(value)+"%"+suffix;
- return prefix+new Intl.NumberFormat(undefined,{maximumFractionDigits:4}).format(value)+suffix;
+ (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
+  if(item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase())){
+   errors.push((item.label||"A currency result")+": enter a valid three-letter ISO currency code.");
+  }
+  try{
+   const ast=compileExpression(item.expression,keys);
+   scenarios.forEach(sample=>evaluate(ast,sample));
+  }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||"could not be validated."));}
+ });
+ return {errors:[...new Set(errors)]};
+}
+function makerCurrencyWarnings(spec){
+ const known=new Set(CURRENCIES.map(([code])=>code));
+ const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>known.has(unit));
+ const outputCurrencies=(spec?.results||[]).filter(item=>item.format==="currency").map(item=>String(item.currency||"").trim().toUpperCase()).filter(code=>known.has(code));
+ const allInputs=[...new Set(inputCurrencies)],allOutputs=[...new Set(outputCurrencies)];
+ if(!allInputs.length||!allOutputs.length)return [];
+ const warnings=[];
+ allInputs.forEach(input=>allOutputs.forEach(output=>{if(input!==output)warnings.push(input+" input → "+output+" result");}));
+ return [...new Set(warnings)];
+}
+function refreshMakerValidationNote(){
+ const host=$("ugcMakerPreview"),spec=state.aiDraft?.spec;
+ if(!host||!spec)return;
+ host.querySelector("#ugcMakerValidationNote")?.remove();
+ const validation=validateMakerSpec(spec),currencyWarnings=makerCurrencyWarnings(spec),notes=[];
+ if(validation.errors.length)notes.push("Validation needs attention: "+validation.errors.slice(0,3).join(" "));
+ if(currencyWarnings.length)notes.push("Currency consistency warning ("+currencyWarnings.join(", ")+"). Currency selectors only change display; they do not convert amounts. Add an explicit exchange-rate input and use it in the formula when conversion is intended.");
+ if(!notes.length)notes.push("Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
+ const note=text("p","ugc-maker-schema-summary",notes.join(" "));
+ note.id="ugcMakerValidationNote";note.setAttribute("role","status");
+ const testToggle=host.querySelector(".ugc-maker-test-toggle");
+ if(testToggle)testToggle.insertAdjacentElement("beforebegin",note);else host.appendChild(note);
+}
+function formatResult(item,value,locale){
+ const prefix=String(item.prefix||""),suffix=String(item.suffix||"");
+ const format=(options)=>{try{return new Intl.NumberFormat(locale||undefined,options).format(value);}catch(_){return new Intl.NumberFormat(undefined,options).format(value);}};
+ if(item.format==="currency"){
+  try{return prefix+format({style:"currency",currency:item.currency||"USD",maximumFractionDigits:2})+suffix;}catch(_){}
+ }
+ if(item.format==="percent")return prefix+format({maximumFractionDigits:2})+"%"+suffix;
+ return prefix+format({maximumFractionDigits:4})+suffix;
 }
 async function refreshAiEditQuota(){
  const host=$("ugcMakerEditQuotaStatus");
@@ -951,6 +1015,7 @@ function closeMaker(){
 function refreshMakerTestIfOpen(){
  const panel=$("ugcMakerTestPanel");
  if(panel&&!panel.hidden)renderMakerTestPanel(true);
+ refreshMakerValidationNote();
 }
 function renderMakerTestPanel(preserveValues){
  const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
@@ -968,6 +1033,16 @@ function renderMakerTestPanel(preserveValues){
  const reset=button("Reset values","ugc-maker-test-reset",()=>renderMakerTestPanel(false));
  reset.setAttribute("aria-label","Reset test values to the calculator defaults");
  heading.append(intro,reset);panel.appendChild(heading);
+ const localeLabel=document.createElement("label");localeLabel.className="ugc-maker-test-locale";
+ localeLabel.appendChild(text("span","","Number format"));
+ const localeSelect=document.createElement("select");localeSelect.setAttribute("aria-label","Number formatting locale");
+ const localeOptions=[["auto","Use browser settings"],["en-US","English (United States)"],["en-GB","English (United Kingdom)"],["de-DE","German (Germany)"],["fr-FR","French (France)"],["es-ES","Spanish (Spain)"],["pt-BR","Portuguese (Brazil)"],["sr-Latn-RS","Serbian (Latin)"],["ja-JP","Japanese (Japan)"]];
+ const selectedLocale=state.makerLocale||state.regionalDefaults?.locale||"auto";
+ localeOptions.forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;localeSelect.appendChild(option);});
+ if(selectedLocale!=="auto"&&!localeOptions.some(([value])=>value===selectedLocale)){const option=document.createElement("option");option.value=selectedLocale;option.textContent="Detected regional format ("+selectedLocale+")";localeSelect.appendChild(option);}
+ localeSelect.value=selectedLocale;
+ localeSelect.addEventListener("change",()=>{state.makerLocale=localeSelect.value;updateMakerTestResults(panel);});
+ localeLabel.appendChild(localeSelect);panel.appendChild(localeLabel);
  const inputGrid=document.createElement("div");inputGrid.className="ugc-maker-test-inputs";
  spec.inputs.forEach(item=>{
   const label=document.createElement("label");label.className="ugc-maker-test-input";
@@ -992,7 +1067,7 @@ function renderMakerTestPanel(preserveValues){
  const statusNode=text("p","ugc-maker-test-status","");
  statusNode.setAttribute("role","status");statusNode.setAttribute("aria-live","polite");
  panel.appendChild(statusNode);
- panel.appendChild(text("p","ugc-maker-test-note","Free local test · No CALC is charged, no AI request is sent, and nothing is saved."));
+ panel.appendChild(text("p","ugc-maker-test-note","Free local test · No CALC is charged, no AI request is sent, and nothing is saved. Changing the number format only affects this preview."));
  updateMakerTestResults(panel);
 }
 function updateMakerTestResults(panel){
@@ -1021,7 +1096,8 @@ function updateMakerTestResults(panel){
   try{
    const ast=compileExpression(item.expression,keys);
    const value=evaluate(ast,values);
-   card.appendChild(text("strong","",formatResult(item,value)));
+   const locale=state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||"");
+   card.appendChild(text("strong","",formatResult(item,value,locale)));
   }catch(error){
    formulaErrors++;
    card.classList.add("is-error");
@@ -1030,21 +1106,30 @@ function updateMakerTestResults(panel){
   }
   output.appendChild(card);
  });
+ const validation=validateMakerSpec(spec);
  statusNode.textContent=formulaErrors
   ?" "+formulaErrors+" result formula"+(formulaErrors===1?" needs":"s need")+" attention. Check the highlighted result"+(formulaErrors===1?".":"s.")
-  :"Results are updating automatically as you change the sample values.";
+  :validation.errors.length
+   ?"Live calculation works for these values, but boundary validation needs attention: "+validation.errors.slice(0,2).join(" ")
+   :"Results are updating automatically. Default, minimum, maximum and one-input-at-a-time boundary checks also pass.";
 }
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();
  if(!definition){host.hidden=true;return;}
  host.hidden=false;
+ if(state.regionalDefaults){
+  const regionNote=text("p","ugc-maker-schema-summary","Regional suggestion: "+state.regionalDefaults.currency+" · number format "+state.regionalDefaults.locale+". This is only a starting point; you can change every input unit and result currency below. Currency selection never performs conversion.");
+  regionNote.id="ugcMakerRegionalDefaults";host.appendChild(regionNote);
+ }
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
  const title=document.createElement("label");title.textContent="Calculator title";
  const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=Boolean(state.editingId);title.appendChild(titleInput);
- const desc=document.createElement("label");desc.textContent="Description (optional)";
+ const desc=document.createElement("label");desc.textContent="Description";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId);desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
+ const descriptionHelp=text("p","ugc-maker-schema-summary","Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
+ descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
  const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
  selected.appendChild(text("strong","","AI-selected categories"));
  getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
@@ -1061,7 +1146,7 @@ function renderMakerPreview(definition){
    const label=document.createElement("label");label.textContent=labelText;
    const input=document.createElement("input");input.type=type;input.value=String(value??"");
    if(type==="number")input.step="any";
-   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();});
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});
    label.appendChild(input);grid.appendChild(label);
   };
   addInput("Label","text",item.label,value=>{item.label=String(value).trim().slice(0,60);});
@@ -1078,13 +1163,13 @@ function renderMakerPreview(definition){
   const isKnownUnit=UNIT_OPTIONS.some(([value])=>value===currentUnit);
   unitSelect.value=isKnownUnit?currentUnit:"__custom__";
   const customUnit=document.createElement("input");customUnit.type="text";customUnit.maxLength=16;customUnit.placeholder="Custom unit (max 16 characters)";customUnit.value=isKnownUnit?"":currentUnit;customUnit.hidden=isKnownUnit;
-  customUnit.addEventListener("input",()=>{item.unit=String(customUnit.value).trim().slice(0,16);refreshMakerTestIfOpen();});
+  customUnit.addEventListener("input",()=>{item.unit=String(customUnit.value).trim().slice(0,16);refreshMakerTestIfOpen();refreshMakerValidationNote();});
   unitSelect.addEventListener("change",()=>{
    const custom=unitSelect.value==="__custom__";
    customUnit.hidden=!custom;
    if(custom){customUnit.focus();item.unit=String(customUnit.value).trim().slice(0,16);}
    else{item.unit=unitSelect.value;customUnit.value="";}
-   refreshMakerTestIfOpen();
+   refreshMakerTestIfOpen();refreshMakerValidationNote();
   });
   unitLabel.append(unitSelect,customUnit);grid.appendChild(unitLabel);
   group.appendChild(grid);host.appendChild(group);
@@ -1099,7 +1184,7 @@ function renderMakerPreview(definition){
    const input=document.createElement(type==="textarea"?"textarea":"input");
    if(type!=="textarea")input.type=type;
    input.value=String(value??"");
-   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();});
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});
    label.appendChild(input);grid.appendChild(label);
   };
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
@@ -1122,21 +1207,21 @@ function renderMakerPreview(definition){
   const customCurrency=document.createElement("input");customCurrency.type="text";customCurrency.maxLength=3;customCurrency.inputMode="text";customCurrency.autocomplete="off";customCurrency.spellcheck=false;customCurrency.placeholder="ISO code, e.g. RSD";customCurrency.value=isKnownCurrency?"":currentCurrency;customCurrency.hidden=isKnownCurrency;
   customCurrency.addEventListener("input",()=>{
    item.currency=String(customCurrency.value).toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);
-   refreshMakerTestIfOpen();
+   refreshMakerTestIfOpen();refreshMakerValidationNote();
   });
   currencySelect.addEventListener("change",()=>{
    const custom=currencySelect.value==="__custom__";
    customCurrency.hidden=!custom;
    if(custom){customCurrency.focus();item.currency=String(customCurrency.value).toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);}
    else{item.currency=currencySelect.value;customCurrency.value="";}
-   refreshMakerTestIfOpen();
+   refreshMakerTestIfOpen();refreshMakerValidationNote();
   });
   const syncCurrencyEnabled=()=>{
    const enabled=formatSelect.value==="currency";
    currencySelect.disabled=!enabled;customCurrency.disabled=!enabled;
    currencyLabel.classList.toggle("is-disabled",!enabled);
   };
-  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;syncCurrencyEnabled();refreshMakerTestIfOpen();});
+  formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;syncCurrencyEnabled();refreshMakerTestIfOpen();refreshMakerValidationNote();});
   currencyLabel.append(currencySelect,customCurrency);grid.appendChild(currencyLabel);
   syncCurrencyEnabled();
   group.appendChild(grid);host.appendChild(group);
@@ -1153,6 +1238,7 @@ function renderMakerPreview(definition){
  testToggle.setAttribute("aria-expanded","false");
  host.append(testToggle,testPanel);
  host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: +, −, ×, ÷, powers, parentheses and min, max, abs, round, floor, ceil, sqrt, pow. Arbitrary JavaScript is never run."));
+ refreshMakerValidationNote();
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;
  if(publishButton)publishButton.disabled=false;
@@ -1170,6 +1256,8 @@ async function generateWithAI(){
   const data=await response.json().catch(()=>null);
   if(!response.ok||!data?.success)throw new Error(data?.error||"The AI calculator maker is unavailable.");
   state.aiDraft=data.calculator;
+  state.regionalDefaults=data.regionalDefaults||null;
+  state.makerLocale=state.regionalDefaults?.locale||"auto";
   renderMakerPreview(state.aiDraft);
   $("ugcMakerStatus").textContent=state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.";
  }catch(error){$("ugcMakerStatus").textContent=error?.message||"Could not generate a calculator.";}
@@ -1183,6 +1271,11 @@ async function saveMakerDraft(publish){
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
  if(title.length<3){$("ugcMakerStatus").textContent="Enter a title with at least 3 characters.";return;}
+ if(!state.editingId&&(description.length<24||description.length>500)){
+  $("ugcMakerStatus").textContent="The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.";return;
+ }
+ const validation=validateMakerSpec(state.aiDraft.spec);
+ if(validation.errors.length){$("ugcMakerStatus").textContent="Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" ");return;}
  const invalidCurrency=(state.aiDraft.spec?.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
  if(invalidCurrency){$("ugcMakerStatus").textContent="Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.";return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
@@ -1344,7 +1437,7 @@ window.addEventListener("focus",()=>{reconcileExplorePanels();refreshCreatorDisc
 window.addEventListener("popstate",()=>window.setTimeout(refreshCreatorDiscoveryWhenVisible,0));
 window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
 function openNewCalculatorMaker(){
- state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;openMaker();
+ state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";openMaker();
  $("ugcMakerVisibility").value="private";
  $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
  $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerVisibility").value="private";
