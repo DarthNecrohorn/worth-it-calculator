@@ -42,6 +42,7 @@ on:
       - "supabase/worth-it-ugc-reaction-policy.sql"
       - "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql"
       - "supabase/worth-it-ugc-creator-earnings.sql"
+      - "supabase/worth-it-ugc-creator-earnings-price-cap.sql"
       - "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql"
       - "supabase/worth-it-community-theme-hover.sql"
       - "supabase/calc-economy-followup.sql"
@@ -124,7 +125,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -347,6 +348,8 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-creator-earnings-pre-migration.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings-price-cap.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings-price-cap.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-unique-views-pre-migration.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-unique-views.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-unique-views.sql
