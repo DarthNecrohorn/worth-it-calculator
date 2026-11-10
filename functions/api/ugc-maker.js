@@ -23,9 +23,21 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
                     type: "object",
                     properties: {
                         category: { type: "string", enum: [category] },
-                        subcategories: { type: "array", items: { type: "string", enum: [...subcategories] } }
+                        subcategory_1: { type: "string", enum: [...subcategories] },
+                        subcategory_2: {
+                            anyOf: [
+                                { type: "string", enum: [...subcategories] },
+                                { type: "null" }
+                            ]
+                        },
+                        subcategory_3: {
+                            anyOf: [
+                                { type: "string", enum: [...subcategories] },
+                                { type: "null" }
+                            ]
+                        }
                     },
-                    required: ["category","subcategories"],
+                    required: ["category","subcategory_1","subcategory_2","subcategory_3"],
                     additionalProperties: false
                 }))
             },
@@ -192,7 +204,8 @@ async function generateWithGroq(apiKey,system,prompt){
     const groqSystem=[
         system,
         "For this provider's structured response, put the primary category and its subcategories together inside a root field named classification.",
-        "The classification object must contain category and subcategories. Do not put category or subcategories at the root level.",
+        "The classification object must contain category, subcategory_1, subcategory_2 and subcategory_3. subcategory_1 is mandatory and must be one valid ID from the chosen category. Use null for each unused optional subcategory_2 or subcategory_3 field.",
+        "Never use an empty subcategory_1, never mix categories, and never put category or subcategory fields at the root level.",
         "Keep title, description, inputs and results as root fields. The server converts classification into the calculator's saved category fields."
     ].join(" ");
     const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
@@ -218,8 +231,12 @@ async function generateWithGroq(apiKey,system,prompt){
     try{
         const parsed=JSON.parse(generated);
         if(parsed?.classification&&typeof parsed.classification==="object"){
-            parsed.category=parsed.classification.category;
-            parsed.subcategories=parsed.classification.subcategories;
+            const classification=parsed.classification;
+            parsed.category=classification.category;
+            parsed.subcategories=Array.isArray(classification.subcategories)
+                ? classification.subcategories
+                : [classification.subcategory_1,classification.subcategory_2,classification.subcategory_3]
+                    .filter(value=>typeof value==="string");
             delete parsed.classification;
             return JSON.stringify(parsed);
         }
@@ -638,7 +655,7 @@ export async function onRequestPost(context){
             "For monetary inputs, use the same requested or suggested currency code in unit; never silently mix currencies.",
             "Write the title, description, input labels and result labels in the same language as the user's prompt. If the prompt language is unclear, use the primary Accept-Language language; otherwise use English. Never choose the language from country alone.",
             "For a new calculator, the description must be 24 to 500 characters and use one or two concise, informative sentences: explain what is calculated, the important assumptions or included costs, and what the results represent. During refinement, preserve the existing description exactly, even if it is shorter. Do not add marketing claims or unsupported facts.",
-            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a clearly labelled result for each requested period. Do not silently omit requested inputs or output periods.",
+            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a separate clearly labelled result row for each requested period. When the user requests a total for a period, its result label must also contain the word total. Do not treat a monthly or annual figure as a substitute for a separately requested weekly or yearly result. Do not silently omit requested inputs or output periods.",
             "Use positive minimums for quantities that cannot logically be zero, such as working days, commute distance and fuel consumption. Use whole-number steps for counts of days or people. Zero is acceptable for optional charges such as parking or fees.",
             "Check every formula at default values, all-minimum values, all-maximum values, and each input's individual minimum and maximum. Avoid divisions by zero, invalid square roots, overflow and non-finite results across the entire allowed input range.",
             "Keep the title within 70 characters and description within 500 characters."
@@ -687,6 +704,7 @@ export async function onRequestPost(context){
 
         let content="";
         let contentProvider="";
+        let groqFallbackAttempted=false;
         if(geminiKey){
             try{
                 content=await generateWithGemini(geminiKey,system,userPrompt);
@@ -730,6 +748,7 @@ export async function onRequestPost(context){
         // Retry a rejected Gemini draft with Groq's category-specific strict schema once,
         // keeping the same Maker reservation for this generation request.
         if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
+            groqFallbackAttempted=true;
             console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
             try{
                 content=await generateWithGroq(groqKey,system,userPrompt);
@@ -787,7 +806,44 @@ export async function onRequestPost(context){
             }},200,origin);
         }
 
-        const missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+        let missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+        if(missingCoverage.length&&mode==="create"&&groqKey&&!groqFallbackAttempted){
+            groqFallbackAttempted=true;
+            console.warn("Gemini UGC calculator omitted requested coverage; trying targeted Groq regeneration:",missingCoverage);
+            try{
+                const coverageRepairPrompt=[
+                    "Original user request:",
+                    prompt,
+                    "",
+                    "The previous draft was rejected because it omitted these explicitly requested items:",
+                    ...missingCoverage.map(item=>"- "+item),
+                    "",
+                    "Generate a complete replacement calculator definition. Do not merely explain the missing items.",
+                    "Add a real result row with a valid formula for every missing output period. Result labels must clearly contain the requested period (for example, Weekly total and Yearly total).",
+                    "When a period total is requested, include the word total in that result label.",
+                    "Keep all original requested inputs, assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
+                ].join("\n");
+                content=await generateWithGroq(groqKey,system,coverageRepairPrompt);
+                contentProvider="groq";
+                const validated=parseAndValidate(content);
+                parsed=validated.candidate;
+                definition=validated.normalized;
+                missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+            }catch(error){
+                validationError=error;
+                console.error("Groq UGC calculator coverage fallback failed:",error);
+            }
+        }
+        if(validationError){
+            await refundMakerQuota();
+            await refundEditQuota();
+            const invalidJson=validationError instanceof SyntaxError;
+            return json({
+                success:false,
+                code:invalidJson?"INVALID_AI_JSON":"INVALID_AI_CALCULATOR",
+                error:validationError?.message||"The AI returned an invalid calculator definition."
+            },invalidJson?502:422,origin);
+        }
         if(missingCoverage.length){
             await refundMakerQuota();
             return json({success:false,code:"INCOMPLETE_CALCULATOR",
