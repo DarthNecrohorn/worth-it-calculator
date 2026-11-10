@@ -128,7 +128,7 @@ test("UGC creator earnings respect the owner-selected 0.10–0.50 CALC price ran
     const smoke = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
     assert.ok(smoke.includes("set_worth_it_ugc_usage_price"));
     assert.ok(smoke.includes("usage_price_milli')::integer<>500"));
-    assert.ok(smoke.includes("maximum 0.50 CALC use must pay its creator exactly 0.25 CALC"));
+    assert.ok(smoke.includes("A 0.50 CALC maximum-price use must pay its creator exactly 0.25 CALC"));
     assert.ok(smoke.includes("A maximum 0.50 CALC use must credit exactly 0.25 once; earned %, records %, creator balance %."));
 });
 
