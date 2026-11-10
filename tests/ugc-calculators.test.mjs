@@ -711,9 +711,7 @@ test("UGC detail like and dislike buttons have larger desktop and mobile tap tar
     assert.match(desktop, /min-width:128px/);
     assert.match(desktop, /min-height:40px/);
     assert.match(desktop, /font-size:13px/);
-    const mobileStart = paginationCss.lastIndexOf("@media(max-width:700px)");
-    const mobile = paginationCss.slice(mobileStart);
-    assert.match(mobile, /\.ugc-detail-reaction-button\{\s*min-width:96px;\s*min-height:36px;\s*padding:7px 9px;\s*font-size:11px;/);
+    assert.match(paginationCss, /@media\(max-width:640px\)[\s\S]*?\.ugc-detail-reaction-button\{\s*min-width:96px;\s*min-height:36px;\s*padding:7px 9px;\s*font-size:11px;/);
 });
 
 test("UGC detail favourite stays top-right and reactions align with author and categories", () => {
