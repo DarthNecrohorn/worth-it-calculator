@@ -1256,7 +1256,7 @@ function renderMakerPreview(definition){
 async function generateWithAI(){
  if(!requireAccount()||!verifyConfirmed())return;
  const prompt=String($("ugcMakerPrompt")?.value||"").trim();
- if(prompt.length<10||prompt.length>900){$("ugcMakerStatus").textContent="Describe the requested changes in 10 to 900 characters.";return;}
+ if(prompt.length<10||prompt.length>1000){$("ugcMakerStatus").textContent="Describe the requested changes in 10 to 1000 characters.";return;}
  const button=$("ugcMakerGenerate");button.disabled=true;
  $("ugcMakerStatus").textContent=state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…";
  $("ugcMakerPreview").hidden=true;
