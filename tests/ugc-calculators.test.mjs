@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -76,6 +76,57 @@ function withFetch(mock, callback, quotaEvents = {}) {
     };
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
+
+test("UGC Maker Preview diagnostics verify the exact six-result prompt without reserving AI quota", async () => {
+    const prompt=[
+        "Create a Monthly Car Ownership Cost Calculator in English.",
+        "",
+        "Inputs:",
+        "- Monthly distance driven (km)",
+        "- Fuel consumption (L/100 km)",
+        "- Fuel price per liter",
+        "- Monthly insurance",
+        "- Monthly maintenance/repairs",
+        "- Monthly parking",
+        "- Monthly tolls",
+        "- Optional monthly loan/lease payment (allow 0)",
+        "- Comparison period in months (integer, min 1, default 12)",
+        "",
+        "Results:",
+        "- Monthly fuel cost",
+        "- Total monthly ownership cost",
+        "- Average weekly ownership cost",
+        "- Total yearly ownership cost",
+        "- Total cost over the selected months",
+        "- Cost per kilometer",
+        "",
+        "Use correct, explicit formulas and avoid double-counting. Allow optional costs to be zero and use positive minimums for required quantities. Keep weekly, monthly and yearly figures mathematically consistent. Use one currency consistently for every monetary input and result; do not convert currencies. Choose realistic defaults and sensible minimums, maximums and steps. Add a concise description of included costs and assumptions."
+    ].join("\\n");
+    const url=new URL(previewOrigin+"/api/ugc-maker");
+    url.searchParams.set("diagnostic","coverage");
+    url.searchParams.set("prompt",prompt);
+    const response=await onRequestGet({request:new Request(url,{headers:{Origin:previewOrigin}})});
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(result.success,true);
+    assert.equal(result.diagnostic,"ugc-maker-output-coverage");
+    assert.equal(result.build,"2026-11-10-output-coverage-v2");
+    assert.equal(result.promptLength, prompt.length);
+    assert.equal(result.requestedResultItems.length,6);
+    assert.deepEqual(result.missingCoverage,[]);
+    assert.equal(result.passed,true);
+
+    url.searchParams.set("labels",JSON.stringify([
+        "Monthly fuel cost",
+        "Total monthly ownership cost",
+        "Total cost over the selected months",
+        "Cost per kilometer"
+    ]));
+    const incomplete=await onRequestGet({request:new Request(url,{headers:{Origin:previewOrigin}})});
+    const incompleteResult=await incomplete.json();
+    assert.equal(incompleteResult.passed,false);
+    assert.deepEqual(incompleteResult.missingCoverage,["weekly result","yearly result","total yearly"]);
+});
 
 test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters", async () => {
     assert.match(html, /id="ugcMakerPrompt"[^>]*maxlength="1000"/);
@@ -239,7 +290,9 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
         providerCalls++;
-        const body=JSON.parse(options.body);
+        const providerRequest=JSON.parse(options.body);
+        assert.equal(providerRequest.max_tokens,4096);
+        const body=providerRequest;
         assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
         assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
         assert.doesNotMatch(body.messages[0].content,/1 to 4 result rows/);
