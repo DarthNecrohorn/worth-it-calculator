@@ -466,19 +466,16 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.response_format.json_schema.strict, true);
         assert.equal(body.reasoning_effort, "low");
         assert.equal(body.response_format.json_schema.schema.type,"object");
-        const categorySchemas=body.response_format.json_schema.schema.properties.classification.anyOf;
-        assert.equal(categorySchemas.length,5);
-        const carsSchema=categorySchemas.find(item=>item.properties.category.enum[0]==="cars");
-        const moneySchema=categorySchemas.find(item=>item.properties.category.enum[0]==="money");
-        assert.ok(carsSchema.properties.subcategory_1.enum.includes("fuel-costs"));
-        assert.ok(!carsSchema.properties.subcategory_1.enum.includes("budgeting"));
-        assert.ok(moneySchema.properties.subcategory_1.enum.includes("budgeting"));
-        assert.ok(!moneySchema.properties.subcategory_1.enum.includes("fuel-costs"));
-        assert.ok(categorySchemas.every(item=>item.required.includes("category")
-            &&item.required.includes("subcategory_1")
-            &&item.required.includes("subcategory_2")
-            &&item.required.includes("subcategory_3")
-            &&item.additionalProperties===false));
+        const classificationSchema=body.response_format.json_schema.schema.properties.classification;
+        assert.equal(classificationSchema.type,"object");
+        assert.deepEqual(classificationSchema.properties.category.enum,["cars","money","technology","home","other"]);
+        assert.equal(classificationSchema.properties.subcategories.type,"array");
+        const subcategoryEnum=classificationSchema.properties.subcategories.items.enum;
+        assert.ok(subcategoryEnum.includes("fuel-costs"));
+        assert.ok(subcategoryEnum.includes("budgeting"));
+        assert.ok(!Object.hasOwn(classificationSchema,"anyOf"),"Groq schema must not use ambiguous anyOf branches");
+        assert.deepEqual(classificationSchema.required,["category","subcategories"]);
+        assert.equal(classificationSchema.additionalProperties,false);
         assert.ok(body.response_format.json_schema.schema.required.includes("classification"));
         assert.equal(body.response_format.json_schema.schema.additionalProperties,false);
         assert.match(body.messages[0].content,/classification object/);
@@ -540,10 +537,11 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"low"/);
-    assert.match(makerApi, /classification:\s*\{\s*anyOf:/);
-    assert.match(makerApi, /subcategory_1:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.subcategories\]/);
+    assert.match(makerApi, /classification:\s*\{\s*type:\s*"object"/);
+    assert.match(makerApi, /subcategories:\s*\{\s*type:\s*"array"/);
+    assert.doesNotMatch(makerApi, /classification:\s*\{\s*anyOf:/);
     assert.match(makerApi, /parsed\.category=classification\.category/);
-    assert.match(makerApi, /classification\.subcategory_1,classification\.subcategory_2,classification\.subcategory_3/);
+    assert.match(makerApi, /Array\.isArray\(classification\.subcategories\)/);
     assert.match(makerApi, /trying strict Groq fallback/);
     assert.match(makerApi, /trying targeted Groq regeneration/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
@@ -634,17 +632,17 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             assert.equal(body.response_format.type,"json_schema");
             assert.equal(body.response_format.json_schema.strict,true);
             assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs and results/);
-            const branches=body.response_format.json_schema.schema.properties.classification.anyOf;
-            assert.ok(branches.some(item=>item.properties.category.enum[0]==="money"
-                &&item.properties.subcategory_1.enum.includes("budgeting")
-                &&!item.properties.subcategory_1.enum.includes("fuel-costs")
-                &&item.required.includes("subcategory_1")
-                &&item.required.includes("subcategory_2")
-                &&item.required.includes("subcategory_3")));
+            const classificationSchema=body.response_format.json_schema.schema.properties.classification;
+            assert.deepEqual(classificationSchema.properties.category.enum,["cars","money","technology","home","other"]);
+            const subcategoryEnum=classificationSchema.properties.subcategories.items.enum;
+            assert.ok(subcategoryEnum.includes("budgeting"));
+            assert.ok(subcategoryEnum.includes("fuel-costs"));
+            assert.ok(!Object.hasOwn(classificationSchema,"anyOf"));
+            assert.match(body.messages[0].content,/subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only/);
             const groqDefinition=structuredClone(validDefinition);
             delete groqDefinition.category;
             delete groqDefinition.subcategories;
-            groqDefinition.classification={category:"money",subcategory_1:"budgeting",subcategory_2:"saving",subcategory_3:null};
+            groqDefinition.classification={category:"money",subcategories:["budgeting","saving"]};
             return new Response(JSON.stringify({
                 choices:[{message:{content:JSON.stringify(groqDefinition)}}]
             }),{status:200});
@@ -704,7 +702,7 @@ test("AI Maker retries an incomplete Gemini calculator with Groq and includes re
             const output=structuredClone(complete);
             delete output.category;
             delete output.subcategories;
-            output.classification={category:"money",subcategory_1:"budgeting",subcategory_2:"saving",subcategory_3:null};
+            output.classification={category:"money",subcategories:["budgeting","saving"]};
             return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(output)}}]}),{status:200});
         }
         throw new Error("Unexpected request during coverage fallback: "+path);
