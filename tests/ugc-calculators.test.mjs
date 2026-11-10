@@ -101,7 +101,7 @@ test("UGC Maker Preview diagnostics verify the exact six-result prompt without r
         "- Cost per kilometer",
         "",
         "Use correct, explicit formulas and avoid double-counting. Allow optional costs to be zero and use positive minimums for required quantities. Keep weekly, monthly and yearly figures mathematically consistent. Use one currency consistently for every monetary input and result; do not convert currencies. Choose realistic defaults and sensible minimums, maximums and steps. Add a concise description of included costs and assumptions."
-    ].join("\\n");
+    ].join("\n");
     const url=new URL(previewOrigin+"/api/ugc-maker");
     url.searchParams.set("diagnostic","coverage");
     url.searchParams.set("prompt",prompt);
@@ -553,6 +553,15 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.match(profile,/get_worth_it_own_profile/);
     assert.match(profile,/select\("worth_it_id,username,display_name,avatar_url,banner_url,created_at"\)/);
     assert.match(profile,/window\.openWorthItOwnProfileConnections=/);
+});
+
+test("UGC Maker expands provider output limits and exposes safe result-coverage diagnostics", () => {
+    assert.match(makerApi, /max_tokens:4096/);
+    assert.match(makerApi, /maxOutputTokens:4096/);
+    assert.match(makerApi, /finishReason==="MAX_TOKENS"/);
+    assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\\.resultLabels/);
+    assert.match(makerApi, /coverageAttempts\\.push\\(/);
+    assert.match(makerApi, /export async function onRequestGet\\(context\\)/);
 });
 
 test("AI Maker requires a confirmed account and emits restricted declarative calculator definitions", async () => {
