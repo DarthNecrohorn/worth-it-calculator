@@ -72,6 +72,7 @@ test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria 
     });
     assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8")).currency, "EUR");
     assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS")).locale, "sr-Latn-RS");
+    assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).locale, "sr-Latn-RS", "the browser language preference takes precedence over the country fallback");
     assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("DE", "de-DE")).currency, "EUR");
     assert.equal(resolveRegionalDefaults(requestFor("BG", "bg-BG")).currency, "EUR");
@@ -454,11 +455,16 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         id: "11111111-1111-4111-8111-111111111111",
         is_owner: true,
         title: validDefinition.title,
-        description: validDefinition.description,
+        description: "Short legacy description.",
         category: validDefinition.category,
         spec: structuredClone(validDefinition)
     };
+    existing.spec.inputs[0].unit = "CHF";
+    existing.spec.results[0].currency = "CHF";
     const refined = structuredClone(validDefinition);
+    refined.description = existing.description;
+    delete refined.inputs[0].unit;
+    delete refined.results[0].currency;
     refined.inputs[0].label = "Starting savings balance";
     refined.inputs[0].max = 2000000;
 
@@ -481,12 +487,15 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         if (path.includes("generativelanguage.googleapis.com")) {
             const body=JSON.parse(options.body);
             assert.match(body.systemInstruction.parts[0].text,/preserve the exact title, category, description/i);
+            assert.match(body.systemInstruction.parts[0].text,/preserve its existing currency codes and monetary input units/i);
             return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(refined)}]}}]}),{status:200});
         }
         throw new Error("Unexpected AI refinement request: "+path);
     },async()=>{
+        const refineRequest=request({mode:"refine",calculator_id:existing.id,prompt:"Improve the calculation assumptions and formulas."},{token:"valid-token"});
+        Object.defineProperty(refineRequest,"cf",{value:{country:"RS"}});
         const response=await onRequestPost({
-            request:request({mode:"refine",calculator_id:existing.id,prompt:"Improve the calculation assumptions and formulas."},{token:"valid-token"}),
+            request:refineRequest,
             env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
         });
         assert.equal(response.status,200);
@@ -496,6 +505,9 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         assert.equal(result.calculator.description,existing.description);
         assert.equal(result.calculator.category,existing.category);
         assert.equal(result.calculator.spec.inputs[0].label,"Starting savings balance");
+        assert.equal(result.calculator.spec.inputs[0].unit,"CHF","omitted units retain their saved currency during refinement");
+        assert.equal(result.calculator.spec.results[0].currency,"CHF","omitted result currency retains its saved currency during refinement");
+        assert.equal(result.regionalDefaults.currency,"EUR","regional suggestions do not overwrite an existing calculator's currency");
         assert.ok(calls.some(path=>path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_edit")));
     });
 
