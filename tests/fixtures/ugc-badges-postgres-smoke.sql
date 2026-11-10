@@ -148,6 +148,10 @@ declare
     v_reaction jsonb;
     v_view jsonb;
     v_views integer;
+    v_settle jsonb;
+    v_request_id uuid := gen_random_uuid();
+    v_use_count integer;
+    v_blocked boolean := false;
 begin
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
     if (v_detail->>'is_owner')::boolean is distinct from false then
@@ -156,6 +160,64 @@ begin
     v_catalog:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
     if jsonb_array_length(v_catalog->'items')<1 then
         raise exception 'Published UGC calculator is missing from the latest catalogue.';
+    end if;
+
+    if (v_detail->>'require_test_before_reaction')::boolean is distinct from true
+       or (v_detail->>'has_used')::boolean is distinct from false then
+        raise exception 'The one-use-before-rating policy must default to on for a new calculator.';
+    end if;
+
+    begin
+        perform public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
+    exception when insufficient_privilege then
+        v_blocked:=true;
+    end;
+    if not v_blocked then
+        raise exception 'An untested member bypassed the default one-use-before-rating requirement.';
+    end if;
+
+    v_blocked:=false;
+    begin
+        perform public.set_worth_it_ugc_reaction_policy(current_setting('test.ugc_calculator_id')::uuid,false);
+    exception when insufficient_privilege then
+        v_blocked:=true;
+    end;
+    if not v_blocked then
+        raise exception 'A non-owner changed the calculator rating policy.';
+    end if;
+
+    insert into private.worth_it_calc_transactions(
+        user_id,kind,currency,amount_milli,balance_after_milli,status,
+        request_id,description,metadata
+    ) values (
+        '22222222-2222-4222-8222-222222222222',
+        'calculator_spend','CALC',-100,900,'reserved',v_request_id,
+        'Community calculator use',
+        jsonb_build_object('reason','calculator','ugc_calculator_id',current_setting('test.ugc_calculator_id'))
+    );
+    v_settle:=public.calc_wallet_settle(v_request_id);
+    if (v_settle->>'ok')::boolean is distinct from true
+       or v_settle->>'status' is distinct from 'completed' then
+        raise exception 'A successful calculator reservation did not settle: %',v_settle;
+    end if;
+    select count(*)::integer into v_use_count
+      from private.worth_it_calculator_uses
+     where calculator_id=current_setting('test.ugc_calculator_id')::uuid
+       and user_id='22222222-2222-4222-8222-222222222222';
+    if v_use_count<>1 then
+        raise exception 'A completed calculator use was not recorded exactly once; found %.',v_use_count;
+    end if;
+    v_settle:=public.calc_wallet_settle(v_request_id);
+    select count(*)::integer into v_use_count
+      from private.worth_it_calculator_uses
+     where calculator_id=current_setting('test.ugc_calculator_id')::uuid
+       and user_id='22222222-2222-4222-8222-222222222222';
+    if (v_settle->>'ok')::boolean is distinct from true or v_use_count<>1 then
+        raise exception 'Retrying a settled calculation must not duplicate the use record.';
+    end if;
+    v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (v_detail->>'has_used')::boolean is distinct from true then
+        raise exception 'A member who completed a calculation is not recognized as having used it.';
     end if;
 
     v_reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
@@ -258,6 +320,61 @@ begin
     end loop;
 end
 $creator_leaderboards$;
+
+-- The owner can turn the requirement off, allowing an account with no completed
+-- calculator use to rate immediately; turning it back on protects new reactions.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $owner_rating_policy$
+declare result jsonb;
+begin
+    result:=public.set_worth_it_ugc_reaction_policy(current_setting('test.ugc_calculator_id')::uuid,false);
+    if (result->>'success')::boolean is distinct from true
+       or (result->>'require_test_before_reaction')::boolean is distinct from false then
+        raise exception 'The owner could not disable the rating usage requirement: %',result;
+    end if;
+end
+$owner_rating_policy$;
+
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $untested_rating$
+declare
+    detail jsonb;
+    reaction jsonb;
+begin
+    detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    if (detail->>'has_used')::boolean is distinct from false
+       or (detail->>'require_test_before_reaction')::boolean is distinct from false then
+        raise exception 'The member or disabled policy state was reported incorrectly: %',detail;
+    end if;
+    reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
+    if reaction->>'reaction' is distinct from 'like' then
+        raise exception 'A member could not rate without a prior use after the owner disabled the policy.';
+    end if;
+end
+$untested_rating$;
+
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+select public.set_worth_it_ugc_reaction_policy(current_setting('test.ugc_calculator_id')::uuid,true);
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $reenabled_rating$
+declare
+    blocked boolean:=false;
+    reaction jsonb;
+begin
+    begin
+        perform public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'dislike');
+    exception when insufficient_privilege then
+        blocked:=true;
+    end;
+    if not blocked then
+        raise exception 'Re-enabling the policy did not block an untested reaction change.';
+    end if;
+    reaction:=public.set_worth_it_ugc_reaction(current_setting('test.ugc_calculator_id')::uuid,'like');
+    if reaction->>'reaction' is not null then
+        raise exception 'Removing an existing reaction should remain possible after the policy is enabled.';
+    end if;
+end
+$reenabled_rating$;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
 do $second_viewer$
