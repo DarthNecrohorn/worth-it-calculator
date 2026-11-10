@@ -278,12 +278,12 @@ test("mobile economy header keeps all three wallet buttons visible without shift
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*grid-column:\s*1\s*\/\s*4!important/);
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*grid-row:\s*2!important/);
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*width:\s*max-content!important/);
-    assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*margin:\s*0 0 0 15px!important/);
-    assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*transform:\s*translateY\(5px\)!important/);
+    assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*margin:\s*0 0 0 5px!important/);
+    assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*\{[^}]*transform:\s*translateY\(-10px\)!important/);
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*>\s*\.calc-wallet-nav:not\(\[hidden\]\)/);
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.calc-economy-nav\s*>\s*\.calc-wip-nav:not\(\[hidden\]\)\s*\{[^}]*width:\s*78px!important/);
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.menu-btn\s*\{[^}]*transform:\s*translateX\(-10px\)!important/);
     assert.doesNotMatch(mobileOffsets, /worth-it-user-search-btn|\.nav-actions|worth-it-notification|worth-it-chat-nav-btn|ai-chat-nav-btn|settings-btn/);
     assert.doesNotMatch(mobileOffsets, /calc-(?:wallet|wip)-nav\s*\{[^}]*display:inline-flex!important/);
-    assert.match(html, /mobile-header-offsets=20261110d/);
+    assert.match(html, /mobile-header-offsets=20261110e/);
 });
