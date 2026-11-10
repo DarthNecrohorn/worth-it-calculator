@@ -550,6 +550,13 @@ async function runCalculation(calculator){
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
   reserved=false;
+  // calc_wallet_settle records successful public UGC use atomically with the
+  // completed CALC transaction; mirror that result in the open detail view.
+  calculator.has_used=true;
+  if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id)){
+   state.activeCalculator.has_used=true;
+   clearReactionNote();
+  }
   renderCalculationResults(results);
   detailStatus("Calculation complete. "+priceLabel+" CALC was charged.",false);
   await refreshCalcWallet();
@@ -592,6 +599,20 @@ function renderDetailStats(calculator){
   statItem("👎",calculator.dislikes,"Dislikes")
  );
 }
+function showReactionNote(message){
+ const note=$("ugcDetailReactionNote");
+ if(!note)return;
+ note.textContent=message;
+ note.classList.add("is-warning");
+ note.hidden=false;
+}
+function clearReactionNote(){
+ const note=$("ugcDetailReactionNote");
+ if(!note)return;
+ note.hidden=true;
+ note.textContent="";
+ note.classList.remove("is-warning");
+}
 function detailShow(calculator,fromUrl){
  state.activeCalculator=calculator;state.activeId=String(calculator.id);
  const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner");
@@ -628,10 +649,17 @@ function detailShow(calculator,fromUrl){
  const reactionNote=$("ugcDetailReactionNote");
  if(reactionNote){
   reactionNote.hidden=!isPublicCalculator||!isOwner;
+  reactionNote.classList.remove("is-warning");
   reactionNote.textContent=isOwner
    ?"You created this calculator, so you cannot like or dislike it. Other members can rate it."
    :"";
  }
+ const policy=$("ugcDetailReactionPolicy");
+ if(policy)policy.hidden=!isOwner;
+ const policyInput=$("ugcDetailRequireTestBeforeReaction");
+ if(policyInput){policyInput.checked=calculator.require_test_before_reaction!==false;policyInput.disabled=false;}
+ const policyStatus=$("ugcDetailReactionPolicyStatus");
+ if(policyStatus)policyStatus.textContent="";
  const likeButton=$("ugcDetailLike"),dislikeButton=$("ugcDetailDislike");
  if(likeButton){
   likeButton.hidden=!isPublicCalculator;
@@ -716,8 +744,15 @@ window.closeWorthItUGCCalculator=function(){
 };
 async function react(id,reaction){
  if(!requireAccount())return;
+ const activeBefore=state.activeCalculator;
  const reactionButtons=[$("ugcDetailLike"),$("ugcDetailDislike")].filter(Boolean);
  if(reactionButtons.some(button=>button.disabled))return;
+ if(activeBefore&&String(activeBefore.id)===String(id)
+    &&activeBefore.require_test_before_reaction!==false
+    &&activeBefore.has_used!==true){
+  showReactionNote("You must complete one calculation before you can like or dislike this calculator. The creator requires it.");
+  return;
+ }
  reactionButtons.forEach(button=>{button.disabled=true;});
  try{
   const result=await sb().rpc("set_worth_it_ugc_reaction",{p_id:id,p_reaction:reaction});
@@ -733,13 +768,46 @@ async function react(id,reaction){
    active.my_reaction=nextReaction;
    renderDetailStats(active);
   }
+  clearReactionNote();
   await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);
   if(state.activeId===String(id))await openDetail(id,{fromUrl:true});
- }catch(error){toast(error?.message||"Could not save your reaction.");}
- finally{
+ }catch(error){
+  const message=String(error?.message||"");
+  if(/must complete one calculation before you can like or dislike/i.test(message))showReactionNote(message);
+  else toast(message||"Could not save your reaction.");
+ }finally{
   const active=state.activeCalculator;
   const canReact=Boolean(active&&String(active.id)===String(state.activeId)&&active.is_owner!==true&&active.visibility==="public"&&state.userId);
   reactionButtons.forEach(button=>{if(button.isConnected)button.disabled=!canReact;});
+ }
+}
+async function saveReactionPolicy(){
+ const calculator=state.activeCalculator;
+ const input=$("ugcDetailRequireTestBeforeReaction");
+ const statusNode=$("ugcDetailReactionPolicyStatus");
+ if(!calculator||calculator.is_owner!==true||!input||!requireAccount())return;
+ const previous=calculator.require_test_before_reaction!==false;
+ const next=input.checked===true;
+ input.disabled=true;
+ if(statusNode)statusNode.textContent="Saving setting…";
+ try{
+  const result=await sb().rpc("set_worth_it_ugc_reaction_policy",{
+   p_id:calculator.id,
+   p_require_test:next
+  });
+  if(result.error)throw result.error;
+  const saved=normalizeObject(result.data);
+  if(saved?.success!==true)throw new Error(saved?.error||"The rating setting was not confirmed.");
+  calculator.require_test_before_reaction=saved.require_test_before_reaction!==false;
+  input.checked=calculator.require_test_before_reaction;
+  if(statusNode)statusNode.textContent=calculator.require_test_before_reaction
+   ?"Saved. Members must complete one calculation before rating."
+   :"Saved. Members can rate without trying the calculator first.";
+ }catch(error){
+  input.checked=previous;
+  if(statusNode)statusNode.textContent=error?.message||"Could not save the rating setting.";
+ }finally{
+  if(input.isConnected){input.disabled=false;input.checked=calculator.require_test_before_reaction!==false;}
  }
 }
 async function saveUsagePrice(){
@@ -1323,6 +1391,7 @@ async function init(){
  $("ugcDetailSaveUsagePrice")?.addEventListener("click",saveUsagePrice);
  $("ugcDetailLike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"like"));
  $("ugcDetailDislike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"dislike"));
+ $("ugcDetailRequireTestBeforeReaction")?.addEventListener("change",()=>void saveReactionPolicy());
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange((event,session)=>{
   const previousUserId=state.userId;
   // Use the session supplied by the auth event; never await getSession() while
