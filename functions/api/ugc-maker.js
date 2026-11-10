@@ -300,6 +300,8 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         if(min>value||value>max)throw new Error("The AI generated an invalid range for "+label+".");
         const stepPosition=(value-min)/step;
         if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)throw new Error("The default value for "+label+" does not match its input step.");
+        const maxStepPosition=(max-min)/step;
+        if(max>min&&(!Number.isFinite(maxStepPosition)||Math.abs(maxStepPosition-Math.round(maxStepPosition))>1e-7))throw new Error("The maximum value for "+label+" does not match its input step.");
         const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
         let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
         if(!unit&&!previousInput&&/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic))unit=currencyFallback;
@@ -488,7 +490,7 @@ export async function onRequestPost(context){
             "For currency outputs, set format to currency and use a valid ISO 4217 code. If the user names a currency, use it. Otherwise use the regional suggestion "+regionalDefaults.currency+".",
             "For monetary inputs, use the same requested or suggested currency code in unit; never silently mix currencies.",
             "Write the title, description, input labels and result labels in the same language as the user's prompt. If the prompt language is unclear, use the primary Accept-Language language; otherwise use English. Never choose the language from country alone.",
-            "The description is required and must be at least 24 characters. Use one or two concise, informative sentences: explain what is calculated, the important assumptions or included costs, and what the results represent. Do not add marketing claims or unsupported facts.",
+            "For a new calculator, the description must be 24 to 500 characters and use one or two concise, informative sentences: explain what is calculated, the important assumptions or included costs, and what the results represent. During refinement, preserve the existing description exactly, even if it is shorter. Do not add marketing claims or unsupported facts.",
             "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a clearly labelled result for each requested period. Do not silently omit requested inputs or output periods.",
             "Use positive minimums for quantities that cannot logically be zero, such as working days, commute distance and fuel consumption. Use whole-number steps for counts of days or people. Zero is acceptable for optional charges such as parking or fees.",
             "Check every formula at default values, all-minimum values, all-maximum values, and each input's individual minimum and maximum. Avoid divisions by zero, invalid square roots, overflow and non-finite results across the entire allowed input range.",
