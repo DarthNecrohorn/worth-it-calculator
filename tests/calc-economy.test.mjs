@@ -285,5 +285,5 @@ test("mobile economy header keeps all three wallet buttons visible without shift
     assert.match(mobileOffsets, /\.nav-inner\s*>\s*\.menu-btn\s*\{[^}]*transform:\s*translateX\(-10px\)!important/);
     assert.doesNotMatch(mobileOffsets, /worth-it-user-search-btn|\.nav-actions|worth-it-notification|worth-it-chat-nav-btn|ai-chat-nav-btn|settings-btn/);
     assert.doesNotMatch(mobileOffsets, /calc-(?:wallet|wip)-nav\s*\{[^}]*display:inline-flex!important/);
-    assert.match(html, /mobile-header-offsets=20261110c/);
+    assert.match(html, /mobile-header-offsets=20261110d/);
 });
