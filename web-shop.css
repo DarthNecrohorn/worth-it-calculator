@@ -466,3 +466,17 @@ html[data-worth-it-custom-theme] .calc-economy-nav .calc-wip-nav:hover{
  .calc-wallet-unit{display:none!important}
  .calc-wip-nav{flex-basis:77px!important;width:77px!important;min-width:77px!important;max-width:77px!important}
 }
+
+/* Mobile-only positioning adjustments for the specifically requested header controls.
+   Keep the user-search button and every other header action in their existing positions. */
+@media(max-width:560px){
+    .nav-inner > .menu-btn{
+        transform:translateX(-10px)!important;
+    }
+    .nav-inner > .logo{
+        transform:translate(-20px,-5px)!important;
+    }
+    .nav-inner > .calc-economy-nav{
+        transform:translate(-30px,-10px)!important;
+    }
+}
