@@ -1296,4 +1296,81 @@ begin
 end
 $ugc_pagination$;
 
+
+-- Maker generation reservations are request-bound, refundable once, and owner-only.
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+do $maker_generation_refunds$
+declare
+    v_failed_request uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa10';
+    v_success_request uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa11';
+    v_reserved jsonb;
+    v_duplicate jsonb;
+    v_refunded jsonb;
+    v_refunded_again jsonb;
+    v_cross_account jsonb;
+    v_settled jsonb;
+    v_rejected_refund jsonb;
+    v_used smallint;
+begin
+    v_reserved := public.reserve_worth_it_ugc_maker_generation_v2(v_failed_request);
+    if v_reserved->>'ok' <> 'true' or (v_reserved->>'requests_used')::integer <> 1 then
+        raise exception 'A new Maker generation should reserve exactly one daily attempt: %',v_reserved;
+    end if;
+
+    v_duplicate := public.reserve_worth_it_ugc_maker_generation_v2(v_failed_request);
+    if v_duplicate->>'ok' <> 'true'
+       or v_duplicate->>'already_reserved' <> 'true'
+       or (v_duplicate->>'requests_used')::integer <> 1 then
+        raise exception 'Repeating a reservation ID must not increment the Maker counter twice: %',v_duplicate;
+    end if;
+
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    v_cross_account := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
+    if v_cross_account->>'ok' <> 'false' or v_cross_account->>'code' <> 'RESERVATION_NOT_FOUND' then
+        raise exception 'One account must not refund another account Maker reservation: %',v_cross_account;
+    end if;
+
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    v_refunded := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
+    if v_refunded->>'ok' <> 'true' or v_refunded->>'refunded' <> 'true'
+       or (v_refunded->>'requests_used')::integer <> 0 then
+        raise exception 'A failed Maker generation must restore exactly one attempt: %',v_refunded;
+    end if;
+
+    v_refunded_again := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
+    if v_refunded_again->>'ok' <> 'true' or v_refunded_again->>'already_refunded' <> 'true' then
+        raise exception 'A Maker generation refund must be idempotent: %',v_refunded_again;
+    end if;
+
+    v_reserved := public.reserve_worth_it_ugc_maker_generation_v2(v_success_request);
+    if v_reserved->>'ok' <> 'true' or (v_reserved->>'requests_used')::integer <> 1 then
+        raise exception 'A new successful generation should reserve one attempt: %',v_reserved;
+    end if;
+    v_settled := public.settle_worth_it_ugc_maker_generation_v2(v_success_request);
+    if v_settled->>'ok' <> 'true' then
+        raise exception 'A successful Maker generation should settle: %',v_settled;
+    end if;
+    v_rejected_refund := public.refund_worth_it_ugc_maker_generation_v2(v_success_request);
+    if v_rejected_refund->>'ok' <> 'false'
+       or v_rejected_refund->>'code' <> 'RESERVATION_ALREADY_CONSUMED' then
+        raise exception 'A completed Maker generation must not be refundable: %',v_rejected_refund;
+    end if;
+
+    select requests_used into v_used
+      from private.worth_it_ugc_maker_daily_usage
+     where user_id='11111111-1111-4111-8111-111111111111'
+       and usage_date=(now() at time zone 'UTC')::date;
+    if v_used <> 1 then
+        raise exception 'Only the successful Maker generation should remain counted, got %.',v_used;
+    end if;
+
+    if has_table_privilege('anon','private.worth_it_ugc_maker_generation_reservations','select')
+       or has_table_privilege('authenticated','private.worth_it_ugc_maker_generation_reservations','select')
+       or has_function_privilege('anon','public.refund_worth_it_ugc_maker_generation_v2(uuid)','execute')
+       or not has_function_privilege('authenticated','public.refund_worth_it_ugc_maker_generation_v2(uuid)','execute') then
+        raise exception 'Maker reservation storage or RPC privileges are not restricted correctly.';
+    end if;
+end
+$maker_generation_refunds$;
+
 rollback;
