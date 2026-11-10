@@ -1,6 +1,54 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.7-flash";
+const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
+    name: "worth_it_calculator",
+    strict: true,
+    schema: {
+        type: "object",
+        properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+            category: { type: "string", enum: ["cars","money","technology","home","other"] },
+            subcategories: { type: "array", items: { type: "string" } },
+            inputs: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        key: { type: "string" },
+                        label: { type: "string" },
+                        min: { type: "number" },
+                        max: { type: "number" },
+                        default: { type: "number" },
+                        step: { type: "number" },
+                        unit: { type: "string" }
+                    },
+                    required: ["key","label","min","max","default","step","unit"],
+                    additionalProperties: false
+                }
+            },
+            results: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        label: { type: "string" },
+                        expression: { type: "string" },
+                        format: { type: "string", enum: ["number","currency","percent"] },
+                        currency: { type: "string" },
+                        prefix: { type: "string" },
+                        suffix: { type: "string" }
+                    },
+                    required: ["label","expression","format","currency","prefix","suffix"],
+                    additionalProperties: false
+                }
+            }
+        },
+        required: ["title","description","category","subcategories","inputs","results"],
+        additionalProperties: false
+    }
+};
 const MAX_PROMPT_CHARS = 1000;
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
@@ -103,19 +151,10 @@ function tokenFrom(request){
     const header=request.headers.get("Authorization")||"";
     return header.startsWith("Bearer ")?header.slice(7).trim():"";
 }
-async function reserveMakerGeneration(env,token){
-    const base=String(env.SUPABASE_URL||"").trim().replace(/\/$/,"");
-    const key=String(env.SUPABASE_PUBLISHABLE_KEY||"").trim();
-    if(!base||!key)throw new Error("The account service is not configured.");
-    const response=await fetch(base+"/rest/v1/rpc/reserve_worth_it_ugc_maker_generation",{
-        method:"POST",
-        headers:{apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json",Accept:"application/json"},
-        body:"{}",
-        cache:"no-store"
-    });
-    const data=await response.json().catch(()=>null);
-    if(!response.ok||!data||typeof data!=="object")throw new Error("The AI calculator usage limit could not be checked.");
-    return data;
+async function reserveMakerGeneration(env,token,requestId){
+    return normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_maker_generation_v2",{
+        p_request_id:requestId
+    }));
 }
 async function generateWithGemini(apiKey,system,prompt){
     const response=await fetch(
@@ -147,7 +186,8 @@ async function generateWithGroq(apiKey,system,prompt){
             model:GROQ_MODEL,
             temperature:0.15,
             max_tokens:1300,
-            response_format:{type:"json_object"},
+            reasoning_effort:"low",
+            response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
             messages:[{role:"system",content:system},{role:"user",content:prompt}]
         })
     });
@@ -427,6 +467,9 @@ export async function onRequestPost(context){
     let editRequestId="";
     let editQuotaSettled=false;
     let editQuotaRefunded=false;
+    let makerRequestId="";
+    let makerQuotaSettled=false;
+    let makerQuotaRefunded=false;
     const token=tokenFrom(request);
     const refundEditQuota=async()=>{
         if(!editRequestId||editQuotaSettled||editQuotaRefunded)return;
@@ -436,6 +479,35 @@ export async function onRequestPost(context){
         }catch(error){
             console.error("Could not refund a failed UGC AI edit reservation:",error);
         }
+    };
+    const refundMakerQuota=async()=>{
+        if(!makerRequestId||makerQuotaSettled||makerQuotaRefunded)return false;
+        try{
+            const result=normalizeRpcObject(await userRpc(env,token,"refund_worth_it_ugc_maker_generation_v2",{
+                p_request_id:makerRequestId
+            }));
+            if(result?.ok===true&&(result?.refunded===true||result?.already_refunded===true)){
+                makerQuotaRefunded=true;
+                return true;
+            }
+            if(result?.code==="RESERVATION_NOT_FOUND"){
+                makerQuotaRefunded=true;
+                return true;
+            }
+            console.error("Could not refund a failed UGC Maker generation:",result?.code||result);
+            return false;
+        }catch(error){
+            console.error("Could not refund a failed UGC Maker generation:",error);
+            return false;
+        }
+    };
+    const settleMakerQuota=async()=>{
+        if(!makerRequestId||makerQuotaSettled)return;
+        const result=normalizeRpcObject(await userRpc(env,token,"settle_worth_it_ugc_maker_generation_v2",{
+            p_request_id:makerRequestId
+        }));
+        if(result?.ok!==true)throw new Error("The AI generation reservation could not be finalized.");
+        makerQuotaSettled=true;
     };
     try{
         if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
@@ -500,12 +572,15 @@ export async function onRequestPost(context){
             }
         }else{
             let usage;
-            try{usage=await reserveMakerGeneration(env,token);}
+            makerRequestId=crypto.randomUUID();
+            try{usage=await reserveMakerGeneration(env,token,makerRequestId);}
             catch(error){
+                await refundMakerQuota();
                 console.error("UGC Maker usage reservation failed:",error);
                 return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance could not be checked. Please try again later."},503,origin);
             }
             if(usage?.ok!==true){
+                makerRequestId="";
                 if(usage?.code==="DAILY_LIMIT")return json({success:false,code:"DAILY_AI_LIMIT",error:"You have reached the daily AI calculator creation limit of 10 generations. Try again after the UTC daily reset.",daily_limit:10,requests_used:10},429,origin);
                 return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance is temporarily unavailable. Please try again later."},503,origin);
             }
@@ -592,19 +667,27 @@ export async function onRequestPost(context){
             catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
         if(!content){
+            const makerRefunded=mode==="create"?await refundMakerQuota():false;
             await refundEditQuota();
-            return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used."},503,origin);
+            const error=mode==="create"
+                ?(makerRefunded
+                    ?"Worth It AI could not complete this request right now. No calculator was changed, and your failed generation attempt was returned to your daily allowance."
+                    :"Worth It AI could not complete this request right now. No calculator was changed. We could not confirm that the generation attempt was returned; please contact support before retrying.")
+                :"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used.";
+            return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error},503,origin);
         }
 
         let parsed;
         try{parsed=JSON.parse(content);}
         catch(_){
+            await refundMakerQuota();
             await refundEditQuota();
             return json({success:false,error:"The AI returned an invalid calculator definition. No calculator was changed."},502,origin);
         }
         let definition;
         try{definition=normalizeDefinition(parsed,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency});}
         catch(error){
+            await refundMakerQuota();
             await refundEditQuota();
             return json({success:false,error:error?.message||"The AI returned an invalid calculator definition."},422,origin);
         }
@@ -644,8 +727,15 @@ export async function onRequestPost(context){
 
         const missingCoverage=findMissingRequestedCoverage(prompt,parsed);
         if(missingCoverage.length){
+            await refundMakerQuota();
             return json({success:false,code:"INCOMPLETE_CALCULATOR",
                 error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included."},422,origin);
+        }
+        try{await settleMakerQuota();}
+        catch(error){
+            console.error("Could not settle the UGC Maker generation quota:",error);
+            await refundMakerQuota();
+            return json({success:false,code:"MAKER_QUOTA_SETTLEMENT_FAILED",error:"The generated calculator could not be finalized. No calculator was changed; please try again later."},503,origin);
         }
         return json({success:true,mode:"create",regionalDefaults,calculator:{
             title:String(parsed.title).trim().slice(0,70),
@@ -654,6 +744,7 @@ export async function onRequestPost(context){
             spec:definition
         }},200,origin);
     }catch(error){
+        await refundMakerQuota();
         await refundEditQuota();
         console.error("UGC calculator request failed:",error);
         return json({success:false,error:"The AI calculator service is temporarily unavailable. Please try again."},503,origin||SITE_ORIGIN);
