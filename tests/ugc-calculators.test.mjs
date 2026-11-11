@@ -244,7 +244,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.equal(response.status, 200);
         assert.match(generationSystem, /short topic descriptions as intentional requests/i);
         assert.match(generationSystem, /smallest useful set of inputs and result rows/i);
-        assert.match(generationSystem, /Never invent current prices, tariffs/i);
+        assert.match(generationSystem, /Never invent current tariffs, fuel prices/i);
         assert.match(generationSystem, /editable input rather than guessing/i);
         assert.match(generationSystem, /Do not reject or overcomplicate a request/i);
         assert.match(generationSystem, /experienced subject-matter analyst and calculator designer/i);
@@ -252,7 +252,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /Maintain dimensional and unit consistency/i);
         assert.match(generationSystem, /model both options symmetrically/i);
         assert.match(generationSystem, /Avoid double-counting overlapping costs/i);
-        assert.match(generationSystem, /default of 0 and clearly state/i);
+        assert.match(generationSystem, /every monetary input must have default 0 and minimum 0/i);
         assert.match(generationSystem, /silently audit it as a calculator designer/i);
         assert.equal(providerConfig.model, "openai/gpt-oss-120b");
         assert.equal(providerConfig.reasoning_effort, "high");
