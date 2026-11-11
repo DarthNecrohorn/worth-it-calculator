@@ -329,7 +329,8 @@ test("AI Maker uses regional currency only as an editable default and never stor
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[0].content, /regional suggestion RSD/i);
+        assert.doesNotMatch(body.messages[0].content, /regional suggestion RSD|regional currency suggestion/i);
+        assert.match(body.messages[1].content, /Regional defaults: currency RSD/i);
         assert.match(body.messages[0].content, /same language as the user's prompt/i);
         assert.doesNotMatch(JSON.stringify(body), /client.?ip|ip.?address/i);
         return new Response(JSON.stringify({
@@ -363,7 +364,8 @@ test("a country named in the calculator prompt overrides visitor-region currency
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[0].content, /regional suggestion EUR/i);
+        assert.doesNotMatch(body.messages[0].content, /regional suggestion EUR|regional currency suggestion/i);
+        assert.match(body.messages[1].content, /Regional defaults: currency EUR/i);
         assert.match(body.messages[1].content, /currency EUR/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
