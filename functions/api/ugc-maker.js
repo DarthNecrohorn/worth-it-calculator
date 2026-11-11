@@ -308,7 +308,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
                 body:JSON.stringify({
                     systemInstruction:{parts:[{text:system}]},
                     contents:[{role:"user",parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
+                    generationConfig:{maxOutputTokens:4096,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"low"}}
                 })
             }
         );
@@ -366,8 +366,8 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             body:JSON.stringify({
                 model:GROQ_MODEL,
                 temperature:0.15,
-                max_tokens:8192,
-                reasoning_effort:"high",
+                max_tokens:4096,
+                reasoning_effort:"low",
                 response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
