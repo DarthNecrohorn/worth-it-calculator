@@ -319,6 +319,16 @@ function compileExpression(source,keys){
     }
     const ast=add();ws();if(at!==input.length)fail();return ast;
 }
+function collectInputReferences(node,found=new Set()){
+    if(!node||typeof node!=="object")return found;
+    if(node.type==="variable")found.add(node.name);
+    else if(node.type==="unary")collectInputReferences(node.value,found);
+    else if(node.type==="binary"){
+        collectInputReferences(node.left,found);
+        collectInputReferences(node.right,found);
+    }else if(node.type==="call")node.args.forEach(argument=>collectInputReferences(argument,found));
+    return found;
+}
 function evaluate(node,values){
     let result;
     if(node.type==="number")return node.value;
@@ -491,6 +501,7 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         return {key,label,min,max,default:value,step,unit};
     });
     const values=Object.fromEntries(inputs.map(item=>[item.key,item.default]));
+    const referencedInputKeys=new Set();
     const results=raw.results.map((item,index)=>{
         const label=String(item?.label||"").trim().slice(0,70);
         const expression=String(item?.expression||"").trim().slice(0,260);
@@ -499,8 +510,13 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         const currency=String(format==="currency"&&forceCurrency?forceCurrency:(item?.currency||previousCurrency||currencyFallback)).toUpperCase();
         if(!label||!expression||!/^([A-Z]{3})$/.test(currency))throw new Error("The AI generated an invalid result.");
         const ast=compileExpression(expression,seen);
+        collectInputReferences(ast,referencedInputKeys);
         return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),_ast:ast};
     });
+    if(options?.requireAllInputsUsed===true){
+        const unusedInputs=inputs.filter(item=>!referencedInputKeys.has(item.key)).map(item=>item.label);
+        if(unusedInputs.length)throw new Error("The generated calculator contains unused input fields: "+unusedInputs.join(", ")+". Remove them or use them in a result formula.");
+    }
     const scenarios=[{...values},Object.fromEntries(inputs.map(item=>[item.key,item.min])),Object.fromEntries(inputs.map(item=>[item.key,item.max]))];
     inputs.forEach(item=>{const low={...values};low[item.key]=item.min;scenarios.push(low);const high={...values};high[item.key]=item.max;scenarios.push(high);});
     for(let left=0;left<inputs.length;left++){
@@ -711,6 +727,8 @@ export async function onRequestPost(context){
             "Maintain dimensional and unit consistency in every formula. Make input labels state the relevant unit or rate basis (for example, kWh per month, RSD per kWh, m3 per month, litres per 100 km, or currency per month). A price per unit must be multiplied by the matching quantity; do not multiply or compare incompatible units.",
             "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
             "For comparisons, model both options symmetrically and on the same usage level, service level and time period. Show the important result for each option and a direct difference or savings result when useful. Make the direction of any difference clear in its label so users know which option is cheaper or better.",
+            "For vehicle energy comparisons, use the same distance and period for both options; calculate fuel use from distance times litres per 100 km divided by 100, and electricity use from distance times kWh per 100 km divided by 100. Multiply each by its own editable per-unit price. Do not claim to calculate full vehicle ownership unless insurance, maintenance, depreciation, financing and other relevant costs are actually modeled.",
+            "For household utility comparisons, calculate each utility using its own physical unit and matching rate (for example, kWh multiplied by currency per kWh, or m3 multiplied by currency per m3). Do not compare raw kWh and m3 as interchangeable quantities. Add fixed charges, taxes or tariff tiers only when supplied or represented by explicit editable inputs.",
             "Avoid double-counting overlapping costs. Include a cost component only once, distinguish optional from required costs, and do not label a partial-cost estimate as total ownership or total cost when important components are not modeled.",
             "Use practical, editable defaults for quantities. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices or provider fees. When a required current or personal rate was not supplied and no verified data source is available, make it an editable input with a default of 0 and clearly state in the description that the user must enter their own rate before relying on the result.",
             "Use ranges and steps that fit the real-world scale of each input. Avoid absurd maxima, overly precise steps, unexplained constants and arbitrary default values. Keep optional fees at zero by default unless the user supplies a value.",
@@ -811,7 +829,7 @@ export async function onRequestPost(context){
         let validationError=null;
         const parseAndValidate=generatedContent=>{
             const candidate=JSON.parse(generatedContent);
-            const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency});
+            const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency,requireAllInputsUsed:mode==="create"});
             return {candidate,normalized};
         };
         try{
