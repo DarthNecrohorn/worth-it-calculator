@@ -475,7 +475,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         if(!input||typeof input!=="object")continue;
         const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
         const unit=String(input.unit||"").trim().toUpperCase();
-        const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\\b/.test(semantic);
+        const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
         if(!moneyInput)continue;
         if(!MONETARY_CURRENCY_CODES.has(unit))input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
@@ -487,7 +487,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         changed=true;
     }
     if(changed){
-        const serbian=/\\b(?:potrošnja|trošak|struja|voda|gorivo|mesečn|godišn|račun|uporedi|poređenje)\\b/i.test(String(prompt||""));
+        const serbian=/\b(?:potrošnja|trošak|struja|voda|gorivo|mesečn|godišn|račun|uporedi|poređenje)\b/i.test(String(prompt||""));
         const note=serbian
             ?"Novčana polja počinju od nule jer cene i lični troškovi nisu navedeni; unesite svoje vrednosti pre oslanjanja na rezultate."
             :"Monetary fields start at zero because prices and personal costs were not provided; enter your own values before relying on the results.";
