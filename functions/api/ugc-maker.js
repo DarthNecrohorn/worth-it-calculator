@@ -454,6 +454,52 @@ export async function onRequestGet(context){
   passed:missingCoverage.length===0
  },200,origin);
 }
+const MONETARY_CURRENCY_CODES = new Set([
+    ...EXPLICIT_CURRENCY_RULES.map(([code])=>code),
+    ...Object.values(COUNTRY_DEFAULTS).map(([code])=>code),
+    "BGN","RON","UAH","ILS","THB","IDR","MYR","PHP","VND","QAR","KWD","JOD","EGP","PKR","BDT","NGN","KES"
+]);
+function promptContainsExplicitMonetaryAmount(prompt){
+    const codeList=[...MONETARY_CURRENCY_CODES].join("|");
+    const words="(?:serbian dinars?|dinars?|rsd|euros?|eur|us dollars?|dollars?|usd|pounds?|gbp|swiss francs?|chf|cad|aud|nzd|jpy|cny|inr|pln|czk|huf|sek|nok|dkk|bgn|ron|try|brl|mxn|zar)";
+    const marker="(?:"+codeList+"|"+words+")";
+    const amount="(?:\\d+(?:[.,]\\d+)?)";
+    const pattern=new RegExp("(?:\\b"+amount+"\\s*"+marker+"\\b|\\b"+marker+"\\s*"+amount+"|[€$£]\\s*"+amount+")","i");
+    return pattern.test(String(prompt||""));
+}
+function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
+    if(!candidate||!Array.isArray(candidate.inputs)||promptContainsExplicitMonetaryAmount(prompt))return false;
+    let changed=false;
+    const fallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
+    for(const input of candidate.inputs){
+        if(!input||typeof input!=="object")continue;
+        const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
+        const unit=String(input.unit||"").trim().toUpperCase();
+        const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\\b/.test(semantic);
+        if(!moneyInput)continue;
+        if(!MONETARY_CURRENCY_CODES.has(unit))input.unit=fallback;
+        const step=Number(input.step??1),maximum=Number(input.max);
+        if(!Number.isFinite(step)||step<=0||!Number.isFinite(maximum))continue;
+        input.min=0;
+        input.default=0;
+        const alignedMaximum=Math.floor(maximum/step+1e-9)*step;
+        input.max=alignedMaximum>0?Number(alignedMaximum.toPrecision(12)):step;
+        changed=true;
+    }
+    if(changed){
+        const serbian=/\\b(?:potrošnja|trošak|struja|voda|gorivo|mesečn|godišn|račun|uporedi|poređenje)\\b/i.test(String(prompt||""));
+        const note=serbian
+            ?"Novčana polja počinju od nule jer cene i lični troškovi nisu navedeni; unesite svoje vrednosti pre oslanjanja na rezultate."
+            :"Monetary fields start at zero because prices and personal costs were not provided; enter your own values before relying on the results.";
+        const description=String(candidate.description||"").trim();
+        if(!/start at zero|počinju od nule/i.test(description)){
+            const available=Math.max(0,500-note.length-1);
+            candidate.description=(description.slice(0,available).trim()+" "+note).trim();
+        }
+    }
+    return changed;
+}
+
 function normalizeDefinition(raw,defaultCurrency,options={}){
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
@@ -494,7 +540,7 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         if(max>min&&(!Number.isFinite(maxStepPosition)||Math.abs(maxStepPosition-Math.round(maxStepPosition))>1e-7))throw new Error("The maximum value for "+label+" does not match its input step.");
         const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
         let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
-        const monetaryInput=/\b(?:price|cost|amount|fee|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
+        const monetaryInput=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
         if(forceCurrency&&monetaryInput)unit=forceCurrency;
         else if(!unit&&!previousInput&&monetaryInput)unit=currencyFallback;
         seen.add(key);
@@ -730,7 +776,8 @@ export async function onRequestPost(context){
             "For vehicle energy comparisons, use the same distance and period for both options; calculate fuel use from distance times litres per 100 km divided by 100, and electricity use from distance times kWh per 100 km divided by 100. Multiply each by its own editable per-unit price. Do not claim to calculate full vehicle ownership unless insurance, maintenance, depreciation, financing and other relevant costs are actually modeled.",
             "For household utility comparisons, calculate each utility using its own physical unit and matching rate (for example, kWh multiplied by currency per kWh, or m3 multiplied by currency per m3). Do not compare raw kWh and m3 as interchangeable quantities. Add fixed charges, taxes or tariff tiers only when supplied or represented by explicit editable inputs.",
             "Avoid double-counting overlapping costs. Include a cost component only once, distinguish optional from required costs, and do not label a partial-cost estimate as total ownership or total cost when important components are not modeled.",
-            "Use practical, editable defaults for quantities. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices or provider fees. When a required current or personal rate was not supplied and no verified data source is available, make it an editable input with a default of 0 and clearly state in the description that the user must enter their own rate before relying on the result.",
+            "Use practical, editable defaults for non-monetary quantities. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices, fixed fees, maintenance bills or personal monetary costs. Unless the user supplies a concrete monetary amount in the prompt, every monetary input must have default 0 and minimum 0; explicitly say in the description that the user must enter their own prices and costs before relying on totals. Do not fabricate non-zero monetary examples for Serbia or any other region.",
+            "When monetary defaults are zero, keep formulas valid at zero. For a ratio or percentage whose denominator can be zero, use max(denominator,1) so the result remains finite and represents zero share when no cost has been entered.",
             "Use ranges and steps that fit the real-world scale of each input. Avoid absurd maxima, overly precise steps, unexplained constants and arbitrary default values. Keep optional fees at zero by default unless the user supplies a value.",
             "Prioritize a small number of non-redundant results that answer the main question: the primary per-period amounts, a useful combined or total figure when relevant, and a clear comparison or difference when it adds value. Do not fill the result limit with decorative or repetitive metrics.",
             "Before returning the schema, silently audit it as a calculator designer: verify that every input is needed, every requested output is present, every formula follows from the labels and units, all options use the same basis, no component is counted twice, and the default and boundary values produce plausible finite results. Correct any issue before returning JSON.",
@@ -829,6 +876,7 @@ export async function onRequestPost(context){
         let validationError=null;
         const parseAndValidate=generatedContent=>{
             const candidate=JSON.parse(generatedContent);
+            if(mode==="create")applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency);
             const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency,requireAllInputsUsed:mode==="create"});
             return {candidate,normalized};
         };
