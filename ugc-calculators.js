@@ -43,6 +43,12 @@ const text=(tag,className,value)=>{const node=document.createElement(tag);if(cla
 const button=(label,className,handler)=>{const node=text("button",className,label);node.type="button";node.addEventListener("click",handler);return node;};
 function status(message,isError){const node=$("ugcCatalogStatus");if(node){node.textContent=String(message||"");node.classList.toggle("is-error",Boolean(isError));}}
 function detailStatus(message,isError){const node=$("ugcDetailStatus");if(node){node.textContent=String(message||"");node.classList.toggle("is-error",Boolean(isError));}}
+function makerStatus(message,variant="info"){
+ const node=$("ugcMakerStatus");if(!node)return;
+ node.textContent=String(message||"");
+ node.classList.toggle("is-error",variant==="error");
+ node.classList.toggle("is-generating",variant==="generating");
+}
 function normalizeObject(value){return Array.isArray(value)&&value.length===1&&value[0]&&typeof value[0]==="object"?value[0]:value;}
 async function getSession(){
  const result=await sb()?.auth?.getSession?.();
@@ -562,10 +568,31 @@ async function refreshCreationQuota(){
   if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
    throw new Error("The account creation allowance response was incomplete.");
   }
-  host.textContent="Daily new calculators: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
+  host.textContent="Daily new calculator saves: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
  }catch(error){
-  host.textContent="Today's allowance could not be loaded. The server still checks your account limit securely when you save.";
+  host.textContent="Today's save/publish allowance could not be loaded. The server still checks your account limit securely when you save.";
   console.warn("UGC creation quota could not be loaded:",error);
+ }
+}
+async function refreshMakerGenerationQuota(){
+ const host=$("ugcMakerGenerationQuotaStatus");
+ if(!host||!state.userId)return;
+ host.textContent="Checking today's AI generation allowance…";
+ try{
+  const result=await sb().rpc("get_worth_it_ugc_maker_generation_quota");
+  if(result.error)throw result.error;
+  const quota=normalizeObject(result.data);
+  const limit=Number(quota?.daily_limit),used=Number(quota?.requests_used),remaining=Number(quota?.remaining);
+  const globalLimit=Number(quota?.global_daily_limit),globalUsed=Number(quota?.global_requests_used),globalRemaining=Number(quota?.global_remaining);
+  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||
+     !Number.isInteger(globalLimit)||!Number.isInteger(globalUsed)||!Number.isInteger(globalRemaining)||
+     limit<1||used<0||remaining<0||globalLimit!==100||globalUsed<0||globalRemaining<0){
+   throw new Error("The AI generation allowance response was incomplete.");
+  }
+  host.textContent="AI generations today: "+used+"/"+limit+" used · "+remaining+" remaining. Worth It total: "+globalUsed+"/"+globalLimit+" used · "+globalRemaining+" remaining. Resets at 00:00 UTC.";
+ }catch(error){
+  host.textContent="Today's AI generation allowance could not be loaded. The server still enforces both your plan limit and Worth It's shared 100-generation limit.";
+  console.warn("UGC Maker generation quota could not be loaded:",error);
  }
 }
 function formatCalcPrice(usagePriceMilli){
@@ -972,7 +999,7 @@ async function editCalculator(id){
  renderMakerPreview(state.aiDraft);
  $("ugcMakerGenerate").textContent="✦ Improve with AI";
  $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
- $("ugcMakerStatus").textContent="Your calculator's subject, title, category and description stay fixed. Ask AI to improve its inputs and formulas.";
+ makerStatus("Your calculator's subject, title, category and description stay fixed. Ask AI to improve its inputs and formulas.");
 }
 async function publishCalculator(id,visibility){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -1009,10 +1036,15 @@ function openMaker(){
  modal.hidden=false;modal.setAttribute("aria-hidden","false");
  document.body.classList.add("ugc-maker-open");
  if(state.editingId)void refreshAiEditQuota();
- else void refreshCreationQuota();
+ else{
+  void refreshCreationQuota();
+  void refreshMakerGenerationQuota();
+ }
  const editQuota=$("ugcMakerEditQuotaStatus"),createQuota=$("ugcMakerQuotaStatus");
+ const generationQuota=$("ugcMakerGenerationQuotaStatus");
  if(editQuota)editQuota.hidden=!state.editingId;
  if(createQuota)createQuota.hidden=Boolean(state.editingId);
+ if(generationQuota)generationQuota.hidden=Boolean(state.editingId);
  const visibilityWrap=$("ugcMakerVisibilityWrap");
  if(visibilityWrap)visibilityWrap.hidden=Boolean(state.editingId);
  $("ugcMakerGenerate").textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
@@ -1257,9 +1289,9 @@ function renderMakerPreview(definition){
 async function generateWithAI(){
  if(!requireAccount()||!verifyConfirmed())return;
  const prompt=String($("ugcMakerPrompt")?.value||"").trim();
- if(prompt.length<10||prompt.length>1000){$("ugcMakerStatus").textContent="Describe the requested changes in 10 to 1000 characters.";return;}
+ if(prompt.length<10||prompt.length>1000){makerStatus("Describe the requested changes in 10 to 1000 characters.","error");return;}
  const button=$("ugcMakerGenerate");button.disabled=true;
- $("ugcMakerStatus").textContent=state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…";
+ makerStatus(state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…","generating");
  $("ugcMakerPreview").hidden=true;
  try{
   const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt};
@@ -1270,9 +1302,15 @@ async function generateWithAI(){
   state.regionalDefaults=data.regionalDefaults||null;
   state.makerLocale=state.regionalDefaults?.locale||"auto";
   renderMakerPreview(state.aiDraft);
-  $("ugcMakerStatus").textContent=state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.";
- }catch(error){$("ugcMakerStatus").textContent=error?.message||"Could not generate a calculator.";}
- finally{button.disabled=false;}
+  makerStatus(state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
+ }catch(error){makerStatus(error?.message||"Could not generate a calculator.","error");}
+ finally{
+  button.disabled=false;
+  if(!state.editingId){
+   void refreshCreationQuota();
+   void refreshMakerGenerationQuota();
+  }
+ }
 }
 async function saveMakerDraft(publish){
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
@@ -1281,14 +1319,14 @@ async function saveMakerDraft(publish){
  const category=String(state.aiDraft.category||"other");
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
- if(title.length<3){$("ugcMakerStatus").textContent="Enter a title with at least 3 characters.";return;}
+ if(title.length<3){makerStatus("Enter a title with at least 3 characters.","error");return;}
  if(!state.editingId&&(description.length<24||description.length>500)){
-  $("ugcMakerStatus").textContent="The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.";return;
+  makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
  }
  const validation=validateMakerSpec(state.aiDraft.spec);
- if(validation.errors.length){$("ugcMakerStatus").textContent="Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" ");return;}
+ if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  const invalidCurrency=(state.aiDraft.spec?.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
- if(invalidCurrency){$("ugcMakerStatus").textContent="Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.";return;}
+ if(invalidCurrency){makerStatus("Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.","error");return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
  let savedIdAfterWrite="";
@@ -1309,8 +1347,9 @@ async function saveMakerDraft(publish){
    $("ugcMakerGenerate").textContent="✦ Improve with AI";
    $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
    const visibilityWrap=$("ugcMakerVisibilityWrap");if(visibilityWrap)visibilityWrap.hidden=true;
-   const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus");
+   const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus"),generationQuota=$("ugcMakerGenerationQuotaStatus");
    if(createQuota)createQuota.hidden=true;
+   if(generationQuota)generationQuota.hidden=true;
    if(editQuota)editQuota.hidden=false;
    void refreshAiEditQuota();
   }
@@ -1326,9 +1365,9 @@ async function saveMakerDraft(publish){
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
  }catch(error){
   const detail=error?.message||"Could not save the calculator.";
-  $("ugcMakerStatus").textContent=savedIdAfterWrite
+  makerStatus(savedIdAfterWrite
    ?"Your draft is saved. Publishing could not be completed: "+detail+" You can retry without creating another calculator."
-   :detail;
+   :detail,"error");
  }
  finally{if(save)save.disabled=false;if(publishButton)publishButton.disabled=false;}
 }
@@ -1454,7 +1493,7 @@ function openNewCalculatorMaker(){
  $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerVisibility").value="private";
  $("ugcMakerGenerate").textContent="✦ Generate calculator";
  $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
- $("ugcMakerStatus").textContent="Describe what you want to calculate.";
+ makerStatus("Describe what you want to calculate.");
 }
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
