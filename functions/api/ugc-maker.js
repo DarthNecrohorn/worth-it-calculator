@@ -2,7 +2,7 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.8-flash";
 const MAX_PROMPT_CHARS = 1000;
-const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v1";
+const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v2";
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -459,16 +459,85 @@ const MONETARY_CURRENCY_CODES = new Set([
     ...Object.values(COUNTRY_DEFAULTS).map(([code])=>code),
     "BGN","RON","UAH","ILS","THB","IDR","MYR","PHP","VND","QAR","KWD","JOD","EGP","PKR","BDT","NGN","KES"
 ]);
-function promptContainsExplicitMonetaryAmount(prompt){
+function normalizeMonetaryPromptText(value){
+    return String(value||"").toLowerCase()
+        .replace(/m³/g,"m3")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/[^a-z0-9]+/g," ").trim();
+}
+function extractExplicitMonetaryAmounts(prompt){
     const codeList=[...MONETARY_CURRENCY_CODES].join("|");
     const words="(?:serbian dinars?|dinars?|rsd|euros?|eur|us dollars?|dollars?|usd|pounds?|gbp|swiss francs?|chf|cad|aud|nzd|jpy|cny|inr|pln|czk|huf|sek|nok|dkk|bgn|ron|try|brl|mxn|zar)";
     const marker="(?:"+codeList+"|"+words+")";
     const amount="(?:\\d+(?:[.,]\\d+)?)";
-    const pattern=new RegExp("(?:\\b"+amount+"\\s*"+marker+"\\b|\\b"+marker+"\\s*"+amount+"|[€$£]\\s*"+amount+")","i");
-    return pattern.test(String(prompt||""));
+    const pattern=new RegExp("(?:\\b("+amount+")\\s*"+marker+"\\b|\\b"+marker+"\\s*("+amount+")|[€$£]\\s*("+amount+"))","gi");
+    const text=String(prompt||"");
+    const matches=[];
+    let match;
+    while((match=pattern.exec(text))!==null){
+        matches.push({start:match.index,end:match.index+match[0].length});
+    }
+    const lastBoundaryBefore=(position)=>{
+        const prefix=text.slice(0,position);
+        return Math.max(prefix.lastIndexOf("."),prefix.lastIndexOf(";"),prefix.lastIndexOf("!"),prefix.lastIndexOf("?"),prefix.lastIndexOf("\n"));
+    };
+    const nextBoundaryAfter=(position)=>{
+        const suffix=text.slice(position);
+        const indexes=[".", ";", "!", "?", "\n"].map(value=>suffix.indexOf(value)).filter(value=>value>=0);
+        return indexes.length?position+Math.min(...indexes):text.length;
+    };
+    return matches.map((item,index)=>{
+        const previousEnd=index?matches[index-1].end:0;
+        const beforeStart=Math.max(previousEnd,lastBoundaryBefore(item.start)+1);
+        const nextAmount=index+1<matches.length?matches[index+1].start:text.length;
+        const afterEnd=Math.min(nextAmount,nextBoundaryAfter(item.end));
+        return {
+            before:normalizeMonetaryPromptText(text.slice(beforeStart,item.start)),
+            after:normalizeMonetaryPromptText(text.slice(item.end,afterEnd))
+        };
+    });
+}
+function explicitAmountMatchesInput(input,amounts){
+    const semantic=normalizeMonetaryPromptText(String(input?.label||"")+" "+String(input?.key||""));
+    if(!semantic)return false;
+    const basisMatches=[...semantic.matchAll(/\bper\s+(kwh|m3|liters?|litres?|gallons?|km|miles?|hours?|days?)\b/g)].map(match=>match[1]);
+    const tokens=semantic.split(/\s+/).filter(Boolean);
+    const generic=new Set([
+        "per","price","prices","cost","costs","amount","amounts","fee","fees","rate","rates","tariff","tariffs",
+        "charge","charges","salary","income","budget","rent","payment","saving","savings","deposit","expense",
+        "expenses","spend","wage","tax","taxes","fixed","monthly","month","annual","annually","yearly","year",
+        "weekly","week","daily","day","total","average","the","and","for","from","with","of","in","on","by",
+        "input","value","currency"
+    ]);
+    const specific=tokens.filter(token=>token.length>1&&!generic.has(token)&&!/^\\d+$/.test(token));
+    const hasFixed=/\bfixed\b/.test(semantic);
+    const isRate=/\b(?:rate|price|tariff)\b/.test(semantic);
+    const isFee=/\b(?:fee|charge)\b/.test(semantic);
+    const isCost=/\b(?:cost|expense|spend)\b/.test(semantic);
+    const hasAny=(text,values)=>values.some(value=>new RegExp("\\b"+value+"\\b").test(text));
+    return amounts.some(amount=>{
+        // Match per-unit prices only to the same physical basis.
+        if(basisMatches.some(basis=>new RegExp("\\b"+basis+"\\b").test(amount.after)))return true;
+        const context=amount.before;
+        const matchingSpecific=specific.some(token=>hasAny(context,
+            token==="electricity"?["electricity","electric","power"]:
+            token==="fuel"?["fuel","petrol","gasoline","diesel"]:
+            token==="petrol"?["petrol","gasoline","fuel"]:
+            token==="gasoline"?["gasoline","petrol","fuel"]:
+            token==="maintenance"?["maintenance","repair","repairs"]:
+            token==="repair"?["repair","repairs","maintenance"]:[token]
+        ));
+        if(!matchingSpecific)return false;
+        if(hasFixed&&!hasAny(context,["fixed","standing"]))return false;
+        if(isFee&&!hasAny(context,["fee","fees","charge","charges"]))return false;
+        if(isRate&&!hasAny(context,["rate","rates","price","prices","tariff","tariffs"]))return false;
+        if(isCost&&!hasAny(context,["cost","costs","expense","expenses","spend","bill","bills"]))return false;
+        return true;
+    });
 }
 function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
-    if(!candidate||!Array.isArray(candidate.inputs)||promptContainsExplicitMonetaryAmount(prompt))return false;
+    if(!candidate||!Array.isArray(candidate.inputs))return false;
+    const explicitAmounts=extractExplicitMonetaryAmounts(prompt);
     let changed=false;
     const fallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
     for(const input of candidate.inputs){
@@ -476,7 +545,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
         const unit=String(input.unit||"").trim().toUpperCase();
         const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
-        if(!moneyInput)continue;
+        if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts))continue;
         if(!MONETARY_CURRENCY_CODES.has(unit))input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
         if(!Number.isFinite(step)||step<=0||!Number.isFinite(maximum))continue;
@@ -487,19 +556,18 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         changed=true;
     }
     if(changed){
-        const serbian=/\b(?:potrošnja|trošak|struja|voda|gorivo|mesečn|godišn|račun|uporedi|poređenje)\b/i.test(String(prompt||""));
+        const serbian=/\b(?:potrosnja|trosak|struja|voda|gorivo|mesecn|godisn|racun|uporedi|poredjenje)\b/i.test(normalizeMonetaryPromptText(prompt));
         const note=serbian
-            ?"Novčana polja počinju od nule jer cene i lični troškovi nisu navedeni; unesite svoje vrednosti pre oslanjanja na rezultate."
-            :"Monetary fields start at zero because prices and personal costs were not provided; enter your own values before relying on the results.";
+            ?"Nenavedena novčana polja počinju od nule; unesite preostale cene i troškove pre oslanjanja na rezultate."
+            :"Unspecified monetary fields start at zero; enter any remaining prices and costs before relying on results.";
         const description=String(candidate.description||"").trim();
-        if(!/start at zero|počinju od nule/i.test(description)){
+        if(!/start at zero|pocinju od nule/i.test(normalizeMonetaryPromptText(description))){
             const available=Math.max(0,500-note.length-1);
             candidate.description=(description.slice(0,available).trim()+" "+note).trim();
         }
     }
     return changed;
 }
-
 function normalizeDefinition(raw,defaultCurrency,options={}){
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
@@ -774,9 +842,9 @@ export async function onRequestPost(context){
             "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
             "For comparisons, model both options symmetrically and on the same usage level, service level and time period. Show the important result for each option and a direct difference or savings result when useful. Make the direction of any difference clear in its label so users know which option is cheaper or better.",
             "For vehicle energy comparisons, use the same distance and period for both options; calculate fuel use from distance times litres per 100 km divided by 100, and electricity use from distance times kWh per 100 km divided by 100. Multiply each by its own editable per-unit price. Do not claim to calculate full vehicle ownership unless insurance, maintenance, depreciation, financing and other relevant costs are actually modeled.",
-            "For household utility comparisons, calculate each utility using its own physical unit and matching rate (for example, kWh multiplied by currency per kWh, or m3 multiplied by currency per m3). Do not compare raw kWh and m3 as interchangeable quantities. Add fixed charges, taxes or tariff tiers only when supplied or represented by explicit editable inputs.",
+            "For household utility comparisons, calculate each utility using its own physical unit and matching rate (for example, kWh multiplied by currency per kWh, or m3 multiplied by currency per m3). Do not compare raw kWh and m3 as interchangeable quantities. Add fixed charges, taxes or tariff tiers only when supplied or represented by explicit editable inputs. If the user enters one blended rate, describe it as an average effective rate; do not claim that tiered or seasonal tariffs are calculated unless separate tiers are represented by inputs and formulas.",
             "Avoid double-counting overlapping costs. Include a cost component only once, distinguish optional from required costs, and do not label a partial-cost estimate as total ownership or total cost when important components are not modeled.",
-            "Use practical, editable defaults for non-monetary quantities. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices, fixed fees, maintenance bills or personal monetary costs. Unless the user supplies a concrete monetary amount in the prompt, every monetary input must have default 0 and minimum 0; explicitly say in the description that the user must enter their own prices and costs before relying on totals. Do not fabricate non-zero monetary examples for Serbia or any other region.",
+            "Use practical, editable defaults for non-monetary quantities, but describe them as illustrative starting estimates rather than typical national averages unless source-backed values are supplied. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices, fixed fees, maintenance bills or personal monetary costs. Only a monetary input that can be unambiguously matched to a concrete amount in the user prompt may keep a non-zero default. Every other monetary input must have default 0 and minimum 0, even when the prompt supplies a price for a different input. Explicitly say in the description that any remaining unspecified prices and costs must be entered before relying on totals. Do not fabricate non-zero monetary examples for Serbia or any other region.",
             "When monetary defaults are zero, keep formulas valid at zero. For a ratio or percentage whose denominator can be zero, use max(denominator,1) so the result remains finite and represents zero share when no cost has been entered.",
             "Use ranges and steps that fit the real-world scale of each input. Avoid absurd maxima, overly precise steps, unexplained constants and arbitrary default values. Keep optional fees at zero by default unless the user supplies a value.",
             "Prioritize a small number of non-redundant results that answer the main question: the primary per-period amounts, a useful combined or total figure when relevant, and a clear comparison or difference when it adds value. Do not fill the result limit with decorative or repetitive metrics.",
