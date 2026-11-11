@@ -23,11 +23,23 @@ create table if not exists private.worth_it_ugc_maker_global_daily_usage (
 
 -- Backfill generations already reserved or successfully completed before this
 -- shared counter was introduced. GREATEST keeps this migration repeatable.
+with reservation_totals as (
+    select usage_date,count(*)::integer as requests_used
+      from private.worth_it_ugc_maker_generation_reservations
+     where status in ('reserved','consumed')
+     group by usage_date
+), account_totals as (
+    select usage_date,coalesce(sum(requests_used),0)::integer as requests_used
+      from private.worth_it_ugc_maker_daily_usage
+     group by usage_date
+), daily_totals as (
+    select coalesce(r.usage_date,a.usage_date) as usage_date,
+           greatest(coalesce(r.requests_used,0),coalesce(a.requests_used,0)) as requests_used
+      from reservation_totals r
+      full join account_totals a using (usage_date)
+)
 insert into private.worth_it_ugc_maker_global_daily_usage(usage_date, requests_used)
-select usage_date, count(*)::integer
-  from private.worth_it_ugc_maker_generation_reservations
- where status in ('reserved','consumed')
- group by usage_date
+select usage_date,requests_used from daily_totals where requests_used>0
 on conflict (usage_date) do update
    set requests_used = greatest(
            private.worth_it_ugc_maker_global_daily_usage.requests_used,
