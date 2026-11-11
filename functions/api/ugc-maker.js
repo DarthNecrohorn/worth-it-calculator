@@ -513,10 +513,6 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         collectInputReferences(ast,referencedInputKeys);
         return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),_ast:ast};
     });
-    if(options?.requireAllInputsUsed===true){
-        const unusedInputs=inputs.filter(item=>!referencedInputKeys.has(item.key)).map(item=>item.label);
-        if(unusedInputs.length)throw new Error("The generated calculator contains unused input fields: "+unusedInputs.join(", ")+". Remove them or use them in a result formula.");
-    }
     const scenarios=[{...values},Object.fromEntries(inputs.map(item=>[item.key,item.min])),Object.fromEntries(inputs.map(item=>[item.key,item.max]))];
     inputs.forEach(item=>{const low={...values};low[item.key]=item.min;scenarios.push(low);const high={...values};high[item.key]=item.max;scenarios.push(high);});
     for(let left=0;left<inputs.length;left++){
@@ -538,6 +534,10 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         });
         delete item._ast;
     });
+    if(options?.requireAllInputsUsed===true){
+        const unusedInputs=inputs.filter(item=>!referencedInputKeys.has(item.key)).map(item=>item.label);
+        if(unusedInputs.length)throw new Error("The generated calculator contains unused input fields: "+unusedInputs.join(", ")+". Remove them or use them in a result formula.");
+    }
     if(options?.requireDescription!==false&&description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
     return {version:1,subcategories,inputs,results};
 }
