@@ -165,6 +165,35 @@ test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters
     });
 });
 
+test("short topic prompts are treated as requests for autonomous calculator design", async () => {
+    const candidate = structuredClone(validDefinition);
+    let generationSystem = "";
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        const body = JSON.parse(options.body);
+        generationSystem = body.messages[0].content;
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Electricity vs water consumption at home in Serbia" }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 200);
+        assert.match(generationSystem, /short topic descriptions as intentional requests/i);
+        assert.match(generationSystem, /smallest useful set of inputs and result rows/i);
+        assert.match(generationSystem, /Never invent current prices, tariffs/i);
+        assert.match(generationSystem, /editable input rather than guessing/i);
+        assert.match(generationSystem, /Do not reject or overcomplicate a request/i);
+    });
+});
+
 test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
     const requestFor = (country, language) => ({
         cf: country ? { country } : {},
