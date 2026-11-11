@@ -172,11 +172,10 @@ export function resolvePromptCountry(prompt){
  const value=String(prompt||"").toLowerCase();
  const found=new Set();
  for(const [code,aliases] of PROMPT_COUNTRY_ALIASES){
-  if(aliases.some(alias=>new RegExp("(^|[^a-z])"+alias.replace(/[.*+?^${}()|[\]\\]/g,"\\export function resolveExplicitCurrency(prompt){
- const matches=resolveExplicitCurrencies(prompt);
- return matches.length===1?matches[0]:null;
-}
-")+"([^a-z]|$)","i").test(value)))found.add(code);
+  if(aliases.some(alias=>{
+   const phrase=alias.toLowerCase().replace(/\s+/g,"\\s+");
+   return new RegExp("(^|[^a-z])"+phrase+"([^a-z]|$)","i").test(value);
+  }))found.add(code);
  }
  return found.size===1?[...found][0]:null;
 }
