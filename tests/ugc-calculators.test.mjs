@@ -353,6 +353,7 @@ test("a country named in the calculator prompt overrides visitor-region currency
     candidate.inputs[0].unit = "USD";
     candidate.results[0].currency = "USD";
     const req = request({ prompt: "Compare monthly electricity and natural gas costs for a household in Germany." }, { token: "valid-token" });
+    req.headers.set("Accept-Language","en-US");
     Object.defineProperty(req, "cf", { value: { country: "RS", continent: "EU" } });
     await withFetch(async (url, options) => {
         if (String(url).endsWith("/auth/v1/user")) {
