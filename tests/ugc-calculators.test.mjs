@@ -110,7 +110,7 @@ test("UGC Maker Preview diagnostics verify the exact six-result prompt without r
     const result=await response.json();
     assert.equal(result.success,true);
     assert.equal(result.diagnostic,"ugc-maker-output-coverage");
-    assert.equal(result.build,"2026-11-10-output-coverage-v2");
+    assert.equal(result.build,"2026-11-11-autonomous-quality-v1");
     assert.equal(result.promptLength, prompt.length);
     assert.equal(result.requestedResultItems.length,6);
     assert.deepEqual(result.missingCoverage,[]);
@@ -194,12 +194,12 @@ test("short topic prompts are treated as requests for autonomous calculator desi
     });
 });
 
-test("regional defaults prefer EUR for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
+test("regional defaults prefer RSD for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
     const requestFor = (country, language) => ({
         cf: country ? { country } : {},
         headers: new Headers(language ? { "Accept-Language": language } : {})
     });
-    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8")).currency, "EUR");
+    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8")).currency, "RSD");
     assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS")).locale, "sr-Latn-RS");
     assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).locale, "sr-Latn-RS", "the browser language preference takes precedence over the country fallback");
     assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
@@ -225,7 +225,7 @@ test("AI Maker uses regional currency only as an editable default and never stor
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[0].content, /regional suggestion EUR/i);
+        assert.match(body.messages[0].content, /regional suggestion RSD/i);
         assert.match(body.messages[0].content, /same language as the user's prompt/i);
         assert.doesNotMatch(JSON.stringify(body), /client.?ip|ip.?address/i);
         return new Response(JSON.stringify({
@@ -238,9 +238,9 @@ test("AI Maker uses regional currency only as an editable default and never stor
         });
         assert.equal(response.status, 200);
         const result = await response.json();
-        assert.equal(result.regionalDefaults.currency, "EUR");
-        assert.equal(result.calculator.spec.inputs[0].unit, "EUR");
-        assert.equal(result.calculator.spec.results[0].currency, "EUR");
+        assert.equal(result.regionalDefaults.currency, "RSD");
+        assert.equal(result.calculator.spec.inputs[0].unit, "RSD");
+        assert.equal(result.calculator.spec.results[0].currency, "RSD");
     });
 });
 
@@ -320,7 +320,7 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
         providerCalls++;
         const providerRequest=JSON.parse(options.body);
-        assert.equal(providerRequest.max_tokens,4096);
+        assert.equal(providerRequest.max_tokens,8192);
         const body=providerRequest;
         assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
         assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
@@ -589,8 +589,8 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
 });
 
 test("UGC Maker expands provider output limits and exposes safe result-coverage diagnostics", () => {
-    assert.match(makerApi, /max_tokens:4096/);
-    assert.match(makerApi, /maxOutputTokens:4096/);
+    assert.match(makerApi, /max_tokens:8192/);
+    assert.match(makerApi, /maxOutputTokens:8192/);
     assert.match(makerApi, /finishReason==="MAX_TOKENS"/);
     assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\.resultLabels/);
     assert.match(makerApi, /coverageAttempts\.push\(/);
@@ -625,7 +625,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         const body = JSON.parse(options.body);
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
-        assert.equal(body.reasoning_effort, "low");
+        assert.equal(body.reasoning_effort, "high");
         assert.equal(body.response_format.json_schema.schema.type,"object");
         const classificationSchema=body.response_format.json_schema.schema.properties.classification;
         assert.equal(classificationSchema.type,"object");
@@ -697,7 +697,7 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
-    assert.match(makerApi, /reasoning_effort:\s*"low"/);
+    assert.match(makerApi, /reasoning_effort:\s*"high"/);
     assert.match(makerApi, /classification:\s*\{\s*type:\s*"object"/);
     assert.match(makerApi, /subcategories:\s*\{\s*type:\s*"array"/);
     assert.doesNotMatch(makerApi, /classification:\s*\{\s*anyOf:/);
