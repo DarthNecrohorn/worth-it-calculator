@@ -186,6 +186,12 @@ begin
     if exists(select 1 from private.worth_it_ugc_maker_generation_reservations where request_id=v_request) then
         raise exception 'A globally blocked AI generation left a reservation behind.';
     end if;
+
+    -- Restore the actual simulated daily count so the remaining smoke tests
+    -- can verify authenticated reservation/refund behavior independently.
+    update private.worth_it_ugc_maker_global_daily_usage
+       set requests_used=v_global_used,updated_at=now()
+     where usage_date=v_today;
 end
 $maker_generation_tier_quotas$;
 
