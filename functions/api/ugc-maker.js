@@ -1,8 +1,8 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
-const GEMINI_MODEL = "gemini-3.7-flash";
+const GEMINI_MODEL = "gemini-3.8-flash";
 const MAX_PROMPT_CHARS = 1000;
-const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-10-output-coverage-v2";
+const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v1";
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -80,7 +80,7 @@ const COUNTRY_DEFAULTS = {
  CZ:["CZK","cs-CZ"],HU:["HUF","hu-HU"],SE:["SEK","sv-SE"],NO:["NOK","nb-NO"],DK:["DKK","da-DK"],
  IS:["ISK","is-IS"],TR:["TRY","tr-TR"],BR:["BRL","pt-BR"],MX:["MXN","es-MX"],ZA:["ZAR","en-ZA"],
  SG:["SGD","en-SG"],HK:["HKD","zh-HK"],KR:["KRW","ko-KR"],AE:["AED","ar-AE"],SA:["SAR","ar-SA"],
- BG:["EUR","bg-BG"],RS:["EUR","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
+ BG:["EUR","bg-BG"],RS:["RSD","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
  AT:["EUR","de-AT"],BE:["EUR","nl-BE"],CY:["EUR","el-CY"],EE:["EUR","et-EE"],FI:["EUR","fi-FI"],
  FR:["EUR","fr-FR"],DE:["EUR","de-DE"],GR:["EUR","el-GR"],HR:["EUR","hr-HR"],IE:["EUR","en-IE"],
  IT:["EUR","it-IT"],LV:["EUR","lv-LV"],LT:["EUR","lt-LT"],LU:["EUR","fr-LU"],MT:["EUR","mt-MT"],
@@ -180,7 +180,7 @@ async function generateWithGemini(apiKey,system,prompt){
             body:JSON.stringify({
                 systemInstruction:{parts:[{text:system}]},
                 contents:[{role:"user",parts:[{text:prompt}]}],
-                generationConfig:{temperature:0.15,maxOutputTokens:4096,responseMimeType:"application/json"}
+                generationConfig:{maxOutputTokens:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
             })
         }
     );
@@ -210,8 +210,8 @@ async function generateWithGroq(apiKey,system,prompt){
         body:JSON.stringify({
             model:GROQ_MODEL,
             temperature:0.15,
-            max_tokens:4096,
-            reasoning_effort:"low",
+            max_tokens:8192,
+            reasoning_effort:"high",
             response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
             messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
         })
@@ -706,6 +706,16 @@ export async function onRequestPost(context){
             "Each result may use its own ISO 4217 currency code. Currency selection controls formatting only; never imply that different currencies have been converted.",
             "Only calculate currency conversion when an exchange rate is supplied as an explicit numeric input and used in the formula. Never invent or fetch exchange rates.",
             "All numeric values must be finite and min <= default <= max. Keep input ranges realistic and bounded.",
+            "Think through the user's actual question before designing the schema: identify the main quantity or decision, the variables that materially affect it, the comparison baseline, and the time period. Build the calculator around that question rather than a generic collection of fields.",
+            "Every input must have a clear purpose and must be used by at least one result formula. Do not add redundant fields, duplicate the same cost under different names, or create inputs that do not affect any result.",
+            "Maintain dimensional and unit consistency in every formula. Make input labels state the relevant unit or rate basis (for example, kWh per month, RSD per kWh, m3 per month, litres per 100 km, or currency per month). A price per unit must be multiplied by the matching quantity; do not multiply or compare incompatible units.",
+            "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
+            "For comparisons, model both options symmetrically and on the same usage level, service level and time period. Show the important result for each option and a direct difference or savings result when useful. Make the direction of any difference clear in its label so users know which option is cheaper or better.",
+            "Avoid double-counting overlapping costs. Include a cost component only once, distinguish optional from required costs, and do not label a partial-cost estimate as total ownership or total cost when important components are not modeled.",
+            "Use practical, editable defaults for quantities. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices or provider fees. When a required current or personal rate was not supplied and no verified data source is available, make it an editable input with a default of 0 and clearly state in the description that the user must enter their own rate before relying on the result.",
+            "Use ranges and steps that fit the real-world scale of each input. Avoid absurd maxima, overly precise steps, unexplained constants and arbitrary default values. Keep optional fees at zero by default unless the user supplies a value.",
+            "Prioritize a small number of non-redundant results that answer the main question: the primary per-period amounts, a useful combined or total figure when relevant, and a clear comparison or difference when it adds value. Do not fill the result limit with decorative or repetitive metrics.",
+            "Before returning the schema, silently audit it as a calculator designer: verify that every input is needed, every requested output is present, every formula follows from the labels and units, all options use the same basis, no component is counted twice, and the default and boundary values produce plausible finite results. Correct any issue before returning JSON.",
             "Each result has label, expression, format, currency, prefix, suffix.",
             "Expressions may use only input keys, decimal numbers, + - * / ^, parentheses, comma, and functions min,max,abs,round,floor,ceil,sqrt,pow; constants pi and e are allowed.",
             "Do not use assignment, comparisons, strings, arrays, object syntax, property access, or any other function.",
@@ -760,7 +770,9 @@ export async function onRequestPost(context){
                 "You design new calculator definitions for the Worth It website.",
                 "Create a useful calculator that directly matches the user's described decision or calculation.",
                 "Treat short topic descriptions as intentional requests for you to design the calculator, not as incomplete forms that require the user to specify fields, formulas or result rows. Examples include a few words naming a comparison or household topic.",
+                "Approach the task as an experienced subject-matter analyst and calculator designer: infer the real-world scenario, identify the key drivers, choose an appropriate calculation method, then translate it into a compact and understandable form.",
                 "Infer a sensible, practical calculator structure from the subject and any stated context. Choose the smallest useful set of inputs and result rows; do not add fields merely to make the form look comprehensive. Prefer clear, editable user inputs for values that vary by household, location, provider or time.",
+                "Do not merely rename a generic template to match the topic. The inputs, formulas, units and outputs must specifically fit the subject the user named. For a comparison, explicitly represent the relevant variables for each option and make the comparison fair.",
                 "When details are missing, make conservative structural assumptions that are ordinary for the subject, express them through editable inputs and sensible defaults, and make material assumptions clear in labels or the description. Do not present assumptions as verified facts.",
                 "Use regional context only for presentation defaults such as currency and locale. Never invent current prices, tariffs, exchange rates, tax rates, market data or provider-specific values. If a current or personal value is needed and was not supplied, make it an editable input rather than guessing.",
                 "For comparison topics, make the options comparable on the same basis and time period. Include useful totals or differences only when they follow directly from the available inputs and formulas.",
