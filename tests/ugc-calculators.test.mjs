@@ -110,7 +110,7 @@ test("UGC Maker Preview diagnostics verify the exact six-result prompt without r
     const result=await response.json();
     assert.equal(result.success,true);
     assert.equal(result.diagnostic,"ugc-maker-output-coverage");
-    assert.equal(result.build,"2026-11-11-autonomous-quality-v2");
+    assert.equal(result.build,"2026-11-11-autonomous-quality-v3");
     assert.equal(result.promptLength, prompt.length);
     assert.equal(result.requestedResultItems.length,6);
     assert.deepEqual(result.missingCoverage,[]);
@@ -185,14 +185,14 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
             { label: "Electricity share of combined cost", expression: "(electricity_kwh*electricity_rate+electricity_fixed)/max(electricity_kwh*electricity_rate+electricity_fixed+water_m3*water_rate+water_fixed,1)", format: "percent", currency: "RSD" }
         ]
     };
-    const generate = async prompt => {
+    const generate = async (prompt, generatedDefinition = definition) => {
         const quotaEvents = { refunds: 0, settlements: 0 };
         let result;
         await withFetch(async url => {
             const path = String(url);
             if (path.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
             if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
-            return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(definition) } }] }), { status: 200 });
+            return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(generatedDefinition) } }] }), { status: 200 });
         }, async () => {
             const response = await onRequestPost({
                 request: request({ prompt }, { token: "valid-token" }),
@@ -221,6 +221,25 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
         assert.equal(onePriceInputs[key].min, 0, key + " must allow zero");
     }
     assert.match(withOnePrice.description, /unspecified monetary fields start at zero/i);
+
+    const sameUnitDefinition = {
+        title: "Fuel Price Comparison",
+        description: "Compare editable petrol and diesel prices per liter.",
+        category: "cars",
+        subcategories: ["fuel-costs"],
+        inputs: [
+            { key: "petrol_rate", label: "Petrol price per liter", min: 1, max: 500, default: 190, step: 1, unit: "RSD" },
+            { key: "diesel_rate", label: "Diesel price per liter", min: 1, max: 500, default: 210, step: 1, unit: "RSD" }
+        ],
+        results: [
+            { label: "Petrol price", expression: "petrol_rate", format: "currency", currency: "RSD" },
+            { label: "Diesel price", expression: "diesel_rate", format: "currency", currency: "RSD" }
+        ]
+    };
+    const oneFuelPrice = await generate("Set petrol price to 190 RSD per liter.", sameUnitDefinition);
+    const fuelInputs = Object.fromEntries(oneFuelPrice.spec.inputs.map(item => [item.key, item]));
+    assert.equal(fuelInputs.petrol_rate.default, 190);
+    assert.equal(fuelInputs.diesel_rate.default, 0, "one per-liter price must not prefill another per-liter field");
 
     const withPrices = await generate("Compare electricity and water costs using 12 RSD per kWh and 95 RSD per m3.");
     const explicitInputs = Object.fromEntries(withPrices.spec.inputs.map(item => [item.key, item]));
