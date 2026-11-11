@@ -1792,3 +1792,33 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-maker-test-locale>span{color:var(--muted)}
 .ugc-maker-test-locale select{width:100%;max-width:100%;min-width:0}
 @media(max-width:640px){.ugc-maker-test-locale{width:100%}}
+
+
+/* Clear visual distinction for AI generation progress and returned errors. */
+.ugc-maker-status.is-generating{color:var(--primary2);font-weight:800}
+.ugc-maker-status.is-error{color:var(--danger)!important;font-weight:800}
+
+/* Shared daily AI capacity notice beside the community introduction. */
+.ugc-community-daily-limit{
+ flex:0 1 245px;
+ align-self:center;
+ max-width:245px;
+ color:#fb7185;
+ font-size:clamp(17px,1.7vw,23px);
+ font-weight:1000;
+ line-height:1.18;
+ letter-spacing:-.025em;
+ text-align:right;
+ text-wrap:balance;
+ text-shadow:0 0 18px rgba(251,113,133,.12);
+}
+@media(max-width:700px){
+ .ugc-community-daily-limit{
+  flex:none;
+  width:100%;
+  max-width:none;
+  margin:-3px 0 2px;
+  font-size:clamp(17px,5vw,21px);
+  text-align:left;
+ }
+}
