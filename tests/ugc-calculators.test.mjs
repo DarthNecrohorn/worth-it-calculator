@@ -1076,12 +1076,12 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         assert.equal(result.aiUsage.attempts[0].model,"gemini-3.8-flash-2026-11");
         assert.equal(result.aiUsage.attempts[0].thinkingTokens,500);
         assert.equal(result.aiUsage.attempts[0].cachedInputTokens,50);
-        assert.equal(result.aiUsage.attempts[0].uncachedInputTokens,2750);
-        assert.equal(result.aiUsage.attempts[0].cacheHitRatePercent,1.79);
+        assert.equal(result.aiUsage.attempts[0].uncachedInputTokens,3450);
+        assert.equal(result.aiUsage.attempts[0].cacheHitRatePercent,1.43);
         assert.equal(result.aiUsage.attempts[1].thinkingTokens,250);
         assert.equal(result.aiUsage.attempts[1].cachedInputTokens,100);
-        assert.equal(result.aiUsage.attempts[1].uncachedInputTokens,2700);
-        assert.equal(result.aiUsage.attempts[1].cacheHitRatePercent,3.57);
+        assert.equal(result.aiUsage.attempts[1].uncachedInputTokens,2000);
+        assert.equal(result.aiUsage.attempts[1].cacheHitRatePercent,4.76);
         assert.deepEqual(result.aiUsage.totals,{
             inputTokens:5600,
             outputTokens:1550,
