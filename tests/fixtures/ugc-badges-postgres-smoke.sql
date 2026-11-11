@@ -80,6 +80,115 @@ insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_a
  ('33333333-3333-4333-8333-333333333333','premium',now()+interval '30 days'),
  ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '30 days');
 
+-- AI Maker generations follow the same Free / Premium Lite / Premium daily
+-- tiers as new calculator creation, with an additional shared 100/day cap.
+do $maker_generation_tier_quotas$
+declare
+    v_request uuid;
+    q jsonb;
+    v_global_used integer;
+    v_today date := (now() at time zone 'UTC')::date;
+begin
+    -- Free: one successful generation; second generation is blocked.
+    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
+    q:=public.get_worth_it_ugc_maker_generation_quota();
+    if q->>'plan'<>'free' or (q->>'daily_limit')::integer<>1 then
+        raise exception 'Free AI generation quota must be one: %',q;
+    end if;
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+    if (q->>'ok')::boolean is distinct from true or (q->>'daily_limit')::integer<>1 then
+        raise exception 'Free account could not reserve its one generation: %',q;
+    end if;
+    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
+    if q->>'code'<>'DAILY_LIMIT' then
+        raise exception 'Free account generated more than one calculator in a UTC day: %',q;
+    end if;
+
+    -- Premium Lite: two successful generations. Refunds restore both counters.
+    perform set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',true);
+    q:=public.get_worth_it_ugc_maker_generation_quota();
+    if q->>'plan'<>'premium_lite' or (q->>'daily_limit')::integer<>2 then
+        raise exception 'Premium Lite AI generation quota must be two: %',q;
+    end if;
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+    if (q->>'ok')::boolean is distinct from true then
+        raise exception 'Premium Lite first generation reservation failed: %',q;
+    end if;
+    q:=public.refund_worth_it_ugc_maker_generation_v2(v_request);
+    if (q->>'refunded')::boolean is distinct from true then
+        raise exception 'Failed Premium Lite generation did not refund its daily slots: %',q;
+    end if;
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+    if (q->>'ok')::boolean is distinct from true then
+        raise exception 'Premium Lite generation slot was not restored after a refund: %',q;
+    end if;
+    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+    if (q->>'ok')::boolean is distinct from true then
+        raise exception 'Premium Lite second generation reservation failed: %',q;
+    end if;
+    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
+    if q->>'code'<>'DAILY_LIMIT' then
+        raise exception 'Premium Lite account generated more than two calculators in a UTC day: %',q;
+    end if;
+
+    -- Premium: three successful generations; fourth is blocked.
+    perform set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
+    q:=public.get_worth_it_ugc_maker_generation_quota();
+    if q->>'plan'<>'premium' or (q->>'daily_limit')::integer<>3 then
+        raise exception 'Premium AI generation quota must be three: %',q;
+    end if;
+    for i in 1..3 loop
+        v_request:=gen_random_uuid();
+        q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+        if (q->>'ok')::boolean is distinct from true then
+            raise exception 'Premium generation % reservation failed: %',i,q;
+        end if;
+        perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
+    end loop;
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
+    if q->>'code'<>'DAILY_LIMIT' then
+        raise exception 'Premium account generated more than three calculators in a UTC day: %',q;
+    end if;
+
+    select requests_used into v_global_used
+      from private.worth_it_ugc_maker_global_daily_usage
+     where usage_date=v_today;
+    if v_global_used<>6 then
+        raise exception 'Refunds and tier quotas should leave exactly six shared generations, got %.',v_global_used;
+    end if;
+
+    perform set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',true);
+    q:=public.get_worth_it_ugc_maker_generation_quota();
+    if (q->>'requests_used')::integer<>2 or (q->>'remaining')::integer<>0
+       or (q->>'global_requests_used')::integer<>6 or (q->>'global_remaining')::integer<>94 then
+        raise exception 'AI Maker quota status must show per-tier and shared counts: %',q;
+    end if;
+
+    -- Simulate the shared ceiling and verify an otherwise eligible owner account
+    -- cannot bypass it. The failed reservation must not remain counted.
+    update private.worth_it_ugc_maker_global_daily_usage
+       set requests_used=100,updated_at=now()
+     where usage_date=v_today;
+    perform set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',true);
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
+    if q->>'code'<>'GLOBAL_DAILY_LIMIT' or (q->>'global_daily_limit')::integer<>100 then
+        raise exception 'The shared 100-generation daily limit was not enforced: %',q;
+    end if;
+    if exists(select 1 from private.worth_it_ugc_maker_generation_reservations where request_id=v_request) then
+        raise exception 'A globally blocked AI generation left a reservation behind.';
+    end if;
+end
+$maker_generation_tier_quotas$;
+
+
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select (public.save_worth_it_ugc_calculator(
  null,'Monthly savings growth','Estimate savings with monthly deposits.','money',
