@@ -1389,7 +1389,8 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
     assert.match(sql, /private\.worth_it_validate_ugc_spec/);
     assert.match(sql, /formula contains an unsupported variable or function/i);
     assert.match(sql, /private\.worth_it_ugc_maker_daily_usage/);
-    assert.match(sql, /requests_used<10/);
+    assert.match(sql, /requests_used\s*<\s*v_limit/);
+    assert.match(sql, /v_limit := case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
     assert.match(sql, /reserve_worth_it_ugc_maker_generation/);
     assert.match(makerQuotaSql, /worth_it_ugc_maker_generation_reservations/);
     assert.match(makerQuotaSql, /refund_worth_it_ugc_maker_generation_v2/);
