@@ -842,28 +842,10 @@ begin
 end
 $lite_quota$;
 
--- AI Maker quota is enforced atomically per confirmed user and UTC day.
-select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
-do $quota_test$
-declare
-    i integer;
-    result jsonb;
-begin
-    for i in 1..10 loop
-        result:=public.reserve_worth_it_ugc_maker_generation();
-        if (result->>'ok')::boolean is distinct from true then
-            raise exception 'AI Maker quota rejected a request before the daily limit.';
-        end if;
-    end loop;
-    result:=public.reserve_worth_it_ugc_maker_generation();
-    if (result->>'ok')::boolean is distinct from false
-       or result->>'code' is distinct from 'DAILY_LIMIT'
-       or (result->>'requests_used')::integer<>10 then
-        raise exception 'AI Maker daily limit did not stop the eleventh generation.';
-    end if;
-end
-$quota_test$;
-
+-- Tier-specific and shared AI Maker quota behavior is tested above, including
+-- Free 1 / Premium Lite 2 / Premium 3 and refund restoration.
+-- The old fixed ten-generations-per-user smoke test was removed.
+ 
 -- Unconfirmed accounts cannot create or publish.
 select set_config('request.jwt.claim.sub','66666666-6666-4666-8666-666666666666',false);
 do $test$
