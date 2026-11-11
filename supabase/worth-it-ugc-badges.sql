@@ -246,6 +246,8 @@ set search_path = pg_catalog, public, private, auth
 as $$
 declare
     v_user_id uuid := auth.uid();
+    v_plan text;
+    v_limit integer;
     v_used smallint;
     v_today date := (now() at time zone 'UTC')::date;
 begin
@@ -259,22 +261,35 @@ begin
         raise exception 'Verify your email before using the AI calculator maker.' using errcode='42501';
     end if;
 
+    select case
+             when lower(coalesce(u.email,''))='pedjasebez3545@gmail.com' then 'premium'
+             when w.premium_plan='premium' and w.premium_expires_at>now() then 'premium'
+             when w.premium_plan='premium_lite' and w.premium_expires_at>now() then 'premium_lite'
+             else 'free'
+           end
+      into v_plan
+      from auth.users u
+      left join private.worth_it_calc_wallets w on w.user_id=u.id
+     where u.id=v_user_id;
+
+    v_limit := case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end;
+
     insert into private.worth_it_ugc_maker_daily_usage(user_id,usage_date,requests_used)
     values(v_user_id,v_today,1)
     on conflict(user_id,usage_date) do update
        set requests_used=private.worth_it_ugc_maker_daily_usage.requests_used+1,
            updated_at=now()
-     where private.worth_it_ugc_maker_daily_usage.requests_used<10
+     where private.worth_it_ugc_maker_daily_usage.requests_used < v_limit
     returning requests_used into v_used;
 
     if v_used is null then
         return jsonb_build_object(
-            'ok',false,'code','DAILY_LIMIT','daily_limit',10,'requests_used',10,
+            'ok',false,'code','DAILY_LIMIT','daily_limit',v_limit,'requests_used',v_limit,
             'usage_date',v_today
         );
     end if;
     return jsonb_build_object(
-        'ok',true,'requests_used',v_used,'daily_limit',10,'usage_date',v_today
+        'ok',true,'requests_used',v_used,'daily_limit',v_limit,'usage_date',v_today
     );
 end;
 $$;
