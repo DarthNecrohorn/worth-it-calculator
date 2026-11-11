@@ -891,10 +891,12 @@ test("AI Maker runs one targeted Groq coverage repair when Groq is already the G
     const quotaEvents={refunds:0,settlements:0};
     const requested=[];
     const incomplete=structuredClone(validDefinition);
+    incomplete.inputs=[structuredClone(validDefinition.inputs[1])];
     incomplete.results=[
         {label:"Monthly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
     ];
     const complete=structuredClone(validDefinition);
+    complete.inputs=[structuredClone(validDefinition.inputs[1])];
     complete.results=[
         {label:"Weekly total",expression:"monthly_deposit*12/52",format:"currency",currency:"EUR"},
         {label:"Yearly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
@@ -967,8 +969,10 @@ test("AI Maker retries an incomplete Gemini calculator with Groq and includes re
     const quotaEvents={refunds:0,settlements:0};
     const requested=[];
     const incomplete=structuredClone(validDefinition);
+    incomplete.inputs=[structuredClone(validDefinition.inputs[1])];
     incomplete.results=[{label:"Monthly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}];
     const complete=structuredClone(validDefinition);
+    complete.inputs=[structuredClone(validDefinition.inputs[1])];
     complete.results=[
         {label:"Weekly total",expression:"monthly_deposit*12/52",format:"currency",currency:"EUR"},
         {label:"Yearly total",expression:"monthly_deposit*12",format:"currency",currency:"EUR"}
@@ -1119,7 +1123,7 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         assert.equal(result.calculator.spec.inputs[0].label,"Starting savings balance");
         assert.equal(result.calculator.spec.inputs[0].unit,"CHF","omitted units retain their saved currency during refinement");
         assert.equal(result.calculator.spec.results[0].currency,"CHF","omitted result currency retains its saved currency during refinement");
-        assert.equal(result.regionalDefaults.currency,"EUR","regional suggestions do not overwrite an existing calculator's currency");
+        assert.equal(result.regionalDefaults.currency,"RSD","the Serbian regional default is RSD; the saved calculator's CHF currency remains preserved above");
         assert.ok(calls.some(path=>path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_edit")));
     });
 
