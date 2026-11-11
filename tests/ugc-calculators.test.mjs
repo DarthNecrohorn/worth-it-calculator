@@ -110,7 +110,7 @@ test("UGC Maker Preview diagnostics verify the exact six-result prompt without r
     const result=await response.json();
     assert.equal(result.success,true);
     assert.equal(result.diagnostic,"ugc-maker-output-coverage");
-    assert.equal(result.build,"2026-11-11-autonomous-quality-v1");
+    assert.equal(result.build,"2026-11-11-autonomous-quality-v2");
     assert.equal(result.promptLength, prompt.length);
     assert.equal(result.requestedResultItems.length,6);
     assert.deepEqual(result.missingCoverage,[]);
@@ -211,12 +211,23 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
         assert.equal(inputs[key].default, 0, key + " must not receive an invented monetary default");
         assert.equal(inputs[key].min, 0, key + " must allow an unprovided value to remain zero");
     }
-    assert.match(withoutPrices.description, /prices and personal costs were not provided/i);
+    assert.match(withoutPrices.description, /unspecified monetary fields start at zero/i);
+
+    const withOnePrice = await generate("Compare electricity and water costs using 12 RSD per kWh.");
+    const onePriceInputs = Object.fromEntries(withOnePrice.spec.inputs.map(item => [item.key, item]));
+    assert.equal(onePriceInputs.electricity_rate.default, 12, "the explicitly supplied electricity rate should be preserved");
+    for (const key of ["electricity_fixed", "water_rate", "water_fixed"]) {
+        assert.equal(onePriceInputs[key].default, 0, key + " must stay zero because the prompt did not supply its value");
+        assert.equal(onePriceInputs[key].min, 0, key + " must allow zero");
+    }
+    assert.match(withOnePrice.description, /unspecified monetary fields start at zero/i);
 
     const withPrices = await generate("Compare electricity and water costs using 12 RSD per kWh and 95 RSD per m3.");
     const explicitInputs = Object.fromEntries(withPrices.spec.inputs.map(item => [item.key, item]));
     assert.equal(explicitInputs.electricity_rate.default, 12);
     assert.equal(explicitInputs.water_rate.default, 95);
+    assert.equal(explicitInputs.electricity_fixed.default, 0, "an explicit unit rate must not authorize an invented fixed fee");
+    assert.equal(explicitInputs.water_fixed.default, 0, "an explicit unit rate must not authorize an invented fixed fee");
 });
 
 test("short topic prompts are treated as requests for autonomous calculator design", async () => {
@@ -252,7 +263,10 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /Maintain dimensional and unit consistency/i);
         assert.match(generationSystem, /model both options symmetrically/i);
         assert.match(generationSystem, /Avoid double-counting overlapping costs/i);
-        assert.match(generationSystem, /every monetary input must have default 0 and minimum 0/i);
+        assert.match(generationSystem, /Only a monetary input that can be unambiguously matched to a concrete amount/i);
+        assert.match(generationSystem, /illustrative starting estimates rather than typical national averages/i);
+        assert.match(generationSystem, /average effective rate/i);
+        assert.match(generationSystem, /do not claim that tiered or seasonal tariffs are calculated/i);
         assert.match(generationSystem, /silently audit it as a calculator designer/i);
         assert.equal(providerConfig.model, "openai/gpt-oss-120b");
         assert.equal(providerConfig.reasoning_effort, "high");
