@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -798,7 +798,15 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.match(body.messages[0].content,/classification object/);
         assert.match(body.messages[0].content, /restricted arithmetic parser/);
         return new Response(JSON.stringify({
-            choices: [{ message: { content: JSON.stringify(validDefinition) } }]
+            model: "openai/gpt-oss-120b",
+            choices: [{ message: { content: JSON.stringify(validDefinition), finish_reason: "stop" } }],
+            usage: {
+                prompt_tokens: 1200,
+                completion_tokens: 650,
+                total_tokens: 1850,
+                prompt_tokens_details: { cached_tokens: 100 },
+                completion_tokens_details: { reasoning_tokens: 200 }
+            }
         }), { status: 200 });
     }, async () => {
         const response = await onRequestPost({
@@ -937,7 +945,19 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
             env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GEMINI_API_KEY: "gemini-test", GROQ_API_KEY: "groq-test" }
         });
         assert.equal(response.status, 200);
-        assert.equal((await response.json()).success, true);
+        const generated = await response.json();
+        assert.equal(generated.success, true);
+        assert.equal(generated.aiUsage.attemptCount, 2);
+        assert.deepEqual(generated.aiUsage.attempts.map(item => [item.provider,item.stage,item.success]), [
+            ["gemini","initial-generation",false],
+            ["groq","provider-fallback",true]
+        ]);
+        assert.equal(generated.aiUsage.attempts[0].totalTokens, null, "An HTTP failure without usage metadata must remain unknown.");
+        assert.equal(generated.aiUsage.attempts[1].inputTokens, 1200);
+        assert.equal(generated.aiUsage.attempts[1].outputTokens, 650);
+        assert.equal(generated.aiUsage.attempts[1].thinkingTokens, 200);
+        assert.equal(generated.aiUsage.totals.totalTokens, 1850);
+        assert.equal(generated.aiUsage.totals.requestsWithUsage, 1);
         assert.ok(requests.some(url => url.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")));
         assert.ok(requests.some(url => url.includes("generativelanguage.googleapis.com")));
         assert.ok(requests.some(url => url.includes("api.groq.com/openai/v1/chat/completions")));
@@ -984,7 +1004,15 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         if(path.includes("generativelanguage.googleapis.com")){
             requested.push("gemini");
             return new Response(JSON.stringify({
-                candidates:[{content:{parts:[{text:JSON.stringify(geminiInvalid)}]}}]
+                modelVersion:"gemini-3.8-flash-2026-11",
+                candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(geminiInvalid)}]}}],
+                usageMetadata:{
+                    promptTokenCount:3500,
+                    candidatesTokenCount:800,
+                    thoughtsTokenCount:500,
+                    totalTokenCount:4800,
+                    cachedContentTokenCount:50
+                }
             }),{status:200});
         }
         if(path.includes("api.groq.com/openai/v1/chat/completions")){
@@ -1005,7 +1033,15 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             delete groqDefinition.subcategories;
             groqDefinition.classification={category:"money",subcategories:["budgeting","saving"]};
             return new Response(JSON.stringify({
-                choices:[{message:{content:JSON.stringify(groqDefinition)}}]
+                model:"openai/gpt-oss-120b",
+                choices:[{finish_reason:"stop",message:{content:JSON.stringify(groqDefinition)}}],
+                usage:{
+                    prompt_tokens:2100,
+                    completion_tokens:750,
+                    total_tokens:2850,
+                    prompt_tokens_details:{cached_tokens:100},
+                    completion_tokens_details:{reasoning_tokens:250}
+                }
             }),{status:200});
         }
         throw new Error("Unexpected request in category fallback test: "+path);
@@ -1024,6 +1060,25 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         assert.equal(result.success,true);
         assert.equal(result.calculator.category,"money");
         assert.deepEqual(result.calculator.spec.subcategories,["budgeting","saving"]);
+        assert.equal(result.aiUsage.attemptCount,2);
+        assert.deepEqual(result.aiUsage.attempts.map(item=>[item.provider,item.stage,item.success]),[
+            ["gemini","initial-generation",true],
+            ["groq","validation-fallback",true]
+        ]);
+        assert.equal(result.aiUsage.attempts[0].model,"gemini-3.8-flash-2026-11");
+        assert.equal(result.aiUsage.attempts[0].thinkingTokens,500);
+        assert.equal(result.aiUsage.attempts[0].cachedInputTokens,50);
+        assert.equal(result.aiUsage.attempts[1].thinkingTokens,250);
+        assert.equal(result.aiUsage.attempts[1].cachedInputTokens,100);
+        assert.deepEqual(result.aiUsage.totals,{
+            inputTokens:5600,
+            outputTokens:1550,
+            thinkingTokens:750,
+            totalTokens:7650,
+            cachedInputTokens:150,
+            requestsWithUsage:2,
+            totalProviderDurationMs:result.aiUsage.totals.totalProviderDurationMs
+        });
         assert.deepEqual(requested,["reserve","gemini","groq"]);
         assert.equal(quotaEvents.refunds||0,0);
         assert.equal(quotaEvents.settlements,1);
@@ -2006,4 +2061,53 @@ test("Community Discovery explains ranking formulas and allows scroll chaining f
     assert.match(paginationCss, /overscroll-behavior-y:auto/);
     assert.doesNotMatch(paginationCss, /\.ugc-creator-list\{[^}]*overscroll-behavior:contain/);
     assert.match(paginationCss, /\.ugc-creator-follow-button/);
+});
+
+test("AI usage diagnostics aggregate every provider attempt without inventing unavailable token counts", () => {
+    const usage=createAiUsageCollector();
+    recordAiUsageAttempt(usage,{
+        provider:"gemini",
+        model:"gemini-test",
+        stage:"initial-generation",
+        success:true,
+        durationMs:1200,
+        inputTokens:1000,
+        outputTokens:400,
+        thinkingTokens:250,
+        totalTokens:1650,
+        cachedInputTokens:50,
+        finishReason:"STOP",
+        httpStatus:200
+    });
+    recordAiUsageAttempt(usage,{
+        provider:"groq",
+        model:"openai/gpt-oss-120b",
+        stage:"coverage-repair",
+        success:false,
+        durationMs:800,
+        inputTokens:null,
+        outputTokens:null,
+        thinkingTokens:null,
+        totalTokens:null,
+        cachedInputTokens:null,
+        finishReason:null,
+        httpStatus:503
+    });
+    const summary=summarizeAiUsage(usage);
+    assert.equal(summary.attemptCount,2);
+    assert.equal(summary.attempts[1].totalTokens,null);
+    assert.deepEqual(summary.totals,{
+        inputTokens:1000,
+        outputTokens:400,
+        thinkingTokens:250,
+        totalTokens:1650,
+        cachedInputTokens:50,
+        requestsWithUsage:1,
+        totalProviderDurationMs:2000
+    });
+
+    const unknown=summarizeAiUsage(createAiUsageCollector());
+    assert.equal(unknown.attemptCount,0);
+    assert.equal(unknown.totals.inputTokens,null);
+    assert.equal(unknown.totals.totalTokens,null);
 });
