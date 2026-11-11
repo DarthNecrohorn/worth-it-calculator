@@ -710,6 +710,9 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"high"/);
+    assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
+    assert.match(makerApi, /thinkingConfig:\s*\{thinkingLevel:\s*"high"\}/);
+    assert.match(makerApi, /requireAllInputsUsed:mode==="create"/);
     assert.match(makerApi, /classification:\s*\{\s*type:\s*"object"/);
     assert.match(makerApi, /subcategories:\s*\{\s*type:\s*"array"/);
     assert.doesNotMatch(makerApi, /classification:\s*\{\s*anyOf:/);
@@ -719,6 +722,43 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /trying targeted Groq regeneration/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
     assert.equal(options.status, 204);
+});
+
+test("AI Maker rejects unused inputs in new calculator definitions and refunds the generation quota", async () => {
+    const unusedInputDefinition = structuredClone(validDefinition);
+    unusedInputDefinition.inputs.push({
+        key: "unused_monthly_fee",
+        label: "Unused monthly fee",
+        min: 0,
+        max: 500,
+        default: 0,
+        step: 1,
+        unit: "EUR"
+    });
+    const quotaEvents = { refunds: 0, settlements: 0 };
+    await withFetch(async (url) => {
+        const path = String(url);
+        if (path.endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+        }
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(unusedInputDefinition) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: request({ prompt: "Create a monthly savings calculator." }, { token: "valid-token" }),
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        const result = await response.json();
+        assert.equal(response.status, 422);
+        assert.equal(result.code, "INVALID_AI_CALCULATOR");
+        assert.match(result.error, /unused input fields: Unused monthly fee/i);
+        assert.equal(quotaEvents.refunds, 1);
+        assert.equal(quotaEvents.settlements, 0);
+    }, quotaEvents);
 });
 
 test("AI Maker uses Gemini first and Groq as a fallback, with a server-side daily generation quota", async () => {
