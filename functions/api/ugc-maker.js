@@ -509,7 +509,7 @@ function explicitAmountMatchesInput(input,amounts){
         "weekly","week","daily","day","total","average","the","and","for","from","with","of","in","on","by",
         "input","value","currency"
     ]);
-    const specific=tokens.filter(token=>token.length>1&&!generic.has(token)&&!/^\\d+$/.test(token));
+    const specific=tokens.filter(token=>token.length>1&&!generic.has(token)&&!/^\d+$/.test(token));
     const hasFixed=/\bfixed\b/.test(semantic);
     const isRate=/\b(?:rate|price|tariff)\b/.test(semantic);
     const isFee=/\b(?:fee|charge)\b/.test(semantic);
