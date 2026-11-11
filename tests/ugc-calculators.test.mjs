@@ -464,6 +464,23 @@ test("AI Maker catches invalid formulas caused only by paired input extremes", a
     });
 });
 
+test("UGC Maker currency consistency warnings ignore physical units such as kWh", () => {
+    const start=maker.indexOf("function makerCurrencyWarnings(spec){");
+    const end=maker.indexOf("\n}",start)+2;
+    assert.ok(start>=0&&end>start,"The currency consistency helper must exist.");
+    const helper=runInNewContext(maker.slice(start,end)+"; makerCurrencyWarnings",{CURRENCIES:[["EUR","Euro"],["RSD","Serbian dinar"],["USD","US dollar"]]});
+    const utilityWarnings=helper({
+        inputs:[{unit:"kWh"},{unit:"m³"},{unit:"RSD"}],
+        results:[{format:"currency",currency:"RSD"}]
+    });
+    assert.deepEqual(Array.from(utilityWarnings),[]);
+    const mixedCurrencyWarnings=helper({
+        inputs:[{unit:"RSD"},{unit:"EUR"}],
+        results:[{format:"currency",currency:"RSD"}]
+    });
+    assert.deepEqual(Array.from(mixedCurrencyWarnings),["EUR input → RSD result"]);
+});
+
 test("UGC Maker exposes editable regional number formatting, currency consistency warnings and free boundary tests", () => {
     assert.match(maker, /Regional suggestion:/);
     assert.match(maker, /Number format/);
