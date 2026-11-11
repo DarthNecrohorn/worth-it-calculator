@@ -87,6 +87,7 @@ declare
     v_request uuid;
     q jsonb;
     v_global_used integer;
+    i integer;
     v_today date := (now() at time zone 'UTC')::date;
 begin
     -- Free: one successful generation; second generation is blocked.
