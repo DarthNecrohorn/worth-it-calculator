@@ -1049,6 +1049,7 @@ function openMaker(){
  if(visibilityWrap)visibilityWrap.hidden=Boolean(state.editingId);
  $("ugcMakerGenerate").textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
  $("ugcMakerTitleHeading").textContent=state.editingId?"Improve your calculator with AI":"Create a calculator with AI";
+ if(!state.editingId)makerStatus("Describe your calculator in at least 10 characters.");
  $("ugcMakerPrompt")?.focus();
 }
 function closeMaker(){
