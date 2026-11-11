@@ -937,7 +937,15 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
         return new Response(JSON.stringify({
-            choices: [{ message: { content: JSON.stringify(validDefinition) } }]
+            model: "openai/gpt-oss-120b",
+            choices: [{ message: { content: JSON.stringify(validDefinition), finish_reason: "stop" } }],
+            usage: {
+                prompt_tokens: 1200,
+                completion_tokens: 650,
+                total_tokens: 1850,
+                prompt_tokens_details: { cached_tokens: 100 },
+                completion_tokens_details: { reasoning_tokens: 200 }
+            }
         }), { status: 200 });
     }, async () => {
         const response = await onRequestPost({
