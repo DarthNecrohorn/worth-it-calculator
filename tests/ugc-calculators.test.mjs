@@ -455,7 +455,7 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
     await withFetch(async(url,options)=>{
         const path=String(url);
         if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
-        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+        if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
         providerCalls++;
         const providerRequest=JSON.parse(options.body);
         assert.equal(providerRequest.max_tokens,8192);
@@ -978,7 +978,7 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         }
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
             requested.push("reserve");
-            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
         }
         if(path.includes("generativelanguage.googleapis.com")){
             requested.push("gemini");
@@ -1059,7 +1059,7 @@ test("AI Maker runs one targeted Groq coverage repair when Groq is already the G
         }
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
             requested.push("reserve");
-            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
         }
         if(path.includes("generativelanguage.googleapis.com")){
             requested.push("gemini");
@@ -1127,7 +1127,7 @@ test("AI Maker retries an incomplete Gemini calculator with Groq and includes re
         }
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")){
             requested.push("reserve");
-            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:10}),{status:200});
+            return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
         }
         if(path.includes("generativelanguage.googleapis.com")){
             requested.push("gemini");
