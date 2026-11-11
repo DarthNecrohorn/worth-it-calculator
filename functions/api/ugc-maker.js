@@ -2,7 +2,7 @@ const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.8-flash";
 const MAX_PROMPT_CHARS = 1000;
-const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v2";
+const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v3";
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -497,42 +497,61 @@ function extractExplicitMonetaryAmounts(prompt){
         };
     });
 }
-function explicitAmountMatchesInput(input,amounts){
+function isMonetaryInput(input){
+    const semantic=normalizeMonetaryPromptText(String(input?.label||"")+" "+String(input?.key||""));
+    const unit=String(input?.unit||"").trim().toUpperCase();
+    return MONETARY_CURRENCY_CODES.has(unit)||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
+}
+function monetaryInputBases(input){
+    const semantic=normalizeMonetaryPromptText(String(input?.label||"")+" "+String(input?.key||""));
+    return [...semantic.matchAll(/\bper\s+(kwh|m3|liters?|litres?|gallons?|km|miles?|hours?|days?)\b/g)].map(match=>match[1]);
+}
+function explicitAmountContextMatchesInput(input,context){
     const semantic=normalizeMonetaryPromptText(String(input?.label||"")+" "+String(input?.key||""));
     if(!semantic)return false;
-    const basisMatches=[...semantic.matchAll(/\bper\s+(kwh|m3|liters?|litres?|gallons?|km|miles?|hours?|days?)\b/g)].map(match=>match[1]);
     const tokens=semantic.split(/\s+/).filter(Boolean);
     const generic=new Set([
         "per","price","prices","cost","costs","amount","amounts","fee","fees","rate","rates","tariff","tariffs",
-        "charge","charges","salary","income","budget","rent","payment","saving","savings","deposit","expense",
-        "expenses","spend","wage","tax","taxes","fixed","monthly","month","annual","annually","yearly","year",
-        "weekly","week","daily","day","total","average","the","and","for","from","with","of","in","on","by",
-        "input","value","currency"
+        "charge","charges","fixed","monthly","month","annual","annually","yearly","year","weekly","week","daily","day",
+        "total","average","the","and","for","from","with","of","in","on","by","input","value","currency"
     ]);
-    const specific=tokens.filter(token=>token.length>1&&!generic.has(token)&&!/^\d+$/.test(token));
+    const specific=tokens.filter(token=>token.length>1&&!generic.has(token)&&!/^\\d+$/.test(token));
     const hasFixed=/\bfixed\b/.test(semantic);
     const isRate=/\b(?:rate|price|tariff)\b/.test(semantic);
     const isFee=/\b(?:fee|charge)\b/.test(semantic);
     const isCost=/\b(?:cost|expense|spend)\b/.test(semantic);
     const hasAny=(text,values)=>values.some(value=>new RegExp("\\b"+value+"\\b").test(text));
+    const matchingSpecific=specific.some(token=>hasAny(context,
+        token==="electricity"?["electricity","electric","power"]:
+        token==="fuel"?["fuel","petrol","gasoline","diesel"]:
+        token==="petrol"?["petrol","gasoline","fuel"]:
+        token==="gasoline"?["gasoline","petrol","fuel"]:
+        token==="maintenance"?["maintenance","repair","repairs"]:
+        token==="repair"?["repair","repairs","maintenance"]:[token]
+    ));
+    if(!matchingSpecific)return false;
+    if(hasFixed&&!hasAny(context,["fixed","standing"]))return false;
+    if(isFee&&!hasAny(context,["fee","fees","charge","charges"]))return false;
+    if(isRate&&!hasAny(context,["rate","rates","price","prices","tariff","tariffs"]))return false;
+    if(isCost&&!hasAny(context,["cost","costs","expense","expenses","spend","bill","bills"]))return false;
+    return true;
+}
+function explicitAmountMatchesInput(input,amounts,allInputs){
+    const bases=monetaryInputBases(input);
     return amounts.some(amount=>{
-        // Match per-unit prices only to the same physical basis.
-        if(basisMatches.some(basis=>new RegExp("\\b"+basis+"\\b").test(amount.after)))return true;
-        const context=amount.before;
-        const matchingSpecific=specific.some(token=>hasAny(context,
-            token==="electricity"?["electricity","electric","power"]:
-            token==="fuel"?["fuel","petrol","gasoline","diesel"]:
-            token==="petrol"?["petrol","gasoline","fuel"]:
-            token==="gasoline"?["gasoline","petrol","fuel"]:
-            token==="maintenance"?["maintenance","repair","repairs"]:
-            token==="repair"?["repair","repairs","maintenance"]:[token]
-        ));
-        if(!matchingSpecific)return false;
-        if(hasFixed&&!hasAny(context,["fixed","standing"]))return false;
-        if(isFee&&!hasAny(context,["fee","fees","charge","charges"]))return false;
-        if(isRate&&!hasAny(context,["rate","rates","price","prices","tariff","tariffs"]))return false;
-        if(isCost&&!hasAny(context,["cost","costs","expense","expenses","spend","bill","bills"]))return false;
-        return true;
+        // A per-unit amount can identify a field by unit only when that basis is
+        // unique in this calculator. If several inputs share it, require a clear
+        // field-specific phrase immediately before the amount.
+        const matchedBasis=bases.find(basis=>new RegExp("\\b"+basis+"\\b").test(amount.after));
+        if(matchedBasis){
+            const sameBasisFields=(Array.isArray(allInputs)?allInputs:[input]).filter(other=>
+                isMonetaryInput(other)&&monetaryInputBases(other).includes(matchedBasis)
+            );
+            if(sameBasisFields.length===1)return sameBasisFields[0]===input;
+            const contextMatches=sameBasisFields.filter(other=>explicitAmountContextMatchesInput(other,amount.before));
+            return contextMatches.length===1&&contextMatches[0]===input;
+        }
+        return explicitAmountContextMatchesInput(input,amount.before);
     });
 }
 function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
@@ -545,7 +564,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
         const unit=String(input.unit||"").trim().toUpperCase();
         const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
-        if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts))continue;
+        if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,candidate.inputs))continue;
         if(!MONETARY_CURRENCY_CODES.has(unit))input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
         if(!Number.isFinite(step)||step<=0||!Number.isFinite(maximum))continue;
