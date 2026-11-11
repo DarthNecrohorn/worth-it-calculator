@@ -123,8 +123,66 @@ export function resolveExplicitCurrency(prompt){
  const matches=resolveExplicitCurrencies(prompt);
  return matches.length===1?matches[0]:null;
 }
-export function resolveRegionalDefaults(request){
- const country=String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
+
+const PROMPT_COUNTRY_ALIASES = [
+ ["DE",["germany","german"]],
+ ["RS",["serbia","serbian"]],
+ ["AT",["austria","austrian"]],
+ ["CH",["switzerland","swiss"]],
+ ["FR",["france","french"]],
+ ["IT",["italy","italian"]],
+ ["ES",["spain","spanish"]],
+ ["PT",["portugal","portuguese"]],
+ ["NL",["netherlands","dutch"]],
+ ["BE",["belgium","belgian"]],
+ ["IE",["ireland","irish"]],
+ ["PL",["poland","polish"]],
+ ["CZ",["czechia","czech republic","czech"]],
+ ["HU",["hungary","hungarian"]],
+ ["RO",["romania","romanian"]],
+ ["BG",["bulgaria","bulgarian"]],
+ ["HR",["croatia","croatian"]],
+ ["SI",["slovenia","slovenian"]],
+ ["SK",["slovakia","slovak"]],
+ ["GR",["greece","greek"]],
+ ["SE",["sweden","swedish"]],
+ ["NO",["norway","norwegian"]],
+ ["DK",["denmark","danish"]],
+ ["FI",["finland","finnish"]],
+ ["IS",["iceland","icelandic"]],
+ ["GB",["united kingdom","great britain","britain","british"]],
+ ["US",["united states","united states of america","american"]],
+ ["CA",["canada","canadian"]],
+ ["AU",["australia","australian"]],
+ ["NZ",["new zealand"]],
+ ["JP",["japan","japanese"]],
+ ["CN",["china","chinese"]],
+ ["IN",["india","indian"]],
+ ["TR",["turkey","türkiye","turkish"]],
+ ["BR",["brazil","brazilian"]],
+ ["MX",["mexico","mexican"]],
+ ["ZA",["south africa","south african"]],
+ ["SG",["singapore"]],
+ ["HK",["hong kong"]],
+ ["KR",["south korea","korea","south korean"]],
+ ["AE",["united arab emirates","uae"]],
+ ["SA",["saudi arabia","saudi"]]
+];
+export function resolvePromptCountry(prompt){
+ const value=String(prompt||"").toLowerCase();
+ const found=new Set();
+ for(const [code,aliases] of PROMPT_COUNTRY_ALIASES){
+  if(aliases.some(alias=>new RegExp("(^|[^a-z])"+alias.replace(/[.*+?^${}()|[\]\\]/g,"\\export function resolveExplicitCurrency(prompt){
+ const matches=resolveExplicitCurrencies(prompt);
+ return matches.length===1?matches[0]:null;
+}
+")+"([^a-z]|$)","i").test(value)))found.add(code);
+ }
+ return found.size===1?[...found][0]:null;
+}
+export function resolveRegionalDefaults(request,prompt=""){
+ const promptCountry=resolvePromptCountry(prompt);
+ const country=promptCountry||String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
  const regional=COUNTRY_DEFAULTS[country];
  const continent=String(request?.cf?.continent||"").trim().toUpperCase();
  const fallbackCurrency=continent==="EU"?"EUR":"USD";
@@ -137,7 +195,7 @@ export function resolveRegionalDefaults(request){
   .sort((a,b)=>b.quality-a.quality||a.index-b.index);
  let acceptedLocale="";
  for(const item of candidates){try{acceptedLocale=Intl.getCanonicalLocales(item.tag)[0]||"";if(acceptedLocale)break;}catch(_){}}
- return {country:country||null,currency:regional?.[0]||fallbackCurrency,locale:acceptedLocale||regional?.[1]||"en-US",currencySource:regional?"country":continent==="EU"?"continent-default":"global-default"};
+ return {country:country||null,currency:regional?.[0]||fallbackCurrency,locale:acceptedLocale||regional?.[1]||"en-US",currencySource:promptCountry?"prompt-country":regional?"country":continent==="EU"?"continent-default":"global-default"};
 }
 
 function json(data,status,origin){
@@ -771,8 +829,8 @@ export async function onRequestPost(context){
         let body;
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
         const mode=body?.mode==="refine"?"refine":"create";
-        const regionalDefaults=resolveRegionalDefaults(request);
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
+        const regionalDefaults=resolveRegionalDefaults(request,prompt);
         if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 1000 characters."},400,origin);
         const requestedCurrencies=resolveExplicitCurrencies(prompt);
         const requestedCurrency=requestedCurrencies.length===1?requestedCurrencies[0]:null;
@@ -832,7 +890,13 @@ export async function onRequestPost(context){
             }
             if(usage?.ok!==true){
                 makerRequestId="";
-                if(usage?.code==="DAILY_LIMIT")return json({success:false,code:"DAILY_AI_LIMIT",error:"You have reached the daily AI calculator creation limit of 10 generations. Try again after the UTC daily reset.",daily_limit:10,requests_used:10},429,origin);
+                if(usage?.code==="DAILY_LIMIT"){
+                    const dailyLimit=Math.max(1,Number(usage.daily_limit)||1);
+                    return json({success:false,code:"DAILY_AI_LIMIT",error:"You have used your "+dailyLimit+" AI calculator generation"+(dailyLimit===1?"":"s")+" for today on your current plan. Your allowance resets at 00:00 UTC.",daily_limit:dailyLimit,requests_used:Number(usage.requests_used)||dailyLimit},429,origin);
+                }
+                if(usage?.code==="GLOBAL_DAILY_LIMIT"){
+                    return json({success:false,code:"GLOBAL_DAILY_AI_LIMIT",error:"Worth It has reached its shared limit of 100 successful UGC calculator generations for today. The global allowance resets at 00:00 UTC.",global_daily_limit:100,global_requests_used:Number(usage.global_requests_used)||100},429,origin);
+                }
                 return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance is temporarily unavailable. Please try again later."},503,origin);
             }
         }
