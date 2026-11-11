@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -141,7 +141,7 @@ test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         providerCalls++;
         return new Response(JSON.stringify({
@@ -191,7 +191,7 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
         await withFetch(async url => {
             const path = String(url);
             if (path.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
-            if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
             return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(generatedDefinition) } }] }), { status: 200 });
         }, async () => {
             const response = await onRequestPost({
@@ -258,7 +258,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
         generationSystem = body.messages[0].content;
@@ -303,6 +303,11 @@ test("regional defaults prefer RSD for Serbia, USD for the US, EUR for Bulgaria 
     assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).locale, "sr-Latn-RS", "the browser language preference takes precedence over the country fallback");
     assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("DE", "de-DE")).currency, "EUR");
+    assert.equal(resolvePromptCountry("Compare monthly electricity and natural gas costs for a household in Germany."), "DE");
+    const GermanyPromptDefaults=resolveRegionalDefaults(requestFor("RS", "en-US"), "Compare monthly electricity and natural gas costs for a household in Germany.");
+    assert.equal(GermanyPromptDefaults.country, "DE", "an explicitly named calculator country must override the visitor's country");
+    assert.equal(GermanyPromptDefaults.currency, "EUR", "Germany must use EUR even when the visitor is in Serbia");
+    assert.equal(GermanyPromptDefaults.locale, "en-US", "country context must not silently change the visitor's chosen number format");
     assert.equal(resolveRegionalDefaults(requestFor("BG", "bg-BG")).currency, "EUR");
     assert.equal(resolveRegionalDefaults({ cf: { country: "RO", continent: "EU" }, headers: new Headers() }).currency, "EUR");
     assert.equal(resolveRegionalDefaults({ cf: { country: "EG", continent: "AF" }, headers: new Headers() }).currency, "USD");
@@ -321,7 +326,7 @@ test("AI Maker uses regional currency only as an editable default and never stor
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
         assert.match(body.messages[0].content, /regional suggestion RSD/i);
@@ -343,6 +348,40 @@ test("AI Maker uses regional currency only as an editable default and never stor
     });
 });
 
+test("a country named in the calculator prompt overrides visitor-region currency defaults", async () => {
+    const candidate = structuredClone(validDefinition);
+    candidate.inputs[0].unit = "USD";
+    candidate.results[0].currency = "USD";
+    const req = request({ prompt: "Compare monthly electricity and natural gas costs for a household in Germany." }, { token: "valid-token" });
+    Object.defineProperty(req, "cf", { value: { country: "RS", continent: "EU" } });
+    await withFetch(async (url, options) => {
+        if (String(url).endsWith("/auth/v1/user")) {
+            return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+        }
+        if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
+        }
+        const body = JSON.parse(options.body);
+        assert.match(body.messages[0].content, /regional suggestion EUR/i);
+        assert.match(body.messages[1].content, /currency EUR/i);
+        return new Response(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(candidate) } }]
+        }), { status: 200 });
+    }, async () => {
+        const response = await onRequestPost({
+            request: req,
+            env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+        });
+        assert.equal(response.status, 200);
+        const result = await response.json();
+        assert.equal(result.regionalDefaults.country, "DE");
+        assert.equal(result.regionalDefaults.currency, "EUR");
+        assert.equal(result.regionalDefaults.locale, "en-US");
+        assert.equal(result.calculator.spec.inputs[0].unit, "EUR");
+        assert.equal(result.calculator.spec.results[0].currency, "EUR");
+    });
+});
+
 test("an explicit prompt currency overrides the EUR or USD regional suggestion", async () => {
     assert.equal(resolveExplicitCurrency("Show all amounts in RSD."), "RSD");
     assert.equal(resolveExplicitCurrency("Use euros for every result."), "EUR");
@@ -360,7 +399,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
         assert.match(body.messages[1].content, /Explicitly requested currencies: RSD/i);
@@ -476,7 +515,7 @@ test("AI Maker rejects omitted requested periods and required calculator inputs"
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(incomplete) } }]
@@ -507,7 +546,7 @@ test("AI Maker tests formulas at boundary values and normalizes positive-only in
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
@@ -536,7 +575,7 @@ test("AI Maker catches invalid formulas caused only by paired input extremes", a
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
@@ -735,7 +774,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         calls++;
         const body = JSON.parse(options.body);
@@ -796,7 +835,7 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(malicious) } }]
@@ -846,7 +885,7 @@ test("AI Maker rejects unused inputs in new calculator definitions and refunds t
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(unusedInputDefinition) } }]
@@ -873,7 +912,7 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: true, requests_used: 2, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 2, daily_limit: 1 }), { status: 200 });
         }
         if (String(url).includes("generativelanguage.googleapis.com")) {
             const body = JSON.parse(options.body);
@@ -910,7 +949,7 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
         }
         if (String(url).endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
-            return new Response(JSON.stringify({ ok: false, code: "DAILY_LIMIT", daily_limit: 10, requests_used: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: false, code: "DAILY_LIMIT", daily_limit: 1, requests_used: 1 }), { status: 200 });
         }
         throw new Error("AI provider must not be called after the daily quota is exhausted.");
     }, async () => {
@@ -1139,7 +1178,7 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) {
             const reservation = JSON.parse(options.body);
             assert.match(reservation.p_request_id, /^[0-9a-f-]{36}$/i);
-            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         if (path.includes("generativelanguage.googleapis.com")) {
             return new Response(JSON.stringify({ error: { code: 503, status: "UNAVAILABLE" } }), { status: 503 });
@@ -1299,6 +1338,43 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(makerApi,/CALCULATOR_IDENTITY_CHANGED/);
     assert.match(makerApi,/NOT_CALCULATOR_OWNER/);
     assert.match(html,/Free 2, Premium Lite 3, Premium 4/);
+});
+
+test("UGC AI Maker quotas use per-tier generation caps and one shared 100-per-day cap", () => {
+    assert.match(makerQuotaSql, /create table if not exists private\.worth_it_ugc_maker_global_daily_usage/);
+    assert.match(makerQuotaSql, /global_daily_limit',\s*100/);
+    assert.match(makerQuotaSql, /requests_used < 100/);
+    assert.match(makerQuotaSql, /case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
+    assert.match(makerQuotaSql, /get_worth_it_ugc_maker_generation_quota/);
+    assert.match(makerQuotaSql, /refund_worth_it_ugc_maker_generation_v2/);
+    assert.match(makerQuotaSql, /global_remaining/);
+    assert.match(makerApi, /GLOBAL_DAILY_AI_LIMIT/);
+    assert.match(maker, /refreshMakerGenerationQuota/);
+    assert.match(maker, /global_remaining/);
+    assert.match(html, /id="ugcMakerGenerationQuotaStatus"/);
+    assert.match(html, /100 successful new UGC calculator generations per UTC day/i);
+    assert.match(html, /100 UGC calculators in total are able to get generated a day/i);
+    assert.match(paginationCss, /\.ugc-maker-status\.is-generating\{color:var\(--primary2\)/);
+    assert.match(paginationCss, /\.ugc-maker-status\.is-error\{color:var\(--danger\)/);
+});
+
+test("Subscriptions explain Free, Premium Lite and Premium UGC quotas without selling Free", () => {
+    const start = html.indexOf('<section id="webShopSubscriptionsPanel"');
+    const end = html.indexOf("</section>", start);
+    const panel = html.slice(start, end);
+    const freeStart = panel.indexOf('class="web-shop-card web-shop-card-free"');
+    const liteStart = panel.indexOf('class="web-shop-card web-shop-card-featured"');
+    const premiumStart = panel.indexOf('<h4>Premium</h4>');
+    const freeCard = panel.slice(freeStart, liteStart);
+    assert.ok(freeStart >= 0 && liteStart > freeStart && premiumStart > liteStart);
+    assert.match(freeCard, /1 new AI-generated UGC calculator per UTC day/);
+    assert.match(freeCard, /2 AI improvements to existing UGC calculators per UTC day/);
+    assert.doesNotMatch(freeCard, /<button\b/i, "Free is informational and cannot be purchased");
+    assert.match(panel, /2 new AI-generated UGC calculators per UTC day/);
+    assert.match(panel, /3 AI improvements to existing UGC calculators per UTC day/);
+    assert.match(panel, /3 new AI-generated UGC calculators per UTC day/);
+    assert.match(panel, /4 AI improvements to existing UGC calculators per UTC day/);
+    assert.match(panel, /100 successful new UGC calculator generations per UTC day/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
