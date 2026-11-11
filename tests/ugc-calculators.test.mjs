@@ -165,6 +165,60 @@ test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters
     });
 });
 
+test("AI Maker zeros unprovided monetary defaults but preserves explicitly supplied prices", async () => {
+    const definition = {
+        title: "Electricity and Water Costs",
+        description: "Compare monthly household electricity and water costs.",
+        category: "home",
+        subcategories: ["utilities-energy", "household-budget"],
+        inputs: [
+            { key: "electricity_kwh", label: "Monthly electricity usage", min: 10, max: 3000, default: 350, step: 10, unit: "kWh" },
+            { key: "electricity_rate", label: "Electricity rate per kWh", min: 1, max: 50, default: 12, step: 0.5, unit: "RSD" },
+            { key: "electricity_fixed", label: "Electricity fixed monthly fee", min: 0, max: 2000, default: 250, step: 10, unit: "RSD" },
+            { key: "water_m3", label: "Monthly water consumption", min: 1, max: 100, default: 12, step: 0.5, unit: "m³" },
+            { key: "water_rate", label: "Water rate per m3", min: 10, max: 500, default: 95, step: 1, unit: "RSD" },
+            { key: "water_fixed", label: "Water fixed monthly fee", min: 0, max: 2000, default: 150, step: 10, unit: "RSD" }
+        ],
+        results: [
+            { label: "Monthly electricity cost", expression: "electricity_kwh*electricity_rate+electricity_fixed", format: "currency", currency: "RSD" },
+            { label: "Monthly water cost", expression: "water_m3*water_rate+water_fixed", format: "currency", currency: "RSD" },
+            { label: "Electricity share of combined cost", expression: "(electricity_kwh*electricity_rate+electricity_fixed)/max(electricity_kwh*electricity_rate+electricity_fixed+water_m3*water_rate+water_fixed,1)", format: "percent", currency: "RSD" }
+        ]
+    };
+    const generate = async prompt => {
+        const quotaEvents = { refunds: 0, settlements: 0 };
+        let result;
+        await withFetch(async url => {
+            const path = String(url);
+            if (path.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+            if (path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_maker_generation_v2")) return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 10 }), { status: 200 });
+            return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(definition) } }] }), { status: 200 });
+        }, async () => {
+            const response = await onRequestPost({
+                request: request({ prompt }, { token: "valid-token" }),
+                env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
+            });
+            assert.equal(response.status, 200);
+            result = await response.json();
+        }, quotaEvents);
+        return result.calculator;
+    };
+    const withoutPrices = await generate("Electricity vs water consumption at home in Serbia");
+    const inputs = Object.fromEntries(withoutPrices.spec.inputs.map(item => [item.key, item]));
+    assert.equal(inputs.electricity_kwh.default, 350);
+    assert.equal(inputs.water_m3.default, 12);
+    for (const key of ["electricity_rate", "electricity_fixed", "water_rate", "water_fixed"]) {
+        assert.equal(inputs[key].default, 0, key + " must not receive an invented monetary default");
+        assert.equal(inputs[key].min, 0, key + " must allow an unprovided value to remain zero");
+    }
+    assert.match(withoutPrices.description, /prices and personal costs were not provided/i);
+
+    const withPrices = await generate("Compare electricity and water costs using 12 RSD per kWh and 95 RSD per m3.");
+    const explicitInputs = Object.fromEntries(withPrices.spec.inputs.map(item => [item.key, item]));
+    assert.equal(explicitInputs.electricity_rate.default, 12);
+    assert.equal(explicitInputs.water_rate.default, 95);
+});
+
 test("short topic prompts are treated as requests for autonomous calculator design", async () => {
     const candidate = structuredClone(validDefinition);
     let generationSystem = "";
