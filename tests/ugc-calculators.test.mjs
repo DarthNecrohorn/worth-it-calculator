@@ -1076,14 +1076,20 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         assert.equal(result.aiUsage.attempts[0].model,"gemini-3.8-flash-2026-11");
         assert.equal(result.aiUsage.attempts[0].thinkingTokens,500);
         assert.equal(result.aiUsage.attempts[0].cachedInputTokens,50);
+        assert.equal(result.aiUsage.attempts[0].uncachedInputTokens,2750);
+        assert.equal(result.aiUsage.attempts[0].cacheHitRatePercent,1.79);
         assert.equal(result.aiUsage.attempts[1].thinkingTokens,250);
         assert.equal(result.aiUsage.attempts[1].cachedInputTokens,100);
+        assert.equal(result.aiUsage.attempts[1].uncachedInputTokens,2700);
+        assert.equal(result.aiUsage.attempts[1].cacheHitRatePercent,3.57);
         assert.deepEqual(result.aiUsage.totals,{
             inputTokens:5600,
             outputTokens:1550,
             thinkingTokens:750,
             totalTokens:7650,
             cachedInputTokens:150,
+            uncachedInputTokens:5450,
+            cacheHitRatePercent:2.68,
             requestsWithUsage:2,
             totalProviderDurationMs:result.aiUsage.totals.totalProviderDurationMs
         });
@@ -2104,18 +2110,46 @@ test("AI usage diagnostics aggregate every provider attempt without inventing un
     const summary=summarizeAiUsage(usage);
     assert.equal(summary.attemptCount,2);
     assert.equal(summary.attempts[1].totalTokens,null);
+    assert.equal(summary.attempts[0].uncachedInputTokens,950);
+    assert.equal(summary.attempts[0].cacheHitRatePercent,5);
     assert.deepEqual(summary.totals,{
         inputTokens:1000,
         outputTokens:400,
         thinkingTokens:250,
         totalTokens:1650,
         cachedInputTokens:50,
+        uncachedInputTokens:950,
+        cacheHitRatePercent:5,
         requestsWithUsage:1,
         totalProviderDurationMs:2000
     });
+
+    const partialCache=createAiUsageCollector();
+    recordAiUsageAttempt(partialCache,{
+        provider:"groq",
+        model:"openai/gpt-oss-120b",
+        stage:"initial-generation",
+        success:true,
+        durationMs:900,
+        inputTokens:1200,
+        outputTokens:600,
+        thinkingTokens:300,
+        totalTokens:1800,
+        cachedInputTokens:null,
+        finishReason:"stop",
+        httpStatus:200
+    });
+    const partialSummary=summarizeAiUsage(partialCache);
+    assert.equal(partialSummary.attempts[0].uncachedInputTokens,null);
+    assert.equal(partialSummary.attempts[0].cacheHitRatePercent,null);
+    assert.equal(partialSummary.totals.cachedInputTokens,null);
+    assert.equal(partialSummary.totals.uncachedInputTokens,null);
+    assert.equal(partialSummary.totals.cacheHitRatePercent,null);
 
     const unknown=summarizeAiUsage(createAiUsageCollector());
     assert.equal(unknown.attemptCount,0);
     assert.equal(unknown.totals.inputTokens,null);
     assert.equal(unknown.totals.totalTokens,null);
+    assert.equal(unknown.totals.uncachedInputTokens,null);
+    assert.equal(unknown.totals.cacheHitRatePercent,null);
 });
