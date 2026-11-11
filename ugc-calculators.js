@@ -503,8 +503,9 @@ function validateMakerSpec(spec){
  return {errors:[...new Set(errors)]};
 }
 function makerCurrencyWarnings(spec){
- const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>/^[A-Z]{3}$/.test(unit));
- const outputCurrencies=(spec?.results||[]).filter(item=>item.format==="currency").map(item=>String(item.currency||"").trim().toUpperCase()).filter(code=>/^[A-Z]{3}$/.test(code));
+ const knownCurrencies=new Set(CURRENCIES.map(([code])=>code));
+ const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>knownCurrencies.has(unit));
+ const outputCurrencies=(spec?.results||[]).filter(item=>item.format==="currency").map(item=>String(item.currency||"").trim().toUpperCase()).filter(code=>knownCurrencies.has(code));
  const allInputs=[...new Set(inputCurrencies)],allOutputs=[...new Set(outputCurrencies)];
  if(!allInputs.length||!allOutputs.length)return [];
  const warnings=[];
