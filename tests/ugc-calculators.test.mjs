@@ -168,6 +168,7 @@ test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters
 test("short topic prompts are treated as requests for autonomous calculator design", async () => {
     const candidate = structuredClone(validDefinition);
     let generationSystem = "";
+    let providerConfig = null;
     await withFetch(async (url, options) => {
         if (String(url).endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: "user-id", email_confirmed_at: "2026-01-01T00:00:00Z" }), { status: 200 });
@@ -177,6 +178,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         }
         const body = JSON.parse(options.body);
         generationSystem = body.messages[0].content;
+        providerConfig = body;
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
         }), { status: 200 });
@@ -198,7 +200,9 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /Avoid double-counting overlapping costs/i);
         assert.match(generationSystem, /default of 0 and clearly state/i);
         assert.match(generationSystem, /silently audit it as a calculator designer/i);
-        const groqRequest = await Promise.resolve(null);
+        assert.equal(providerConfig.model, "openai/gpt-oss-120b");
+        assert.equal(providerConfig.reasoning_effort, "high");
+        assert.equal(providerConfig.max_tokens, 8192);
     });
 });
 
