@@ -220,17 +220,25 @@ export function createAiUsageCollector(){
 }
 export function recordAiUsageAttempt(collector,attempt){
     if(!collector||!Array.isArray(collector.attempts))return;
+    const inputTokens=nullableUsageNumber(attempt.inputTokens);
+    const cachedInputTokens=nullableUsageNumber(attempt.cachedInputTokens);
+    const cacheUsageKnown=inputTokens!==null&&cachedInputTokens!==null;
+    const boundedCachedInputTokens=cacheUsageKnown?Math.min(inputTokens,cachedInputTokens):null;
     collector.attempts.push({
         provider:String(attempt.provider||"unknown"),
         model:String(attempt.model||"unknown"),
         stage:String(attempt.stage||"generation"),
         success:attempt.success===true,
         durationMs:Math.max(0,Math.round(Number(attempt.durationMs)||0)),
-        inputTokens:nullableUsageNumber(attempt.inputTokens),
+        inputTokens,
         outputTokens:nullableUsageNumber(attempt.outputTokens),
         thinkingTokens:nullableUsageNumber(attempt.thinkingTokens),
         totalTokens:nullableUsageNumber(attempt.totalTokens),
-        cachedInputTokens:nullableUsageNumber(attempt.cachedInputTokens),
+        cachedInputTokens,
+        uncachedInputTokens:cacheUsageKnown?Math.max(0,inputTokens-boundedCachedInputTokens):null,
+        cacheHitRatePercent:cacheUsageKnown&&inputTokens>0
+            ?Number((boundedCachedInputTokens/inputTokens*100).toFixed(2))
+            :cacheUsageKnown?0:null,
         finishReason:typeof attempt.finishReason==="string"?attempt.finishReason:null,
         httpStatus:nullableUsageNumber(attempt.httpStatus)
     });
@@ -241,15 +249,29 @@ export function summarizeAiUsage(collector){
         const values=attempts.map(item=>item?.[key]).filter(value=>typeof value==="number"&&Number.isFinite(value));
         return values.length?values.reduce((sum,value)=>sum+value,0):null;
     };
+    const inputAttempts=attempts.filter(item=>typeof item?.inputTokens==="number"&&Number.isFinite(item.inputTokens));
+    const cacheUsageComplete=inputAttempts.length>0&&inputAttempts.every(item=>
+        typeof item?.cachedInputTokens==="number"&&Number.isFinite(item.cachedInputTokens)
+    );
+    const inputTokens= sumKnown("inputTokens");
+    const cachedInputTokens= cacheUsageComplete?sumKnown("cachedInputTokens"):null;
+    const uncachedInputTokens=cacheUsageComplete&&inputTokens!==null&&cachedInputTokens!==null
+        ?Math.max(0,inputTokens-cachedInputTokens)
+        :null;
+    const cacheHitRatePercent=cacheUsageComplete&&inputTokens>0&&cachedInputTokens!==null
+        ?Number((Math.min(inputTokens,cachedInputTokens)/inputTokens*100).toFixed(2))
+        :cacheUsageComplete&&inputTokens===0?0:null;
     return {
         attemptCount:attempts.length,
         attempts:attempts.map(item=>({...item})),
         totals:{
-            inputTokens:sumKnown("inputTokens"),
+            inputTokens,
             outputTokens:sumKnown("outputTokens"),
             thinkingTokens:sumKnown("thinkingTokens"),
             totalTokens:sumKnown("totalTokens"),
             cachedInputTokens:sumKnown("cachedInputTokens"),
+            uncachedInputTokens,
+            cacheHitRatePercent,
             requestsWithUsage:attempts.filter(item=>["inputTokens","outputTokens","thinkingTokens","totalTokens","cachedInputTokens"].some(key=>typeof item?.[key]==="number")).length,
             totalProviderDurationMs:attempts.reduce((sum,item)=>sum+(Number(item?.durationMs)||0),0)
         }
@@ -308,7 +330,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
                 body:JSON.stringify({
                     systemInstruction:{parts:[{text:system}]},
                     contents:[{role:"user",parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:4096,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"low"}}
+                    generationConfig:{maxOutputTokens:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
                 })
             }
         );
@@ -366,8 +388,8 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             body:JSON.stringify({
                 model:GROQ_MODEL,
                 temperature:0.15,
-                max_tokens:4096,
-                reasoning_effort:"low",
+                max_tokens:8192,
+                reasoning_effort:"high",
                 response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
@@ -1054,11 +1076,13 @@ export async function onRequestPost(context){
         const requestedResultItems=extractRequestedResultItems(prompt);
         let system;
         let userPrompt=[
-            "User request:",
-            prompt,
-            "Regional presentation suggestions (not mandatory): currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+". Use an explicitly requested currency in preference to these suggestions.",
+            "Regional presentation suggestions are defaults only, not verified prices, tariffs, exchange rates or market data.",
+            "Keep currency selection separate from conversion: regional suggestions affect default units and formatting only.",
+            "Use an explicitly requested currency in preference to regional suggestions.",
+            "Regional defaults: currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+".",
             "Explicitly requested currencies: "+(requestedCurrencies.length?requestedCurrencies.join(", "):"none detected")+". If exactly one is specified, it overrides regional suggestions for all monetary inputs and outputs. If multiple currencies are explicitly requested, preserve the requested multi-currency comparison.",
-            "Keep currency selection separate from conversion: these suggestions only affect default units and formatting."
+            "User request:",
+            prompt
         ].join("\n") + (requestedResultItems.length
             ? "\n\nExplicit result checklist from the user's Results section. Every listed item requires its own separate result row; do not invent extra rows:\n- " + requestedResultItems.join("\n- ")
             : "");
@@ -1106,6 +1130,8 @@ export async function onRequestPost(context){
 
         let content="";
         let contentProvider="";
+        // Keep the reusable system instructions and provider schema stable and ahead
+        // of user-specific content so supported providers can reuse cached prefixes.
         if(geminiKey){
             try{
                 content=await generateWithGemini(geminiKey,system,userPrompt,aiUsageCollector,"initial-generation");
