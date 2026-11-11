@@ -191,6 +191,14 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /Never invent current prices, tariffs/i);
         assert.match(generationSystem, /editable input rather than guessing/i);
         assert.match(generationSystem, /Do not reject or overcomplicate a request/i);
+        assert.match(generationSystem, /experienced subject-matter analyst and calculator designer/i);
+        assert.match(generationSystem, /Every input must have a clear purpose and must be used by at least one result formula/i);
+        assert.match(generationSystem, /Maintain dimensional and unit consistency/i);
+        assert.match(generationSystem, /model both options symmetrically/i);
+        assert.match(generationSystem, /Avoid double-counting overlapping costs/i);
+        assert.match(generationSystem, /default of 0 and clearly state/i);
+        assert.match(generationSystem, /silently audit it as a calculator designer/i);
+        const groqRequest = await Promise.resolve(null);
     });
 });
 
@@ -275,7 +283,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
         });
         assert.equal(response.status, 200);
         const result = await response.json();
-        assert.equal(result.regionalDefaults.currency, "EUR");
+        assert.equal(result.regionalDefaults.currency, "RSD");
         assert.equal(result.calculator.spec.inputs[0].unit, "RSD");
         assert.equal(result.calculator.spec.results[0].currency, "RSD");
     });
@@ -722,6 +730,10 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         if (String(url).includes("generativelanguage.googleapis.com")) {
             const body = JSON.parse(options.body);
             assert.equal(body.generationConfig.responseMimeType, "application/json");
+            assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "high");
+            assert.equal(body.generationConfig.maxOutputTokens, 8192);
+            assert.equal(String(url).includes("/models/gemini-3.8-flash:generateContent"), true);
+            assert.equal(Object.hasOwn(body.generationConfig, "temperature"), false, "Gemini 3 should use its recommended default temperature");
             return new Response(JSON.stringify({ error: { code: 503, status: "UNAVAILABLE" } }), { status: 503 });
         }
         assert.match(String(url), /api\.groq\.com\/openai\/v1\/chat\/completions/);
