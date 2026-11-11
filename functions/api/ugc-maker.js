@@ -269,7 +269,7 @@ export function summarizeAiUsage(collector){
             outputTokens:sumKnown("outputTokens"),
             thinkingTokens:sumKnown("thinkingTokens"),
             totalTokens:sumKnown("totalTokens"),
-            cachedInputTokens:sumKnown("cachedInputTokens"),
+            cachedInputTokens,
             uncachedInputTokens,
             cacheHitRatePercent,
             requestsWithUsage:attempts.filter(item=>["inputTokens","outputTokens","thinkingTokens","totalTokens","cachedInputTokens"].some(key=>typeof item?.[key]==="number")).length,
