@@ -206,12 +206,12 @@ function normalizeBlueprint(source,validateSpec){
   return ["month","months","day","days","week","weeks","year","years","hour","hours"].includes(value)?"time":"";
  };
  const isMultipliedReference=(expression,key)=>
-  new RegExp("(?:\\\\b"+String(key)+"\\\\s*\\\\*|\\\\*\\\\s*"+String(key)+"\\\\b)","i").test(expression);
+  new RegExp("(?:\\b"+String(key)+"\\s*\\*|\\*\\s*"+String(key)+"\\b)","i").test(expression);
  results.forEach((result,index)=>{
   if(result.format!=="currency")return;
   const expression=String(result.expression||"");
   const denominator=inputs.find(input=>timeUnitKind(input.unit)
-   &&new RegExp("/\\\\s*"+String(input.key)+"\\\\b","i").test(expression));
+   &&new RegExp("/\\s*"+String(input.key)+"\\b","i").test(expression));
   if(!denominator)return;
   const currency=referencedCurrency(expression,index);
   if(!currency)return;
