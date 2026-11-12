@@ -507,9 +507,10 @@ function unitDescriptor(unit){
   "l/100 km":{volume:1,length:-1},
   "eur/kwh":{"currency:EUR":1,energy:-1},"usd/kwh":{"currency:USD":1,energy:-1},"rsd/kwh":{"currency:RSD":1,energy:-1},
   "eur/l":{"currency:EUR":1,volume:-1},"usd/l":{"currency:USD":1,volume:-1},"rsd/l":{"currency:RSD":1,volume:-1},
+  "eur/kg":{"currency:EUR":1,mass:-1},"eur/m²":{"currency:EUR":1,area:-1},"eur/m2":{"currency:EUR":1,area:-1},
   "eur/m³":{"currency:EUR":1,volume:-1},"eur/m3":{"currency:EUR":1,volume:-1},
   "eur/hour":{"currency:EUR":1,time:-1},"usd/hour":{"currency:USD":1,time:-1},
-  "eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
+  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
  };
  if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
  if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{},opaque:false};
@@ -779,7 +780,7 @@ async function runCalculation(calculator){
   reserved=true;
   const results=(calculator.spec.results||[]).map(item=>{
    const ast=compileExpression(item.expression,new Set(inputs.map(input=>input.key)));
-   return {label:item.label,value:formatResult(item,evaluate(ast,values))};
+   return {label:item.label,value:formatResult(item,evaluate(ast,values)),explanation:String(item.explanation||"")};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
@@ -806,6 +807,7 @@ function renderCalculationResults(results){
  results.forEach(result=>{
   const card=document.createElement("div");card.className="ugc-result-card";
   card.append(text("span","",result.label),text("strong","",result.value));
+  if(result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));
   grid.appendChild(card);
  });
  section.appendChild(grid);host.replaceChildren(section);
@@ -1285,6 +1287,7 @@ function updateMakerTestResults(panel){
    const value=evaluate(ast,values);
    const locale=state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||"");
    card.appendChild(text("strong","",formatResult(item,value,locale)));
+   if(item.explanation)card.appendChild(text("small","ugc-result-explanation",item.explanation));
   }catch(error){
    formulaErrors++;
    card.classList.add("is-error");
@@ -1371,8 +1374,8 @@ const MANUAL_TEMPLATES={
   category:"money",
   inputs:[
    {key:"starting_savings",label:"Starting savings",min:0,max:100000000,default:0,step:0.01,unit:"EUR"},
-   {key:"monthly_deposit",label:"Monthly contribution",min:0,max:10000000,default:100,step:0.01,unit:"EUR"},
-   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"months"}
+   {key:"monthly_deposit",label:"Monthly contribution",min:0,max:10000000,default:100,step:0.01,unit:"EUR/month"},
+   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"units"}
   ],
   results:[
    {label:"Total contributions",expression:"monthly_deposit * months",format:"currency",currency:"EUR"},
@@ -1466,7 +1469,7 @@ const MANUAL_TEMPLATES={
    {key:"fuel_price",label:"Fuel price",min:0,max:100000,default:1.6,step:0.001,unit:"EUR/L"},
    {key:"monthly_insurance",label:"Monthly insurance",min:0,max:1000000,default:60,step:0.01,unit:"EUR"},
    {key:"monthly_maintenance",label:"Monthly maintenance allowance",min:0,max:1000000,default:35,step:0.01,unit:"EUR"},
-   {key:"months",label:"Ownership period",min:1,max:1200,default:12,step:1,unit:"months"}
+   {key:"months",label:"Ownership period",min:1,max:1200,default:12,step:1,unit:"units"}
   ],
   results:[
    {label:"Monthly fuel use",expression:"monthly_distance * fuel_consumption / 100",format:"number",suffix:" L"},
@@ -1499,7 +1502,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"hourly_rate",label:"Hourly pay",min:0,max:1000000,default:15,step:0.01,unit:"EUR/hour"},
    {key:"hours_per_week",label:"Working hours per week",min:0,max:168,default:40,step:0.5,unit:"hours"},
-   {key:"weeks_per_year",label:"Working weeks per year",min:0,max:52,default:48,step:0.5,unit:"weeks"}
+   {key:"weeks_per_year",label:"Working weeks per year",min:0,max:52,default:48,step:0.5,unit:"units"}
   ],
   results:[
    {label:"Estimated weekly gross pay",expression:"hourly_rate * hours_per_week",format:"currency",currency:"EUR"},
@@ -1800,6 +1803,13 @@ async function generateWithAI(){
   }
  }
 }
+function describeResultFormula(item,inputs){
+ const expression=String(item?.expression||"").trim();
+ const used=(Array.isArray(inputs)?inputs:[]).filter(input=>new RegExp("(^|[^A-Za-z0-9_])"+String(input.key||"")+"($|[^A-Za-z0-9_])").test(expression));
+ const names=used.map(input=>String(input.label||input.key)).filter(Boolean);
+ const source=names.length?"Uses "+names.join(", ")+". ":"";
+ return (source+"Formula: "+expression+".").slice(0,280);
+}
 async function saveMakerDraft(publish){
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
  const title=String($("ugcMakerTitle")?.value||"").trim();
@@ -1811,9 +1821,13 @@ async function saveMakerDraft(publish){
  if(!state.editingId&&(description.length<24||description.length>500)){
   makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
  }
- const validation=validateMakerSpec(state.aiDraft.spec);
- if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  const specToSave={...state.aiDraft.spec};
+ specToSave.results=(Array.isArray(specToSave.results)?specToSave.results:[]).map(item=>({
+  ...item,
+  explanation:String(item.explanation||"").trim()||describeResultFormula(item,specToSave.inputs)
+ }));
+ const validation=validateMakerSpec(specToSave);
+ if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  if(!Array.isArray(specToSave.subcategories)&&Array.isArray(state.aiDraft.subcategories)){
   specToSave.subcategories=[...state.aiDraft.subcategories];
  }
