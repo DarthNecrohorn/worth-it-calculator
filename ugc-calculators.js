@@ -2643,7 +2643,7 @@ async function saveMakerDraft(publish){
  if(!state.editingId&&(description.length<24||description.length>500)){
   makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
  }
- const specToSave={...state.aiDraft.spec};
+ const specToSave={...state.aiDraft.spec};\n if(state.creationSource==="manual"){\n  const assumptionsText=String($("ugcMakerAssumptions")?.value||"");\n  if(assumptionsText.length>5000){makerStatus("Assumptions can contain up to 5,000 characters.","error");return;}\n  specToSave.assumptions=assumptionsText.split(/\\r?\\n/).map(item=>item.trim()).filter(Boolean);\n }
  specToSave.results=(Array.isArray(specToSave.results)?specToSave.results:[]).map(item=>{
   const normalized={
    ...item,
