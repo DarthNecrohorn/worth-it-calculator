@@ -130,6 +130,19 @@ test("rejects unsupported formulas when the shared Manual Builder validator repo
  );
 });
 
+test("adds model-readable correction hints for common group and unit validation failures",()=>{
+ const importer=getImporter();
+ assert.throws(
+  ()=>importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[
+   "Monthly debt payments: use 1–20 rows and a valid group and item label.",
+   "Emergency fund target formula: The formula's units do not match the selected EUR result currency. Check the input units and conversion assumptions."
+  ]})),
+  error=>/minItems 1 or greater/.test(error.message)
+   &&/month count used only as a multiplier/.test(error.message)
+   &&/EUR\/month/.test(error.message)
+ );
+});
+
 test("validates dropdown choice uniqueness and bounds",()=>{
  const importer=getImporter();
  const candidate=blueprint();
