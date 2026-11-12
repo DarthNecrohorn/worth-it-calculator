@@ -44,10 +44,19 @@ test("imports a valid version-1 blueprint into the current Manual Builder defini
  assert.equal(definition.spec.groups[0].minItems,2);
  assert.equal(definition.spec.results[1].expression,"base_cost + extra_total");
  assert.equal(definition.spec.scenarios[0].values.base_cost,20);
- assert.match(definition.description,/Assumptions: All monetary amounts use EUR\./);
+ assert.equal(definition.description,blueprint().description);
+ assert.deepEqual(plain(definition.spec.assumptions),["All monetary amounts use EUR."]);
 });
 
-test("keeps assumptions separate from the short description and supports up to 5,000 characters",()=>{\n const importer=getImporter();\n const candidate=blueprint({assumptions:["A".repeat(1000),"B".repeat(1000),"C".repeat(1000),"D".repeat(1000),"E".repeat(1000)]});\n const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));\n assert.equal(result.description,candidate.description);\n assert.equal(result.spec.assumptions.join("").length,5000);\n candidate.assumptions.push("F");\n assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/up to 5,000 characters/);\n});\n\ntest("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
+test("keeps assumptions separate from the short description and supports up to 5,000 characters",()=>{
+ const importer=getImporter();
+ const candidate=blueprint({assumptions:["A".repeat(1000),"B".repeat(1000),"C".repeat(1000),"D".repeat(1000),"E".repeat(996)]});
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));
+ assert.equal(result.description,candidate.description);
+ assert.equal(result.spec.assumptions.join("\n").length,5000);
+ candidate.assumptions.push("F");
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/up to 5,000 characters/);
+});\n\ntest("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
  const importer=getImporter();
  const source="\x60\x60\x60json\n"+JSON.stringify(blueprint())+"\n\x60\x60\x60";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
@@ -130,5 +139,6 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.ok(importFunction.includes('state.aiOperationId=""'));
  assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
  assert.match(builderSource,/ugcBlueprintCopyPrompt/);
- assert.match(builderSource,/ugcBlueprintImportButton/);\n assert.match(builderSource,/ugcMakerAssumptions/);\n assert.match(builderSource,/maxLength=5000/);
+ assert.match(builderSource,/ugcBlueprintImportButton/);\n assert.match(builderSource,/ugcMakerAssumptions/);
+ assert.match(builderSource,/maxLength=5000/);
 });
