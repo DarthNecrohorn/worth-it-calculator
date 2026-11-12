@@ -739,8 +739,23 @@ function renderCalculatorForm(calculator){
  if(!Array.isArray(spec.inputs)||!Array.isArray(spec.results)){detailStatus("This calculator definition is unavailable.",true);return;}
  spec.inputs.forEach(input=>{
   const wrap=text("label","ugc-input-field",input.label||input.key);
-  const control=document.createElement("input");control.type="number";control.name=input.key;control.required=true;
-  control.min=String(input.min);control.max=String(input.max);control.step=String(input.step||"any");control.value=String(input.default);
+  const controlType=input.control||"number";
+  let control;
+  if(controlType==="select"&&Array.isArray(input.choices)&&input.choices.length>=2){
+   control=document.createElement("select");
+   input.choices.forEach(choice=>{const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);});
+   control.value=String(input.default);
+  }else if(controlType==="toggle"){
+   const row=document.createElement("span");row.className="ugc-input-toggle-row";
+   control=document.createElement("input");control.type="checkbox";control.checked=Number(input.default)>=0.5;control.value="1";
+   const stateLabel=text("small","",control.checked?"Enabled":"Disabled");
+   row.append(control,stateLabel);wrap.appendChild(row);
+   control.addEventListener("change",()=>{stateLabel.textContent=control.checked?"Enabled":"Disabled";});
+  }else{
+   control=document.createElement("input");control.type=controlType==="slider"?"range":"number";
+   control.min=String(input.min);control.max=String(input.max);control.step=String(input.step||"any");control.value=String(input.default);
+  }
+  control.name=input.key;control.required=controlType!=="toggle";
   wrap.appendChild(control);
   if(input.unit)wrap.appendChild(text("small","",input.unit));
   host.appendChild(wrap);
@@ -755,7 +770,7 @@ async function runCalculation(calculator){
  const inputs=calculator.spec.inputs||[],values={};
  for(const item of inputs){
   const control=form.querySelector('[name="'+CSS.escape(item.key)+'"]');
-  const value=Number(control?.value);
+  const value=control?.type==="checkbox"?(control.checked?1:0):Number(control?.value);
   if(!Number.isFinite(value)||value<Number(item.min)||value>Number(item.max)){
    detailStatus("Enter a valid value for "+item.label+".",true);control?.focus();return;
   }
@@ -1206,13 +1221,19 @@ function refreshMakerTestIfOpen(){
  if(panel&&!panel.hidden)renderMakerTestPanel(true);
  refreshMakerValidationNote();
 }
+function numericControlValue(control){
+ if(!control)return NaN;
+ if(control.type==="checkbox")return control.checked?1:0;
+ const value=Number(control.value);
+ return Number.isFinite(value)?value:NaN;
+}
 function renderMakerTestPanel(preserveValues){
  const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
  if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
  const previous=new Map();
  if(preserveValues){
   panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{
-   if(control.value!==""&&Number.isFinite(control.valueAsNumber))previous.set(control.dataset.ugcMakerTestKey,control.valueAsNumber);
+   const value=numericControlValue(control);if(Number.isFinite(value))previous.set(control.dataset.ugcMakerTestKey,value);
   });
  }
  panel.replaceChildren();
@@ -1236,14 +1257,24 @@ function renderMakerTestPanel(preserveValues){
  spec.inputs.forEach(item=>{
   const label=document.createElement("label");label.className="ugc-maker-test-input";
   label.appendChild(text("span","",item.label||item.key));
-  const control=document.createElement("input");control.type="number";control.name=item.key;control.required=true;
-  if(item.min!==undefined)control.min=String(item.min);
-  if(item.max!==undefined)control.max=String(item.max);
-  control.step=String(item.step||"any");
-  control.dataset.ugcMakerTestKey=String(item.key);
+  const controlType=item.control||"number";
   const previousValue=previous.get(item.key);
   const candidate=Number.isFinite(previousValue)?previousValue:Number(item.default);
-  control.value=String(Number.isFinite(candidate)?candidate:"");
+  let control;
+  if(controlType==="select"&&Array.isArray(item.choices)&&item.choices.length>=2){
+   control=document.createElement("select");
+   item.choices.forEach(choice=>{const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);});
+   control.value=String(item.choices.some(choice=>Number(choice.value)===candidate)?candidate:item.default);
+  }else if(controlType==="toggle"){
+   control=document.createElement("input");control.type="checkbox";control.checked=candidate>=0.5;
+  }else{
+   control=document.createElement("input");control.type=controlType==="slider"?"range":"number";
+   if(item.min!==undefined)control.min=String(item.min);
+   if(item.max!==undefined)control.max=String(item.max);
+   control.step=String(item.step||"any");
+   control.value=String(Number.isFinite(candidate)?candidate:"");
+  }
+  control.name=item.key;control.required=controlType!=="toggle";control.dataset.ugcMakerTestKey=String(item.key);
   control.addEventListener("input",()=>updateMakerTestResults(panel));
   label.appendChild(control);
   if(item.unit)label.appendChild(text("small","",item.unit));
@@ -1265,10 +1296,12 @@ function updateMakerTestResults(panel){
  const controls=Array.from(panel.querySelectorAll("[data-ugc-maker-test-key]")),values={};
  let invalidControl=null;
  controls.forEach(control=>{
-  const valid=control.value!==""&&Number.isFinite(control.valueAsNumber)&&control.validity.valid;
+  const isToggle=control.type==="checkbox";
+  const numericValue=numericControlValue(control);
+  const valid=isToggle||(control.value!==""&&Number.isFinite(numericValue)&&control.validity.valid);
   control.setAttribute("aria-invalid",String(!valid));
   if(!valid&&!invalidControl)invalidControl=control;
-  if(valid)values[control.dataset.ugcMakerTestKey]=control.valueAsNumber;
+  if(valid)values[control.dataset.ugcMakerTestKey]=numericValue;
  });
  const output=panel.querySelector(".ugc-maker-test-results-grid"),statusNode=panel.querySelector(".ugc-maker-test-status");
  if(!output||!statusNode)return;
