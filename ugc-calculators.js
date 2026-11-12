@@ -888,7 +888,7 @@ function evaluateFormulaResults(spec,baseValues,groupValues){
   results.push({item,label:item.label,value,explanation:String(item.explanation||""),key:String(item.key||"")});
   const resultKey=String(item.key||"").trim();
   if(resultKey){
-   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey))throw new Error("Result "+(index+1)+" has an invalid or duplicate variable key.");
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey)||groupMap.has(resultKey))throw new Error("Result "+(index+1)+" has an invalid or duplicate variable key.");
    availableKeys.add(resultKey);
    values[resultKey]=value;
    unitInputs.push({key:resultKey,unitDescriptor:outputUnit});
@@ -950,7 +950,7 @@ function appendDynamicGroupControls(host,group,initialRows){
   Array.from(rowsHost.children).forEach(row=>{
    const remove=row.querySelector("button");if(remove)remove.disabled=rowsHost.children.length<=minItems;
   });
-  add.disabled=rowsHost.children.length>=maxItems;
+  if(add)add.disabled=rowsHost.children.length>=maxItems;
  };
  const rows=Array.isArray(initialRows)&&initialRows.length?initialRows:defaultGroupValues([group])[group.key];
  rows.slice(0,maxItems).forEach(addRow);
@@ -989,7 +989,7 @@ function validateMakerSpec(spec){
   values[item.key]=value;
  });
  const fixedKeys=new Set(inputs.map(item=>item.key));
- const groupKeys=new Set(),groupFieldKeys=new Set();
+ const groupKeys=new Set(),groupFieldKeys=new Set(),groupFieldNames=new Set();
  groups.forEach((group,index)=>{
   const label=String(group.label||group.key||"Group "+(index+1));
   const minItems=Number(group.minItems??1),maxItems=Number(group.maxItems??10);
@@ -1005,10 +1005,10 @@ function validateMakerSpec(spec){
    const fieldLabel=String(field.label||field.key||"Field");
    const min=Number(field.min),max=Number(field.max),value=Number(field.default),step=Number(field.step);
    const composite=String(group.key)+"."+String(field.key);
-   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(field.key||""))||groupFieldKeys.has(composite)||fixedKeys.has(field.key)||groupKeys.has(field.key)){
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(field.key||""))||groupFieldKeys.has(composite)||groupFieldNames.has(field.key)||fixedKeys.has(field.key)||groupKeys.has(field.key)){
     errors.push(fieldLabel+": use a unique lowercase key within its dynamic group.");
    }
-   groupFieldKeys.add(composite);
+   groupFieldKeys.add(composite);groupFieldNames.add(field.key);
    if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<min||step<=0||String(field.unit||"").length>16){
     errors.push(fieldLabel+": check the minimum, maximum, default, step and unit.");
    }
@@ -1066,7 +1066,7 @@ function validateMakerSpec(spec){
  results.forEach((item,index)=>{
   const resultKey=String(item.key||"").trim();
   if(resultKey){
-   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey)||resultKeys.has(resultKey)||groupKeys.has(resultKey)){
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey)||resultKeys.has(resultKey)||groupKeys.has(resultKey)||groupFieldNames.has(resultKey)){
     errors.push((item.label||"Result "+(index+1))+": result variable keys must be unique lowercase names.");
    }
   }
