@@ -1493,7 +1493,7 @@ declare
     v_request uuid;
     v_calculator uuid;
     v_spec jsonb := '{"subcategories":["budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
-    v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
+    v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[{"key":"higher_amount","label":"Higher amount","values":{"amount":20}}]}'::jsonb;
     v_description text := 'A clear description for this calculator and its assumptions.';
     q jsonb;
     v_balance integer;
@@ -1503,6 +1503,7 @@ declare
     v_owner_status text;
     v_deleted_calculator_id uuid;
     v_creation_source text;
+    v_saved_spec jsonb;
     blocked boolean := false;
 begin
     -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
@@ -1584,8 +1585,22 @@ begin
     if coalesce((q->>'remaining')::integer,-1)<>0 then
         raise exception 'The Free manual save quota should be used only by a manual save: %',q;
     end if;
-    select creation_source into v_creation_source from private.worth_it_user_calculators where id=(q->>'id')::uuid;
+    select creation_source,spec into v_creation_source,v_saved_spec from private.worth_it_user_calculators where id=(q->>'id')::uuid;
     if v_creation_source<>'manual' then raise exception 'A manual calculator must keep manual provenance; got %.',v_creation_source; end if;
+    if jsonb_array_length(coalesce(v_saved_spec->'scenarios','[]'::jsonb))<>1
+       or v_saved_spec->'scenarios'->0->'values'->>'amount'<>'20' then
+        raise exception 'A valid manual comparison scenario was not preserved in the saved definition.';
+    end if;
+    blocked:=false;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Invalid scenario calculator',v_description,'money',
+            jsonb_set(v_manual_spec,'{scenarios,0,values}','{"amount":101}'::jsonb),
+            'manual',null
+        );
+    exception when invalid_parameter_value then blocked:=true;
+    end;
+    if not blocked then raise exception 'A scenario value outside the input range was accepted.'; end if;
     select creations_used into v_used from private.worth_it_ugc_manual_daily_usage
      where user_id=v_free and usage_date=(now() at time zone 'UTC')::date;
     if v_used<>1 then raise exception 'Free manual save counter should be one after the manual save; got %.',v_used; end if;
