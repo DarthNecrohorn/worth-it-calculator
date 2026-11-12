@@ -1479,11 +1479,15 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(maker, /function switchManualDraftToAI/);
     assert.match(maker, /p_source:state.creationSource==="manual"\?"manual":"ai"/);
     assert.match(maker, /p_ai_request_id:state.creationSource==="manual"\?null:state.aiOperationId/);
+    assert.match(maker, /const specToSave=\{\.\.\.state\.aiDraft\.spec\}/);
+    assert.match(maker, /Array\.isArray\(state\.aiDraft\.subcategories\)/);
     assert.match(makerApi, /reserve_worth_it_ugc_ai_operation/);
     assert.match(makerApi, /settle_worth_it_ugc_ai_operation/);
     assert.match(makerApi, /refund_worth_it_ugc_ai_operation/);
     assert.match(makerApi, /operation_id:aiOperationRequestId/);
     assert.match(manualBuilderSql, /private\.worth_it_ugc_manual_daily_usage/);
+    assert.match(manualBuilderSql, /subcategories=v_subcategories,spec=p_spec - 'subcategories'/);
+    assert.match(manualBuilderSql, /v_source='manual' and cardinality\(v_subcategories\)=0/);
     assert.match(manualBuilderSql, /manual_non_ai_saves/);
     assert.match(manualBuilderSql, /definition_hash/);
     assert.match(manualBuilderSql, /kind='ugc_ai_spend' and currency='CALC'/);
