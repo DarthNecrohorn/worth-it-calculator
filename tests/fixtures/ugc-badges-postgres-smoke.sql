@@ -60,9 +60,9 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('44444444-4444-4444-8444-444444444444','lite@example.test',now()),
  ('55555555-5555-4555-8555-555555555555','pedjasebez3545@gmail.com',now()),
  ('66666666-6666-4666-8666-666666666666','unconfirmed@example.test',null),
- ('77777777-7777-4777-8777-777777777777','ugc-billing-free@example.test',now()),
- ('88888888-8888-4888-8888-888888888889','ugc-billing-lite@example.test',now()),
- ('99999999-9999-4999-8999-999999999998','ugc-billing-premium@example.test',now());
+ ('a7777777-7777-4777-8777-777777777777','ugc-billing-free@example.test',now()),
+ ('a8888888-8888-4888-8888-888888888889','ugc-billing-lite@example.test',now()),
+ ('a9999999-9999-4999-8999-999999999998','ugc-billing-premium@example.test',now());
 
 insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name,created_at) values
  ('11111111-1111-4111-8111-111111111111',101,'creator','Calculator Creator',now()-interval '13 months'),
@@ -82,9 +82,9 @@ insert into public.worth_it_user_preferences(user_id,profile_visibility) values
 insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at,balance_milli) values
  ('33333333-3333-4333-8333-333333333333','premium',now()+interval '30 days',20000),
  ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '30 days',20000),
- ('77777777-7777-4777-8777-777777777777','free',null,10000),
- ('88888888-8888-4888-8888-888888888889','premium_lite',now()+interval '30 days',3000),
- ('99999999-9999-4999-8999-999999999998','premium',now()+interval '30 days',20000)
+ ('a7777777-7777-4777-8777-777777777777','free',null,10000),
+ ('a8888888-8888-4888-8888-888888888889','premium_lite',now()+interval '30 days',3000),
+ ('a9999999-9999-4999-8999-999999999998','premium',now()+interval '30 days',20000)
 on conflict(user_id) do update set
  premium_plan=excluded.premium_plan,
  premium_expires_at=excluded.premium_expires_at,
@@ -1486,9 +1486,9 @@ $maker_generation_refunds$;
 -- the disposable PostgreSQL fixture; no live Supabase wallet is touched.
 do $ugc_manual_ai_billing$
 declare
-    v_free uuid := '77777777-7777-4777-8777-777777777777';
-    v_lite uuid := '88888888-8888-4888-8888-888888888889';
-    v_premium uuid := '99999999-9999-4999-8999-999999999998';
+    v_free uuid := 'a7777777-7777-4777-8777-777777777777';
+    v_lite uuid := 'a8888888-8888-4888-8888-888888888889';
+    v_premium uuid := 'a9999999-9999-4999-8999-999999999998';
     v_owner uuid := '55555555-5555-4555-8555-555555555555';
     v_request uuid;
     v_calculator uuid;
