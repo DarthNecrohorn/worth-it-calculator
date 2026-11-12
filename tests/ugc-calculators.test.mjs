@@ -1668,7 +1668,7 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
     const errors=Array.from(engine.validateMakerSpec(spec).errors);
     assert.deepEqual(errors,[],"Valid chained-result and dynamic-group definition: "+errors.join(" | "));
     const calculated=engine.evaluateFormulaResults(spec,{months:12},{expenses:[{amount:12},{amount:18}]});
-    assert.deepEqual(calculated.map(result=>result.value),[30,30,2]);
+    assert.deepEqual(Array.from(calculated,result=>result.value),[30,30,2]);
         const groupDefinitions=new Map();
     groupDefinitions.set("expenses",new Set(["amount"]));
     const averageAst=engine.compileExpression("avg(expenses.amount)",new Set(),groupDefinitions);
