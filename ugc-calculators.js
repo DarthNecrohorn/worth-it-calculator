@@ -999,11 +999,11 @@ function validateMakerSpec(spec){
  groups.forEach((group,index)=>{
   const label=String(group.label||group.key||"Group "+(index+1));
   const minItems=Number(group.minItems??1),maxItems=Number(group.maxItems??10);
-  if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(group.key||""))||fixedKeys.has(group.key)||groupKeys.has(group.key)){
+  if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(group.key||""))||fixedKeys.has(group.key)||groupKeys.has(group.key)||groupFieldNames.has(group.key)){
    errors.push(label+": use a unique lowercase variable key for this group.");
   }
   groupKeys.add(group.key);
-  if(label.length<2||label.length>60||String(group.itemLabel||"Item").length>40||!Number.isInteger(minItems)||!Number.isInteger(maxItems)||minItems<1||maxItems<minItems||maxItems>20){
+  if(label.length<2||label.length>60||String(group.itemLabel||"Item").trim().length<1||String(group.itemLabel||"Item").length>40||!Number.isInteger(minItems)||!Number.isInteger(maxItems)||minItems<1||maxItems<minItems||maxItems>20){
    errors.push(label+": use 1–20 rows and a valid group and item label.");
   }
   if(!Array.isArray(group.fields)||group.fields.length<1||group.fields.length>6)errors.push(label+": each group needs 1–6 numeric fields.");
@@ -1011,7 +1011,7 @@ function validateMakerSpec(spec){
    const fieldLabel=String(field.label||field.key||"Field");
    const min=Number(field.min),max=Number(field.max),value=Number(field.default),step=Number(field.step);
    const composite=String(group.key)+"."+String(field.key);
-   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(field.key||""))||groupFieldKeys.has(composite)||groupFieldNames.has(field.key)||fixedKeys.has(field.key)||groupKeys.has(field.key)){
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(field.key||""))||!fieldLabel.trim()||fieldLabel.length>60||groupFieldKeys.has(composite)||groupFieldNames.has(field.key)||fixedKeys.has(field.key)||groupKeys.has(field.key)){
     errors.push(fieldLabel+": use a unique lowercase key within its dynamic group.");
    }
    groupFieldKeys.add(composite);groupFieldNames.add(field.key);
