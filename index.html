@@ -1225,7 +1225,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 </div>
                 <div class="community-calculator-navigation" id="ugcNavigationActions" hidden>
                     <button type="button" class="community-calculator-nav-button" id="ugcCatalogJumpButton">🌐 Community calculators</button>
-                    <button type="button" class="community-calculator-nav-button community-calculator-nav-primary" id="ugcMakerJumpButton">✦ Create with AI</button>
                 </div>
             </div>
 
@@ -1583,6 +1582,20 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span class="ugc-community-kicker" id="ugcMakerKicker">WORTH IT CALCULATOR CREATOR</span>
             <h2 id="ugcMakerTitleHeading">Create a calculator</h2>
             <p id="ugcMakerIntro">Choose AI-assisted generation or build a calculator yourself.</p>
+            <div id="ugcManualModeHelp" class="ugc-manual-mode-help" hidden aria-label="Manual Builder modes">
+              <article class="ugc-manual-mode-card" data-manual-mode-info="quick">
+                <strong>Quick Builder</strong>
+                <p>Start with a simple, ready-to-edit calculator for common calculations such as quantity × price or a recurring cost. Best when you want to get a useful calculator working quickly.</p>
+              </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="template">
+                <strong>Template Builder</strong>
+                <p>Choose a prepared model for costs, energy, vehicles, travel, savings or business calculations. The template includes suggested inputs, formulas and assumptions that you can adapt to your situation.</p>
+              </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="advanced">
+                <strong>Advanced Formula Builder</strong>
+                <p>Build a custom calculation by adding your own inputs and result rows, then writing formulas with the supported arithmetic functions. Best for multi-step calculations and specialised comparisons.</p>
+              </article>
+            </div>
           </div>
           <button type="button" class="ugc-maker-close" id="ugcMakerClose" aria-label="Close calculator maker"><span class="ugc-maker-close-glyph" aria-hidden="true">×</span></button>
         </header>
@@ -1596,12 +1609,31 @@ html[data-theme="light"].worth-it-initial-paint::before {
           </label>
           <label id="ugcManualTemplateWrap" for="ugcManualTemplate">Start from a template
             <select id="ugcManualTemplate">
-              <option value="simple-cost">Simple total cost</option>
-              <option value="monthly-cost">Monthly, weekly and yearly cost</option>
-              <option value="compare-costs">Compare two costs</option>
-              <option value="electricity-cost">Electricity cost</option>
-              <option value="fuel-cost">Vehicle fuel cost</option>
-              <option value="savings-total">Savings contributions</option>
+              <optgroup label="Everyday calculations">
+                <option value="simple-cost">Simple total cost</option>
+                <option value="monthly-cost">Monthly, weekly and yearly cost</option>
+                <option value="compare-costs">Compare two costs</option>
+                <option value="unit-price-compare">Compare price per unit</option>
+                <option value="discount-price">Discount and final price</option>
+              </optgroup>
+              <optgroup label="Home and utilities">
+                <option value="electricity-cost">Electricity cost</option>
+                <option value="heating-compare">Electricity vs pellet heating cost</option>
+                <option value="water-cost">Water usage cost</option>
+                <option value="flooring-materials">Flooring materials estimate</option>
+              </optgroup>
+              <optgroup label="Cars and travel">
+                <option value="fuel-cost">Vehicle fuel cost</option>
+                <option value="car-ownership-cost">Monthly car ownership cost</option>
+                <option value="travel-budget">Trip budget</option>
+              </optgroup>
+              <optgroup label="Money and business">
+                <option value="savings-total">Savings contributions</option>
+                <option value="hourly-pay">Hourly pay to yearly income</option>
+                <option value="simple-interest">Simple interest</option>
+                <option value="profit-margin">Business profit and margin</option>
+                <option value="break-even">Break-even units</option>
+              </optgroup>
             </select>
           </label>
           <p class="ugc-maker-status">Manual Builder uses no AI and costs no CALC. You can add inputs and results, edit every formula, and test calculations locally before saving.</p>
