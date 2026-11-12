@@ -186,10 +186,10 @@ function normalizeBlueprint(source,validateSpec){
   const isOnlyScalarMultiplier=uses.length>0&&uses.every(result=>{
    const expression=String(result.expression||"");
    const key=String(input.key);
-   const guardsRemoved=expression.replace(new RegExp("(?:gt|gte|lt|lte|eq|neq)\\\\(\\\\s*"+key+"\\\\s*,\\\\s*(?:0|0\\\\.0+)\\\\s*\\\\)","gi"),"");
+   const guardsRemoved=expression.replace(new RegExp("(?:gt|gte|lt|lte|eq|neq)\\(\\s*"+key+"\\s*,\\s*(?:0|0\\.0+)\\s*\\)","gi"),"");
    const occurrences=(guardsRemoved.match(new RegExp("(^|[^a-z0-9_])"+key+"(?=$|[^a-z0-9_])","gi"))||[]).length;
-   const multiplied=new RegExp("(?:\\\\b"+key+"\\\\s*\\\\*|\\\\*\\\\s*"+key+"\\\\b)","i").test(guardsRemoved);
-   const divided=new RegExp("/\\\\s*"+key+"\\\\b","i").test(guardsRemoved);
+   const multiplied=new RegExp("(?:\\b"+key+"\\s*\\*|\\*\\s*"+key+"\\b)","i").test(guardsRemoved);
+   const divided=new RegExp("/\\s*"+key+"\\b","i").test(guardsRemoved);
    return occurrences===1&&multiplied&&!divided;
   });
   if(isOnlyScalarMultiplier){
