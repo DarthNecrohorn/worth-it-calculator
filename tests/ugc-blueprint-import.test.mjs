@@ -56,7 +56,9 @@ test("keeps assumptions separate from the short description and supports up to 5
  assert.equal(result.spec.assumptions.join("\n").length,5000);
  candidate.assumptions.push("F");
  assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/up to 5,000 characters/);
-});\n\ntest("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
+});
+
+test("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
  const importer=getImporter();
  const source="\x60\x60\x60json\n"+JSON.stringify(blueprint())+"\n\x60\x60\x60";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
