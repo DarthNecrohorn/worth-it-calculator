@@ -66,8 +66,11 @@ create table if not exists private.worth_it_ugc_ai_saved_operations (
     user_id uuid not null references auth.users(id) on delete cascade,
     calculator_id uuid not null references private.worth_it_user_calculators(id) on delete cascade,
     operation text not null check (operation in ('generation','improvement')),
+    definition_hash text not null,
     created_at timestamptz not null default now()
 );
+alter table private.worth_it_ugc_ai_saved_operations
+    add column if not exists definition_hash text;
 create index if not exists worth_it_ugc_ai_saved_operations_user_idx
     on private.worth_it_ugc_ai_saved_operations(user_id,created_at desc);
 alter table private.worth_it_ugc_ai_saved_operations enable row level security;
@@ -104,8 +107,13 @@ declare
     v_description text := btrim(coalesce(p_description,''));
     v_category text := lower(btrim(coalesce(p_category,'')));
     v_source text := lower(btrim(coalesce(p_source,'manual')));
-    v_expected_operation text;
     v_reservation_status text;
+    v_definition_hash text := md5(jsonb_build_object(
+        'title',btrim(coalesce(p_title,'')),
+        'description',btrim(coalesce(p_description,'')),
+        'category',lower(btrim(coalesce(p_category,''))),
+        'spec',p_spec
+    )::text);
     v_saved_operation private.worth_it_ugc_ai_saved_operations%rowtype;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
@@ -173,8 +181,9 @@ begin
              for update;
             if found then
                 if v_saved_operation.user_id<>v_user_id
-                   or v_saved_operation.operation<>'generation' then
-                    raise exception 'This AI generation was already used for another operation.' using errcode='42501';
+                   or v_saved_operation.operation<>'generation'
+                   or v_saved_operation.definition_hash is distinct from v_definition_hash then
+                    raise exception 'This AI generation was already used for another calculator definition.' using errcode='42501';
                 end if;
                 select id,calculator_number into v_id,v_calculator_number
                   from private.worth_it_user_calculators
@@ -199,8 +208,8 @@ begin
         returning id,calculator_number into v_id,v_calculator_number;
 
         if v_source='ai' then
-            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation)
-            values(p_ai_request_id,v_user_id,v_id,'generation');
+            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation,definition_hash)
+            values(p_ai_request_id,v_user_id,v_id,'generation',v_definition_hash);
         end if;
     else
         if v_source='ai' then
@@ -219,10 +228,19 @@ begin
               from private.worth_it_ugc_ai_saved_operations
              where request_id=p_ai_request_id
              for update;
-            if found and (v_saved_operation.user_id<>v_user_id
-                or v_saved_operation.calculator_id<>p_id
-                or v_saved_operation.operation<>'improvement') then
-                raise exception 'This AI improvement was already used for another calculator.' using errcode='42501';
+            if found then
+                if v_saved_operation.user_id<>v_user_id
+                   or v_saved_operation.calculator_id<>p_id
+                   or v_saved_operation.operation<>'improvement'
+                   or v_saved_operation.definition_hash is distinct from v_definition_hash then
+                    raise exception 'This AI improvement was already used for another calculator definition.' using errcode='42501';
+                end if;
+                select id,calculator_number into v_id,v_calculator_number
+                  from private.worth_it_user_calculators
+                 where id=p_id and owner_user_id=v_user_id;
+                if v_id is null then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
+                return jsonb_build_object('success',true,'id',v_id,'calculator_number',v_calculator_number,
+                    'source','ai','already_saved',true);
             end if;
         end if;
 
@@ -233,8 +251,8 @@ begin
         if v_id is null then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
 
         if v_source='ai' and v_saved_operation.request_id is null then
-            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation)
-            values(p_ai_request_id,v_user_id,v_id,'improvement');
+            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation,definition_hash)
+            values(p_ai_request_id,v_user_id,v_id,'improvement',v_definition_hash);
         end if;
 
         select case
