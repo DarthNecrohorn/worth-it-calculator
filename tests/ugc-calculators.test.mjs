@@ -1652,7 +1652,7 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
     const engineStart=maker.indexOf("function compileExpression");
     const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateMakerSpec,evaluateFormulaResults})",
+        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateMakerSpec,evaluateFormulaResults,groupMapForSpec})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
     );
     const spec={
@@ -1669,8 +1669,7 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
     assert.deepEqual(errors,[],"Valid chained-result and dynamic-group definition: "+errors.join(" | "));
     const calculated=engine.evaluateFormulaResults(spec,{months:12},{expenses:[{amount:12},{amount:18}]});
     assert.deepEqual(Array.from(calculated,result=>result.value),[30,30,2]);
-        const groupDefinitions=new Map();
-    groupDefinitions.set("expenses",new Set(["amount"]));
+        const groupDefinitions=engine.groupMapForSpec(spec);
     const averageAst=engine.compileExpression("avg(expenses.amount)",new Set(),groupDefinitions);
     assert.equal(engine.evaluate(averageAst,{}, {expenses:[{amount:10},{amount:20}]}),15);
     const forward={...spec,results:[
