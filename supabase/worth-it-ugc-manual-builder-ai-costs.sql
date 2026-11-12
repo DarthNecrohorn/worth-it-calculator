@@ -106,6 +106,7 @@ declare
     v_title text := btrim(coalesce(p_title,''));
     v_description text := btrim(coalesce(p_description,''));
     v_category text := lower(btrim(coalesce(p_category,'')));
+    v_subcategories text[] := array[]::text[];
     v_source text := lower(btrim(coalesce(p_source,'manual')));
     v_reservation_status text;
     v_billing_status text;
@@ -135,7 +136,21 @@ begin
        or v_category not in ('cars','money','technology','home','other') then
         raise exception 'Invalid calculator details.' using errcode='22023';
     end if;
-    perform private.worth_it_validate_ugc_spec(p_spec);
+    if jsonb_typeof(p_spec->'subcategories')='array' then
+        select coalesce(array_agg(value),array[]::text[])
+          into v_subcategories
+          from jsonb_array_elements_text(p_spec->'subcategories') as items(value);
+    else
+        v_subcategories := case v_category
+            when 'cars' then array['car-ownership']::text[]
+            when 'money' then array['budgeting']::text[]
+            when 'technology' then array['tech-comparison']::text[]
+            when 'home' then array['household-budget']::text[]
+            else array['general-comparison']::text[]
+        end;
+    end if;
+    perform private.worth_it_validate_ugc_categories(v_category,v_subcategories);
+    perform private.worth_it_validate_ugc_spec(p_spec - 'subcategories');
 
     if p_id is null then
         -- Lock the account row to serialize concurrent manual-save reservations
@@ -220,8 +235,8 @@ begin
             v_creations_used := coalesce(v_creations_used,0);
         end if;
 
-        insert into private.worth_it_user_calculators(owner_user_id,title,description,category,spec)
-        values(v_user_id,v_title,v_description,v_category,p_spec)
+        insert into private.worth_it_user_calculators(owner_user_id,title,description,category,subcategories,spec)
+        values(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories')
         returning id,calculator_number into v_id,v_calculator_number;
 
         if v_source='ai' then
@@ -271,7 +286,8 @@ begin
         end if;
 
         update private.worth_it_user_calculators
-           set title=v_title,description=v_description,category=v_category,spec=p_spec,updated_at=now()
+           set title=v_title,description=v_description,category=v_category,
+               subcategories=v_subcategories,spec=p_spec - 'subcategories',updated_at=now()
          where id=p_id and owner_user_id=v_user_id
         returning id,calculator_number into v_id,v_calculator_number;
         if v_id is null then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
