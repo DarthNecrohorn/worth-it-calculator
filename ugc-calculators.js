@@ -868,9 +868,18 @@ async function runCalculation(calculator){
   }
   priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
+  const resultKeys=new Set(inputs.map(input=>input.key));
   const results=(calculator.spec.results||[]).map(item=>{
-   const ast=compileExpression(item.expression,new Set(inputs.map(input=>input.key)));
+   const ast=compileExpression(item.expression,resultKeys);
    return {label:item.label,value:formatResult(item,evaluate(ast,values)),explanation:String(item.explanation||"")};
+  });
+  const scenarioComparisons=(Array.isArray(calculator.spec.scenarios)?calculator.spec.scenarios:[]).map(scenario=>{
+   const scenarioValues={...values,...(scenario.values||{})};
+   const scenarioResults=(calculator.spec.results||[]).map(item=>{
+    const ast=compileExpression(item.expression,resultKeys);
+    return {label:item.label,value:formatResult(item,evaluate(ast,scenarioValues)),explanation:String(item.explanation||"")};
+   });
+   return{label:String(scenario.label||"Alternative"),results:scenarioResults};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
@@ -880,7 +889,7 @@ async function runCalculation(calculator){
   if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id)){
    clearReactionNote();
   }
-  renderCalculationResults(results);
+  renderCalculationResults(results,scenarioComparisons);
   detailStatus("Calculation complete. "+priceLabel+" CALC was charged.",false);
   await refreshCalcWallet();
  }catch(error){
@@ -888,7 +897,7 @@ async function runCalculation(calculator){
   detailStatus(error?.message||"Could not calculate. Please try again.",true);
  }finally{if(button)button.disabled=false;}
 }
-function renderCalculationResults(results){
+function renderCalculationResults(results,scenarioComparisons){
  const host=$("ugcDetailResults");if(!host)return;
  host.replaceChildren();
  const section=text("section","ugc-results-panel");
@@ -900,7 +909,26 @@ function renderCalculationResults(results){
   if(result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));
   grid.appendChild(card);
  });
- section.appendChild(grid);host.replaceChildren(section);
+ section.appendChild(grid);
+ if(Array.isArray(scenarioComparisons)&&scenarioComparisons.length){
+  const comparison=document.createElement("section");comparison.className="ugc-scenario-public-results";
+  comparison.appendChild(text("h3","","Scenario comparison"));
+  comparison.appendChild(text("p","ugc-scenario-public-note","The scenarios below use the alternative input values saved by the creator. Your main results above use the values you entered."));
+  scenarioComparisons.forEach(scenario=>{
+   const group=document.createElement("article");group.className="ugc-scenario-public-group";
+   group.appendChild(text("h4","",scenario.label));
+   const scenarioGrid=document.createElement("div");scenarioGrid.className="ugc-results-grid";
+   scenario.results.forEach(result=>{
+    const card=document.createElement("div");card.className="ugc-result-card";
+    card.append(text("span","",result.label),text("strong","",result.value));
+    if(result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));
+    scenarioGrid.appendChild(card);
+   });
+   group.appendChild(scenarioGrid);comparison.appendChild(group);
+  });
+  section.appendChild(comparison);
+ }
+ host.replaceChildren(section);
 }
 async function refreshCalcWallet(){
  if(typeof window.refreshWorthItCalcWallet==="function")return window.refreshWorthItCalcWallet();
