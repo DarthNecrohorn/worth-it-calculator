@@ -1709,4 +1709,53 @@ begin
 end
 $ugc_manual_ai_billing$;
 
+
+-- Composable Manual Builder: prior result keys and dynamic group expressions.
+do $composable_ugc_builder$
+declare
+    valid_spec jsonb := '{
+      "inputs":[
+        {"key":"months","label":"Months","min":1,"max":60,"default":12,"step":1,"unit":"months"}
+      ],
+      "groups":[
+        {"key":"expenses","label":"Expenses","itemLabel":"Expense","minItems":1,"maxItems":10,
+         "fields":[{"key":"amount","label":"Amount","min":0,"max":100000,"default":10,"step":1,"unit":"EUR"}]}
+      ],
+      "results":[
+        {"key":"total_expenses","label":"Total expenses","expression":"sum(expenses.amount)","format":"currency","currency":"EUR"},
+        {"key":"period_total","label":"Period total","expression":"total_expenses * months / 12","format":"currency","currency":"EUR"},
+        {"key":"expense_rows","label":"Expense rows","expression":"count(expenses)","format":"number"}
+      ]
+    }'::jsonb;
+    invalid_spec jsonb;
+    rejected boolean := false;
+begin
+    perform private.worth_it_validate_ugc_spec(valid_spec);
+
+    invalid_spec:=jsonb_set(valid_spec,'{results,0,expression}','"sum(expenses.unknown)"'::jsonb);
+    begin
+        perform private.worth_it_validate_ugc_spec(invalid_spec);
+    exception when invalid_parameter_value then rejected:=true;
+    end;
+    if not rejected then raise exception 'The composable validator accepted an undeclared dynamic group field.'; end if;
+
+    invalid_spec:=jsonb_set(valid_spec,'{results,0,expression}','"period_total"'::jsonb);
+    rejected:=false;
+    begin
+        perform private.worth_it_validate_ugc_spec(invalid_spec);
+    exception when invalid_parameter_value then rejected:=true;
+    end;
+    if not rejected then raise exception 'The composable validator accepted a forward/circular result reference.'; end if;
+
+    invalid_spec:=jsonb_set(valid_spec,'{groups,0,maxItems}','21'::jsonb);
+    rejected:=false;
+    begin
+        perform private.worth_it_validate_ugc_spec(invalid_spec);
+    exception when invalid_parameter_value then rejected:=true;
+    end;
+    if not rejected then raise exception 'The composable validator accepted more than 20 dynamic rows.'; end if;
+end
+$composable_ugc_builder$;
+
+
 rollback;
