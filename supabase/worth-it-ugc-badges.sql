@@ -217,7 +217,9 @@ begin
            or char_length(v_result->>'label') > 70
            or coalesce(v_result->>'format','number') not in ('number','currency','percent','unit')
            or (coalesce(v_result->>'format','number')='currency'
-               and coalesce(v_result->>'currency','') !~ '^[A-Z]{3}
+               and coalesce(v_result->>'currency','') !~ '^[A-Z]{3}$')
+           or (coalesce(v_result->>'format','number')='unit'
+               and (coalesce(v_result->>'unit','')='' or char_length(v_result->>'unit')>20))
            or char_length(v_expression) > 500
            or v_expression !~ '^[A-Za-z0-9_+*/^().,[:space:]-]+$'
            or v_expression ~ '[A-Za-z0-9_]\.[A-Za-z_]' then
