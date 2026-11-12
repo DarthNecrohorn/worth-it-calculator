@@ -591,11 +591,18 @@ function analyseFormulaUnit(ast,inputs){
   return unitDescriptor(input.unit);
  }
  if(ast.type==="unary")return analyseFormulaUnit(ast.value,inputs);
+ const compatibleUnits=(units,nodes,message)=>{
+  const dimensionedIndex=units.findIndex(item=>Object.keys(item.vector).length>0);
+  const target=units[dimensionedIndex>=0?dimensionedIndex:0]||unitDescriptor("");
+  const valid=units.every((item,index)=>sameUnitDescriptor(item,target)||
+   (constantFormulaValue(nodes[index])!==null&&Object.keys(item.vector).length===0));
+  if(!valid)throw new Error(message);
+  return target;
+ };
  if(ast.type==="binary"){
   const left=analyseFormulaUnit(ast.left,inputs),right=analyseFormulaUnit(ast.right,inputs);
   if(ast.op==="+"||ast.op==="-"){
-   if(!sameUnitDescriptor(left,right))throw new Error("Addition and subtraction require matching units. Check both sides of this formula.");
-   return left;
+   return compatibleUnits([left,right],[ast.left,ast.right],"Addition and subtraction require matching units. Numeric constants inherit the other value's unit.");
   }
   if(ast.op==="*")return combineUnitDescriptors(left,right,1);
   if(ast.op==="/")return combineUnitDescriptors(left,right,-1);
@@ -606,15 +613,14 @@ function analyseFormulaUnit(ast,inputs){
   return{exact:"",vector,opaque:left.opaque};
  }
  const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs));
- const sameArgs=()=>{if(args.some(item=>!sameUnitDescriptor(item,args[0])))throw new Error(ast.name+"() requires arguments with matching units.");return args[0];};
+ const sameArgs=()=>compatibleUnits(args,ast.args,ast.name+"() requires arguments with matching units. Numeric constants inherit the other argument's unit.");
  const dimensionless=()=>{if(Object.keys(args[0].vector).length)throw new Error(ast.name+"() requires a dimensionless condition.");return unitDescriptor("");};
  if(ast.name==="if"){
   dimensionless();
-  if(!sameUnitDescriptor(args[1],args[2])||unitVectorKey(args[1])!==unitVectorKey(args[2]))throw new Error("if() branches must return matching units.");
-  return args[1];
+  return compatibleUnits(args.slice(1),ast.args.slice(1),"if() branches must return matching units. Numeric constants inherit the other branch's unit.");
  }
  if(["gt","gte","lt","lte","eq","neq"].includes(ast.name)){
-  if(!sameUnitDescriptor(args[0],args[1]))throw new Error(ast.name+"() compares values with different units.");
+  compatibleUnits(args,ast.args,ast.name+"() compares values with different units. Numeric thresholds inherit the compared input's unit.");
   return unitDescriptor("");
  }
  if(["and","or","not"].includes(ast.name)){
