@@ -2185,6 +2185,8 @@ function importManualBlueprint(){
   const importer=window.WorthItBlueprintImport;
   if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
   const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec));
+  const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,5):[];
+  delete definition.importNotes;
   if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published."))return;
   state.creationSource="manual";
   state.aiOperationId="";
@@ -2196,8 +2198,9 @@ function importManualBlueprint(){
   const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
   setMakerModeUI();
   renderMakerPreview(state.aiDraft);
-  makerStatus("Blueprint imported and validated. Review the Advanced Formula Builder, then test it locally. Nothing was saved, published, sent to an AI service or charged.");
-  if(statusNode)statusNode.textContent="Import successful. Your calculator is now an editable Manual Builder draft.";
+  const adjustmentText=importNotes.length?" Compatibility adjustments: "+importNotes.join(" "):"";
+  makerStatus("Blueprint imported and validated. Review the Advanced Formula Builder, then test it locally. Nothing was saved, published, sent to an AI service or charged."+adjustmentText);
+  if(statusNode)statusNode.textContent="Import successful. Your calculator is now an editable Manual Builder draft."+adjustmentText;
   $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
  }catch(error){
   if(statusNode)statusNode.textContent=error?.message||"The blueprint could not be imported.";
