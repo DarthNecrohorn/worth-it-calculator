@@ -11,11 +11,11 @@ const PERIODS=[
 ];
 const SORTS=["latest","popular","liked","favorited","disliked","mine","my-drafts","my-favorites"];
 const CATEGORY_LABELS={"cars":"Cars","car-ownership":"Car ownership","ev-ownership":"Electric vehicles","fuel-costs":"Fuel costs","vehicle-financing":"Car financing","car-insurance":"Insurance","car-maintenance":"Maintenance & repairs","depreciation-resale":"Depreciation & resale","vehicle-comparison":"Vehicle comparisons","money":"Money","budgeting":"Budgeting","saving":"Saving","investing":"Investing","loans-debt":"Loans & debt","mortgages":"Mortgages","taxes":"Taxes","income-salary":"Income & salary","retirement":"Retirement","technology":"Technology","smartphones":"Smartphones","computers":"Computers","gaming":"Gaming","software-subscriptions":"Software & subscriptions","internet-connectivity":"Internet & connectivity","consumer-electronics":"Consumer electronics","tech-comparison":"Technology comparisons","home":"Home Costs","utilities-energy":"Utilities & energy","rent-housing":"Rent & housing","home-buying":"Home buying","renovation-repairs":"Renovations & repairs","home-appliances":"Home appliances","home-maintenance":"Home maintenance","household-budget":"Household budget","other":"Other","travel":"Travel","education-career":"Education & career","health-fitness":"Health & fitness","food-groceries":"Food & groceries","business":"Business","lifestyle":"Lifestyle","general-comparison":"General comparisons"};
-const CURRENCIES=[
+const CURRENCIES=Array.from(new Map([
  ["EUR","Euro"],["USD","US dollar"],["GBP","Pound sterling"],["RSD","Serbian dinar"],["CHF","Swiss franc"],
  ["CAD","Canadian dollar"],["AUD","Australian dollar"],["NZD","New Zealand dollar"],["JPY","Japanese yen"],
  ["CNY","Chinese yuan"],["INR","Indian rupee"],["PLN","Polish zloty"],["CZK","Czech koruna"],["HUF","Hungarian forint"],
- ["SEK","Swedish krona"],["NOK","Norwegian krone"],["DKK","Danish krone"],["BGN","Bulgarian lev"],["RON","Romanian leu"],
+ ["SEK","Swedish krona"],["NOK","Norwegian krone"],["DKK","Danish krone"],["RON","Romanian leu"],
  ["TRY","Turkish lira"],["BRL","Brazilian real"],["MXN","Mexican peso"],["ZAR","South African rand"],["SGD","Singapore dollar"],
  ["HKD","Hong Kong dollar"],["KRW","South Korean won"],["AED","UAE dirham"],["SAR","Saudi riyal"],["UAH","Ukrainian hryvnia"],
  ["ILS","Israeli new shekel"],["THB","Thai baht"],["IDR","Indonesian rupiah"],["MYR","Malaysian ringgit"],["PHP","Philippine peso"],
@@ -43,7 +43,8 @@ const CURRENCIES=[
  ["NIO","Nicaraguan córdoba"],["PAB","Panamanian balboa"],["PGK","Papua New Guinean kina"],["SDG","Sudanese pound"],
  ["TTD","Trinidad and Tobago dollar"],["TWD","New Taiwan dollar"],["UYW","Uruguayan Unidad Previsional"],
  ["XAG","Silver (troy ounce)"],["XAU","Gold (troy ounce)"],["XDR","Special drawing rights"],["XPD","Palladium (troy ounce)"],["XPT","Platinum (troy ounce)"]
-];
+].filter(Boolean).map(([code,name])=>[code,[code,name]])).values());
+
 const UNIT_OPTIONS=[
  ["","No unit"],
  ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
