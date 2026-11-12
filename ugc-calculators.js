@@ -900,7 +900,7 @@ function analyseFormulaUnit(ast,inputs,groups){
  if(ast.name==="sign")return unitDescriptor("");
  if(ast.name==="sqrt"){
   const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(Math.abs(value/2-Math.round(value/2))>1e-9)throw new Error("Square root requires even unit powers.");if(value/2)vector[key]=value/2;});
-  return{exact:"",vector,opaque:args[0].opaque};
+  return{exact:"",vector,opaque:args[0].opaque,symbols:{...(args[0].symbols||{})}};
  }
  if(ast.name==="pow"){
   const power=constantFormulaValue(ast.args[1]);
@@ -1163,6 +1163,150 @@ function validateMakerSpec(spec){
  });
  return {errors:[...new Set(errors)]};
 }
+
+function unitLabelFromDescriptor(unit){
+ const defaults={time:"days",length:"km",area:"m²",volume:"L",mass:"kg",energy:"kWh",power:"W",count:"items"};
+ const numerator=[],denominator=[];
+ for(const [dimension,rawPower] of Object.entries(unit?.vector||{})){
+  const power=Number(rawPower);
+  if(!Number.isFinite(power)||Math.abs(power-Math.round(power))>1e-9||Math.abs(power)>4)return "";
+  let symbol=unit.symbols?.[dimension]||"";
+  if(dimension.startsWith("currency:"))symbol=dimension.slice(9);
+  else if(dimension.startsWith("unit:"))symbol=symbol||dimension.slice(5);
+  else symbol=symbol||defaults[dimension]||"";
+  if(!/^[A-Za-zµμ%°][A-Za-z0-9_µμ%°²³-]*$/.test(symbol))return "";
+  const count=Math.abs(Math.round(power));
+  const factor=count===1?symbol:symbol+"^"+count;
+  (power>0?numerator:denominator).push(factor);
+ }
+ if(!numerator.length&&!denominator.length)return "";
+ const label=(numerator.length?numerator.join("*"):"1")+(denominator.length?"/"+denominator.join("*"):"");
+ return label.length<=20?label:"";
+}
+function formulaAstToText(ast){
+ if(ast.type==="number")return String(ast.value);
+ if(ast.type==="variable")return ast.name;
+ if(ast.type==="group")return ast.name;
+ if(ast.type==="groupField")return ast.group+"."+ast.field;
+ if(ast.type==="unary")return ast.op+"("+formulaAstToText(ast.value)+")";
+ if(ast.type==="binary")return "("+formulaAstToText(ast.left)+ast.op+formulaAstToText(ast.right)+")";
+ if(ast.type==="call")return ast.name+"("+ast.args.map(formulaAstToText).join(",")+")";
+ throw new Error("Unsupported formula node.");
+}
+function guardFormulaDivisions(ast){
+ if(ast.type==="binary"){
+  const left=guardFormulaDivisions(ast.left),right=guardFormulaDivisions(ast.right);
+  const division={type:"binary",op:ast.op,left,right};
+  if(ast.op==="/"&&constantFormulaValue(right)!==null&&constantFormulaValue(right)!==0)return division;
+  if(ast.op==="/")return{type:"call",name:"if",args:[
+   {type:"call",name:"neq",args:[right,{type:"number",value:0}]},
+   division,
+   {type:"number",value:0}
+  ]};
+  return division;
+ }
+ if(ast.type==="unary")return{...ast,value:guardFormulaDivisions(ast.value)};
+ if(ast.type==="call"){
+  const args=ast.args.map(guardFormulaDivisions);
+  if(ast.name==="mod"&&constantFormulaValue(args[1])!==null&&constantFormulaValue(args[1])!==0)return{...ast,args};
+  if(ast.name==="mod")return{type:"call",name:"if",args:[
+   {type:"call",name:"neq",args:[args[1],{type:"number",value:0}]},
+   {type:"call",name:"mod",args},
+   {type:"number",value:0}
+  ]};
+  return{...ast,args};
+ }
+ return ast;
+}
+function repairMakerBlueprintSpec(sourceSpec){
+ const spec=JSON.parse(JSON.stringify(sourceSpec||{})),notes=[];
+ const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
+ const groups=Array.isArray(spec.groups)?spec.groups:[];
+ const results=Array.isArray(spec.results)?spec.results:[];
+ const groupMap=groupMapForSpec(spec);
+ const resultKeySet=new Set(results.map(item=>String(item?.key||"")).filter(Boolean));
+ const knownFormulaFunctions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not","pi","e"]);
+ const dependencies=new Map();
+ results.forEach(item=>{
+  const expression=String(item?.expression||"");
+  const refs=new Set((expression.match(/[A-Za-z_][A-Za-z0-9_]*/g)||[]).filter(name=>resultKeySet.has(name)&&name!==item.key));
+  if(item?.key)dependencies.set(item.key,refs);
+ });
+ if(dependencies.size===results.length&&results.length>1){
+  const remaining=results.slice(),ordered=[],resolved=new Set();
+  while(remaining.length){
+   const index=remaining.findIndex(item=>[...(dependencies.get(item.key)||[])].every(key=>resolved.has(key)));
+   if(index<0)break;
+   const [next]=remaining.splice(index,1);ordered.push(next);if(next.key)resolved.add(next.key);
+  }
+  if(ordered.length===results.length&&ordered.some((item,index)=>item!==results[index])){
+   spec.results=ordered;
+   notes.push("Reordered result definitions so formula dependencies are evaluated before the results that use them.");
+  }
+ }
+ const availableKeys=new Set(inputs.map(item=>item.key));
+ const formulaUnits=inputs.slice();
+ const orderedResults=Array.isArray(spec.results)?spec.results:results;
+ orderedResults.forEach((result,index)=>{
+  const label=String(result?.label||("Result "+(index+1)));
+  let ast;
+  try{ast=compileExpression(result.expression,availableKeys,groupMap);}
+  catch(_){
+   // A malformed or unresolved formula cannot be safely invented. Keep it for
+   // the final validator to explain rather than replacing it with a guess.
+   if(result.key)availableKeys.add(result.key);
+   return;
+  }
+  const guarded=guardFormulaDivisions(ast);
+  const guardedText=formulaAstToText(guarded);
+  if(guardedText!==result.expression&&guardedText.length<=500){
+   result.expression=guardedText;
+   notes.push(label+": added zero-denominator guards to division or remainder operations; a zero denominator now produces 0 instead of an invalid result.");
+   ast=guarded;
+  }
+  let outputUnit;
+  try{outputUnit=analyseFormulaUnit(ast,formulaUnits,groups);}
+  catch(_){
+   if(result.key)availableKeys.add(result.key);
+   return;
+  }
+  const vector=Object.entries(outputUnit.vector||{});
+  const unitLabel=unitLabelFromDescriptor(outputUnit);
+  const singleCurrency=vector.length===1&&vector[0][0].startsWith("currency:")&&Math.abs(Number(vector[0][1])-1)<1e-9;
+  const outputCurrency=singleCurrency?vector[0][0].slice(9):"";
+  const dimensionless=vector.length===0;
+  let changed=false;
+  if(result.format==="percent"){
+   // A dimensioned formula cannot safely be reinterpreted as a percentage.
+  }else if(dimensionless&&result.format==="unit"){
+   result.format="number";delete result.unit;delete result.currency;changed=true;
+  }else if(outputCurrency&&singleCurrency&&(result.format!=="currency"||String(result.currency||"").toUpperCase()!==outputCurrency)){
+   if(CURRENCIES.some(([code])=>code===outputCurrency)){
+    result.format="currency";result.currency=outputCurrency;delete result.unit;changed=true;
+   }
+  }else if(!dimensionless&&!singleCurrency&&unitLabel
+   &&(result.format!=="unit"||String(result.unit||"")!==unitLabel)){
+   result.format="unit";result.unit=unitLabel;delete result.currency;changed=true;
+  }else if(!dimensionless&&singleCurrency&&result.format==="unit"&&unitLabel){
+   result.format="currency";result.currency=outputCurrency;delete result.unit;changed=true;
+  }
+  if(changed){
+   try{
+    if(result.format==="currency")validateFormulaResultUnit(result,outputUnit);
+    else if(result.format==="unit")validateFormulaResultUnit(result,outputUnit);
+    else if(result.format==="number"&&dimensionless){}
+    notes.push(label+": corrected its display format/unit to match the formula's calculated dimensions ("+(result.format==="currency"?result.currency:result.format==="unit"?result.unit:"unitless")+").");
+   }catch(_){}
+  }
+  if(result.key){
+   availableKeys.add(result.key);
+   formulaUnits.push({key:result.key,unitDescriptor:outputUnit});
+  }
+ });
+ return{spec,notes};
+}
+validateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;
+
 function makerCurrencyWarnings(spec){
  const knownCurrencies=new Set(CURRENCIES.map(([code])=>code));
  const inputCurrencies=(spec?.inputs||[]).map(item=>String(item.unit||"").trim().toUpperCase()).filter(unit=>knownCurrencies.has(unit));
