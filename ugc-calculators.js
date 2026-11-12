@@ -1272,6 +1272,8 @@ function setMakerModeUI(){
   :"Describe the decision or calculation. AI creates a safe, editable calculator draft.";
  const costNote=$("ugcMakerBillingNotice");
  if(costNote)costNote.textContent="AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations are refunded.";
+ const manualAiImprove=$("ugcManualAiImproveButton");
+ if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
 }
 function loadManualTemplate(templateKey){
  state.creationSource="manual";state.aiOperationId="";state.aiDraft=createManualDraft(templateKey);
@@ -1514,8 +1516,12 @@ async function saveMakerDraft(publish){
    const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus"),generationQuota=$("ugcMakerGenerationQuotaStatus");
    if(createQuota)createQuota.hidden=true;
    if(generationQuota)generationQuota.hidden=true;
-   if(editQuota)editQuota.hidden=false;
-   void refreshAiEditQuota();
+   if(editQuota)editQuota.hidden=true;
+   // Once the AI draft is first saved, future changes are ordinary manual
+   // edits. The generation has already consumed its AI slot and CALC charge.
+   if(state.creationSource==="ai"){state.creationSource="manual";state.aiOperationId="";}
+   setMakerModeUI();
+   void refreshCreationQuota();
   }
   if(publish){
    const result=await sb().rpc("publish_worth_it_ugc_calculator",{p_id:id,p_visibility:visibility});
@@ -1651,6 +1657,7 @@ window.addEventListener("focus",()=>{reconcileExplorePanels();refreshCreatorDisc
 window.addEventListener("popstate",()=>window.setTimeout(refreshCreatorDiscoveryWhenVisible,0));
 window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
 function openNewCalculatorMaker(){
+ state.creationSource="ai";state.aiOperationId="";state.manualMode="quick";
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";openMaker();
  $("ugcMakerVisibility").value="private";
  $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
@@ -1658,6 +1665,28 @@ function openNewCalculatorMaker(){
  $("ugcMakerGenerate").textContent="✦ Generate calculator";
  $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
  makerStatus("Describe what you want to calculate.");
+}
+function openManualCalculatorMaker(){
+ state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";
+ state.editingId=null;state.editingVisibility="";state.editingStatus="draft";
+ state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";
+ const mode=$("ugcManualMode");if(mode)mode.value="quick";
+ const template=$("ugcManualTemplate");if(template)template.value="simple-cost";
+ $("ugcMakerVisibility").value="private";
+ openMaker();
+ $("ugcMakerPrompt").value="";
+ $("ugcMakerPreview").hidden=false;
+ loadManualTemplate("simple-cost");
+}
+function switchManualDraftToAI(){
+ if(!state.editingId||!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
+ state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
+ void refreshAiEditQuota();
+ const editQuota=$("ugcMakerEditQuotaStatus");if(editQuota)editQuota.hidden=false;
+ $("ugcMakerPrompt").value="";
+ $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator. Its subject and purpose cannot be changed.";
+ makerStatus("Ask AI to improve the formulas or calculation detail. This uses your AI improvement allowance and costs 2/4/6 CALC for your active membership.");
+ $("ugcMakerPrompt")?.focus();
 }
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
@@ -1682,6 +1711,10 @@ async function init(){
  $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
+ $("ugcCreateManualButton")?.addEventListener("click",openManualCalculatorMaker);
+ $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
+ $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
+ $("ugcManualAiImproveButton")?.addEventListener("click",switchManualDraftToAI);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
  $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
