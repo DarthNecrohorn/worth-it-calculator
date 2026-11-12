@@ -1492,7 +1492,7 @@ declare
     v_owner uuid := '55555555-5555-4555-8555-555555555555';
     v_request uuid;
     v_calculator uuid;
-    v_spec jsonb := '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
+    v_spec jsonb := '{"subcategories":["budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
     v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
     v_description text := 'A clear description for this calculator and its assumptions.';
     q jsonb;
