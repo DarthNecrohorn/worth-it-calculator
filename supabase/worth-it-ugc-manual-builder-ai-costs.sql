@@ -421,7 +421,8 @@ alter table private.worth_it_calc_transactions
     add constraint worth_it_calc_transactions_kind_check
     check (kind in (
         'daily_reward','calculator_spend','ai_chat_spend','ugc_ai_spend',
-        'premium_lite_purchase','refund','manual_adjustment','calc_pack_purchase'
+        'premium_lite_purchase','refund','manual_adjustment','calc_pack_purchase',
+        'ugc_creator_earning'
     ));
 
 create or replace function public.reserve_worth_it_ugc_ai_calc(p_request_id uuid,p_operation text)
