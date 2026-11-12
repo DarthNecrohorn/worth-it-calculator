@@ -722,24 +722,27 @@ function defaultGroupValues(groups){
 function unitDescriptor(unit){
  const raw=String(unit||"").trim();
  const key=raw.toLowerCase().replace(/\s+/g," ");
- if(!raw)return{exact:"",vector:{},opaque:false};
- if(/^[A-Z]{3}$/.test(raw))return{exact:raw,vector:{["currency:"+raw]:1},opaque:false};
+ const descriptor=(exact,vector,opaque,symbols={})=>({exact,vector,opaque,symbols});
+ if(!raw)return descriptor("",{},false,{});
+ if(raw==="1")return descriptor(raw,{},false,{});
+ if(/^[A-Z]{3}$/.test(raw))return descriptor(raw,{["currency:"+raw]:1},false,{["currency:"+raw]:raw});
  const rateMatch=raw.match(/^([A-Z]{3})\s*\/\s*(.+)$/);
  if(rateMatch){
   const denominator=rateMatch[2].trim().toLowerCase();
   const dimension=({
    kwh:"energy",mwh:"energy",mj:"energy",l:"volume",litre:"volume",liter:"volume",
    kg:"mass",g:"mass","m³":"volume",m3:"volume","m²":"area",m2:"area",
-   hour:"time",hours:"time",day:"time",days:"time",week:"time",weeks:"time",
-   month:"time",months:"time",year:"time",years:"time",unit:"count",units:"count",
-   item:"count",items:"count",pack:"count",packs:"count",person:"count",people:"count",
-   km:"length",mile:"length",miles:"length"
+   hour:"time",hours:"time",hr:"time",hrs:"time",h:"time",day:"time",days:"time",
+   week:"time",weeks:"time",month:"time",months:"time",year:"time",years:"time",
+   minute:"time",minutes:"time",second:"time",seconds:"time",
+   unit:"count",units:"count",item:"count",items:"count",pack:"count",packs:"count",
+   person:"count",people:"count",km:"length",mile:"length",miles:"length",m:"length"
   })[denominator];
-  if(dimension)return{exact:raw,vector:{["currency:"+rateMatch[1]]:1,[dimension]:-1},opaque:false};
+  if(dimension)return descriptor(raw,{["currency:"+rateMatch[1]]:1,[dimension]:-1},false,{["currency:"+rateMatch[1]]:rateMatch[1],[dimension]:rateMatch[2].trim()});
  }
  const known={
   "%":{},"%/year":{time:-1},"%/month":{time:-1},"%/day":{time:-1},
-  months:{time:1},month:{time:1},years:{time:1},year:{time:1},days:{time:1},day:{time:1},weeks:{time:1},week:{time:1},hours:{time:1},hour:{time:1},minutes:{time:1},minute:{time:1},seconds:{time:1},second:{time:1},
+  months:{time:1},month:{time:1},years:{time:1},year:{time:1},days:{time:1},day:{time:1},weeks:{time:1},week:{time:1},hours:{time:1},hour:{time:1},minutes:{time:1},minute:{time:1},seconds:{time:1},second:{time:1},hr:{time:1},hrs:{time:1},h:{time:1},s:{time:1},
   km:{length:1},kilometres:{length:1},kilometers:{length:1},miles:{length:1},mile:{length:1},m:{length:1},cm:{length:1},mm:{length:1},
   "m²":{area:1},"m2":{area:1},"ft²":{area:1},
   l:{volume:1},litres:{volume:1},liters:{volume:1},"m³":{volume:1},"m3":{volume:1},ml:{volume:1},
@@ -757,25 +760,78 @@ function unitDescriptor(unit){
   "eur/unit":{"currency:EUR":1,count:-1},"eur/item":{"currency:EUR":1,count:-1},"eur/pack":{"currency:EUR":1,count:-1},
   "usd/unit":{"currency:USD":1,count:-1},"usd/item":{"currency:USD":1,count:-1},"rsd/unit":{"currency:RSD":1,count:-1}
  };
- if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
- if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{count:1},opaque:false};
- if(["period","periods","occurrences","times"].includes(key))return{exact:raw,vector:{},opaque:false};
- return{exact:raw,vector:{["unit:"+key]:1},opaque:true};
+ const knownSymbols={
+  months:{time:"months"},month:{time:"month"},years:{time:"years"},year:{time:"year"},
+  days:{time:"days"},day:{time:"day"},weeks:{time:"weeks"},week:{time:"week"},
+  hours:{time:"hours"},hour:{time:"hour"},minutes:{time:"minutes"},minute:{time:"minute"},
+  seconds:{time:"seconds"},second:{time:"second"},hr:{time:"hr"},hrs:{time:"hrs"},h:{time:"h"},s:{time:"s"},
+  km:{length:"km"},kilometres:{length:"kilometres"},kilometers:{length:"kilometers"},
+  miles:{length:"miles"},mile:{length:"mile"},m:{length:"m"},cm:{length:"cm"},mm:{length:"mm"},
+  "m²":{area:"m²"},"m2":{area:"m2},"ft²":{area:"ft²"},
+  l:{volume:"L"},litres:{volume:"litres"},liters:{volume:"liters"},
+  "m³":{volume:"m³"},"m3":{volume:"m3"},ml:{volume:"mL"},
+  kg:{mass:"kg"},kilograms:{mass:"kilograms"},g:{mass:"g"},grams:{mass:"grams"},tonnes:{mass:"tonnes"},
+  kwh:{energy:"kWh"},mwh:{energy:"MWh"},mj:{energy:"MJ"},w:{power:"W"},kw:{power:"kW"},
+  "l/100 km":{volume:"L",length:"km"},"km/h":{length:"km",time:"hour"},"m/s":{length:"m",time:"second"},
+  "m²/pack":{area:"m²",count:"pack"},"kwh/day":{energy:"kWh",time:"day"},"kwh/month":{energy:"kWh",time:"month"}
+ };
+ if(Object.prototype.hasOwnProperty.call(known,key)){
+  const vector=known[key],symbols={...(knownSymbols[key]||{})};
+  Object.keys(vector).forEach(dimension=>{
+   if(dimension.startsWith("currency:"))symbols[dimension]=dimension.slice(9);
+   else if(!symbols[dimension])symbols[dimension]=({time:"days",length:"km",area:"m²",volume:"L",mass:"kg",energy:"kWh",power:"W",count:"items"})[dimension]||dimension;
+  });
+  return descriptor(raw,vector,false,symbols);
+ }
+ if(["items","item","units","unit","people","person","packs","pack","users","user","vehicles","vehicle","cars","car"].includes(key)){
+  return descriptor(raw,{count:1},false,{count:raw});
+ }
+ if(["period","periods","occurrences","times"].includes(key))return descriptor(raw,{},false,{});
+ // Compose simple products and quotients dimensionally. Unknown atoms remain distinct
+ // opaque dimensions, so GB/hour can be checked without inventing a GB-to-MB conversion.
+ if(/[*/]/.test(raw)){
+  const compact=raw.replace(/\s*([*/])\s*/g,"$1");
+  const parts=compact.split(/([*/])/);
+  if(parts.length>=3&&parts.length%2===1){
+   let vector={},symbols={},opaque=false,operation=1,valid=true;
+   for(let index=0;index<parts.length;index++){
+    if(index%2===1){operation=parts[index]==="/" ? -1 : 1;continue;}
+    const match=parts[index].match(/^([A-Za-zµμ%°][A-Za-z0-9_µμ%°²³-]*|1)(?:\^(-?[1-4]))?$/);
+    if(!match){valid=false;break;}
+    const power=Number(match[2]||1)*operation;
+    const base=unitDescriptor(match[1]);
+    opaque=opaque||base.opaque;
+    Object.entries(base.vector).forEach(([dimension,exponent])=>{
+     vector[dimension]=(vector[dimension]||0)+exponent*power;
+     if(Math.abs(vector[dimension])<1e-10){delete vector[dimension];delete symbols[dimension];}
+     else if(base.symbols?.[dimension])symbols[dimension]=base.symbols[dimension];
+    });
+   }
+   if(valid)return descriptor(raw,vector,opaque,symbols);
+  }
+ }
+ if(["period","periods","occurrences","times"].includes(key))return descriptor(raw,{},false,{});
+ return descriptor(raw,{["unit:"+key]:1},true,{["unit:"+key]:raw});
 }
 function combineUnitDescriptors(left,right,sign){
- const vector={...left.vector};
- Object.entries(right.vector).forEach(([key,value])=>{vector[key]=(vector[key]||0)+value*sign;if(Math.abs(vector[key])<1e-10)delete vector[key];});
- return{exact:"",vector,opaque:left.opaque||right.opaque};
+ const vector={...left.vector},symbols={...(left.symbols||{})};
+ Object.entries(right.vector).forEach(([key,value])=>{
+  vector[key]=(vector[key]||0)+value*sign;
+  if(Math.abs(vector[key])<1e-10){delete vector[key];delete symbols[key];}
+  else if(!symbols[key]&&right.symbols?.[key])symbols[key]=right.symbols[key];
+ });
+ return{exact:"",vector,opaque:left.opaque||right.opaque,symbols};
 }
 function sameUnitDescriptor(left,right){
  const sameDimensions=unitVectorKey(left)===unitVectorKey(right)&&left.opaque===right.opaque;
  if(!sameDimensions)return false;
  if(left.exact===right.exact)return true;
- // A derived formula such as (EUR/kWh) * kWh has no literal unit label,
- // but its currency dimension is still exactly EUR. Permit that match.
+ // A formula-derived descriptor has no explicit display spelling. It may safely
+ // match a selected unit only when the complete dimension vector is identical.
+ if(!left.exact||!right.exact)return true;
  const vector=Object.entries(left.vector);
  const isSingleCurrency=vector.length===1&&vector[0][0].startsWith("currency:")&&Math.abs(vector[0][1]-1)<1e-9;
- return isSingleCurrency&&(!left.exact||!right.exact);
+ return isSingleCurrency;
 }
 function constantFormulaValue(ast){
  if(ast.type==="number")return ast.value;
@@ -817,7 +873,7 @@ function analyseFormulaUnit(ast,inputs,groups){
   if(power===null&&!Object.keys(left.vector).length)return unitDescriptor("");
   if(power===null)throw new Error("A dimensional value must use a fixed numeric power.");
   const vector={};Object.entries(left.vector).forEach(([key,value])=>{const result=value*power;if(Math.abs(result)>1e-10)vector[key]=result;});
-  return{exact:"",vector,opaque:left.opaque};
+  return{exact:"",vector,opaque:left.opaque,symbols:{...(left.symbols||{})}};
  }
  const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs,groups));
  const sameArgs=()=>compatibleUnits(args,ast.args,ast.name+"() requires arguments with matching units. Numeric constants inherit the other argument's unit.");
