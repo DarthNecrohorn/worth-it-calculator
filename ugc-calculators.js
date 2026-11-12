@@ -885,7 +885,7 @@ function evaluateFormulaResults(spec,baseValues,groupValues){
   const outputUnit=analyseFormulaUnit(ast,unitInputs,groups);
   validateFormulaResultUnit(item,outputUnit);
   const value=evaluate(ast,values,groupValues||defaultGroupValues(groups));
-  results.push({label:item.label,value,explanation:String(item.explanation||""),key:String(item.key||"")});
+  results.push({item,label:item.label,value,explanation:String(item.explanation||""),key:String(item.key||"")});
   const resultKey=String(item.key||"").trim();
   if(resultKey){
    if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey))throw new Error("Result "+(index+1)+" has an invalid or duplicate variable key.");
@@ -928,6 +928,7 @@ function appendDynamicGroupControls(host,group,initialRows){
  const rowsHost=document.createElement("div");rowsHost.className="ugc-dynamic-group-rows";
  const minItems=Math.max(1,Number(group.minItems)||1),maxItems=Math.max(minItems,Math.min(20,Number(group.maxItems)||20));
  const notify=()=>{rowsHost.dispatchEvent(new Event("input",{bubbles:true}));};
+ let add=null;
  const addRow=(rowValues)=>{
   if(rowsHost.children.length>=maxItems)return;
   const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcGroupRow="";
@@ -953,7 +954,7 @@ function appendDynamicGroupControls(host,group,initialRows){
  };
  const rows=Array.isArray(initialRows)&&initialRows.length?initialRows:defaultGroupValues([group])[group.key];
  rows.slice(0,maxItems).forEach(addRow);
- const add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{
+ add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{
   if(rowsHost.children.length>=maxItems)return;
   addRow(Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));notify();
  });
@@ -1079,7 +1080,6 @@ function validateMakerSpec(spec){
    const ast=compileExpression(item.expression,availableKeys,groupMap);
    const outputUnit=analyseFormulaUnit(ast,formulaUnits,groups);
    validateFormulaResultUnit(item,outputUnit);
-   scenarios.forEach(sample=>evaluate(ast,{...sample},groupSamples));
    if(resultKey){
     availableKeys.add(resultKey);resultKeys.add(resultKey);
     formulaUnits.push({key:resultKey,unitDescriptor:outputUnit});
@@ -2443,7 +2443,7 @@ function renderMakerPreview(definition){
   };
   if(manual&&!item.key)item.key="result_"+(index+1);
   const resultKeyInput=addInput("Result variable key","text",item.key||"",value=>{item.key=String(value).trim().slice(0,32);});
-  resultKeyInput.maxLength=32;resultKeyInput.pattern="[a-z][a-z0-9_]{0,31}";
+  resultKeyInput.maxLength=32;resultKeyInput.pattern="[a-z][a-z0-9_]{0,31}";resultKeyInput.hidden=!manual;
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
   const formulaInput=addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
   formulaInput.placeholder="Use input keys and earlier result keys; e.g. subtotal * tax_rate / 100 or sum(expenses.amount).";
