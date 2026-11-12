@@ -240,7 +240,7 @@ begin
         for v_match in select regexp_matches(v_expression,'[A-Za-z_][A-Za-z0-9_]*','g') loop
             v_token := v_match[1];
             if not (v_token = any(v_allowed))
-               and v_token not in ('min','max','abs','round','floor','ceil','sqrt','pow','clamp','avg','mod','trunc','sign','hypot','log','ln','exp','sin','cos','tan','asin','acos','atan','pi','e') then
+               and v_token not in ('min','max','abs','round','floor','ceil','sqrt','pow','clamp','avg','mod','trunc','sign','hypot','log','ln','exp','sin','cos','tan','asin','acos','atan','if','gt','gte','lt','lte','eq','neq','and','or','not','pi','e') then
                 raise exception 'Formula contains an unsupported variable or function.' using errcode = '22023';
             end if;
         end loop;
