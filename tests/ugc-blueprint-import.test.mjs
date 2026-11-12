@@ -386,3 +386,95 @@ test("still repairs a genuine currency-per-duration result to its exact rate uni
  assert.equal(definition.spec.results[0].unit,"EUR/day");
  assert.equal("currency" in definition.spec.results[0],false);
 });
+
+
+test("imports the complete Household Budget and Savings Planner blueprint through the real validator",()=>{
+ const importer=getImporter();
+ const start=builderSource.indexOf("function compileExpression(");
+ const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
+ assert.ok(start>=0&&end>start,"The shared Manual Builder validator must be present.");
+ const validatorSource=builderSource.slice(start,end);
+ const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ const input=(key,label,min,max,def,step,unit,control="number")=>({key,label,control,min,max,default:def,step,unit});
+ const group=(key,label,itemLabel,fieldKey,fieldLabel,def)=>({
+  key,label,itemLabel,minItems:1,maxItems:10,
+  fields:[{key:fieldKey,label:fieldLabel,min:0,max:50000,default:def,step:10,unit:"EUR"}]
+ });
+ const currency=(key,label,expression)=>({key,label,expression,format:"currency",currency:"EUR",explanation:label+" in EUR."});
+ const percent=(key,label,expression)=>({key,label,expression,format:"percent",explanation:label+" as a percentage."});
+ const resultRate=(key,label,expression,unit)=>({key,label,expression,format:"unit",unit,explanation:label+" using the exact derived rate unit."});
+ const candidate={
+  blueprintVersion:1,
+  title:"Household Budget and Savings Planner",
+  description:"Plans monthly household income, fixed expenses, debt payments, savings targets, emergency fund coverage, goal progress, and spending projections in EUR.",
+  category:"home",
+  subcategories:["household-budget","savings-planner"],
+  assumptions:[
+   "All monetary amounts are entered and calculated in EUR without currency conversion or exchange rates.",
+   "Annual expenses are evenly distributed across 12 months when calculating monthly planned expenses.",
+   "Investment returns, interest compounding, inflation, and taxes are not modeled.",
+   "Dynamic lists require at least one row; set unused placeholder rows to 0 EUR."
+  ],
+  spec:{
+   inputs:[
+    input("regular_income","Regular monthly income",0,100000,2500,10,"EUR"),
+    input("additional_income","Additional monthly income",0,100000,200,10,"EUR"),
+    input("annual_expenses","Annual expenses",0,200000,1200,10,"EUR"),
+    input("planned_savings","Planned monthly savings",0,100000,400,10,"EUR"),
+    input("actual_savings","Actual monthly savings",0,100000,350,10,"EUR"),
+    input("safety_buffer","Monthly safety buffer",0,50000,150,10,"EUR"),
+    input("emergency_fund","Current emergency fund",0,500000,4500,50,"EUR"),
+    input("emergency_target_months","Emergency fund target coverage (months)",1,24,6,1,"","slider"),
+    input("savings_goal_amount","Savings goal target amount",0,500000,6000,50,"EUR"),
+    input("current_goal_savings","Already saved toward goal",0,500000,1500,50,"EUR"),
+    input("goal_deadline_months","Savings goal deadline",1,120,12,1,"months"),
+    input("tracking_days","Actual spending tracking period",1,365,15,1,"days"),
+    input("projection_days","Spending projection period",1,365,30,1,"days"),
+    input("budget_month_days","Days in budget month",28,31,30,1,"days")
+   ],
+   groups:[
+    group("fixed_costs","Recurring household expenses","Expense item","amount","Monthly amount",1200),
+    group("debt_payments","Monthly debt payments","Debt payment","payment","Monthly payment",0),
+    group("actual_spending","Actual tracked spending by category","Spending category","spent","Tracked spent amount",0)
+   ],
+   results:[
+    {key:"total_income",label:"Total monthly income",expression:"regular_income + additional_income",format:"currency",currency:"EUR"},
+    {key:"household_expense_total",label:"Household expense total",expression:"sum(fixed_costs.amount)",format:"currency",currency:"EUR"},
+    {key:"debt_total",label:"Debt payment total",expression:"sum(debt_payments.payment)",format:"currency",currency:"EUR"},
+    currency("monthly_annual_expenses","Monthly share of annual expenses","annual_expenses / 12"),
+    currency("planned_expenses","Total planned monthly expenses","household_expense_total + debt_total + monthly_annual_expenses"),
+    currency("remaining_before_savings","Remaining before savings","total_income - planned_expenses"),
+    currency("remaining_after_savings_buffer","Remaining after savings and buffer","remaining_before_savings - planned_savings - safety_buffer"),
+    percent("debt_to_income","Debt-to-income ratio","if(gt(total_income,0),debt_total / total_income * 100,0)"),
+    percent("planned_savings_rate","Planned savings rate","if(gt(total_income,0),planned_savings / total_income * 100,0)"),
+    percent("actual_savings_rate","Actual savings rate","if(gt(total_income,0),actual_savings / total_income * 100,0)"),
+    currency("savings_variance","Actual minus planned savings","actual_savings - planned_savings"),
+    currency("emergency_target","Emergency fund target","planned_expenses * emergency_target_months"),
+    percent("emergency_progress","Emergency fund progress","if(gt(emergency_target,0),emergency_fund / emergency_target * 100,0)"),
+    currency("emergency_shortfall","Emergency fund shortfall","max(0,emergency_target - emergency_fund)"),
+    currency("remaining_goal","Remaining savings goal","max(0,savings_goal_amount - current_goal_savings)"),
+    resultRate("goal_monthly_required","Required monthly goal contribution","remaining_goal / goal_deadline_months","EUR/month"),
+    currency("tracked_spending","Tracked actual spending","sum(actual_spending.spent)"),
+    resultRate("average_daily_spending","Average daily spending","tracked_spending / tracking_days","EUR/day"),
+    currency("projected_spending","Projected period spending","average_daily_spending * projection_days"),
+    currency("spending_variance","Projected vs planned spending difference","projected_spending - (planned_expenses / budget_month_days * projection_days)")
+   ],
+   scenarios:[
+    {key:"conservative",label:"Conservative",values:{additional_income:0,planned_savings:600,safety_buffer:250,emergency_target_months:9}},
+    {key:"balanced",label:"Balanced",values:{additional_income:200,planned_savings:400,safety_buffer:150,emergency_target_months:6}},
+    {key:"flexible",label:"Flexible",values:{additional_income:300,planned_savings:250,safety_buffer:100,emergency_target_months:3}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ assert.equal(definition.spec.inputs.length,14);
+ assert.equal(definition.spec.groups.length,3);
+ assert.equal(definition.spec.results.length,20);
+ assert.equal(definition.spec.scenarios.length,3);
+ assert.equal(definition.spec.results.find(item=>item.key==="goal_monthly_required").unit,"EUR/month");
+ assert.equal(definition.spec.results.find(item=>item.key==="average_daily_spending").unit,"EUR/day");
+ const variance=definition.spec.results.find(item=>item.key==="spending_variance");
+ assert.equal(variance.format,"currency");
+ assert.equal(variance.currency,"EUR");
+ assert.match(variance.expression,/planned_expenses \/ budget_month_days \* projection_days/);
+});
