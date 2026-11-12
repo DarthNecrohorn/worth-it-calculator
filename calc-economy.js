@@ -216,6 +216,7 @@
             daily_reward:"Daily reward",
             calculator_spend:"Calculator use",
             ai_chat_spend:"AI reply",
+            ugc_ai_spend:"AI UGC calculator",
             premium_lite_purchase:"Premium Lite activation",
             refund:"Refund",
             manual_adjustment:"Balance adjustment",
