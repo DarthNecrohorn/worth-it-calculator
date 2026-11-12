@@ -108,6 +108,8 @@ declare
     v_category text := lower(btrim(coalesce(p_category,'')));
     v_source text := lower(btrim(coalesce(p_source,'manual')));
     v_reservation_status text;
+    v_billing_status text;
+    v_billing_operation text;
     v_definition_hash text := md5(jsonb_build_object(
         'title',btrim(coalesce(p_title,'')),
         'description',btrim(coalesce(p_description,'')),
@@ -173,6 +175,20 @@ begin
                 raise exception 'A completed AI generation reservation is required.' using errcode='42501';
             end if;
 
+            -- The reservation alone is not proof of payment: a client could
+            -- otherwise call the legacy quota RPCs directly. Require the
+            -- matching completed CALC ledger entry, including zero-price owner
+            -- exemptions, before accepting an AI-generated definition.
+            select status,metadata->>'operation'
+              into v_billing_status,v_billing_operation
+              from private.worth_it_calc_transactions
+             where user_id=v_user_id and request_id=p_ai_request_id
+               and kind='ugc_ai_spend' and currency='CALC'
+             for update;
+            if not found or v_billing_status<>'completed' or v_billing_operation<>'generation' then
+                raise exception 'A completed CALC AI-generation transaction is required.' using errcode='42501';
+            end if;
+
             -- Idempotent retry: if the first save committed but its HTTP
             -- response was lost, return that same saved calculator.
             select * into v_saved_operation
@@ -223,6 +239,15 @@ begin
              for update;
             if not found or v_reservation_status<>'completed' then
                 raise exception 'A completed AI improvement reservation for this calculator is required.' using errcode='42501';
+            end if;
+            select status,metadata->>'operation'
+              into v_billing_status,v_billing_operation
+              from private.worth_it_calc_transactions
+             where user_id=v_user_id and request_id=p_ai_request_id
+               and kind='ugc_ai_spend' and currency='CALC'
+             for update;
+            if not found or v_billing_status<>'completed' or v_billing_operation<>'improvement' then
+                raise exception 'A completed CALC AI-improvement transaction is required.' using errcode='42501';
             end if;
             select * into v_saved_operation
               from private.worth_it_ugc_ai_saved_operations
