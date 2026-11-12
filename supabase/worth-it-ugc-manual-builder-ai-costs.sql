@@ -3,6 +3,15 @@
 -- UGC staging schema and disposable PostgreSQL smoke tests.
 begin;
 
+-- Preserve the original creation method for trustworthy MANUAL / AI MADE card tags.
+-- Existing rows are marked legacy until their provenance can be proven.
+alter table private.worth_it_user_calculators
+    add column if not exists creation_source text not null default 'legacy';
+alter table private.worth_it_user_calculators
+    drop constraint if exists worth_it_user_calculators_creation_source_check;
+alter table private.worth_it_user_calculators
+    add constraint worth_it_user_calculators_creation_source_check
+    check (creation_source in ('manual','ai','legacy'));
 create table if not exists private.worth_it_ugc_manual_daily_usage (
     user_id uuid not null references auth.users(id) on delete cascade,
     usage_date date not null,
@@ -86,6 +95,16 @@ create index if not exists worth_it_ugc_ai_saved_operations_user_idx
     on private.worth_it_ugc_ai_saved_operations(user_id,created_at desc);
 alter table private.worth_it_ugc_ai_saved_operations enable row level security;
 revoke all on private.worth_it_ugc_ai_saved_operations from public,anon,authenticated;
+
+-- If this migration is being upgraded in an environment that already recorded
+-- AI generation proofs, use those server-owned rows to backfill AI provenance.
+-- Unknown historical rows deliberately stay "legacy" rather than being mislabeled.
+update private.worth_it_user_calculators c
+   set creation_source='ai'
+  from private.worth_it_ugc_ai_saved_operations a
+ where a.calculator_id=c.id
+   and a.operation='generation'
+   and c.creation_source='legacy';
 
 -- Use an explicit source and request proof. "ai" cannot be self-declared:
 -- new AI saves need a settled maker generation; AI edits need a settled edit
@@ -252,8 +271,8 @@ begin
             v_creations_used := coalesce(v_creations_used,0);
         end if;
 
-        insert into private.worth_it_user_calculators(owner_user_id,title,description,category,subcategories,spec)
-        values(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories')
+        insert into private.worth_it_user_calculators(owner_user_id,title,description,category,subcategories,spec,creation_source)
+        values(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories',v_source)
         returning id,calculator_number into v_id,v_calculator_number;
 
         if v_source='ai' then
