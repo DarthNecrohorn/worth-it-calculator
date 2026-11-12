@@ -828,10 +828,15 @@ function analyseFormulaUnit(ast,inputs,groups){
   compatibleUnits(args,ast.args,ast.name+"() compares values with different units. Numeric thresholds inherit the compared input's unit.");
   return unitDescriptor("");
  }
- if(["and","or","not","count"].includes(ast.name)){
+ if(["and","or","not"].includes(ast.name)){
   args.forEach(item=>{if(Object.keys(item.vector).length)throw new Error(ast.name+"() requires dimensionless conditions.");});
   return unitDescriptor("");
  }
+ if(ast.name==="count"){
+  if(ast.args[0]?.type!=="group")throw new Error("count() requires a dynamic group, e.g. count(expenses).");
+  return unitDescriptor("");
+ }
+ if(ast.name==="sum"&&ast.args[0]?.type!=="groupField")throw new Error("sum() requires a dynamic group field, e.g. sum(expenses.amount).");
  if(["sum","min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
  if(["abs","round","floor","ceil","trunc"].includes(ast.name))return args[0];
  if(ast.name==="sign")return unitDescriptor("");
@@ -885,6 +890,7 @@ function evaluateFormulaResults(spec,baseValues,groupValues){
   const outputUnit=analyseFormulaUnit(ast,unitInputs,groups);
   validateFormulaResultUnit(item,outputUnit);
   const value=evaluate(ast,values,groupValues||defaultGroupValues(groups));
+  if(!Number.isFinite(value))throw new Error("Result "+(index+1)+" must produce one finite number. Use sum(), avg(), min() or max() to aggregate a dynamic group field.");
   results.push({item,label:item.label,value,explanation:String(item.explanation||""),key:String(item.key||"")});
   const resultKey=String(item.key||"").trim();
   if(resultKey){
@@ -2170,7 +2176,7 @@ function renderManualGroupEditor(host,definition){
   keyInput.addEventListener("change",()=>{
    const next=String(keyInput.value||"").trim();
    if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||groups.some((other,i)=>i!==index&&other.key===next)||definition.spec.inputs.some(input=>input.key===next)){
-    keyInput.value=oldGroupKey;makerStatus("Group keys must be unique lowercase names.","error");return;
+    group.key=oldGroupKey;keyInput.value=oldGroupKey;makerStatus("Group keys must be unique lowercase names.","error");return;
    }
    if(next!==oldGroupKey){
     const pattern=new RegExp("\\b"+oldGroupKey+"\\.","g");
@@ -2200,7 +2206,7 @@ function renderManualGroupEditor(host,definition){
    fieldKeyInput.addEventListener("change",()=>{
     const next=String(fieldKeyInput.value||"").trim();
     if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||group.fields.some((other,i)=>i!==fieldIndex&&other.key===next)){
-     fieldKeyInput.value=oldFieldKey;makerStatus("Field keys must be unique lowercase names inside their group.","error");return;
+     field.key=oldFieldKey;fieldKeyInput.value=oldFieldKey;makerStatus("Field keys must be unique lowercase names inside their group.","error");return;
     }
     if(next!==oldFieldKey){
      const pattern=new RegExp("\\b"+group.key+"\\."+oldFieldKey+"\\b","g");
