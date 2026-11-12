@@ -127,7 +127,8 @@ test("generates copyable instructions for an external AI and contains no request
  assert.match(prompt,/Return exactly one valid JSON object/);
  assert.match(prompt,/blueprintVersion/);
  assert.match(prompt,/never convert currencies/);
- assert.match(prompt,/arbitrary functions/);\n assert.match(prompt,/5,000 characters total/);
+ assert.match(prompt,/arbitrary functions/);
+ assert.match(prompt,/5,000 characters total/);
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
@@ -141,6 +142,7 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.ok(importFunction.includes('state.aiOperationId=""'));
  assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
  assert.match(builderSource,/ugcBlueprintCopyPrompt/);
- assert.match(builderSource,/ugcBlueprintImportButton/);\n assert.match(builderSource,/ugcMakerAssumptions/);
+ assert.match(builderSource,/ugcBlueprintImportButton/);
+ assert.match(builderSource,/ugcMakerAssumptions/);
  assert.match(builderSource,/maxLength=5000/);
 });
