@@ -184,14 +184,46 @@ function normalizeBlueprint(source,validateSpec){
  if(errors.length)fail("The blueprint did not pass calculator validation: "+errors.slice(0,5).join(" "));
  return definition;
 }
+function repairCopiedJsonArtifacts(source){
+ return source
+  .replace(/&#x20;|&#32;|&nbsp;/gi," ")
+  .replace(/\\[ \t]*\r?\n/g,"\n")
+  .replace(/\\\*/g,"*");
+}
+function jsonSyntaxFailure(error,source){
+ const message=String(error?.message||"Invalid JSON syntax.");
+ const match=message.match(/position\s+(\d+)/i);
+ if(match){
+  const position=Math.max(0,Math.min(source.length,Number(match[1])));
+  const before=source.slice(0,position);
+  const line=before.split("\n").length;
+  const column=position-(before.lastIndexOf("\n")+1)+1;
+  fail("Could not read JSON at line "+line+", column "+column+". "+message+" Paste only the JSON object, without surrounding instructions.");
+ }
+ fail("Could not read JSON. "+message+" Paste only the JSON object, without surrounding instructions.");
+}
 function parseBlueprint(text,validateSpec){
  if(typeof text!=="string"||!text.trim())fail("Paste a JSON blueprint first.");
  if(text.length>MAX_BLUEPRINT_CHARS)fail("The blueprint is too large. Maximum size is 50 KB.");
- let source=text.trim();
+ let source=text.replace(/^\uFEFF/,"").trim();
  const fenced=source.match(/^\x60{3}(?:json)?\s*([\s\S]*?)\s*\x60{3}$/i);
  if(fenced)source=fenced[1].trim();
  let parsed;
- try{parsed=JSON.parse(source);}catch(_){fail("Could not read JSON. Check the braces, quotes and commas, then try again.");}
+ try{
+  parsed=JSON.parse(source);
+ }catch(firstError){
+  const repaired=repairCopiedJsonArtifacts(source);
+  if(repaired!==source){
+   try{
+    parsed=JSON.parse(repaired);
+    source=repaired;
+   }catch(secondError){
+    jsonSyntaxFailure(secondError,repaired);
+   }
+  }else{
+   jsonSyntaxFailure(firstError,source);
+  }
+ }
  inspectTree(parsed);
  return normalizeBlueprint(parsed,validateSpec);
 }
@@ -218,7 +250,7 @@ function buildPrompt(){
   "Formula grammar only: arithmetic + - * / ^, parentheses, pi, e, and functions min, max, avg, sum, count, abs, round, floor, ceil, trunc, sign, sqrt, pow, clamp, mod, hypot, log, ln, exp, sin, cos, tan, if, gt, gte, lt, lte, eq, neq, and, or, not. Use the plain * character for multiplication, never \\*.",
   "Before returning the JSON, internally check all of the following: every referenced input/group/result exists; result dependencies point only backwards; keys are unique; all fields are allowed; input defaults and maximums align with steps; scenarios are in range; formula dimensions match each result format; every formula remains finite at default values and at minimum/maximum boundaries; no division by zero is possible. Remove unnecessary unused inputs rather than adding decorative controls.",
   "If a requested calculation cannot be represented with these fields or formulas, simplify it or state the limitation in assumptions. Never invent a unit, conversion rate, data source or capability.",
-  "Calculator request: [REPLACE THIS PLACEHOLDER WITH THE CALCULATOR YOU WANT TO BUILD]."
+  "Calculator request: Build a comprehensive Household Budget and Savings Planner for an individual or household. Let users enter regular and additional monthly income; add recurring household expenses and monthly debt payments through separate dynamic groups; include additional annual expenses, planned and actual savings, a desired monthly safety buffer, current emergency fund and target coverage in months, and one savings goal with its remaining deadline. Also let users record actual spending by category over a selected number of tracking days and project spending over a separately selected number of days. Calculate total income, household expenses, debt payments, monthly equivalent annual expenses, total planned expenses, money remaining before and after savings and the safety buffer, debt-to-income ratio, planned and actual savings rates, savings difference, emergency fund target/progress/shortfall, remaining savings goal and required monthly contribution in EUR/month, tracked actual spending, average daily spending in EUR/day, projected spending in EUR, and its difference from planned expenses. Include Conservative, Balanced and Flexible scenarios that change only existing numeric inputs. Use EUR consistently for all money amounts, use dynamic groups for repeatable rows, avoid unused inputs, and make every formula dimensionally correct and safe at zero and boundary values. Do not invent investment returns, taxes, inflation, bank connections or exchange rates."
  ].join("\n\n");
 }
 root.WorthItBlueprintImport=Object.freeze({parseBlueprint,buildPrompt,MAX_BLUEPRINT_CHARS,MAX_ASSUMPTIONS_CHARS});
