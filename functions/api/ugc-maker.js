@@ -294,9 +294,19 @@ function tokenFrom(request){
     const header=request.headers.get("Authorization")||"";
     return header.startsWith("Bearer ")?header.slice(7).trim():"";
 }
-async function reserveMakerGeneration(env,token,requestId){
-    return normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_maker_generation_v2",{
-        p_request_id:requestId
+async function reserveAiOperation(env,token,requestId,mode,calculatorId){
+    return normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_ai_operation",{
+        p_request_id:requestId,p_mode:mode,p_calculator_id:calculatorId||null
+    }));
+}
+async function refundAiOperationReservation(env,token,requestId,mode){
+    return normalizeRpcObject(await userRpc(env,token,"refund_worth_it_ugc_ai_operation",{
+        p_request_id:requestId,p_mode:mode
+    }));
+}
+async function settleAiOperationReservation(env,token,requestId,mode){
+    return normalizeRpcObject(await userRpc(env,token,"settle_worth_it_ugc_ai_operation",{
+        p_request_id:requestId,p_mode:mode
     }));
 }
 async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="initial-generation"){
@@ -901,50 +911,31 @@ function sameArray(left,right){
 export async function onRequestPost(context){
     const request=context.request,env=context.env,origin=allowedOrigin(request);
     const aiUsageCollector=createAiUsageCollector();
-    let editRequestId="";
-    let editQuotaSettled=false;
-    let editQuotaRefunded=false;
-    let makerRequestId="";
-    let makerQuotaSettled=false;
-    let makerQuotaRefunded=false;
+    let aiOperationRequestId="";
+    let aiOperationMode="";
+    let aiOperationReserved=false;
+    let aiOperationSettled=false;
+    let aiOperationRefunded=false;
+    let aiBilling=null;
     const token=tokenFrom(request);
-    const refundEditQuota=async()=>{
-        if(!editRequestId||editQuotaSettled||editQuotaRefunded)return;
+    const refundAiOperation=async()=>{
+        if(!aiOperationRequestId||!aiOperationMode||aiOperationSettled||aiOperationRefunded)return false;
         try{
-            const result=await userRpc(env,token,"refund_worth_it_ugc_ai_edit",{p_request_id:editRequestId});
-            if(result?.ok===true)editQuotaRefunded=true;
-        }catch(error){
-            console.error("Could not refund a failed UGC AI edit reservation:",error);
-        }
-    };
-    const refundMakerQuota=async()=>{
-        if(!makerRequestId||makerQuotaSettled||makerQuotaRefunded)return false;
-        try{
-            const result=normalizeRpcObject(await userRpc(env,token,"refund_worth_it_ugc_maker_generation_v2",{
-                p_request_id:makerRequestId
-            }));
-            if(result?.ok===true&&(result?.refunded===true||result?.already_refunded===true)){
-                makerQuotaRefunded=true;
-                return true;
-            }
-            if(result?.code==="RESERVATION_NOT_FOUND"){
-                makerQuotaRefunded=true;
-                return true;
-            }
-            console.error("Could not refund a failed UGC Maker generation:",result?.code||result);
+            const result=await refundAiOperationReservation(env,token,aiOperationRequestId,aiOperationMode);
+            if(result?.ok===true){aiOperationRefunded=true;aiOperationReserved=false;return true;}
+            console.error("Could not refund a failed UGC AI operation:",result?.code||result);
             return false;
         }catch(error){
-            console.error("Could not refund a failed UGC Maker generation:",error);
+            console.error("Could not refund a failed UGC AI operation:",error);
             return false;
         }
     };
-    const settleMakerQuota=async()=>{
-        if(!makerRequestId||makerQuotaSettled)return;
-        const result=normalizeRpcObject(await userRpc(env,token,"settle_worth_it_ugc_maker_generation_v2",{
-            p_request_id:makerRequestId
-        }));
-        if(result?.ok!==true)throw new Error("The AI generation reservation could not be finalized.");
-        makerQuotaSettled=true;
+    const settleAiOperation=async()=>{
+        if(!aiOperationRequestId||!aiOperationMode||!aiOperationReserved||aiOperationSettled)return;
+        const result=await settleAiOperationReservation(env,token,aiOperationRequestId,aiOperationMode);
+        if(result?.ok!==true)throw new Error("The AI operation and CALC reservation could not be finalized.");
+        aiOperationSettled=true;
+        aiOperationReserved=false;
     };
     try{
         if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
@@ -988,45 +979,63 @@ export async function onRequestPost(context){
                 return json({success:false,code:"INVALID_CALCULATOR",error:"This calculator definition cannot be safely improved."},422,origin);
             }
             existingCalculator=current;
-            editRequestId=crypto.randomUUID();
+            aiOperationRequestId=crypto.randomUUID();
+            aiOperationMode="refine";
             let reservation;
             try{
-                reservation=normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_ai_edit",{
-                    p_id:calculatorId,p_request_id:editRequestId
-                }));
+                reservation=await reserveAiOperation(env,token,aiOperationRequestId,"refine",calculatorId);
             }catch(error){
-                console.error("UGC AI edit quota reservation failed:",error);
-                editRequestId="";
-                return json({success:false,code:"EDIT_QUOTA_UNAVAILABLE",error:"The daily AI improvement allowance could not be checked. Please try again later."},503,origin);
+                await refundAiOperation();
+                aiOperationRequestId="";
+                console.error("UGC AI edit and CALC reservation failed:",error);
+                return json({success:false,code:"AI_OPERATION_UNAVAILABLE",error:"The AI improvement allowance and CALC charge could not be authorised. No AI request was sent."},503,origin);
             }
             if(reservation?.ok!==true){
-                editRequestId="";
-                if(reservation?.code==="DAILY_LIMIT"){
+                const code=reservation?.code||"EDIT_QUOTA_UNAVAILABLE";
+                aiOperationRequestId="";
+                if(code==="DAILY_LIMIT"){
                     return json({success:false,code:"DAILY_AI_EDIT_LIMIT",daily_limit:reservation.daily_limit,edits_used:reservation.edits_used,remaining:0,
-                        error:"You have used all your AI improvements for today. Free accounts can improve 2 saved calculators per UTC day, Premium Lite 3 and Premium 4."},429,origin);
+                        error:"You have used all your AI improvements for today. Free accounts can improve 1 saved calculator per UTC day, Premium Lite 2 and Premium 3."},429,origin);
                 }
-                return json({success:false,code:reservation?.code||"EDIT_QUOTA_UNAVAILABLE",error:"The AI improvement could not be reserved. Please try again."},503,origin);
+                if(code==="INSUFFICIENT_CALC"){
+                    const price=Number(reservation.required)||Number(reservation.required_milli)/1000||2;
+                    return json({success:false,code:"INSUFFICIENT_CALC",required:price,plan:reservation.plan||"free",
+                        error:"Not enough CALC. This AI improvement costs "+price+" CALC for your current membership. No AI request was sent."},402,origin);
+                }
+                return json({success:false,code,error:"The AI improvement could not be reserved. Please try again."},code==="GLOBAL_DAILY_LIMIT"?429:503,origin);
             }
+            aiOperationReserved=true;
+            aiBilling={plan:reservation.plan||"free",price:Number(reservation.price)||0,price_milli:Number(reservation.price_milli)||0,owner_exempt:reservation.owner_exempt===true};
         }else{
+            aiOperationRequestId=crypto.randomUUID();
+            aiOperationMode="create";
             let usage;
-            makerRequestId=crypto.randomUUID();
-            try{usage=await reserveMakerGeneration(env,token,makerRequestId);}
+            try{usage=await reserveAiOperation(env,token,aiOperationRequestId,"create",null);}
             catch(error){
-                await refundMakerQuota();
-                console.error("UGC Maker usage reservation failed:",error);
-                return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance could not be checked. Please try again later."},503,origin);
+                await refundAiOperation();
+                aiOperationRequestId="";
+                console.error("UGC Maker generation and CALC reservation failed:",error);
+                return json({success:false,code:"AI_OPERATION_UNAVAILABLE",error:"The AI generation allowance and CALC charge could not be authorised. No AI request was sent."},503,origin);
             }
             if(usage?.ok!==true){
-                makerRequestId="";
-                if(usage?.code==="DAILY_LIMIT"){
+                const code=usage?.code||"USAGE_LIMIT_UNAVAILABLE";
+                aiOperationRequestId="";
+                if(code==="DAILY_LIMIT"){
                     const dailyLimit=Math.max(1,Number(usage.daily_limit)||1);
                     return json({success:false,code:"DAILY_AI_LIMIT",error:"You have used your "+dailyLimit+" AI calculator generation"+(dailyLimit===1?"":"s")+" for today on your current plan. Your allowance resets at 00:00 UTC.",daily_limit:dailyLimit,requests_used:Number(usage.requests_used)||dailyLimit},429,origin);
                 }
-                if(usage?.code==="GLOBAL_DAILY_LIMIT"){
-                    return json({success:false,code:"GLOBAL_DAILY_AI_LIMIT",error:"Worth It has reached its shared limit of 100 successful UGC calculator generations for today. The global allowance resets at 00:00 UTC.",global_daily_limit:100,global_requests_used:Number(usage.global_requests_used)||100},429,origin);
+                if(code==="GLOBAL_DAILY_LIMIT"){
+                    return json({success:false,code:"GLOBAL_DAILY_AI_LIMIT",error:"Worth It has reached its internal AI generation capacity for today. The shared allowance resets at 00:00 UTC.",global_daily_limit:100,global_requests_used:Number(usage.global_requests_used)||100},429,origin);
                 }
-                return json({success:false,code:"USAGE_LIMIT_UNAVAILABLE",error:"The AI calculator creation allowance is temporarily unavailable. Please try again later."},503,origin);
+                if(code==="INSUFFICIENT_CALC"){
+                    const price=Number(usage.required)||Number(usage.required_milli)/1000||2;
+                    return json({success:false,code:"INSUFFICIENT_CALC",required:price,plan:usage.plan||"free",
+                        error:"Not enough CALC. This AI generation costs "+price+" CALC for your current membership. No AI request was sent."},402,origin);
+                }
+                return json({success:false,code,error:"The AI calculator generation could not be reserved. Please try again."},503,origin);
             }
+            aiOperationReserved=true;
+            aiBilling={plan:usage.plan||"free",price:Number(usage.price)||0,price_milli:Number(usage.price_milli)||0,owner_exempt:usage.owner_exempt===true};
         }
 
         const commonRules=[
@@ -1146,7 +1155,7 @@ export async function onRequestPost(context){
         }
         if(!content){
             const makerRefunded=mode==="create"?await refundMakerQuota():false;
-            await refundEditQuota();
+            await refundAiOperation();
             const error=mode==="create"
                 ?(makerRefunded
                     ?"Worth It AI could not complete this request right now. No calculator was changed, and your failed generation attempt was returned to your daily allowance."
@@ -1189,8 +1198,8 @@ export async function onRequestPost(context){
             }
         }
         if(validationError){
-            await refundMakerQuota();
-            await refundEditQuota();
+            await refundAiOperation();
+            await refundAiOperation();
             const invalidJson=validationError instanceof SyntaxError;
             return jsonWithAiUsage({
                 success:false,
@@ -1212,19 +1221,17 @@ export async function onRequestPost(context){
                 sameArray(definition.subcategories,originalSubcategories)&&
                 sameArray(refinedKeys,originalKeys)&&sameArray(refinedLabels,originalLabels);
             if(!identityIsPreserved){
-                await refundEditQuota();
+                await refundAiOperation();
                 return jsonWithAiUsage({success:false,code:"CALCULATOR_IDENTITY_CHANGED",
                     error:"Worth It AI tried to change the calculator's identity. That update was rejected; your saved calculator is unchanged and the AI edit was refunded."},422,origin,aiUsageCollector);
             }
-            let settled;
-            try{settled=normalizeRpcObject(await userRpc(env,token,"settle_worth_it_ugc_ai_edit",{p_request_id:editRequestId}));}
-            catch(error){console.error("Could not settle the UGC AI edit quota:",error);settled=null;}
-            if(settled?.ok!==true){
-                await refundEditQuota();
-                return jsonWithAiUsage({success:false,code:"EDIT_QUOTA_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; please refresh and try again."},503,origin,aiUsageCollector);
+            try{await settleAiOperation();}
+            catch(error){
+                console.error("Could not settle the UGC AI improvement and CALC charge:",error);
+                await refundAiOperation();
+                return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
             }
-            editQuotaSettled=true;
-            return jsonWithAiUsage({success:true,mode:"refine",regionalDefaults,calculator:{
+            return jsonWithAiUsage({success:true,mode:"refine",regionalDefaults,billing:aiBilling,calculator:{
                 title:existingCalculator.title,
                 description:existingCalculator.description||"",
                 category:existingCalculator.category,
@@ -1290,8 +1297,8 @@ export async function onRequestPost(context){
             }
         }
         if(validationError){
-            await refundMakerQuota();
-            await refundEditQuota();
+            await refundAiOperation();
+            await refundAiOperation();
             const invalidJson=validationError instanceof SyntaxError;
             return json({
                 success:false,
@@ -1311,27 +1318,27 @@ export async function onRequestPost(context){
                 attempts:coverageAttempts
             };
             console.warn("UGC calculator coverage diagnostics:",diagnostics);
-            await refundMakerQuota();
+            await refundAiOperation();
             return jsonWithAiUsage({success:false,code:"INCOMPLETE_CALCULATOR",
                 error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included.",
                 diagnostics
             },422,origin,aiUsageCollector);
         }
-        try{await settleMakerQuota();}
+        try{await settleAiOperation();}
         catch(error){
-            console.error("Could not settle the UGC Maker generation quota:",error);
-            await refundMakerQuota();
-            return jsonWithAiUsage({success:false,code:"MAKER_QUOTA_SETTLEMENT_FAILED",error:"The generated calculator could not be finalized. No calculator was changed; please try again later."},503,origin,aiUsageCollector);
+            console.error("Could not settle the UGC Maker generation and CALC charge:",error);
+            await refundAiOperation();
+            return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The generated calculator could not be finalized. No calculator was changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
         }
-        return jsonWithAiUsage({success:true,mode:"create",regionalDefaults,calculator:{
+        return jsonWithAiUsage({success:true,mode:"create",regionalDefaults,billing:aiBilling,calculator:{
             title:String(parsed.title).trim().slice(0,70),
             description:String(parsed.description||"").trim().slice(0,500),
             category:String(parsed.category).toLowerCase(),
             spec:definition
         }},200,origin,aiUsageCollector);
     }catch(error){
-        await refundMakerQuota();
-        await refundEditQuota();
+        await refundAiOperation();
+        await refundAiOperation();
         console.error("UGC calculator request failed:",error);
         return jsonWithAiUsage({success:false,error:"The AI calculator service is temporarily unavailable. Please try again."},503,origin||SITE_ORIGIN,aiUsageCollector);
     }
