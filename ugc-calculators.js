@@ -2371,6 +2371,14 @@ function renderMakerPreview(definition){
   :"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
  if(manual){
+  const assumptionsLabel=document.createElement("label");assumptionsLabel.textContent="Assumptions (optional, up to 5,000 characters)";
+  const assumptionsInput=document.createElement("textarea");assumptionsInput.id="ugcMakerAssumptions";assumptionsInput.maxLength=5000;assumptionsInput.rows=5;
+  assumptionsInput.value=(Array.isArray(definition.spec?.assumptions)?definition.spec.assumptions:[]).join("\n");
+  assumptionsInput.placeholder="Add one assumption per line. These remain separate from the short calculator description.";
+  assumptionsInput.addEventListener("input",()=>{definition.spec.assumptions=assumptionsInput.value.split(/\r?\n/).map(item=>item.trim()).filter(Boolean);refreshMakerValidationNote();});
+  assumptionsLabel.appendChild(assumptionsInput);host.appendChild(assumptionsLabel);
+ }
+ if(manual){
   const categoryLabel=document.createElement("label");categoryLabel.className="ugc-maker-category-field";categoryLabel.appendChild(text("span","","Primary category"));
   const categorySelect=document.createElement("select");categorySelect.id="ugcManualCategory";
   [["cars","Cars"],["money","Money"],["technology","Technology"],["home","Home"],["other","Other"]].forEach(([value,label])=>{
@@ -2643,7 +2651,12 @@ async function saveMakerDraft(publish){
  if(!state.editingId&&(description.length<24||description.length>500)){
   makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
  }
- const specToSave={...state.aiDraft.spec};\n if(state.creationSource==="manual"){\n  const assumptionsText=String($("ugcMakerAssumptions")?.value||"");\n  if(assumptionsText.length>5000){makerStatus("Assumptions can contain up to 5,000 characters.","error");return;}\n  specToSave.assumptions=assumptionsText.split(/\\r?\\n/).map(item=>item.trim()).filter(Boolean);\n }
+ const specToSave={...state.aiDraft.spec};
+ if(state.creationSource==="manual"){
+  const assumptionsText=String($("ugcMakerAssumptions")?.value||"");
+  if(assumptionsText.length>5000){makerStatus("Assumptions can contain up to 5,000 characters.","error");return;}
+  specToSave.assumptions=assumptionsText.split(/\r?\n/).map(item=>item.trim()).filter(Boolean);
+ }
  specToSave.results=(Array.isArray(specToSave.results)?specToSave.results:[]).map(item=>{
   const normalized={
    ...item,
