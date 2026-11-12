@@ -1822,3 +1822,26 @@ body.ugc-maker-open{overflow:hidden}
   text-align:left;
  }
 }
+
+
+/* Manual UGC builder and transparent AI billing notice. */
+.ugc-maker-ai-cost-note{
+ margin:10px 0;padding:10px 12px;border:1px solid rgba(220,70,70,.28);
+ border-left:3px solid #dc4646;border-radius:9px;
+ background:rgba(220,70,70,.065);color:#d64545;font-size:12px;font-weight:800;line-height:1.5;
+}
+.ugc-manual-controls{
+ margin:12px 0;padding:13px;border:1px solid var(--border);border-radius:14px;
+ background:var(--surface-soft);
+}
+.ugc-manual-controls[hidden]{display:none!important}
+.ugc-manual-controls>label{display:flex;flex-direction:column;gap:6px}
+.ugc-manual-controls .ugc-maker-status{margin:8px 0 10px}
+.ugc-manual-controls #ugcManualAiImproveButton[hidden]{display:none!important}
+.ugc-maker-category-field{max-width:340px}
+.ugc-manual-remove{
+ align-self:end;justify-self:start;border:1px solid rgba(220,70,70,.25);
+ border-radius:9px;padding:8px 10px;background:rgba(220,70,70,.07);
+ color:var(--danger);font-size:10px;font-weight:800;cursor:pointer;
+}
+.ugc-manual-remove:disabled{opacity:.4;cursor:not-allowed}

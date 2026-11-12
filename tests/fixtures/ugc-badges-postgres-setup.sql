@@ -20,6 +20,17 @@ stable
 as $function$
     select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
 $function$;
+
+create or replace function auth.jwt()
+returns jsonb
+language sql
+stable
+as $function$
+    select jsonb_build_object(
+        'sub',auth.uid()::text,
+        'email',(select email from auth.users where id=auth.uid())
+    );
+$function$;
 grant usage on schema auth to authenticated, anon, service_role;
 grant execute on function auth.uid() to public;
 
@@ -130,3 +141,58 @@ end;
 $function$;
 revoke all on function public.calc_wallet_settle(uuid) from public, anon;
 grant execute on function public.calc_wallet_settle(uuid) to authenticated;
+
+create or replace function public.calc_wallet_summary()
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, private, auth
+as $function$
+begin
+    if auth.uid() is null then raise exception 'Authentication required.' using errcode='28000'; end if;
+    insert into private.worth_it_calc_wallets(user_id)
+    values(auth.uid()) on conflict(user_id) do nothing;
+    return jsonb_build_object('ok',true,'fixture',true);
+end;
+$function$;
+
+create or replace function public.calc_wallet_refund(p_request_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, private, auth
+as $function$
+declare
+    v_tx private.worth_it_calc_transactions%rowtype;
+    v_wallet private.worth_it_calc_wallets%rowtype;
+    v_refund integer;
+begin
+    if auth.uid() is null then raise exception 'Authentication required.' using errcode='28000'; end if;
+    select * into v_wallet from private.worth_it_calc_wallets
+     where user_id=auth.uid() for update;
+    if not found then return jsonb_build_object('ok',false,'code','WALLET_NOT_FOUND'); end if;
+    select * into v_tx from private.worth_it_calc_transactions
+     where user_id=auth.uid() and request_id=p_request_id for update;
+    if not found then return jsonb_build_object('ok',false,'code','RESERVATION_NOT_FOUND'); end if;
+    if v_tx.status='refunded' then return jsonb_build_object('ok',true,'duplicate',true,'status','refunded'); end if;
+    if v_tx.status<>'reserved' then return jsonb_build_object('ok',false,'code','RESERVATION_ALREADY_SETTLED'); end if;
+    update private.worth_it_calc_transactions set status='refunded' where id=v_tx.id;
+    v_refund:=greatest(0,-v_tx.amount_milli);
+    if v_refund>0 then
+        update private.worth_it_calc_wallets
+           set balance_milli=balance_milli+v_refund,updated_at=now()
+         where user_id=auth.uid() returning * into v_wallet;
+        insert into private.worth_it_calc_transactions(
+            user_id,kind,currency,amount_milli,balance_after_milli,status,description,metadata
+        ) values(auth.uid(),'refund','CALC',v_refund,v_wallet.balance_milli,'completed',
+            'Fixture refund for an unsuccessful operation',
+            jsonb_build_object('original_transaction_id',v_tx.id,'original_request_id',p_request_id));
+    end if;
+    return jsonb_build_object('ok',true,'status','refunded','balance_milli',v_wallet.balance_milli);
+end;
+$function$;
+
+revoke all on function public.calc_wallet_summary() from public,anon;
+revoke all on function public.calc_wallet_refund(uuid) from public,anon;
+grant execute on function public.calc_wallet_summary() to authenticated;
+grant execute on function public.calc_wallet_refund(uuid) to authenticated;
