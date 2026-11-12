@@ -2269,6 +2269,26 @@ test("Creator leaderboard SQL ranks only public profiles and separates non-creat
 });
 
 
+test("Community Discovery places its heading on the left and back button on the right", () => {
+    const headerStart=html.indexOf('<header class="ugc-discovery-page-header">');
+    const headerEnd=html.indexOf("</header>",headerStart);
+    assert.ok(headerStart>=0&&headerEnd>headerStart);
+    const header=html.slice(headerStart,headerEnd);
+    assert.ok(header.indexOf('class="ugc-discovery-page-heading"')<header.indexOf('id="ugcBackToUgcButton"'));
+    assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto/);
+    assert.match(css,/\.ugc-discovery-back-button\s*\{[^}]*justify-self:end/s);
+    assert.match(css,/\.ugc-discovery-page-header\{grid-template-columns:minmax\(0,1fr\)/);
+});
+
+test("Manual Builder footer clearly separates manual saves from AI quotas and refunds", () => {
+    assert.match(html,/There is no lifetime limit on saved community calculators/);
+    assert.match(html,/Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3/);
+    assert.match(html,/AI-generated calculators do not use it/);
+    assert.match(html,/AI generation and AI improvement each have separate daily limits/);
+    assert.match(html,/failed AI operations refund both the CALC and the daily AI allowance/);
+    assert.match(html,/arbitrary JavaScript is never executed/);
+});
+
 test("Community Discovery is a separate slide with 100 ranked profiles and responsive scroll windows", () => {
     const communityStart = html.indexOf('id="ugcCommunitySection"');
     const discoveryStart = html.indexOf('id="ugcCommunityDiscoverySection"');
