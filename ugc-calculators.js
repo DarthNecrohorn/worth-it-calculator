@@ -2422,7 +2422,8 @@ function importManualBlueprint(){
  try{
   const importer=window.WorthItBlueprintImport;
   if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
-  const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec));
+  const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
+  const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec),originalRequest);
   const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,5):[];
   delete definition.importNotes;
   if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published."))return;
