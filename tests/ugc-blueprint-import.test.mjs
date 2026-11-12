@@ -141,6 +141,30 @@ test("validates dropdown choice uniqueness and bounds",()=>{
  assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/unique labels and numeric values/);
 });
 
+test("normalizes optional zero-value groups to the Manual Builder minimum of one row",()=>{
+ const importer=getImporter();
+ const candidate=blueprint();
+ candidate.spec.groups[0].minItems=0;
+ candidate.spec.groups[0].fields[0].default=0;
+ let validatedSpec;
+ const result=importer.parseBlueprint(JSON.stringify(candidate),spec=>{validatedSpec=plain(spec);return{errors:[]};});
+ assert.equal(result.spec.groups[0].minItems,1);
+ assert.equal(validatedSpec.groups[0].minItems,1);
+ assert.match(result.importNotes[0],/changed minItems from 0 to 1/);
+});
+
+test("does not normalize zero-row groups when a placeholder would add a nonzero amount",()=>{
+ const importer=getImporter();
+ const candidate=blueprint();
+ candidate.spec.groups[0].minItems=0;
+ candidate.spec.groups[0].fields[0].default=100;
+ assert.throws(
+  ()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),
+  /cannot start with zero rows unless every field defaults to zero/
+ );
+});
+
+
 test("generates copyable instructions for an external AI and contains no request operation",()=>{
  const importer=getImporter();
  const prompt=importer.buildPrompt();
@@ -156,6 +180,13 @@ test("generates copyable instructions for an external AI and contains no request
  assert.match(prompt,/plain asterisk \* with no preceding backslash/);
  assert.match(prompt,/Do not HTML-encode spaces/);
  assert.match(prompt,/maximums align with steps/);
+ assert.match(prompt,/Provider-neutral requirement/);
+ assert.match(prompt,/NEVER set minItems to 0/);
+ assert.match(prompt,/emergency_target_months is a unitless numeric multiplier/);
+ assert.match(prompt,/format unit and unit EUR\/month/);
+ assert.match(prompt,/format unit with unit EUR\/day/);
+ assert.match(prompt,/budget_month_days/);
+ assert.match(prompt,/Include all twenty results/);
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
