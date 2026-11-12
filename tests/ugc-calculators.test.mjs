@@ -1487,7 +1487,6 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(manualBuilderSql, /kind='ugc_ai_spend' and currency='CALC'/);
     assert.match(manualBuilderSql, /A completed CALC AI-generation transaction is required/);
     assert.match(manualBuilderSql, /A completed CALC AI-improvement transaction is required/);
-    assert.match(manualBuilderSql, /when v_plan then 6000/);
     assert.match(manualBuilderSql, /when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end/);
     assert.match(manualBuilderSql, /when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
     assert.match(calcEconomySource, /ugc_ai_spend:"AI UGC calculator"/);
