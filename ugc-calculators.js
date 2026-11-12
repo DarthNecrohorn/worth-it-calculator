@@ -1873,7 +1873,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"hourly_rate",label:"Hourly pay",min:0,max:1000000,default:15,step:0.01,unit:"EUR/hour"},
    {key:"hours_per_week",label:"Working hours per week",min:0,max:168,default:40,step:0.5,unit:"hours"},
-   {key:"weeks_per_year",label:"Working weeks per year",min:0,max:52,default:48,step:0.5,unit:"units"}
+   {key:"weeks_per_year",label:"Working weeks per year",min:0,max:52,default:48,step:0.5,unit:"periods"}
   ],
   results:[
    {label:"Estimated weekly gross pay",expression:"hourly_rate * hours_per_week",format:"currency",currency:"EUR"},
