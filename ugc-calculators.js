@@ -425,19 +425,24 @@ async function loadCatalog(){
 function compileExpression(source,keys){
  const input=String(source||"");let at=0;
  const fail=()=>{throw new Error("This calculator contains an invalid formula.");};
- const ws=()=>{while(at<input.length&&/\s/.test(input[at]))at++;};
+ const ws=()=>{while(at<input.length&&/\\s/.test(input[at]))at++;};
  const take=value=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
  const identifier=()=>{ws();const m=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);if(!m)return null;at+=m[0].length;return m[0];};
+ const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan"]);
  function primary(){
   ws();
   if(take("(")){const node=add();if(!take(")"))fail();return node;}
-  const m=input.slice(at).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i);
+  const m=input.slice(at).match(/^(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?/i);
   if(m){at+=m[0].length;const value=Number(m[0]);if(!Number.isFinite(value))fail();return{type:"number",value};}
   const name=identifier();if(!name)fail();
   if(take("(")){
-   if(!["min","max","abs","round","floor","ceil","sqrt","pow"].includes(name))fail();
+   if(!functions.has(name))fail();
    const args=[];if(!take(")")){do{args.push(add());}while(take(","));if(!take(")"))fail();}
-   const valid=name==="min"||name==="max"?args.length>=1:name==="pow"?args.length===2:name==="round"?args.length>=1&&args.length<=2:args.length===1;
+   const valid=name==="min"||name==="max"||name==="avg"?args.length>=1
+    :name==="pow"||name==="mod"?args.length===2
+    :name==="clamp"||name==="hypot"?args.length===3&&name==="clamp"||args.length>=2&&args.length<=8&&name==="hypot"
+    :name==="round"||name==="log"?args.length>=1&&args.length<=2
+    :args.length===1;
    if(!valid)fail();return{type:"call",name,args};
   }
   if(name==="pi")return{type:"number",value:Math.PI};
@@ -460,9 +465,126 @@ function evaluate(ast,values){
   if(ast.op==="+")n=a+b;else if(ast.op==="-")n=a-b;else if(ast.op==="*")n=a*b;else if(ast.op==="/"){if(b===0)throw new Error("A formula divides by zero. Change your inputs.");n=a/b;}else n=Math.pow(a,b);
  }else{
   const a=ast.args.map(x=>evaluate(x,values));
-  if(ast.name==="min")n=Math.min(...a);else if(ast.name==="max")n=Math.max(...a);else if(ast.name==="abs")n=Math.abs(a[0]);else if(ast.name==="round")n=a.length===1?Math.round(a[0]):Number(a[0].toFixed(Math.max(0,Math.min(8,Math.floor(a[1])))));else if(ast.name==="floor")n=Math.floor(a[0]);else if(ast.name==="ceil")n=Math.ceil(a[0]);else if(ast.name==="sqrt"){if(a[0]<0)throw new Error("Square root is invalid for these values.");n=Math.sqrt(a[0]);}else n=Math.pow(a[0],a[1]);
+  if(ast.name==="min")n=Math.min(...a);
+  else if(ast.name==="max")n=Math.max(...a);
+  else if(ast.name==="avg")n=a.reduce((sum,value)=>sum+value,0)/a.length;
+  else if(ast.name==="abs")n=Math.abs(a[0]);
+  else if(ast.name==="round")n=a.length===1?Math.round(a[0]):Number(a[0].toFixed(Math.max(0,Math.min(8,Math.floor(a[1])))));
+  else if(ast.name==="floor")n=Math.floor(a[0]);
+  else if(ast.name==="ceil")n=Math.ceil(a[0]);
+  else if(ast.name==="trunc")n=Math.trunc(a[0]);
+  else if(ast.name==="sign")n=Math.sign(a[0]);
+  else if(ast.name==="clamp"){if(a[1]>a[2])throw new Error("Clamp minimum cannot be greater than its maximum.");n=Math.min(a[2],Math.max(a[1],a[0]));}
+  else if(ast.name==="mod"){if(a[1]===0)throw new Error("A formula cannot calculate a remainder by zero.");n=a[0]%a[1];}
+  else if(ast.name==="hypot")n=Math.hypot(...a);
+  else if(ast.name==="sqrt"){if(a[0]<0)throw new Error("Square root is invalid for these values.");n=Math.sqrt(a[0]);}
+  else if(ast.name==="pow")n=Math.pow(a[0],a[1]);
+  else if(ast.name==="log")n=a.length===1?Math.log10(a[0]):Math.log(a[0])/Math.log(a[1]);
+  else if(ast.name==="ln")n=Math.log(a[0]);
+  else if(ast.name==="exp")n=Math.exp(a[0]);
+  else if(ast.name==="sin")n=Math.sin(a[0]);
+  else if(ast.name==="cos")n=Math.cos(a[0]);
+  else if(ast.name==="tan")n=Math.tan(a[0]);
+  else if(ast.name==="asin")n=Math.asin(a[0]);
+  else if(ast.name==="acos")n=Math.acos(a[0]);
+  else n=Math.atan(a[0]);
  }
  if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result. Check your inputs.");return n;
+}
+function unitDescriptor(unit){
+ const raw=String(unit||"").trim();
+ const key=raw.toLowerCase().replace(/\\s+/g," ");
+ if(!raw)return{exact:"",vector:{},opaque:false};
+ if(/^[A-Z]{3}$/.test(raw))return{exact:raw,vector:{["currency:"+raw]:1},opaque:false};
+ const known={
+  "%":{},
+  months:{time:1},month:{time:1},years:{time:1},year:{time:1},days:{time:1},day:{time:1},weeks:{time:1},week:{time:1},hours:{time:1},hour:{time:1},minutes:{time:1},minute:{time:1},seconds:{time:1},second:{time:1},
+  km:{length:1},kilometres:{length:1},kilometers:{length:1},miles:{length:1},mile:{length:1},m:{length:1},cm:{length:1},mm:{length:1},
+  "m²":{area:1},"m2":{area:1},"ft²":{area:1},
+  l:{volume:1},litres:{volume:1},liters:{volume:1},"m³":{volume:1},"m3":{volume:1},ml:{volume:1},
+  kg:{mass:1},kilograms:{mass:1},g:{mass:1},grams:{mass:1},tonnes:{mass:1},
+  kwh:{energy:1},mwh:{energy:1},mj:{energy:1},w:{power:1},kw:{power:1},
+  "l/100 km":{volume:1,length:-1},
+  "eur/kwh":{"currency:EUR":1,energy:-1},"usd/kwh":{"currency:USD":1,energy:-1},"rsd/kwh":{"currency:RSD":1,energy:-1},
+  "eur/l":{"currency:EUR":1,volume:-1},"usd/l":{"currency:USD":1,volume:-1},"rsd/l":{"currency:RSD":1,volume:-1},
+  "eur/m³":{"currency:EUR":1,volume:-1},"eur/m3":{"currency:EUR":1,volume:-1},
+  "eur/hour":{"currency:EUR":1,time:-1},"usd/hour":{"currency:USD":1,time:-1},
+  "eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
+ };
+ if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
+ if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{},opaque:false};
+ return{exact:raw,vector:{["unit:"+key]:1},opaque:true};
+}
+function combineUnitDescriptors(left,right,sign){
+ const vector={...left.vector};
+ Object.entries(right.vector).forEach(([key,value])=>{vector[key]=(vector[key]||0)+value*sign;if(Math.abs(vector[key])<1e-10)delete vector[key];});
+ return{exact:"",vector,opaque:left.opaque||right.opaque};
+}
+function sameUnitDescriptor(left,right){
+ return left.exact===right.exact;
+}
+function constantFormulaValue(ast){
+ if(ast.type==="number")return ast.value;
+ if(ast.type==="unary"){const value=constantFormulaValue(ast.value);return value===null?null:ast.op==="-"?-value:value;}
+ return null;
+}
+function analyseFormulaUnit(ast,inputs){
+ if(ast.type==="number")return unitDescriptor("");
+ if(ast.type==="variable"){
+  const input=inputs.find(item=>item.key===ast.name);
+  if(!input)throw new Error("Unknown input in formula.");
+  return unitDescriptor(input.unit);
+ }
+ if(ast.type==="unary")return analyseFormulaUnit(ast.value,inputs);
+ if(ast.type==="binary"){
+  const left=analyseFormulaUnit(ast.left,inputs),right=analyseFormulaUnit(ast.right,inputs);
+  if(ast.op==="+"||ast.op==="-"){
+   if(!sameUnitDescriptor(left,right))throw new Error("Addition and subtraction require matching units. Check both sides of this formula.");
+   return left;
+  }
+  if(ast.op==="*")return combineUnitDescriptors(left,right,1);
+  if(ast.op==="/")return combineUnitDescriptors(left,right,-1);
+  const power=constantFormulaValue(ast.right);
+  if(power===null&&!Object.keys(left.vector).length)return unitDescriptor("");
+  if(power===null)throw new Error("A dimensional value must use a fixed numeric power.");
+  const vector={};Object.entries(left.vector).forEach(([key,value])=>{const result=value*power;if(Math.abs(result)>1e-10)vector[key]=result;});
+  return{exact:"",vector,opaque:left.opaque};
+ }
+ const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs));
+ const sameArgs=()=>{if(args.some(item=>!sameUnitDescriptor(item,args[0])))throw new Error(ast.name+"() requires arguments with matching units.");return args[0];};
+ if(["min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
+ if(["abs","round","floor","ceil","trunc"].includes(ast.name))return args[0];
+ if(ast.name==="sign")return unitDescriptor("");
+ if(ast.name==="sqrt"){
+  const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(Math.abs(value/2-Math.round(value/2))>1e-9)throw new Error("Square root requires even unit powers.");if(value/2)vector[key]=value/2;});
+  return{exact:"",vector,opaque:args[0].opaque};
+ }
+ if(ast.name==="pow"){
+  const power=constantFormulaValue(ast[1]);
+  if(power===null)throw new Error("Power exponent must be a fixed numeric value.");
+  const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(value*power)vector[key]=value*power;});
+  return{exact:"",vector,opaque:args[0].opaque};
+ }
+ if(["log","ln","exp","sin","cos","tan","asin","acos","atan"].includes(ast.name)){
+  if(Object.keys(args[0].vector).length)throw new Error(ast.name+"() requires a dimensionless input.");
+  return unitDescriptor("");
+ }
+ return unitDescriptor("");
+}
+function unitVectorKey(unit){
+ return Object.entries(unit.vector).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>key+"^"+Number(value.toFixed(6))).join("*");
+}
+function validateFormulaResultUnit(result,unit){
+ const format=String(result.format||"number");
+ if(format==="currency"){
+  const expected=String(result.currency||"").trim().toUpperCase();
+  const actual=Object.keys(unit.vector);
+  if(actual.length!==1||actual[0]!=="currency:"+expected||Math.abs(unit.vector[actual[0]]-1)>1e-9){
+   throw new Error("The formula's units do not match the selected "+expected+" result currency. Check the input units and conversion assumptions.");
+  }
+ }else if(format==="percent"&&Object.keys(unit.vector).length){
+  throw new Error("A percent result must be dimensionless. Divide by the relevant base value and multiply by 100.");
+ }
 }
 function validateMakerSpec(spec){
  const errors=[];
