@@ -15,8 +15,10 @@ const profile = read("profile-ui.js");
 const chat = read("chat-ui.js");
 const community = read("community-features.js");
 const economy = read("calc-economy.js");
+const calcEconomySource = economy;
 const sql = read("supabase/worth-it-ugc-badges.sql");
 const makerQuotaSql = read("supabase/worth-it-ugc-maker-generation-refunds.sql");
+const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
@@ -1458,6 +1460,39 @@ test("Subscriptions explain Free, Premium Lite and Premium UGC quotas without se
     assert.match(panel, /3 new manually created \(non-AI\) UGC calculators saved per UTC day/);
     assert.match(panel, /AI generation costs 6 CALC per successful operation/);
     assert.doesNotMatch(panel, /100 successful new UGC calculator generations per UTC day/);
+});
+
+
+test("Manual UGC Builder, separate save quota and paid AI operations are secured", () => {
+    assert.match(html, /id="ugcCreateManualButton"/);
+    assert.match(html, /id="ugcManualMode"/);
+    assert.match(html, /id="ugcManualTemplate"/);
+    assert.match(html, /id="ugcManualAiImproveButton"/);
+    assert.match(maker, /const MANUAL_TEMPLATES=/);
+    assert.match(maker, /"simple-cost"/);
+    assert.match(maker, /"electricity-cost"/);
+    assert.match(maker, /"fuel-cost"/);
+    assert.match(maker, /"savings-total"/);
+    assert.match(maker, /function editCalculatorManually/);
+    assert.match(maker, /function switchManualDraftToAI/);
+    assert.match(maker, /p_source:state.creationSource==="manual"\?"manual":"ai"/);
+    assert.match(maker, /p_ai_request_id:state.creationSource==="manual"\?null:state.aiOperationId/);
+    assert.match(makerApi, /reserve_worth_it_ugc_ai_operation/);
+    assert.match(makerApi, /settle_worth_it_ugc_ai_operation/);
+    assert.match(makerApi, /refund_worth_it_ugc_ai_operation/);
+    assert.match(makerApi, /operation_id:aiOperationRequestId/);
+    assert.match(manualBuilderSql, /private\.worth_it_ugc_manual_daily_usage/);
+    assert.match(manualBuilderSql, /manual_non_ai_saves/);
+    assert.match(manualBuilderSql, /definition_hash/);
+    assert.match(manualBuilderSql, /kind='ugc_ai_spend' and currency='CALC'/);
+    assert.match(manualBuilderSql, /A completed CALC AI-generation transaction is required/);
+    assert.match(manualBuilderSql, /A completed CALC AI-improvement transaction is required/);
+    assert.match(manualBuilderSql, /when v_plan then 6000/);
+    assert.match(manualBuilderSql, /when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end/);
+    assert.match(manualBuilderSql, /when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
+    assert.match(calcEconomySource, /ugc_ai_spend:"AI UGC calculator"/);
+    assert.match(paginationFixture, /ugc_manual_ai_billing/);
+    assert.match(workflow, /supabase\/worth-it-ugc-manual-builder-ai-costs\.sql/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
