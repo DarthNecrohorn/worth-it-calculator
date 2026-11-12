@@ -109,6 +109,8 @@ begin
                or char_length(coalesce(v_group->>'itemLabel','Item')) > 40
                or coalesce(jsonb_typeof(v_group->'minItems'),'number') <> 'number'
                or coalesce(jsonb_typeof(v_group->'maxItems'),'number') <> 'number'
+               or coalesce((v_group->>'minItems')::numeric,1) <> trunc(coalesce((v_group->>'minItems')::numeric,1))
+               or coalesce((v_group->>'maxItems')::numeric,10) <> trunc(coalesce((v_group->>'maxItems')::numeric,10))
                or coalesce((v_group->>'minItems')::integer,1) < 1
                or coalesce((v_group->>'maxItems')::integer,10) < coalesce((v_group->>'minItems')::integer,1)
                or coalesce((v_group->>'maxItems')::integer,10) > 20
