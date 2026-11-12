@@ -100,6 +100,7 @@ function normalizeBlueprint(source,validateSpec){
   if(control==="toggle"&&(normalized.min!==0||normalized.max!==1||normalized.step!==1||![0,1].includes(normalized.default)))fail(label+" toggle values must use min 0, max 1, step 1 and default 0 or 1.");
   return normalized;
  });
+ const compatibilityNotes=[];
  const rawGroups=specSource.groups===undefined?[]:requireArray(specSource.groups,"Dynamic groups",4);
  const groups=rawGroups.map((raw,index)=>{
   const label="Dynamic group "+(index+1),group=requireObject(raw,label);
@@ -119,11 +120,17 @@ function normalizeBlueprint(source,validateSpec){
     unit:field.unit===undefined?"":requireString(field.unit,fieldLabel+" unit",0,16)
    };
   });
+  let minItems=group.minItems===undefined?1:requireNumber(group.minItems,label+" minimum rows");
+  if(minItems===0){
+   if(!fields.every(field=>field.default===0))fail(label+" cannot start with zero rows unless every field defaults to zero. The Manual Builder requires at least one row; use a zero-value placeholder row.");
+   minItems=1;
+   compatibilityNotes.push(label+": changed minItems from 0 to 1 because the Manual Builder requires one row. Its default values are all zero, so the placeholder does not change the calculation.");
+  }
   return{
    key:requireString(group.key,label+" key",1,32),
    label:requireString(group.label,label+" label",2,60),
    itemLabel:group.itemLabel===undefined?"Item":requireString(group.itemLabel,label+" row label",1,40),
-   minItems:group.minItems===undefined?1:requireNumber(group.minItems,label+" minimum rows"),
+   minItems,
    maxItems:group.maxItems===undefined?10:requireNumber(group.maxItems,label+" maximum rows"),
    fields
   };
@@ -178,6 +185,7 @@ function normalizeBlueprint(source,validateSpec){
  }
  const spec={subcategories,inputs,groups,results,scenarios,assumptions};
  const definition={title,description,category,spec};
+ if(compatibilityNotes.length)definition.importNotes=compatibilityNotes;
  if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
  const validation=validateSpec(spec);
  const errors=Array.isArray(validation?.errors)?validation.errors:[];
