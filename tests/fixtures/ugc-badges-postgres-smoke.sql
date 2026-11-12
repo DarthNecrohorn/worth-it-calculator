@@ -1557,7 +1557,7 @@ begin
     blocked:=false;
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Recycled AI generation',v_description,'money',v_spec,'ai',v_request
+            null,'Free AI calculator',v_description,'money',v_spec,'ai',v_request
         );
     exception when raise_exception then blocked:=true;
     end;
