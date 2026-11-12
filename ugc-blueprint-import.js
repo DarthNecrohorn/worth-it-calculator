@@ -11,7 +11,7 @@ const FIELD_KEYS=new Set(["key","label","min","max","default","step","unit"]);
 const RESULT_KEYS=new Set(["key","label","expression","format","currency","unit","prefix","suffix","explanation"]);
 const SCENARIO_KEYS=new Set(["key","label","values"]);
 const CHOICE_KEYS=new Set(["label","value"]);
-const SPEC_KEYS=new Set(["subcategories","inputs","groups","results","scenarios"]);
+const SPEC_KEYS=new Set(["subcategories","inputs","groups","results","scenarios"]);\nconst MAX_ASSUMPTIONS_CHARS=5000;
 
 function fail(message){throw new Error(message);}
 function isObject(value){return value!==null&&typeof value==="object"&&!Array.isArray(value);}
@@ -172,7 +172,7 @@ function normalizeBlueprint(source,validateSpec){
  });
  let assumptions=[];
  if(rootValue.assumptions!==undefined){
-  assumptions=requireArray(rootValue.assumptions,"Assumptions",10).map((item,index)=>requireString(item,"Assumption "+(index+1),1,180));
+  assumptions=requireArray(rootValue.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,1000));\n  if(assumptions.join("\\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
  }
  if(assumptions.length){
   const suffix="\n\nAssumptions: "+assumptions.join("; ");
@@ -218,9 +218,9 @@ function buildPrompt(){
   "Keep units compatible. Addition/subtraction and comparisons require matching units. Currency codes are distinct units; never convert currencies or invent exchange rates. Any conversion must be an explicit numeric input/formula in one consistent target unit.",
   "Use finite numeric defaults, sensible min/max/step, and formulas that work at both default and boundary values. Keep formulas deterministic and bounded.",
   "Do not include unknown keys, custom components, code, HTML, URLs, file references, arbitrary functions, loops, recursion, callbacks or network access.",
-  "Assumptions are optional plain-text strings. If uncertain, state the uncertainty in assumptions rather than inventing data.",
+  "Assumptions are optional plain-text strings, up to 5,000 characters total. Keep them separate from the short 24–500 character description. If uncertain, state the uncertainty in assumptions rather than inventing data.",
   "Calculator request: [REPLACE THIS PLACEHOLDER WITH THE CALCULATOR YOU WANT TO BUILD]."
  ].join("\n\n");
 }
-root.WorthItBlueprintImport=Object.freeze({parseBlueprint,buildPrompt,MAX_BLUEPRINT_CHARS});
+root.WorthItBlueprintImport=Object.freeze({parseBlueprint,buildPrompt,MAX_BLUEPRINT_CHARS,MAX_ASSUMPTIONS_CHARS});
 })(typeof window!=="undefined"?window:globalThis);
