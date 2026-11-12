@@ -2149,7 +2149,8 @@ test("Mobile header uses two aligned rows with economy controls below the logo",
 
 test("UGC save rejects incomplete custom ISO currency codes before the server write", () => {
     const saveFunction = maker.slice(maker.indexOf("async function saveMakerDraft(publish)"), maker.indexOf("function setExploreInitialView"));
-    assert.match(saveFunction, /invalidCurrency=\(state\.aiDraft\.spec\?\.results\|\|\[\]\)\.find\(item=>item\.format==="currency"&&!\/\^\[A-Z\]\{3\}\$\//);
+    assert.match(saveFunction, /invalidCurrency=\(specToSave\.results\|\|\[\]\)\.find\(item=>item\.format==="currency"&&!\/\^\[A-Z\]\{3\}\$\//);
+    assert.match(saveFunction, /ensureResultCurrency\(normalized,state\.regionalDefaults\?\.currency\|\|"EUR"\)/);
     assert.match(saveFunction, /valid three-letter ISO 4217 currency code/);
     assert.ok(saveFunction.indexOf("invalidCurrency") < saveFunction.indexOf("sb().rpc(\"save_worth_it_ugc_calculator\""));
 });
