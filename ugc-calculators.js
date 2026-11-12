@@ -2326,7 +2326,9 @@ function renderMakerPreview(definition){
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
- const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · dimensional unit checks and a restricted formula language");
+ const summary=text("p","ugc-maker-schema-summary",manual
+  ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · dimensional unit checks and a restricted formula language"
+  :(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · restricted formula language");
  host.appendChild(summary);
  if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
@@ -2445,8 +2447,26 @@ function renderMakerPreview(definition){
    label.appendChild(input);grid.appendChild(label);return input;
   };
   if(manual&&!item.key)item.key="result_"+(index+1);
-  const resultKeyInput=addInput("Result variable key","text",item.key||"",value=>{item.key=String(value).trim().slice(0,32);});
-  resultKeyInput.maxLength=32;resultKeyInput.pattern="[a-z][a-z0-9_]{0,31}";resultKeyInput.hidden=!manual;
+  const originalResultKey=String(item.key||"");
+  const resultKeyInput=addInput("Result variable key","text",originalResultKey,()=>{});
+  resultKeyInput.maxLength=32;resultKeyInput.pattern="[a-z][a-z0-9_]{0,31}";resultKeyInput.required=true;resultKeyInput.hidden=!manual;
+  resultKeyInput.addEventListener("change",()=>{
+   const oldKey=String(item.key||""),nextKey=String(resultKeyInput.value||"").trim();
+   const collision=definition.spec.inputs.some(input=>input.key===nextKey)
+    ||definition.spec.results.some((other,otherIndex)=>otherIndex!==index&&other.key===nextKey)
+    ||(definition.spec.groups||[]).some(group=>group.key===nextKey||(group.fields||[]).some(field=>field.key===nextKey));
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(nextKey)||collision){
+    resultKeyInput.value=oldKey||originalResultKey;
+    makerStatus("Result variable keys must be unique lowercase names and cannot reuse an input or dynamic group key.","error");return;
+   }
+   if(oldKey!==nextKey){
+    const pattern=new RegExp("\\b"+oldKey+"\\b","g");
+    definition.spec.results.forEach((later,laterIndex)=>{
+     if(laterIndex>index)later.expression=String(later.expression||"").replace(pattern,nextKey);
+    });
+    item.key=nextKey;renderMakerPreview(definition);
+   }
+  });
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
   const formulaInput=addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
   formulaInput.placeholder="Use input keys and earlier result keys; e.g. subtotal * tax_rate / 100 or sum(expenses.amount).";
