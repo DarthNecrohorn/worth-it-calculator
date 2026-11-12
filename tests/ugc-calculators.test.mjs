@@ -1569,6 +1569,13 @@ test("UGC formula engine supports extended math and checks physical and currency
     assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"currency",currency:"EUR"},costUnit));
     assert.throws(()=>engine.validateFormulaResultUnit({format:"currency",currency:"USD"},costUnit),/dimensions|units|currency/i);
 
+    const conditionalAst=engine.compileExpression("if(gt(energy, 10), energy, 0)",new Set(["energy"]));
+    const conditionalUnit=engine.analyseFormulaUnit(conditionalAst,[{key:"energy",unit:"kWh"}]);
+    assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"unit",unit:"kWh"},conditionalUnit));
+    const thresholdAst=engine.compileExpression("min(energy, 500)",new Set(["energy"]));
+    const thresholdUnit=engine.analyseFormulaUnit(thresholdAst,[{key:"energy",unit:"kWh"}]);
+    assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"unit",unit:"kWh"},thresholdUnit));
+
     const velocityAst=engine.compileExpression("distance / hours",new Set(["distance","hours"]));
     const velocityUnit=engine.analyseFormulaUnit(velocityAst,[{key:"distance",unit:"km"},{key:"hours",unit:"hours"}]);
     assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"unit",unit:"km/h"},velocityUnit));
@@ -1663,6 +1670,7 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
     assert.doesNotMatch(maker, /new\s+Function\s*\(/);
     assert.match(sql, /private\.worth_it_validate_ugc_spec/);
     assert.match(sql, /formula contains an unsupported variable or function/i);
+    assert.match(sql, /'if','gt','gte','lt','lte','eq','neq','and','or','not'/);
     assert.match(sql, /private\.worth_it_ugc_maker_daily_usage/);
     assert.match(sql, /requests_used\s*<\s*v_limit/);
     assert.match(sql, /v_limit := case v_plan when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
