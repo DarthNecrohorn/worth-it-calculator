@@ -1488,6 +1488,10 @@ async function saveMakerDraft(publish){
  }
  const validation=validateMakerSpec(state.aiDraft.spec);
  if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
+ const specToSave={...state.aiDraft.spec};
+ if(!Array.isArray(specToSave.subcategories)&&Array.isArray(state.aiDraft.subcategories)){
+  specToSave.subcategories=[...state.aiDraft.subcategories];
+ }
  const invalidCurrency=(state.aiDraft.spec?.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
  if(invalidCurrency){makerStatus("Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.","error");return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
@@ -1496,7 +1500,7 @@ async function saveMakerDraft(publish){
  try{
   if(state.creationSource==="ai"&&!state.aiOperationId)throw new Error("Run a successful AI generation or improvement before saving this AI draft.");
   const saved=await sb().rpc("save_worth_it_ugc_calculator",{
-   p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:state.aiDraft.spec,
+   p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:specToSave,
    p_source:state.creationSource==="manual"?"manual":"ai",
    p_ai_request_id:state.creationSource==="manual"?null:state.aiOperationId
   });
