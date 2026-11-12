@@ -1154,13 +1154,8 @@ export async function onRequestPost(context){
             }catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
         if(!content){
-            const makerRefunded=mode==="create"?await refundMakerQuota():false;
             await refundAiOperation();
-            const error=mode==="create"
-                ?(makerRefunded
-                    ?"Worth It AI could not complete this request right now. No calculator was changed, and your failed generation attempt was returned to your daily allowance."
-                    :"Worth It AI could not complete this request right now. No calculator was changed. We could not confirm that the generation attempt was returned; please contact support before retrying.")
-                :"Worth It AI could not complete this request right now. No calculator was changed and no AI edit quota was used.";
+            const error="Worth It AI could not complete this request right now. No calculator was changed; any reserved CALC charge and AI allowance were returned.";
             return jsonWithAiUsage({success:false,code:"AI_PROVIDER_UNAVAILABLE",error},503,origin,aiUsageCollector);
         }
         let parsed;
@@ -1335,7 +1330,6 @@ export async function onRequestPost(context){
             spec:definition
         }},200,origin,aiUsageCollector);
     }catch(error){
-        await refundAiOperation();
         await refundAiOperation();
         console.error("UGC calculator request failed:",error);
         return jsonWithAiUsage({success:false,error:"The AI calculator service is temporarily unavailable. Please try again."},503,origin||SITE_ORIGIN,aiUsageCollector);
