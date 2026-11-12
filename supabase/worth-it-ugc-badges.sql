@@ -127,6 +127,7 @@ language plpgsql
 set search_path = pg_catalog, public, private
 as $$
 declare
+    v_supported_currency_codes constant text[] := array['AFN','EUR','ALL','DZD','USD','AOA','XCD','XAD','ARS','AMD','AWG','AUD','AZN','BSD','BHD','BDT','BBD','BYN','BZD','XOF','BMD','INR','BTN','BOB','BOV','BAM','BWP','NOK','BRL','BND','BIF','CVE','KHR','XAF','CAD','KYD','CLP','CLF','CNY','COP','COU','KMF','CDF','NZD','CRC','CUP','XCG','CZK','DKK','DJF','DOP','EGP','SVC','ERN','SZL','ETB','FKP','FJD','XPF','GMD','GEL','GHS','GIP','GTQ','GBP','GNF','GYD','HTG','HNL','HKD','HUF','ISK','IDR','XDR','IRR','IQD','ILS','JMD','JPY','JOD','KZT','KES','KPW','KRW','KWD','KGS','LAK','LBP','LSL','ZAR','LRD','LYD','CHF','MOP','MKD','MGA','MWK','MYR','MVR','MRU','MUR','XUA','MXN','MXV','MDL','MNT','MAD','MZN','MMK','NAD','NPR','NIO','NGN','OMR','PKR','PAB','PGK','PYG','PEN','PHP','PLN','QAR','RON','RUB','RWF','SHP','WST','STN','SAR','RSD','SCR','SLE','SGD','XSU','SBD','SOS','SSP','LKR','SDG','SRD','SEK','CHE','CHW','SYP','TWD','TJS','TZS','THB','TOP','TTD','TND','TRY','TMT','UGX','UAH','AED','USN','UYU','UYI','UYW','UZS','VUV','VES','VED','VND','YER','ZMW','ZWG','XBA','XBB','XBC','XBD','XTS','XXX','XAU','XPD','XPT','XAG','BGN']::text[];
     v_input jsonb;
     v_result jsonb;
     v_choice jsonb;
@@ -217,7 +218,7 @@ begin
            or char_length(v_result->>'label') > 70
            or coalesce(v_result->>'format','number') not in ('number','currency','percent','unit')
            or (coalesce(v_result->>'format','number')='currency'
-               and coalesce(v_result->>'currency','') !~ '^[A-Z]{3}$')
+               and not (upper(coalesce(v_result->>'currency','')) = any(v_supported_currency_codes)))
            or (coalesce(v_result->>'format','number')='unit'
                and (coalesce(v_result->>'unit','')='' or char_length(v_result->>'unit')>20))
            or char_length(v_expression) > 500
