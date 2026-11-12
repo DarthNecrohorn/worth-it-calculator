@@ -457,7 +457,7 @@ function compileExpression(source,keys){
  const ws=()=>{while(at<input.length&&/\\s/.test(input[at]))at++;};
  const take=value=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
  const identifier=()=>{ws();const m=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);if(!m)return null;at+=m[0].length;return m[0];};
- const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan"]);
+ const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not"]);
  function primary(){
   ws();
   if(take("(")){const node=add();if(!take(")"))fail();return node;}
@@ -467,9 +467,11 @@ function compileExpression(source,keys){
   if(take("(")){
    if(!functions.has(name))fail();
    const args=[];if(!take(")")){do{args.push(add());}while(take(","));if(!take(")"))fail();}
-   const valid=name==="min"||name==="max"||name==="avg"?args.length>=1
-    :name==="pow"||name==="mod"?args.length===2
-    :name==="clamp"||name==="hypot"?args.length===3&&name==="clamp"||args.length>=2&&args.length<=8&&name==="hypot"
+   const valid=name==="min"||name==="max"||name==="avg"?args.length>=1&&args.length<=12
+    :name==="pow"||name==="mod"||name==="gt"||name==="gte"||name==="lt"||name==="lte"||name==="eq"||name==="neq"?args.length===2
+    :name==="if"||name==="clamp"?args.length===3
+    :name==="and"||name==="or"?args.length>=2&&args.length<=12
+    :name==="hypot"?args.length>=2&&args.length<=8
     :name==="round"||name==="log"?args.length>=1&&args.length<=2
     :args.length===1;
    if(!valid)fail();return{type:"call",name,args};
@@ -504,6 +506,16 @@ function evaluate(ast,values){
   else if(ast.name==="trunc")n=Math.trunc(a[0]);
   else if(ast.name==="sign")n=Math.sign(a[0]);
   else if(ast.name==="clamp"){if(a[1]>a[2])throw new Error("Clamp minimum cannot be greater than its maximum.");n=Math.min(a[2],Math.max(a[1],a[0]));}
+  else if(ast.name==="if")n=a[0]!==0?a[1]:a[2];
+  else if(ast.name==="gt")n=a[0]>a[1]?1:0;
+  else if(ast.name==="gte")n=a[0]>=a[1]?1:0;
+  else if(ast.name==="lt")n=a[0]<a[1]?1:0;
+  else if(ast.name==="lte")n=a[0]<=a[1]?1:0;
+  else if(ast.name==="eq")n=a[0]===a[1]?1:0;
+  else if(ast.name==="neq")n=a[0]!==a[1]?1:0;
+  else if(ast.name==="and")n=a.every(value=>value!==0)?1:0;
+  else if(ast.name==="or")n=a.some(value=>value!==0)?1:0;
+  else if(ast.name==="not")n=a[0]===0?1:0;
   else if(ast.name==="mod"){if(a[1]===0)throw new Error("A formula cannot calculate a remainder by zero.");n=a[0]%a[1];}
   else if(ast.name==="hypot")n=Math.hypot(...a);
   else if(ast.name==="sqrt"){if(a[0]<0)throw new Error("Square root is invalid for these values.");n=Math.sqrt(a[0]);}
@@ -595,6 +607,20 @@ function analyseFormulaUnit(ast,inputs){
  }
  const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs));
  const sameArgs=()=>{if(args.some(item=>!sameUnitDescriptor(item,args[0])))throw new Error(ast.name+"() requires arguments with matching units.");return args[0];};
+ const dimensionless=()=>{if(Object.keys(args[0].vector).length)throw new Error(ast.name+"() requires a dimensionless condition.");return unitDescriptor("");};
+ if(ast.name==="if"){
+  dimensionless();
+  if(!sameUnitDescriptor(args[1],args[2])||unitVectorKey(args[1])!==unitVectorKey(args[2]))throw new Error("if() branches must return matching units.");
+  return args[1];
+ }
+ if(["gt","gte","lt","lte","eq","neq"].includes(ast.name)){
+  if(!sameUnitDescriptor(args[0],args[1]))throw new Error(ast.name+"() compares values with different units.");
+  return unitDescriptor("");
+ }
+ if(["and","or","not"].includes(ast.name)){
+  args.forEach(item=>{if(Object.keys(item.vector).length)throw new Error(ast.name+"() requires dimensionless conditions.");});
+  return unitDescriptor("");
+ }
  if(["min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
  if(["abs","round","floor","ceil","trunc"].includes(ast.name))return args[0];
  if(ast.name==="sign")return unitDescriptor("");
