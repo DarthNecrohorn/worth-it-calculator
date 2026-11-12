@@ -161,6 +161,88 @@ function normalizeBlueprint(source,validateSpec){
   }else if(item.currency!==undefined||item.unit!==undefined)fail(label+" should not specify a currency or unit for this display format.");
   return normalized;
  });
+
+ // Apply narrow, semantics-preserving compatibility fixes for common external-AI output.
+ // These do not bypass the shared formula/unit/boundary validator.
+ const inputReference=(expression,key)=>{
+  const escaped=String(key).replace(/[.*+?^${}()|[\]\\]/g,"\\ const rawScenarios=specSource.scenarios===undefined?[]:requireArray(specSource.scenarios,"Scenarios",3);");
+  return new RegExp("(^|[^a-z0-9_])"+escaped+"([^a-z0-9_]|$)","i").test(String(expression||""));
+ };
+ const referencedCurrency=(expression,priorIndex)=>{
+  for(const input of inputs){
+   if(inputReference(expression,input.key)&&/^[A-Z]{3}$/.test(input.unit||""))return input.unit;
+  }
+  for(const result of results.slice(0,priorIndex)){
+   if(result.key&&inputReference(expression,result.key)&&result.format==="currency")return result.currency;
+  }
+  return "";
+ };
+ // A target-coverage month count is a multiplier, not a duration quantity.
+ inputs.forEach(input=>{
+  const unit=String(input.unit||"").trim().toLowerCase();
+  const semantic=(String(input.key)+" "+String(input.label)).toLowerCase();
+  if(!["month","months"].includes(unit)||!/(emergency|coverage)/.test(semantic))return;
+  const uses=results.filter(result=>inputReference(result.expression,input.key));
+  const isOnlyScalarMultiplier=uses.length>0&&uses.every(result=>{
+   const expression=String(result.expression||"");
+   const escaped=String(input.key).replace(/[.*+?^${}()|[\]\\]/g,"\\ const rawScenarios=specSource.scenarios===undefined?[]:requireArray(specSource.scenarios,"Scenarios",3);");
+   const occurrences=(expression.match(new RegExp("(^|[^a-z0-9_])"+escaped+"(?=$|[^a-z0-9_])","gi"))||[]).length;
+   const multiplied=new RegExp("(?:\\b"+escaped+"\\s*\\*|\\*\\s*"+escaped+"\\b)","i").test(expression);
+   const divided=new RegExp("/\\s*"+escaped+"\\b","i").test(expression);
+   return occurrences===1&&multiplied&&!divided;
+  });
+  if(isOnlyScalarMultiplier){
+   input.unit="";
+   compatibilityNotes.push(input.label+": treated as a unitless multiplier because it scales a monthly EUR amount; the selected value still represents the number of months of coverage.");
+  }
+ });
+ // If a currency result divides a currency amount by an explicit duration input,
+ // present the derived rate as EUR/month or EUR/day instead of incorrectly labelling it EUR.
+ results.forEach((result,index)=>{
+  if(result.format!=="currency")return;
+  const expression=String(result.expression||"");
+  const denominator=inputs.find(input=>{
+   const unit=String(input.unit||"").trim().toLowerCase();
+   return ["month","months","day","days","week","weeks","year","years","hour","hours"].includes(unit)
+    &&new RegExp("/\\s*"+String(input.key).replace(/[.*+?^${}()|[\]\\]/g,"\\ const rawScenarios=specSource.scenarios===undefined?[]:requireArray(specSource.scenarios,"Scenarios",3);")+"\\b","i").test(expression);
+  });
+  if(!denominator)return;
+  const currency=referencedCurrency(expression,index);
+  if(!currency)return;
+  const timeUnit=String(denominator.unit).trim().toLowerCase();
+  const canonicalTime=({month:"month",months:"month",day:"day",days:"day",week:"week",weeks:"week",year:"year",years:"year",hour:"hour",hours:"hour"})[timeUnit];
+  if(!canonicalTime)return;
+  result.format="unit";
+  result.unit=currency+"/"+canonicalTime;
+  delete result.currency;
+  compatibilityNotes.push(result.label+": changed the display from currency to "+result.unit+" because the formula divides a currency amount by a duration.");
+ });
+ // Convert common hard-coded 30-day monthly prorating into an explicit duration input.
+ // This preserves dimensional correctness when comparing a projection with a monthly budget.
+ const hardCodedPeriod=/([a-z][a-z0-9_]*)\\s*\\/\\s*30(?:\\.0+)?\\s*\\*\\s*([a-z][a-z0-9_]*)/i;
+ const needsBudgetPeriod=results.some(result=>{
+  const match=String(result.expression||"").match(hardCodedPeriod);
+  if(!match)return false;
+  const numeratorIsCurrency=Boolean(referencedCurrency(match[1],results.indexOf(result)));
+  const projectionInput=inputs.find(input=>input.key===match[2]&&["day","days"].includes(String(input.unit||"").trim().toLowerCase()));
+  return numeratorIsCurrency&&Boolean(projectionInput);
+ });
+ if(needsBudgetPeriod){
+  let budgetDays=inputs.find(input=>input.key==="budget_month_days");
+  if(!budgetDays){
+   if(inputs.length>=24)fail("A projection comparison uses a hard-coded 30-day period, but there is no room for the required budget_month_days input. Add it manually (days, 28–31, default 30) and retry.");
+   budgetDays={key:"budget_month_days",label:"Days in the monthly budget period",control:"number",min:28,max:31,default:30,step:1,unit:"days"};
+   inputs.push(budgetDays);
+  }else if(!["day","days"].includes(String(budgetDays.unit||"").trim().toLowerCase())){
+   fail("The budget_month_days input must use the days unit.");
+  }
+  results.forEach(result=>{
+   const expression=String(result.expression||"");
+   if(!hardCodedPeriod.test(expression))return;
+   result.expression=expression.replace(hardCodedPeriod,"$1 / budget_month_days * $2");
+  });
+  compatibilityNotes.push("Added budget_month_days (28–31 days, default 30) and replaced hard-coded 30-day monthly prorating so projected and planned spending use matching EUR dimensions over the same period.");
+ });
  const rawScenarios=specSource.scenarios===undefined?[]:requireArray(specSource.scenarios,"Scenarios",3);
  const inputKeys=new Set(inputs.map(item=>item.key));
  const scenarios=rawScenarios.map((raw,index)=>{
