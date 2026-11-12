@@ -1543,6 +1543,82 @@ test("UGC calculator cards show verified original creation source", () => {
     assert.match(paginationCss,/\.ugc-origin-tag\.is-ai-made/);
 });
 
+test("UGC formula engine supports extended math and checks physical and currency dimensions", () => {
+    const engineStart=maker.indexOf("function compileExpression");
+    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
+    assert.ok(engineStart>=0&&engineEnd>engineStart,"The safe formula and dimensional-analysis engine must exist.");
+    const engine=runInNewContext(
+        maker.slice(engineStart,engineEnd)+"\\n({compileExpression,evaluate,analyseFormulaUnit,validateFormulaResultUnit,validateMakerSpec})",
+        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["JPY","Japanese yen"],["BHD","Bahraini dinar"]]}
+    );
+    const keys=new Set(["energy","price","distance","hours","volume"]);
+    assert.equal(engine.evaluate(engine.compileExpression("clamp(18, 0, 10)",keys),{}),10);
+    assert.equal(engine.evaluate(engine.compileExpression("avg(10, 20, 30)",keys),{}),20);
+    assert.equal(engine.evaluate(engine.compileExpression("hypot(3, 4)",keys),{}),5);
+    assert.equal(engine.evaluate(engine.compileExpression("mod(17, 5)",keys),{}),2);
+    assert.equal(engine.evaluate(engine.compileExpression("round(1.2345, 2)",keys),{}),1.23);
+
+    const electricityInputs=[{key:"energy",unit:"kWh"},{key:"price",unit:"EUR/kWh"}];
+    const costAst=engine.compileExpression("energy * price",new Set(["energy","price"]));
+    const costUnit=engine.analyseFormulaUnit(costAst,electricityInputs);
+    assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"currency",currency:"EUR"},costUnit));
+    assert.throws(()=>engine.validateFormulaResultUnit({format:"currency",currency:"USD"},costUnit),/dimensions|units|currency/i);
+
+    const velocityAst=engine.compileExpression("distance / hours",new Set(["distance","hours"]));
+    const velocityUnit=engine.analyseFormulaUnit(velocityAst,[{key:"distance",unit:"km"},{key:"hours",unit:"hours"}]);
+    assert.doesNotThrow(()=>engine.validateFormulaResultUnit({format:"unit",unit:"km/h"},velocityUnit));
+    assert.throws(()=>engine.analyseFormulaUnit(
+        engine.compileExpression("energy + volume",new Set(["energy","volume"])),
+        [{key:"energy",unit:"kWh"},{key:"volume",unit:"L"}]
+    ),/matching units/i);
+
+    const invalidCurrencySpec={inputs:[{key:"amount",label:"Amount",min:0,max:100,default:10,step:1,unit:"EUR"}],results:[{label:"Total",expression:"amount",format:"currency",currency:"ZZZ"}]};
+    assert.ok(engine.validateMakerSpec(invalidCurrencySpec).errors.some(message=>/ISO 4217/i.test(message)));
+});
+
+test("all built-in Manual Builder templates pass formula, unit and boundary validation", () => {
+    const engineStart=maker.indexOf("function compileExpression");
+    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
+    const templateStart=maker.indexOf("const MANUAL_TEMPLATES={");
+    const templateEnd=maker.indexOf("function createManualDraft",templateStart);
+    assert.ok(engineStart>=0&&engineEnd>engineStart&&templateStart>=0&&templateEnd>templateStart);
+    const engine=runInNewContext(
+        maker.slice(engineStart,engineEnd)+"\\n({validateMakerSpec})",
+        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["GBP","Pound sterling"]]}
+    );
+    const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\\nMANUAL_TEMPLATES");
+    const invalid=[];
+    for(const [key,template] of Object.entries(templates)){
+        const validation=engine.validateMakerSpec({inputs:template.inputs,results:template.results,scenarios:[]});
+        if(validation.errors.length)invalid.push(key+": "+validation.errors.join(" | "));
+    }
+    assert.deepEqual(invalid,[]);
+    assert.ok(Object.keys(templates).length>=17,"The template library should contain at least 17 distinct templates.");
+});
+
+test("Manual Builder what-if scenarios validate overrides and remain optional for older calculators", () => {
+    const engineStart=maker.indexOf("function compileExpression");
+    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
+    const engine=runInNewContext(
+        maker.slice(engineStart,engineEnd)+"\\n({validateMakerSpec})",
+        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
+    );
+    const base={
+        inputs:[
+            {key:"quantity",label:"Quantity",min:1,max:100,default:10,step:1,unit:"units"},
+            {key:"price",label:"Price",min:0,max:1000,default:2,step:0.01,unit:"EUR"}
+        ],
+        results:[{label:"Total",expression:"quantity * price",format:"currency",currency:"EUR"}]
+    };
+    assert.deepEqual(engine.validateMakerSpec(base).errors,[]);
+    const valid={...base,scenarios:[{key:"larger",label:"Larger order",values:{quantity:20,price:1.5}}]};
+    assert.deepEqual(engine.validateMakerSpec(valid).errors,[]);
+    const invalid={...base,scenarios:[{key:"bad",label:"Out of range",values:{quantity:101,price:2}}]};
+    assert.ok(engine.validateMakerSpec(invalid).errors.some(message=>/input range/i.test(message)));
+    const tooMany={...base,scenarios:[1,2,3,4].map((n)=>({label:"Scenario "+n,values:{quantity:10+n}}))};
+    assert.ok(engine.validateMakerSpec(tooMany).errors.some(message=>/up to 3/i.test(message)));
+});
+
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
     assert.match(maker, /function compileExpression/);
     assert.match(maker, /function evaluate/);
