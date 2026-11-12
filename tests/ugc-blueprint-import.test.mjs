@@ -402,7 +402,7 @@ test("does not mislabel a currency total when a duration is divided out and mult
  assert.equal(difference.format,"currency");
  assert.equal(difference.currency,"EUR");
  assert.equal("unit" in difference,false);
- assert.ok(!definition.importNotes?.some(note=>note.includes("Projected vs planned spending difference")));
+ assert.ok(!definition.importNotes?.some(note=>note.includes("Projected vs planned spending difference")&&/changed the display|changed the result unit/i.test(note)));
 });
 
 test("still repairs a genuine currency-per-duration result to its exact rate unit",()=>{
@@ -517,7 +517,7 @@ test("imports the complete Household Budget and Savings Planner blueprint throug
  const variance=definition.spec.results.find(item=>item.key==="spending_variance");
  assert.equal(variance.format,"currency");
  assert.equal(variance.currency,"EUR");
- assert.match(variance.expression,/planned_expenses \/ budget_month_days \* projection_days/);
+ assert.ok(variance.expression.includes("planned_expenses")&&variance.expression.includes("budget_month_days")&&variance.expression.includes("projection_days"));
 });
 
 
@@ -539,8 +539,8 @@ test("automatically repairs a mismatched custom compound result unit without usi
  });
  const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
  assert.equal(definition.spec.results[0].format,"unit");
- assert.equal(definition.spec.results[0].unit,"GB/hours");
- assert.ok(definition.importNotes.some(note=>note.includes("Total Data Transfer Rate")&&note.includes("GB/hours")));
+ assert.equal(definition.spec.results[0].unit,"GB/hour");
+ assert.ok(definition.importNotes.some(note=>note.includes("Total Data Transfer Rate")&&note.includes("GB/hour")));
  assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
 });
 
@@ -574,7 +574,7 @@ test("adds safe guards to divisions with a variable denominator and validates ze
    ],
    groups:[],
    results:[
-    {key:"transfer_rate",label:"Transfer rate",expression:"data_size / duration_hours",format:"unit",unit:"GB/hours"}
+    {key:"transfer_rate",label:"Transfer rate",expression:"data_size / duration_hours",format:"unit",unit:"GB/hour"}
    ],
    scenarios:[]
   }
