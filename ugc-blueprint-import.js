@@ -152,13 +152,17 @@ function normalizeBlueprint(source,validateSpec){
    suffix:item.suffix===undefined?"":requireString(item.suffix,label+" suffix",0,16)
   };
   if(format==="currency"){
-   normalized.currency=requireString(item.currency,label+" currency",3,3).toUpperCase();
-   if(!/^[A-Z]{3}$/.test(normalized.currency))fail(label+" must use a three-letter ISO currency code.");
-   if(item.unit!==undefined)fail(label+" cannot have both currency and unit.");
+   const currency=typeof item.currency==="string"?item.currency.trim().toUpperCase():"";
+   normalized.currency=/^[A-Z]{3}$/.test(currency)?currency:"";
+   if(!normalized.currency)compatibilityNotes.push(label+": currency will be inferred from the formula when possible because its code was missing or invalid.");
+   if(item.unit!==undefined)compatibilityNotes.push(label+": removed redundant unit metadata from a currency result.");
   }else if(format==="unit"){
-   normalized.unit=requireString(item.unit,label+" result unit",1,20);
-   if(item.currency!==undefined)fail(label+" cannot have both unit and currency.");
-  }else if(item.currency!==undefined||item.unit!==undefined)fail(label+" should not specify a currency or unit for this display format.");
+   normalized.unit=typeof item.unit==="string"?item.unit.trim().slice(0,20):"";
+   if(!normalized.unit)compatibilityNotes.push(label+": result unit will be inferred from the formula when possible.");
+   if(item.currency!==undefined)compatibilityNotes.push(label+": removed redundant currency metadata from a unit result.");
+  }else if(item.currency!==undefined||item.unit!==undefined){
+   compatibilityNotes.push(label+": removed currency or unit metadata that does not apply to its selected display format.");
+  }
   return normalized;
  });
 
@@ -257,15 +261,33 @@ function normalizeBlueprint(source,validateSpec){
  const scenarios=rawScenarios.map((raw,index)=>{
   const label="Scenario "+(index+1),scenario=requireObject(raw,label);
   rejectUnknownKeys(scenario,SCENARIO_KEYS,label);
-  const rawValues=requireObject(scenario.values,label+" input values");
+  const rawValues=isObject(scenario.values)?scenario.values:{};
+  if(!isObject(scenario.values))compatibilityNotes.push(label+": created an empty scenario value map because the supplied values were missing or invalid.");
   const values={};
   Object.keys(rawValues).forEach(key=>{
-   if(!inputKeys.has(key))fail(label+" references an unknown input \""+key+"\".");
-   values[key]=requireNumber(rawValues[key],label+" value for "+key);
+   if(!inputKeys.has(key)){compatibilityNotes.push(label+": removed an unknown input value ("+key+").");return;}
+   const input=inputs.find(item=>item.key===key);
+   let value=requireNumber(rawValues[key],label+" value for "+key);
+   const original=value;
+   value=Math.max(input.min,Math.min(input.max,value));
+   if(input.control==="toggle")value=value>=0.5?1:0;
+   else if(input.control==="select"&&Array.isArray(input.choices)){
+    value=input.choices.reduce((best,choice)=>Math.abs(choice.value-value)<Math.abs(best.value-value)?choice:best,input.choices[0]).value;
+   }else{
+    const position=(value-input.min)/input.step;
+    if(Math.abs(position-Math.round(position))>1e-7){
+     value=input.min+Math.round(position)*input.step;
+     value=Math.max(input.min,Math.min(input.max,value));
+    }
+   }
+   if(value!==original)compatibilityNotes.push(label+": adjusted "+key+" to a valid in-range value aligned with its input control.");
+   values[key]=value;
   });
+  let scenarioLabel=typeof scenario.label==="string"&&scenario.label.trim()?scenario.label.trim().slice(0,50):"Scenario "+(index+1);
+  if(scenarioLabel.length<2)scenarioLabel="Scenario "+(index+1);
   return{
-   ...(scenario.key===undefined?{}:{key:requireString(scenario.key,label+" key",1,32)}),
-   label:requireString(scenario.label,label+" label",2,50),
+   ...(typeof scenario.key==="string"&&/^[a-z][a-z0-9_]{0,31}$/.test(scenario.key)?{key:scenario.key}:{}),
+   label:scenarioLabel,
    values
   };
  });
@@ -274,10 +296,15 @@ function normalizeBlueprint(source,validateSpec){
   assumptions=requireArray(rootValue.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,MAX_ASSUMPTIONS_CHARS));
   if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
  }
- const spec={subcategories,inputs,groups,results,scenarios,assumptions};
- const definition={title,description,category,spec};
- if(compatibilityNotes.length)definition.importNotes=compatibilityNotes;
+ let spec={subcategories,inputs,groups,results,scenarios,assumptions};
  if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
+ if(typeof validateSpec.repairBlueprintSpec==="function"){
+  const repaired=validateSpec.repairBlueprintSpec(spec);
+  if(repaired&&isObject(repaired.spec))spec=repaired.spec;
+  if(Array.isArray(repaired?.notes))compatibilityNotes.push(...repaired.notes);
+ }
+ const definition={title,description,category,spec};
+ if(compatibilityNotes.length)definition.importNotes=compatibilityNotes.slice(0,20);
  const validation=validateSpec(spec);
  const errors=Array.isArray(validation?.errors)?validation.errors:[];
  if(errors.length){
