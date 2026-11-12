@@ -723,6 +723,11 @@ function unitDescriptor(unit){
  const raw=String(unit||"").trim();
  const key=raw.toLowerCase().replace(/\s+/g," ");
  const descriptor=(exact,vector,opaque,symbols={})=>({exact,vector,opaque,symbols});
+ const canonicalTimeUnit=value=>({
+  days:"day",day:"day",weeks:"week",week:"week",months:"month",month:"month",
+  years:"year",year:"year",hours:"hour",hour:"hour",hrs:"hour",hr:"hour",h:"hour",
+  minutes:"minute",minute:"minute",seconds:"second",second:"second"
+ })[String(value||"").trim().toLowerCase()]||String(value||"").trim();
  if(!raw)return descriptor("",{},false,{});
  if(raw==="1")return descriptor(raw,{},false,{});
  if(/^[A-Z]{3}$/.test(raw))return descriptor(raw,{["currency:"+raw]:1},false,{["currency:"+raw]:raw});
@@ -761,10 +766,10 @@ function unitDescriptor(unit){
   "usd/unit":{"currency:USD":1,count:-1},"usd/item":{"currency:USD":1,count:-1},"rsd/unit":{"currency:RSD":1,count:-1}
  };
  const knownSymbols={
-  months:{time:"months"},month:{time:"month"},years:{time:"years"},year:{time:"year"},
-  days:{time:"days"},day:{time:"day"},weeks:{time:"weeks"},week:{time:"week"},
-  hours:{time:"hours"},hour:{time:"hour"},minutes:{time:"minutes"},minute:{time:"minute"},
-  seconds:{time:"seconds"},second:{time:"second"},hr:{time:"hr"},hrs:{time:"hrs"},h:{time:"h"},s:{time:"s"},
+  months:{time:"month"},month:{time:"month"},years:{time:"year"},year:{time:"year"},
+  days:{time:"day"},day:{time:"day"},weeks:{time:"week"},week:{time:"week"},
+  hours:{time:"hour"},hour:{time:"hour"},minutes:{time:"minute"},minute:{time:"minute"},
+  seconds:{time:"second"},second:{time:"second"},hr:{time:"hour"},hrs:{time:"hour"},h:{time:"hour"},s:{time:"second"},
   km:{length:"km"},kilometres:{length:"kilometres"},kilometers:{length:"kilometers"},
   miles:{length:"miles"},mile:{length:"mile"},m:{length:"m"},cm:{length:"cm"},mm:{length:"mm"},
   "m²":{area:"m²"},"m2":{area:"m2"},"ft²":{area:"ft²"},
@@ -1193,28 +1198,27 @@ function formulaAstToText(ast){
  if(ast.type==="call")return ast.name+"("+ast.args.map(formulaAstToText).join(",")+")";
  throw new Error("Unsupported formula node.");
 }
-function guardFormulaDivisions(ast){
+function guardFormulaDivisions(ast,denominatorMayBeZero){
+ const mayBeZero=typeof denominatorMayBeZero==="function"?denominatorMayBeZero:()=>true;
  if(ast.type==="binary"){
-  const left=guardFormulaDivisions(ast.left),right=guardFormulaDivisions(ast.right);
+  const left=guardFormulaDivisions(ast.left,denominatorMayBeZero),right=guardFormulaDivisions(ast.right,denominatorMayBeZero);
   const division={type:"binary",op:ast.op,left,right};
-  if(ast.op==="/"&&constantFormulaValue(right)!==null&&constantFormulaValue(right)!==0)return division;
-  if(ast.op==="/")return{type:"call",name:"if",args:[
+  if(ast.op!=="/"||constantFormulaValue(right)!==null||!mayBeZero(right))return division;
+  return{type:"call",name:"if",args:[
    {type:"call",name:"neq",args:[right,{type:"number",value:0}]},
    division,
    {type:"number",value:0}
   ]};
-  return division;
  }
- if(ast.type==="unary")return{...ast,value:guardFormulaDivisions(ast.value)};
+ if(ast.type==="unary")return{...ast,value:guardFormulaDivisions(ast.value,denominatorMayBeZero)};
  if(ast.type==="call"){
-  const args=ast.args.map(guardFormulaDivisions);
-  if(ast.name==="mod"&&constantFormulaValue(args[1])!==null&&constantFormulaValue(args[1])!==0)return{...ast,args};
-  if(ast.name==="mod")return{type:"call",name:"if",args:[
+  const args=ast.args.map(arg=>guardFormulaDivisions(arg,denominatorMayBeZero));
+  if(ast.name!=="mod"||constantFormulaValue(args[1])!==null||!mayBeZero(args[1]))return{...ast,args};
+  return{type:"call",name:"if",args:[
    {type:"call",name:"neq",args:[args[1],{type:"number",value:0}]},
    {type:"call",name:"mod",args},
    {type:"number",value:0}
   ]};
-  return{...ast,args};
  }
  return ast;
 }
@@ -1265,7 +1269,22 @@ function repairMakerBlueprintSpec(sourceSpec){
    if(result.key)availableKeys.add(result.key);
    return;
   }
-  const guarded=guardFormulaDivisions(ast);
+  const denominatorMayBeZero=node=>{
+   if(constantFormulaValue(node)!==null)return false;
+   if(node?.type==="variable"){
+    const input=inputs.find(item=>item.key===node.name);
+    if(input)return Number(input.min)<=0&&Number(input.max)>=0;
+    return true; // Earlier results have no statically proven range.
+   }
+   if(node?.type==="groupField"){
+    const group=groups.find(item=>item.key===node.group);
+    const field=group?.fields?.find(item=>item.key===node.field);
+    return !field||Number(field.min)<=0&&Number(field.max)>=0;
+   }
+   if(node?.type==="unary")return denominatorMayBeZero(node.value);
+   return true; // Composite expressions may cross zero unless proven constant.
+  };
+  const guarded=guardFormulaDivisions(ast,denominatorMayBeZero);
   const guardedText=formulaAstToText(guarded);
   if(guardedText!==result.expression&&guardedText.length<=500){
    result.expression=guardedText;
