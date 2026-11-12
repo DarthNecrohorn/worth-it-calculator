@@ -522,10 +522,10 @@ function evaluate(ast,values){
 }
 function unitDescriptor(unit){
  const raw=String(unit||"").trim();
- const key=raw.toLowerCase().replace(/\\s+/g," ");
+ const key=raw.toLowerCase().replace(/\s+/g," ");
  if(!raw)return{exact:"",vector:{},opaque:false};
  if(/^[A-Z]{3}$/.test(raw))return{exact:raw,vector:{["currency:"+raw]:1},opaque:false};
- const rateMatch=raw.match(/^([A-Z]{3})\\s*\\/\\s*(.+)$/);
+ const rateMatch=raw.match(/^([A-Z]{3})\s*\/\s*(.+)$/);
  if(rateMatch){
   const denominator=rateMatch[2].trim().toLowerCase();
   const dimension=({
@@ -538,7 +538,7 @@ function unitDescriptor(unit){
   if(dimension)return{exact:raw,vector:{["currency:"+rateMatch[1]]:1,[dimension]:-1},opaque:false};
  }
  const known={
-  "%":{},
+  "%":{},"%/year":{time:-1},"%/month":{time:-1},"%/day":{time:-1},
   months:{time:1},month:{time:1},years:{time:1},year:{time:1},days:{time:1},day:{time:1},weeks:{time:1},week:{time:1},hours:{time:1},hour:{time:1},minutes:{time:1},minute:{time:1},seconds:{time:1},second:{time:1},
   km:{length:1},kilometres:{length:1},kilometers:{length:1},miles:{length:1},mile:{length:1},m:{length:1},cm:{length:1},mm:{length:1},
   "m²":{area:1},"m2":{area:1},"ft²":{area:1},
@@ -546,14 +546,13 @@ function unitDescriptor(unit){
   kg:{mass:1},kilograms:{mass:1},g:{mass:1},grams:{mass:1},tonnes:{mass:1},
   kwh:{energy:1},mwh:{energy:1},mj:{energy:1},w:{power:1},kw:{power:1},
   "l/100 km":{volume:1,length:-1},"km/h":{length:1,time:-1},"m/s":{length:1,time:-1},
-  "m²/pack":{area:1},
-  "kwh/day":{energy:1,time:-1},"kwh/month":{energy:1,time:-1},
+  "m²/pack":{area:1},"kwh/day":{energy:1,time:-1},"kwh/month":{energy:1,time:-1},
   "eur/kwh":{"currency:EUR":1,energy:-1},"usd/kwh":{"currency:USD":1,energy:-1},"rsd/kwh":{"currency:RSD":1,energy:-1},
   "eur/l":{"currency:EUR":1,volume:-1},"usd/l":{"currency:USD":1,volume:-1},"rsd/l":{"currency:RSD":1,volume:-1},
   "eur/kg":{"currency:EUR":1,mass:-1},"eur/m²":{"currency:EUR":1,area:-1},"eur/m2":{"currency:EUR":1,area:-1},
   "eur/m³":{"currency:EUR":1,volume:-1},"eur/m3":{"currency:EUR":1,volume:-1},
   "eur/hour":{"currency:EUR":1,time:-1},"usd/hour":{"currency:USD":1,time:-1},
-  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1},\n  "%/year":{time:-1},"%/month":{time:-1},"%/day":{time:-1}
+  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
  };
  if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
  if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{},opaque:false};
