@@ -1490,6 +1490,8 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(manualBuilderSql, /v_source='manual' and cardinality\(v_subcategories\)=0/);
     assert.match(manualBuilderSql, /manual_non_ai_saves/);
     assert.match(manualBuilderSql, /definition_hash/);
+    assert.match(manualBuilderSql, /on delete set null/i);
+    assert.match(manualBuilderSql, /REQUEST_ID_CONFLICT/);
     assert.match(manualBuilderSql, /kind='ugc_ai_spend' and currency='CALC'/);
     assert.match(manualBuilderSql, /A completed CALC AI-generation transaction is required/);
     assert.match(manualBuilderSql, /A completed CALC AI-improvement transaction is required/);
@@ -1497,6 +1499,7 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(manualBuilderSql, /when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
     assert.match(calcEconomySource, /ugc_ai_spend:"AI UGC calculator"/);
     assert.match(paginationFixture, /ugc_manual_ai_billing/);
+    assert.match(paginationFixture, /Deleting an AI calculator must retain its consumed operation proof/);
     assert.match(workflow, /supabase\/worth-it-ugc-manual-builder-ai-costs\.sql/);
 });
 
