@@ -1229,7 +1229,7 @@ function repairMakerBlueprintSpec(sourceSpec){
  const dependencies=new Map();
  results.forEach(item=>{
   const expression=String(item?.expression||"");
-  const refs=new Set((expression.match(/[A-Za-z_][A-Za-z0-9_]*/g)||[]).filter(name=>resultKeySet.has(name)&&name!==item.key));
+  const refs=new Set((expression.match(/[A-Za-z_][A-Za-z0-9_]*/g)||[]).filter(name=>resultKeySet.has(name)&&!knownFormulaFunctions.has(name.toLowerCase())));
   if(item?.key)dependencies.set(item.key,refs);
  });
  if(dependencies.size===results.length&&results.length>1){
@@ -1275,28 +1275,39 @@ function repairMakerBlueprintSpec(sourceSpec){
   const singleCurrency=vector.length===1&&vector[0][0].startsWith("currency:")&&Math.abs(Number(vector[0][1])-1)<1e-9;
   const outputCurrency=singleCurrency?vector[0][0].slice(9):"";
   const dimensionless=vector.length===0;
+  const candidate={...result};
   let changed=false;
-  if(result.format==="percent"){
+  if(candidate.format==="percent"){
    // A dimensioned formula cannot safely be reinterpreted as a percentage.
-  }else if(dimensionless&&result.format==="unit"){
-   result.format="number";delete result.unit;delete result.currency;changed=true;
-  }else if(outputCurrency&&singleCurrency&&(result.format!=="currency"||String(result.currency||"").toUpperCase()!==outputCurrency)){
-   if(CURRENCIES.some(([code])=>code===outputCurrency)){
-    result.format="currency";result.currency=outputCurrency;delete result.unit;changed=true;
-   }
+  }else if(dimensionless&&candidate.format==="unit"){
+   candidate.format="number";delete candidate.unit;delete candidate.currency;changed=true;
+  }else if(singleCurrency&&outputCurrency&&CURRENCIES.some(([code])=>code===outputCurrency)
+   &&(candidate.format!=="currency"||String(candidate.currency||"").toUpperCase()!==outputCurrency)){
+   candidate.format="currency";candidate.currency=outputCurrency;delete candidate.unit;changed=true;
   }else if(!dimensionless&&!singleCurrency&&unitLabel
-   &&(result.format!=="unit"||String(result.unit||"")!==unitLabel)){
-   result.format="unit";result.unit=unitLabel;delete result.currency;changed=true;
-  }else if(!dimensionless&&singleCurrency&&result.format==="unit"&&unitLabel){
-   result.format="currency";result.currency=outputCurrency;delete result.unit;changed=true;
+   &&(candidate.format!=="unit"||String(candidate.unit||"")!==unitLabel)){
+   candidate.format="unit";candidate.unit=unitLabel;delete candidate.currency;changed=true;
+  }else if(!dimensionless&&singleCurrency&&candidate.format==="unit"&&unitLabel){
+   candidate.format="currency";candidate.currency=outputCurrency;delete candidate.unit;changed=true;
+  }else if(candidate.format==="currency"&&!singleCurrency){
+   if(unitLabel){
+    candidate.format="unit";candidate.unit=unitLabel;delete candidate.currency;changed=true;
+   }
+  }else if(candidate.format==="unit"&&singleCurrency&&outputCurrency&&CURRENCIES.some(([code])=>code===outputCurrency)){
+   candidate.format="currency";candidate.currency=outputCurrency;delete candidate.unit;changed=true;
   }
   if(changed){
+   let valid=true;
    try{
-    if(result.format==="currency")validateFormulaResultUnit(result,outputUnit);
-    else if(result.format==="unit")validateFormulaResultUnit(result,outputUnit);
-    else if(result.format==="number"&&dimensionless){}
-    notes.push(label+": corrected its display format/unit to match the formula's calculated dimensions ("+(result.format==="currency"?result.currency:result.format==="unit"?result.unit:"unitless")+").");
-   }catch(_){}
+    if(candidate.format==="currency"||candidate.format==="unit")validateFormulaResultUnit(candidate,outputUnit);
+    else if(candidate.format==="percent"&&dimensionless){}
+    else if(candidate.format==="number"&&!dimensionless)valid=false;
+   }catch(_){valid=false;}
+   if(valid){
+    Object.keys(result).forEach(key=>delete result[key]);
+    Object.assign(result,candidate);
+    notes.push(label+": corrected its result display format/unit to match the formula's calculated dimensions ("+(result.format==="currency"?result.currency:result.format==="unit"?result.unit:result.format==="percent"?"percent":"unitless")+").");
+   }
   }
   if(result.key){
    availableKeys.add(result.key);
