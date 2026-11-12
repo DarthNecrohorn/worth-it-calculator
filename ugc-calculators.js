@@ -2058,7 +2058,7 @@ function renderMakerPreview(definition){
   if(!testPanel.hidden)renderMakerTestPanel(false);
  });
  testToggle.setAttribute("aria-expanded","false");host.append(testToggle,testPanel);
- host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: +, −, ×, ÷, powers, parentheses, min, max, avg, abs, round, floor, ceil, trunc, sign, sqrt, pow, clamp, mod, hypot, log, ln, exp, sin, cos and tan. Arbitrary JavaScript is never run."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: arithmetic, powers, parentheses, min, max, avg, abs, round, floor, ceil, trunc, sign, sqrt, pow, clamp, mod, hypot, log, ln, exp, sin, cos, tan, if, gt, gte, lt, lte, eq, neq, and, or and not. Conditional functions return safe numeric results; arbitrary JavaScript is never run."));
  refreshMakerValidationNote();
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;if(publishButton)publishButton.disabled=false;
