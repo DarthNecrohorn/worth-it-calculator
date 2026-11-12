@@ -1493,6 +1493,7 @@ declare
     v_request uuid;
     v_calculator uuid;
     v_spec jsonb := '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
+    v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
     v_description text := 'A clear description for this calculator and its assumptions.';
     q jsonb;
     v_balance integer;
@@ -1555,7 +1556,7 @@ begin
 
     -- The same Free account may still make its one manual save today.
     q:=public.save_worth_it_ugc_calculator(
-        null,'Free manual calculator',v_description,'money',v_spec,'manual',null
+        null,'Free manual calculator',v_description,'money',v_manual_spec,'manual',null
     );
     if coalesce((q->>'remaining')::integer,-1)<>0 then
         raise exception 'The Free manual save quota should be used only by a manual save: %',q;
@@ -1566,7 +1567,7 @@ begin
     blocked:=false;
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Free manual second calculator',v_description,'money',v_spec,'manual',null
+            null,'Free manual second calculator',v_description,'money',v_manual_spec,'manual',null
         );
     exception when sqlstate '54000' then blocked:=true;
     end;
@@ -1620,7 +1621,7 @@ begin
     -- costs 6 CALC and does not consume the manual save allowance.
     perform set_config('request.jwt.claim.sub',v_premium::text,true);
     q:=public.save_worth_it_ugc_calculator(
-        null,'Premium manual calculator',v_description,'money',v_spec,'manual',null
+        null,'Premium manual calculator',v_description,'money',v_manual_spec,'manual',null
     );
     v_calculator:=(q->>'id')::uuid;
     if v_calculator is null then raise exception 'Premium manual calculator could not be saved: %',q; end if;
