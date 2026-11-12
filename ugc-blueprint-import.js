@@ -84,15 +84,16 @@ function normalizeBlueprintRange(raw,label,notes){
  if(value<min){min=value;notes.push(label+": expanded the minimum to include its existing default value.");}
  if(value>max){max=value;notes.push(label+": expanded the maximum to include its existing default value.");}
  const precision=Math.max(blueprintDecimalPlaces(min),blueprintDecimalPlaces(max),blueprintDecimalPlaces(value));
- if(step===undefined||step<=0||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step)){
-  let scale=Math.pow(10,precision);
-  let divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
-  if(divisor<=0){
-   scale=Math.max(scale,1);
-   divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
-  }
-  step=divisor>0?divisor/scale:1/scale;
-  if(!(step>0)||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step))step=1;
+ const defaultStep=1/Math.pow(10,precision);
+ if(step===undefined){
+  step=defaultStep;
+  notes.push(label+": supplied a sensible default step because none was provided.");
+ }
+ if(step<=0||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step)){
+  const scale=Math.pow(10,precision);
+  const divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
+  step=divisor>0?divisor/scale:defaultStep;
+  if(!(step>0)||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step))step=defaultStep;
   notes.push(label+": adjusted the step so the default and maximum align with the minimum.");
  }
  return{min,max,default:value,step};
@@ -141,7 +142,8 @@ function prepareBlueprintShape(source){
  let assumptions=[];
  if(raw.assumptions!==undefined){
   if(Array.isArray(raw.assumptions)){
-   assumptions=raw.assumptions.filter(item=>typeof item==="string"&&item.trim()).slice(0,50).map(item=>item.trim());
+   if(raw.assumptions.length>50)fail("Assumptions can contain at most 50 entries.");
+   assumptions=raw.assumptions.filter(item=>typeof item==="string"&&item.trim()).map(item=>item.trim());
    if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
   }else notes.push("Removed an invalid assumptions list.");
  }
