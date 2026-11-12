@@ -106,7 +106,7 @@ function prepareBlueprintShape(source){
  };
  rejectForbidden(raw,"Blueprint");
  const allowedRoot=new Set(["blueprintVersion","title","name","description","summary","category","primaryCategory","subcategories","assumptions","spec","calculator","inputs","groups","results","outputs","scenarios"]);
- Object.keys(raw).forEach(key=>{if(!allowedRoot.has(key))notes.push("Ignored unsupported top-level property: "+key+".");});
+ Object.keys(raw).forEach(key=>{if(!allowedRoot.has(key))fail("Blueprint contains unsupported property \""+key+"\".");});
  const rootAlias=(preferred,alias)=>raw[preferred]!==undefined?raw[preferred]:raw[alias];
  const version=raw.blueprintVersion===undefined?1:raw.blueprintVersion;
  if(version!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1.");
@@ -127,7 +127,7 @@ function prepareBlueprintShape(source){
  }
  rejectForbidden(specSource,"spec");
  const allowedSpec=new Set(["subcategories","inputs","fixedInputs","groups","dynamicGroups","results","outputs","scenarios","alternatives"]);
- Object.keys(specSource).forEach(key=>{if(!allowedSpec.has(key))notes.push("Ignored unsupported spec property: "+key+".");});
+ Object.keys(specSource).forEach(key=>{if(!allowedSpec.has(key))fail("spec contains unsupported property \""+key+"\".");});
  let subcategoriesRaw=raw.subcategories!==undefined?raw.subcategories:specSource.subcategories;
  if(raw.subcategories!==undefined&&specSource.subcategories!==undefined)notes.push("Used root-level subcategories and ignored the duplicate list inside spec.");
  if(!Array.isArray(subcategoriesRaw)){if(subcategoriesRaw!==undefined)notes.push("Removed an invalid subcategory list.");subcategoriesRaw=[];}
@@ -142,9 +142,7 @@ function prepareBlueprintShape(source){
  if(raw.assumptions!==undefined){
   if(Array.isArray(raw.assumptions)){
    assumptions=raw.assumptions.filter(item=>typeof item==="string"&&item.trim()).slice(0,50).map(item=>item.trim());
-   let remaining=MAX_ASSUMPTIONS_CHARS;
-   assumptions=assumptions.map(item=>{const clipped=item.slice(0,remaining);remaining-=clipped.length+1;return clipped;}).filter(Boolean);
-   if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)assumptions=assumptions.slice(0,49);
+   if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
   }else notes.push("Removed an invalid assumptions list.");
  }
  const keyAliases=new Map(),ambiguousAliases=new Set(),qualifiedAliases=[];
@@ -180,7 +178,7 @@ function prepareBlueprintShape(source){
    if(allowed.has(mapped)){
     if(output[mapped]===undefined)output[mapped]=raw[key];
     else notes.push(label+": ignored a duplicate alias for "+mapped+".");
-   }else notes.push(label+": ignored unsupported property "+key+".");
+   }else fail(label+" contains unsupported property \""+key+"\".");
   });
   return output;
  };
@@ -227,10 +225,9 @@ function prepareBlueprintShape(source){
    choicesRaw.forEach((choice,choiceIndex)=>{
     if(!isObject(choice))return;
     const clean=cleanObject(choice,CHOICE_KEYS,"Input choice "+(choiceIndex+1),{name:"label",text:"label"});
-    if(typeof clean.value!=="number"||!Number.isFinite(clean.value)||valuesSeen.has(clean.value))return;
+    if(typeof clean.value!=="number"||!Number.isFinite(clean.value))return;
     let choiceLabel=typeof clean.label==="string"&&clean.label.trim()?clean.label.trim().slice(0,50):String(clean.value);
-    const baseLabel=choiceLabel;let suffix=2;
-    while(labelsSeen.has(choiceLabel.toLowerCase()))choiceLabel=baseLabel.slice(0,43)+" "+suffix++;
+    if(valuesSeen.has(clean.value)||labelsSeen.has(choiceLabel.toLowerCase()))fail(label+" dropdown choices must have unique labels and numeric values.");
     valuesSeen.add(clean.value);labelsSeen.add(choiceLabel.toLowerCase());choices.push({label:choiceLabel,value:clean.value});
    });
    if(choices.length<2){
@@ -285,8 +282,9 @@ function prepareBlueprintShape(source){
   maxItems=Math.max(minItems,Math.min(20,maxItems));
   if(minItems!==originalMinItems||maxItems!==originalMaxItems)notes.push(groupLabel+": adjusted the row limits to the supported 1–20 range.");
   if(originalMinItems===0){
+   if(fields.some(field=>field.default!==0))fail(groupLabel+" cannot start with zero rows unless every field defaults to zero. The Manual Builder requires at least one row; use a zero-value placeholder row.");
    fields.forEach(field=>{field.min=Math.min(0,field.min);field.max=Math.max(0,field.max);field.default=0;});
-   notes.push(groupLabel+": converted an optional empty list into one zero-value placeholder row.");
+   notes.push(groupLabel+": changed minItems from 0 to 1 and created one zero-value placeholder row, as required by the Manual Builder.");
   }
   return{
    key:groupKey,label:groupLabel.length>=2?groupLabel:groupLabel+" group",
