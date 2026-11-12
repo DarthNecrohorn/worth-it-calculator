@@ -266,6 +266,32 @@ test("generates copyable instructions for an external AI and contains no request
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
+test("validates the household spending projection dimensions with the real Manual Builder validator",()=>{
+ const start=builderSource.indexOf("function compileExpression(");
+ const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
+ assert.ok(start>=0&&end>start,"The shared formula validator must be present.");
+ const validatorSource=builderSource.slice(start,end);
+ const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ const spec={
+  inputs:[
+   {key:"actual_spending",label:"Actual tracked spending",min:0,max:100000,default:1200,step:10,unit:"EUR"},
+   {key:"tracking_days",label:"Tracking period",min:1,max:365,default:15,step:1,unit:"days"},
+   {key:"projection_days",label:"Projection period",min:1,max:365,default:30,step:1,unit:"days"},
+   {key:"budget_month_days",label:"Days in budget month",min:28,max:31,default:30,step:1,unit:"days"}
+  ],
+  groups:[],
+  results:[
+   {key:"planned_expenses",label:"Planned expenses",expression:"actual_spending",format:"currency",currency:"EUR"},
+   {key:"tracked_spending",label:"Tracked spending",expression:"actual_spending",format:"currency",currency:"EUR"},
+   {key:"average_daily_spending",label:"Average daily spending",expression:"tracked_spending / tracking_days",format:"unit",unit:"EUR/day"},
+   {key:"projected_spending",label:"Projected spending",expression:"average_daily_spending * projection_days",format:"currency",currency:"EUR"},
+   {key:"spending_variance",label:"Projected vs planned spending difference",expression:"projected_spending - (planned_expenses / budget_month_days * projection_days)",format:"currency",currency:"EUR"}
+  ],
+  scenarios:[]
+ };
+ const validation=validateMakerSpec(spec);
+ assert.deepEqual(plain(validation.errors),[]);
+});
 test("Manual Builder exposes the optional importer without wiring it to the Worth It AI endpoint",()=>{
  assert.match(html,/id="ugcBlueprintImportPanel"[^>]*hidden/);
  assert.match(html,/id="ugcBlueprintImportJson"/);
