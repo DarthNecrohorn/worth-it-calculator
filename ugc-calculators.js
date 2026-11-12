@@ -1217,6 +1217,7 @@ function renderCalculatorForm(calculator){
   if(input.unit)wrap.appendChild(text("small","",input.unit));
   host.appendChild(wrap);
  });
+ (Array.isArray(spec.groups)?spec.groups:[]).forEach(group=>appendDynamicGroupControls(host,group));
  const usagePriceMilli=Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100));
  const priceLabel=formatCalcPrice(usagePriceMilli);
  host.appendChild(button("Calculate · "+priceLabel+" CALC","ugc-action-primary ugc-calculate-button",()=>runCalculation(calculator)));
@@ -1233,6 +1234,9 @@ async function runCalculation(calculator){
   }
   values[item.key]=value;
  }
+ let groupValues;
+ try{groupValues=collectDynamicGroupValues(form,calculator.spec);}
+ catch(error){detailStatus(error?.message||"Check the repeated input rows.",true);return;}
  const button=form.querySelector(".ugc-calculate-button");if(button)button.disabled=true;
  detailStatus("Calculating…");
  const requestId=crypto.randomUUID();
@@ -1250,17 +1254,10 @@ async function runCalculation(calculator){
   }
   priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
-  const resultKeys=new Set(inputs.map(input=>input.key));
-  const results=(calculator.spec.results||[]).map(item=>{
-   const ast=compileExpression(item.expression,resultKeys);
-   return {label:item.label,value:formatResult(item,evaluate(ast,values)),explanation:String(item.explanation||"")};
-  });
+  const results=evaluateFormulaResults(calculator.spec,values,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
   const scenarioComparisons=(Array.isArray(calculator.spec.scenarios)?calculator.spec.scenarios:[]).map(scenario=>{
    const scenarioValues={...values,...(scenario.values||{})};
-   const scenarioResults=(calculator.spec.results||[]).map(item=>{
-    const ast=compileExpression(item.expression,resultKeys);
-    return {label:item.label,value:formatResult(item,evaluate(ast,scenarioValues)),explanation:String(item.explanation||"")};
-   });
+   const scenarioResults=evaluateFormulaResults(calculator.spec,scenarioValues,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
    return{label:String(scenario.label||"Alternative"),results:scenarioResults};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
@@ -1766,6 +1763,10 @@ function renderMakerTestPanel(preserveValues){
   inputGrid.appendChild(label);
  });
  panel.appendChild(inputGrid);
+ (Array.isArray(spec.groups)?spec.groups:[]).forEach(group=>{
+  const groupSection=appendDynamicGroupControls(panel,group);
+  groupSection.addEventListener("input",()=>updateMakerTestResults(panel));
+ });
  panel.appendChild(text("h4","ugc-maker-test-results-heading","Live results"));
  const results=document.createElement("div");results.className="ugc-maker-test-results-grid";results.setAttribute("aria-live","polite");
  panel.appendChild(results);
@@ -1791,50 +1792,41 @@ function updateMakerTestResults(panel){
  const output=panel.querySelector(".ugc-maker-test-results-grid"),statusNode=panel.querySelector(".ugc-maker-test-status");
  if(!output||!statusNode)return;
  output.replaceChildren();
- if(invalidControl){
-  statusNode.textContent="Enter a valid value within the allowed minimum, maximum and step for every input.";
-  return;
- }
- const keys=new Set(spec.inputs.map(item=>item.key));
+ if(invalidControl){statusNode.textContent="Enter a valid value within the allowed minimum, maximum and step for every input.";return;}
+ let groupValues;
+ try{groupValues=collectDynamicGroupValues(panel,spec);}
+ catch(error){statusNode.textContent=error?.message||"Check the dynamic group values.";return;}
  let formulaErrors=0;
- spec.results.forEach((item,index)=>{
-  const card=document.createElement("article");card.className="ugc-maker-test-result";
-  card.appendChild(text("span","",item.label||"Result "+(index+1)));
+ const renderResults=(host,scenarioValues,compact)=>{
+  host.replaceChildren();
   try{
-   const ast=compileExpression(item.expression,keys);
-   const value=evaluate(ast,values);
-   const locale=state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||"");
-   card.appendChild(text("strong","",formatResult(item,value,locale)));
-   if(item.explanation)card.appendChild(text("small","ugc-result-explanation",item.explanation));
+   evaluateFormulaResults(spec,scenarioValues,groupValues).forEach(item=>{
+    const card=document.createElement(compact?"div":"article");
+    card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
+    card.appendChild(text("span","",item.label||"Result"));
+    card.appendChild(text(compact?"b":"strong","",formatResult(item.item||{},item.value,state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||""))));
+    if(!compact&&item.explanation)card.appendChild(text("small","ugc-result-explanation",item.explanation));
+    host.appendChild(card);
+   });
   }catch(error){
    formulaErrors++;
-   card.classList.add("is-error");
-   card.appendChild(text("strong","","Cannot calculate"));
-   card.appendChild(text("small","",error?.message||"Check this formula."));
+   const card=text(compact?"div":"article",compact?"ugc-maker-scenario-result is-error":"ugc-maker-test-result is-error","");
+   card.append(text("span","", "Calculation error"),text(compact?"b":"strong","", "Cannot calculate"),text("small","",error?.message||"Check the formula."));
+   host.appendChild(card);
   }
-  output.appendChild(card);
- });
+ };
+ renderResults(output,values,false);
  const configuredScenarios=Array.isArray(spec.scenarios)?spec.scenarios:[];
  panel.querySelector(".ugc-maker-scenario-comparisons")?.remove();
  if(configuredScenarios.length){
   const section=document.createElement("section");section.className="ugc-maker-scenario-comparisons";
   section.appendChild(text("h4","ugc-maker-test-results-heading","Compare scenarios"));
-  const groups=[{label:"Current test values",values},{...configuredScenarios[0],values:{...values,...configuredScenarios[0].values}},...configuredScenarios.slice(1).map(scenario=>({...scenario,values:{...values,...scenario.values}}))];
+  const groups=[{label:"Current test values",values},...configuredScenarios.map(scenario=>({...scenario,values:{...values,...scenario.values}}))];
   groups.forEach((scenario,scenarioIndex)=>{
    const group=document.createElement("article");group.className="ugc-maker-scenario-result-group";
    group.appendChild(text("strong","",scenario.label||"Alternative "+scenarioIndex));
    const grid=document.createElement("div");grid.className="ugc-maker-scenario-result-grid";
-   spec.results.forEach(item=>{
-    const result=document.createElement("div");result.className="ugc-maker-scenario-result";
-    result.appendChild(text("span","",item.label||"Result"));
-    try{
-     const ast=compileExpression(item.expression,keys),value=evaluate(ast,scenario.values);
-     const locale=state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||"");
-     result.appendChild(text("b","",formatResult(item,value,locale)));
-    }catch(error){formulaErrors++;result.classList.add("is-error");result.appendChild(text("b","","Cannot calculate"));}
-    grid.appendChild(result);
-   });
-   group.appendChild(grid);section.appendChild(group);
+   renderResults(grid,scenario.values,true);group.appendChild(grid);section.appendChild(group);
   });
   const statusAnchor=panel.querySelector(".ugc-maker-test-status");
   if(statusAnchor)panel.insertBefore(section,statusAnchor);else panel.appendChild(section);
@@ -1843,8 +1835,8 @@ function updateMakerTestResults(panel){
  statusNode.textContent=formulaErrors
   ?" "+formulaErrors+" result formula"+(formulaErrors===1?" needs":"s need")+" attention. Check the highlighted result"+(formulaErrors===1?".":"s.")
   :validation.errors.length
-   ?"Live calculation works for these values, but boundary validation needs attention: "+validation.errors.slice(0,2).join(" ")
-   :"Results are updating automatically. Default, minimum, maximum, single-input and pairwise boundary checks also pass.";
+   ?"Live calculation works for these values, but validation needs attention: "+validation.errors.slice(0,2).join(" ")
+   :"Results update automatically. Formula dependencies, unit compatibility and input boundaries were checked.";
 }
 const MANUAL_TEMPLATES={
  "simple-cost":{
@@ -2108,7 +2100,7 @@ const MANUAL_TEMPLATES={
 function createManualDraft(templateKey){
  const template=MANUAL_TEMPLATES[templateKey]||MANUAL_TEMPLATES["simple-cost"];
  return {title:template.title,description:template.description,category:template.category,
-  spec:{subcategories:[],inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results))}};
+  spec:{subcategories:[],inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),groups:[]}};
 }
 function setMakerModeUI(){
  const manual=state.creationSource==="manual";
@@ -2149,6 +2141,99 @@ function changeManualMode(mode){
  const modeSelect=$("ugcManualMode");if(modeSelect)modeSelect.value=state.manualMode;
  const templateKey=state.manualMode==="quick"?"simple-cost":state.manualMode==="advanced"?"advanced":String($("ugcManualTemplate")?.value||"simple-cost");
  loadManualTemplate(templateKey);
+}
+function renderManualGroupEditor(host,definition){
+ const groups=definition.spec.groups||(definition.spec.groups=[]);
+ const section=document.createElement("section");section.className="ugc-maker-dynamic-groups";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Dynamic input groups"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Let calculator users add or remove repeated rows, such as household expenses, materials, products or employees. Use sum(group_key.field_key), avg(group_key.field_key), min(group_key.field_key), max(group_key.field_key) or count(group_key) in formulas. Up to 4 groups, 20 rows per group and 6 fields per row."));
+ groups.forEach((group,index)=>{
+  if(!Array.isArray(group.fields))group.fields=[];
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group ugc-maker-dynamic-group-editor";
+  card.appendChild(text("legend","","Group "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(labelText,value,onChange,maxLength)=>{
+   const label=document.createElement("label");label.textContent=labelText;
+   const input=document.createElement("input");input.type="text";input.maxLength=maxLength||60;input.value=String(value??"");
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});
+   label.appendChild(input);grid.appendChild(label);return input;
+  };
+  const addNumber=(labelText,value,onChange)=>{
+   const label=document.createElement("label");label.textContent=labelText;
+   const input=document.createElement("input");input.type="number";input.step="1";input.min="1";input.max="20";input.value=String(value);
+   input.addEventListener("input",()=>{if(input.value!==""&&Number.isInteger(Number(input.value)))onChange(Number(input.value));refreshMakerValidationNote();});
+   label.appendChild(input);grid.appendChild(label);return input;
+  };
+  const oldGroupKey=String(group.key||"");
+  const keyInput=addText("Group variable key",oldGroupKey,value=>{group.key=String(value).trim();},32);
+  keyInput.pattern="[a-z][a-z0-9_]{0,31}";
+  keyInput.addEventListener("change",()=>{
+   const next=String(keyInput.value||"").trim();
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||groups.some((other,i)=>i!==index&&other.key===next)||definition.spec.inputs.some(input=>input.key===next)){
+    keyInput.value=oldGroupKey;makerStatus("Group keys must be unique lowercase names.","error");return;
+   }
+   if(next!==oldGroupKey){
+    const pattern=new RegExp("\\b"+oldGroupKey+"\\.","g");
+    definition.spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(pattern,next+".");});
+    group.key=next;renderMakerPreview(definition);
+   }
+  });
+  addText("Group label",group.label,value=>{group.label=String(value).trim().slice(0,60);});
+  addText("Row label (singular)",group.itemLabel||"Item",value=>{group.itemLabel=String(value).trim().slice(0,40);},40);
+  addNumber("Minimum rows",group.minItems??1,value=>{group.minItems=value;});
+  addNumber("Maximum rows",group.maxItems??10,value=>{group.maxItems=value;});
+  card.appendChild(grid);
+  card.appendChild(text("h4","ugc-maker-schema-heading","Fields in each row"));
+  group.fields.forEach((field,fieldIndex)=>{
+   const fieldCard=document.createElement("div");fieldCard.className="ugc-maker-dynamic-field-editor";
+   const fieldGrid=document.createElement("div");fieldGrid.className="ugc-maker-input-grid";
+   const oldFieldKey=String(field.key||"");
+   const addFieldInput=(labelText,value,onChange,type="text")=>{
+    const label=document.createElement("label");label.textContent=labelText;
+    const input=document.createElement("input");input.type=type;input.value=String(value??"");if(type==="number")input.step="any";
+    input.addEventListener("input",()=>{if(type!=="number"||input.value==="")return;const n=Number(input.value);if(Number.isFinite(n))onChange(n);refreshMakerValidationNote();refreshMakerTestIfOpen();});
+    if(type==="text")input.addEventListener("input",()=>{onChange(String(input.value).trim().slice(0,60));refreshMakerValidationNote();refreshMakerTestIfOpen();});
+    label.appendChild(input);fieldGrid.appendChild(label);return input;
+   };
+   const fieldKeyInput=addFieldInput("Field key",oldFieldKey,value=>{field.key=value;});
+   fieldKeyInput.maxLength=32;fieldKeyInput.pattern="[a-z][a-z0-9_]{0,31}";
+   fieldKeyInput.addEventListener("change",()=>{
+    const next=String(fieldKeyInput.value||"").trim();
+    if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||group.fields.some((other,i)=>i!==fieldIndex&&other.key===next)){
+     fieldKeyInput.value=oldFieldKey;makerStatus("Field keys must be unique lowercase names inside their group.","error");return;
+    }
+    if(next!==oldFieldKey){
+     const pattern=new RegExp("\\b"+group.key+"\\."+oldFieldKey+"\\b","g");
+     definition.spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(pattern,group.key+"."+next);});
+     field.key=next;renderMakerPreview(definition);
+    }
+   });
+   addFieldInput("Field label",field.label,value=>{field.label=value;});
+   addFieldInput("Default",field.default,value=>{field.default=value;},"number");
+   addFieldInput("Minimum",field.min,value=>{field.min=value;},"number");
+   addFieldInput("Maximum",field.max,value=>{field.max=value;},"number");
+   addFieldInput("Step",field.step,value=>{field.step=value;},"number");
+   addFieldInput("Unit (optional)",field.unit||"",value=>{field.unit=value;},"text");
+   fieldCard.appendChild(fieldGrid);
+   const removeField=button("Remove field","ugc-manual-remove",()=>{group.fields.splice(fieldIndex,1);renderMakerPreview(definition);});
+   removeField.disabled=group.fields.length<=1;fieldCard.appendChild(removeField);card.appendChild(fieldCard);
+  });
+  const addField=button("＋ Add field","ugc-action-secondary",()=>{
+   if(group.fields.length>=6){makerStatus("A dynamic group can contain up to 6 fields per row.","error");return;}
+   let n=1,key="";do{key="field_"+n++;}while(group.fields.some(field=>field.key===key));
+   group.fields.push({key,label:"New field",min:0,max:1000000,default:0,step:1,unit:""});renderMakerPreview(definition);
+  });
+  addField.disabled=group.fields.length>=6;card.appendChild(addField);
+  const removeGroup=button("Remove group","ugc-manual-remove",()=>{groups.splice(index,1);renderMakerPreview(definition);});
+  card.appendChild(removeGroup);section.appendChild(card);
+ });
+ const addGroup=button("＋ Add dynamic group","ugc-action-secondary",()=>{
+  if(groups.length>=4){makerStatus("A calculator can contain up to 4 dynamic input groups.","error");return;}
+  let n=1,key="";do{key="items_"+n++;}while(groups.some(group=>group.key===key)||definition.spec.inputs.some(input=>input.key===key));
+  groups.push({key,label:"Items",itemLabel:"Item",minItems:1,maxItems:10,fields:[{key:"amount",label:"Amount",min:0,max:1000000,default:0,step:1,unit:""}]});
+  renderMakerPreview(definition);
+ });
+ addGroup.disabled=groups.length>=4;section.appendChild(addGroup);host.appendChild(section);
 }
 function renderManualScenarioEditor(host,definition){
  const spec=definition?.spec;if(!host||!spec)return;
@@ -2238,7 +2323,7 @@ function renderMakerPreview(definition){
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
- const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · dimensional unit checks and a restricted formula language");
+ const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · dimensional unit checks and a restricted formula language");
  host.appendChild(summary);
  if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
@@ -2336,16 +2421,16 @@ function renderMakerPreview(definition){
  });
  if(manual){
   const addInputButton=button("＋ Add input","ugc-action-secondary",()=>{
-   if(definition.spec.inputs.length>=16){makerStatus("A calculator can contain up to 16 inputs.","error");return;}
+   if(definition.spec.inputs.length>=24){makerStatus("A calculator can contain up to 24 fixed inputs.","error");return;}
    let index=1,key="";do{key="input_"+index++;}while(definition.spec.inputs.some(item=>item.key===key));
    const addedInput={key,label:"New input",min:0,max:1000000,default:0,step:1,unit:""};
    definition.spec.inputs.push(addedInput);
    (definition.spec.scenarios||[]).forEach(scenario=>{scenario.values= scenario.values||{};scenario.values[key]=addedInput.default;});
    renderMakerPreview(definition);
   });
-  addInputButton.disabled=definition.spec.inputs.length>=16;host.appendChild(addInputButton);
+  addInputButton.disabled=definition.spec.inputs.length>=24;host.appendChild(addInputButton);
  }
- if(manual)renderManualScenarioEditor(host,definition);
+ if(manual){renderManualGroupEditor(host,definition);renderManualScenarioEditor(host,definition);}
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator results"));
  (definition.spec?.results||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";group.appendChild(text("legend","","Result "+(index+1)));
@@ -2356,8 +2441,12 @@ function renderMakerPreview(definition){
    input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});
    label.appendChild(input);grid.appendChild(label);return input;
   };
+  if(manual&&!item.key)item.key="result_"+(index+1);
+  const resultKeyInput=addInput("Result variable key","text",item.key||"",value=>{item.key=String(value).trim().slice(0,32);});
+  resultKeyInput.maxLength=32;resultKeyInput.pattern="[a-z][a-z0-9_]{0,31}";
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
-  addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
+  const formulaInput=addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
+  formulaInput.placeholder="Use input keys and earlier result keys; e.g. subtotal * tax_rate / 100 or sum(expenses.amount).";
   const explanationLabel=document.createElement("label");explanationLabel.className="ugc-maker-result-explanation";
   explanationLabel.appendChild(text("span","","What does this result mean?"));
   const explanation=document.createElement("textarea");explanation.rows=2;explanation.maxLength=280;explanation.value=String(item.explanation||"");
@@ -2395,6 +2484,8 @@ function renderMakerPreview(definition){
   unitResult.addEventListener("input",()=>{item.unit=String(unitResult.value).trim().slice(0,20);refreshMakerTestIfOpen();refreshMakerValidationNote();});
   currencyLabel.append(currencySelect,customCurrency,unitResult);grid.appendChild(currencyLabel);syncCurrencyEnabled();
   if(manual){
+   const moveUp=button("Move result up","ugc-manual-remove",()=>{if(index>0){[definition.spec.results[index-1],definition.spec.results[index]]=[definition.spec.results[index],definition.spec.results[index-1]];renderMakerPreview(definition);}});moveUp.disabled=index===0;grid.appendChild(moveUp);
+   const moveDown=button("Move result down","ugc-manual-remove",()=>{if(index<definition.spec.results.length-1){[definition.spec.results[index+1],definition.spec.results[index]]=[definition.spec.results[index],definition.spec.results[index+1]];renderMakerPreview(definition);}});moveDown.disabled=index===definition.spec.results.length-1;grid.appendChild(moveDown);
    const remove=button("Remove result","ugc-manual-remove",()=>{if(definition.spec.results.length<=1)return;definition.spec.results.splice(index,1);renderMakerPreview(definition);});
    remove.disabled=definition.spec.results.length<=1;grid.appendChild(remove);
   }
@@ -2402,12 +2493,13 @@ function renderMakerPreview(definition){
  });
  if(manual){
   const addResultButton=button("＋ Add result","ugc-action-secondary",()=>{
-   if(definition.spec.results.length>=10){makerStatus("A calculator can contain up to 10 results.","error");return;}
-   const firstInput=definition.spec.inputs[0];definition.spec.results.push({label:"New result",expression:String(firstInput?.key||"1"),format:"number"});renderMakerPreview(definition);
+   if(definition.spec.results.length>=20){makerStatus("A calculator can contain up to 20 results.","error");return;}
+   const firstInput=definition.spec.inputs[0];let n=definition.spec.results.length+1,key="result_"+n;while(definition.spec.results.some(item=>item.key===key))key="result_"+(++n);
+   definition.spec.results.push({key,label:"New result",expression:String(firstInput?.key||"1"),format:"number"});renderMakerPreview(definition);
   });
-  addResultButton.disabled=definition.spec.results.length>=10;host.appendChild(addResultButton);
+  addResultButton.disabled=definition.spec.results.length>=20;host.appendChild(addResultButton);
  }
- host.appendChild(text("p","ugc-maker-schema-summary","Each result can use a different currency. Selecting a currency changes how the value is displayed; it does not convert amounts or fetch exchange rates. For currency conversion, include the exchange rate as an explicit calculator input."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Results are evaluated from top to bottom. Give a result a variable key to use it in later formulas; move results to change their order. Dynamic group formulas: sum(group.field), avg(group.field), min(group.field), max(group.field), and count(group). Currencies are never automatically converted."));
  const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
  const testToggle=button("▶ Test calculator","ugc-maker-test-toggle",()=>{
   testPanel.hidden=!testPanel.hidden;testToggle.setAttribute("aria-expanded",String(!testPanel.hidden));testToggle.textContent=testPanel.hidden?"▶ Test calculator":"▾ Hide test";
