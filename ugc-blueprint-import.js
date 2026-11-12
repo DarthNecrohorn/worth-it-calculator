@@ -174,12 +174,7 @@ function normalizeBlueprint(source,validateSpec){
  if(rootValue.assumptions!==undefined){
   assumptions=requireArray(rootValue.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,1000));\n  if(assumptions.join("\\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
  }
- if(assumptions.length){
-  const suffix="\n\nAssumptions: "+assumptions.join("; ");
-  if(description.length+suffix.length>500)fail("The description and assumptions exceed the 500-character limit. Shorten them and import again.");
-  description+=suffix;
- }
- const spec={subcategories,inputs,groups,results,scenarios};
+ const spec={subcategories,inputs,groups,results,scenarios,assumptions};
  const definition={title,description,category,spec};
  if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
  const validation=validateSpec(spec);
