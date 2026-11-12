@@ -189,7 +189,23 @@ function normalizeBlueprint(source,validateSpec){
  if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
  const validation=validateSpec(spec);
  const errors=Array.isArray(validation?.errors)?validation.errors:[];
- if(errors.length)fail("The blueprint did not pass calculator validation: "+errors.slice(0,5).join(" "));
+ if(errors.length){
+  const visibleErrors=errors.slice(0,5);
+  const guidance=[];
+  if(visibleErrors.some(message=>/use 1–20 rows and a valid group/i.test(message))){
+   guidance.push("Dynamic groups must use minItems 1 or greater. For an optional list, keep one row whose field defaults to zero; minItems 0 is not supported.");
+  }
+  if(visibleErrors.some(message=>/units do not match the selected .* result currency/i.test(message))){
+   guidance.push("Check dimensional algebra: a month count used only as a multiplier must have an empty unit; dividing EUR by a real months input produces EUR/month, which must use format unit with unit EUR/month, not currency EUR.");
+  }
+  if(visibleErrors.some(message=>/dimensions do not match the selected result unit/i.test(message))){
+   guidance.push("Use the exact derived unit for rate results, for example EUR/day for money divided by days or EUR/month for money divided by months.");
+  }
+  if(visibleErrors.some(message=>/divides by zero|remainder by zero/i.test(message))){
+   guidance.push("Guard every possibly-zero denominator with if(gt(denominator,0),numerator/denominator,0). if() evaluates only its selected result branch.");
+  }
+  fail("The blueprint did not pass calculator validation: "+visibleErrors.join(" ")+(guidance.length?" Correction guidance: "+guidance.join(" "):""));
+ }
  return definition;
 }
 function repairCopiedJsonArtifacts(source){
