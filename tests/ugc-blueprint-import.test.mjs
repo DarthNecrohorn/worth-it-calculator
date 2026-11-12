@@ -104,6 +104,7 @@ test("validates dropdown choice uniqueness and bounds",()=>{
  const candidate=blueprint();
  candidate.spec.inputs[0]={key:"plan",label:"Plan",control:"select",min:0,max:10,default:0,step:10,unit:"",choices:[{label:"Basic",value:0},{label:"Premium",value:10}]};
  candidate.spec.results=[{key:"plan_value",label:"Plan value",expression:"plan",format:"number"}];
+ candidate.spec.scenarios=[];
  assert.equal(importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})).spec.inputs[0].control,"select");
  candidate.spec.inputs[0].choices[1].value=0;
  assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/unique labels and numeric values/);
