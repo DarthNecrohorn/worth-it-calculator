@@ -1605,12 +1605,19 @@ test("all built-in Manual Builder templates pass formula, unit and boundary vali
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["GBP","Pound sterling"]]}
     );
     const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\nMANUAL_TEMPLATES");
+    const hourly=templates["hourly-pay"];
+    const hourlyKeys=new Set(hourly.inputs.map(input=>input.key));
+    const hourlyUnits=hourly.results.map(result=>{
+        const ast=engine.compileExpression(result.expression,hourlyKeys);
+        const unit=engine.analyseFormulaUnit(ast,hourly.inputs);
+        return {label:result.label,dimension:engine.unitVectorKey(unit),exact:unit.exact,opaque:unit.opaque};
+    });
     const invalid=[];
     for(const [key,template] of Object.entries(templates)){
         const validation=engine.validateMakerSpec({inputs:template.inputs,results:template.results,scenarios:[]});
         if(validation.errors.length)invalid.push(key+": "+validation.errors.join(" | "));
     }
-    assert.deepEqual(invalid,[]);
+    assert.deepEqual(invalid,[], "Template formula/unit validation failures: "+JSON.stringify(invalid)+"; hourly dimensions: "+JSON.stringify(hourlyUnits));
     assert.ok(Object.keys(templates).length>=17,"The template library should contain at least 17 distinct templates.");
 });
 
@@ -1628,9 +1635,11 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
         ],
         results:[{label:"Total",expression:"quantity * price",format:"currency",currency:"EUR"}]
     };
-    assert.equal(engine.validateMakerSpec(base).errors.length,0);
+    const baseErrors=Array.from(engine.validateMakerSpec(base).errors);
+    assert.equal(baseErrors.length,0,"Base calculator validation: "+baseErrors.join(" | "));
     const valid={...base,scenarios:[{key:"larger",label:"Larger order",values:{quantity:20,price:1.5}}]};
-    assert.equal(engine.validateMakerSpec(valid).errors.length,0);
+    const validErrors=Array.from(engine.validateMakerSpec(valid).errors);
+    assert.equal(validErrors.length,0,"Scenario calculator validation: "+validErrors.join(" | "));
     const invalid={...base,scenarios:[{key:"bad",label:"Out of range",values:{quantity:101,price:2}}]};
     assert.ok(engine.validateMakerSpec(invalid).errors.some(message=>/input range/i.test(message)));
     const tooMany={...base,scenarios:[1,2,3,4].map((n)=>({label:"Scenario "+n,values:{quantity:10+n}}))};
