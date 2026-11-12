@@ -1431,6 +1431,7 @@ test("UGC AI Maker quotas use per-tier generation caps and one shared 100-per-da
     assert.match(maker, /refreshMakerGenerationQuota/);
     assert.doesNotMatch(maker, /global_remaining/);
     assert.match(html, /id="ugcMakerGenerationQuotaStatus"/);
+    assert.match(html, /system-wide limit of 100 successful new AI generations per UTC day/i);
     assert.doesNotMatch(html, /100 successful new UGC calculator generations per UTC day/i);
     assert.doesNotMatch(html, /100 UGC calculators in total are able to get generated a day/i);
     assert.match(paginationCss, /\.ugc-maker-status\.is-generating\{color:var\(--primary2\)/);
