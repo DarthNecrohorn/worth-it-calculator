@@ -1519,7 +1519,12 @@ async function saveMakerDraft(publish){
    if(editQuota)editQuota.hidden=true;
    // Once the AI draft is first saved, future changes are ordinary manual
    // edits. The generation has already consumed its AI slot and CALC charge.
-   if(state.creationSource==="ai"){state.creationSource="manual";state.aiOperationId="";}
+   if(state.creationSource==="ai"){
+    state.creationSource="manual";state.aiOperationId="";state.manualMode="advanced";
+    const mode=$("ugcManualMode");if(mode)mode.value="advanced";
+    const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
+    renderMakerPreview(state.aiDraft);
+   }
    setMakerModeUI();
    void refreshCreationQuota();
   }
