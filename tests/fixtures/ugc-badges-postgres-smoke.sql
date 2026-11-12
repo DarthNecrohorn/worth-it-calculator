@@ -251,7 +251,7 @@ begin
             null,'Free second draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when raise_exception then blocked:=true;
+    exception when sqlstate '54000' then blocked:=true;
     end;
     if not blocked then raise exception 'Free account created more than one calculator in a UTC day.'; end if;
 end
@@ -829,7 +829,7 @@ begin
             null,'Premium fourth draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when raise_exception then blocked:=true;
+    exception when sqlstate '54000' then blocked:=true;
     end;
     if not blocked then raise exception 'Premium created more than three calculators in a UTC day.'; end if;
 end
@@ -852,7 +852,7 @@ begin
             null,'Premium Lite third draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
-    exception when raise_exception then blocked:=true;
+    exception when sqlstate '54000' then blocked:=true;
     end;
     if not blocked then raise exception 'Premium Lite created more than two calculators in a UTC day.'; end if;
 end
@@ -1568,7 +1568,7 @@ begin
         perform public.save_worth_it_ugc_calculator(
             null,'Free manual second calculator',v_description,'money',v_spec,'manual',null
         );
-    exception when raise_exception then blocked:=true;
+    exception when sqlstate '54000' then blocked:=true;
     end;
     if not blocked then raise exception 'Free account exceeded its one manual calculator save per UTC day.'; end if;
 
