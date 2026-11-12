@@ -67,7 +67,7 @@ function blueprintAligned(value,min,step){
 function blueprintDecimalPlaces(value){
  const text=String(Number(value));
  if(/[eE]/.test(text)){const [base,exponent]=text.toLowerCase().split("e");return Math.max(0,Math.min(8,(base.split(".")[1]||"").length-Number(exponent)));}
- return Math.max(0,Math.min(8,(text.split(".")[1]||"").length);
+ return Math.max(0,Math.min(8,(text.split(".")[1]||"").length));
 }
 function normalizeBlueprintRange(raw,label,notes){
  const has=(key)=>Object.prototype.hasOwnProperty.call(raw,key);
@@ -305,11 +305,13 @@ function prepareBlueprintShape(source){
   const label=typeof item.label==="string"&&item.label.trim()?item.label.trim().slice(0,70):"Result "+(index+1);
   const key=createKey(item.key,label,"result_"+(index+1));
   let expression=typeof item.expression==="string"?item.expression.trim():"";
+  let usedPlaceholderFormula=false;
   if(!expression){
    expression=inputs[0].key;
+   usedPlaceholderFormula=true;
    notes.push(label+": added a temporary passthrough formula using the first input because no formula was supplied. Review and replace it before publishing.");
   }
-  let format=typeof item.format==="string"?item.format.toLowerCase():"number";
+  let format=usedPlaceholderFormula?"number":typeof item.format==="string"?item.format.toLowerCase():"number";
   if(!["number","currency","percent","unit"].includes(format)){format="number";notes.push(label+": changed an unsupported display format to Number; dimensions will be inferred where possible.");}
   const result={
    key,label,expression,format,
@@ -357,7 +359,7 @@ function prepareBlueprintShape(source){
  return{
   blueprint:{
    blueprintVersion:1,title,description,category,subcategories,assumptions,
-   spec:{subcategories,inputs,groups,results,scenarios}
+   spec:{inputs,groups,results,scenarios}
   },
   notes
  };
