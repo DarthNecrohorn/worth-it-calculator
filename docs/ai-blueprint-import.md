@@ -46,6 +46,14 @@ Allowed root, spec, input, group, field, result and scenario properties are allo
 6. **Final validation** passes the prepared blueprint through the same Manual Builder formula, unit, dependency, boundary and scenario validator used for manually created calculators.
 7. **Draft import** populates the editable Advanced Formula Builder. The member must review and test the result; Save and Publish remain separate, explicit actions.
 
+## Original request coverage check
+
+The import panel may also receive the exact calculator request that the member gave to the external AI. This text is optional and is used only in the browser for a lightweight keyword coverage check.
+
+The checker compares distinctive request terms with the calculator title, description, assumptions, input labels/keys, group labels/fields, result labels/formulas/explanations and scenario labels. It uses a small, explicit synonym map for common terms. When meaningful request terms are not found, it adds a review note to the editable draft.
+
+This is a heuristic warning, not natural-language understanding. It can miss synonyms, miss a mathematical feature expressed only in a formula, or flag a term that is represented differently. It never invents a formula, deletes a requested feature, blocks import, or declares the calculator fully complete. The original request is not copied into the calculator definition, sent to an AI provider, submitted to the server or saved as part of the calculator.
+
 ## What can be repaired automatically
 
 Examples include:
