@@ -2125,3 +2125,52 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-dynamic-group,.ugc-maker-dynamic-field-editor{padding:9px}
 }
 
+
+
+/* Optional external-AI blueprint import; Manual Builder remains fully standalone. */
+.ugc-blueprint-import{
+ display:grid;
+ gap:10px;
+ margin:14px 0 18px;
+ padding:14px;
+ border:1px solid rgba(139,116,255,.34);
+ border-radius:14px;
+ background:linear-gradient(145deg,rgba(124,92,255,.075),rgba(56,189,248,.045));
+}
+.ugc-blueprint-import[hidden]{display:none!important}
+.ugc-blueprint-import-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ugc-blueprint-import-head h3{
+ display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+ margin:0 0 5px;color:var(--text);font-size:14px;font-weight:900;
+}
+.ugc-blueprint-import-head h3 span{
+ display:inline-flex;align-items:center;padding:3px 7px;
+ border:1px solid var(--border);border-radius:999px;
+ color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.04em;
+}
+.ugc-blueprint-import-head p,.ugc-blueprint-import-note{
+ margin:0;color:var(--muted);font-size:11px;line-height:1.55;
+}
+.ugc-blueprint-import label{
+ display:grid;gap:6px;color:var(--text);font-size:11px;font-weight:800;
+}
+.ugc-blueprint-import textarea{
+ display:block;width:100%;min-width:0;resize:vertical;
+ min-height:145px;padding:10px 11px;
+ border:1px solid var(--border);border-radius:10px;
+ background:var(--surface);color:var(--text);
+ font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+.ugc-blueprint-import textarea:focus{
+ outline:2px solid rgba(139,116,255,.45);outline-offset:1px;
+}
+.ugc-blueprint-import-actions{display:flex;flex-wrap:wrap;gap:8px}
+.ugc-blueprint-import-actions button{max-width:100%}
+.ugc-blueprint-import .ugc-maker-status{margin:0;min-height:0}
+.ugc-blueprint-import-note{padding-top:2px}
+@media(max-width:640px){
+ .ugc-blueprint-import{padding:11px}
+ .ugc-blueprint-import-actions{display:grid;grid-template-columns:1fr}
+ .ugc-blueprint-import-actions button{width:100%}
+ .ugc-blueprint-import textarea{min-height:170px;font-size:11px}
+}
