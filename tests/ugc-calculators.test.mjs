@@ -1628,9 +1628,9 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
         ],
         results:[{label:"Total",expression:"quantity * price",format:"currency",currency:"EUR"}]
     };
-    assert.deepEqual(engine.validateMakerSpec(base).errors,[]);
+    assert.equal(engine.validateMakerSpec(base).errors.length,0);
     const valid={...base,scenarios:[{key:"larger",label:"Larger order",values:{quantity:20,price:1.5}}]};
-    assert.deepEqual(engine.validateMakerSpec(valid).errors,[]);
+    assert.equal(engine.validateMakerSpec(valid).errors.length,0);
     const invalid={...base,scenarios:[{key:"bad",label:"Out of range",values:{quantity:101,price:2}}]};
     assert.ok(engine.validateMakerSpec(invalid).errors.some(message=>/input range/i.test(message)));
     const tooMany={...base,scenarios:[1,2,3,4].map((n)=>({label:"Scenario "+n,values:{quantity:10+n}}))};
