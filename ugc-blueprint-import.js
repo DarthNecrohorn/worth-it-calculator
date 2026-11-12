@@ -135,7 +135,7 @@ function normalizeBlueprint(source,validateSpec){
   const format=item.format===undefined?"number":item.format;
   if(!["number","currency","percent","unit"].includes(format))fail(label+" uses an unsupported display format.");
   const normalized={
-   key:item.key===undefined?"":requireString(item.key,label+" variable key",1,32),
+   key:item.key===undefined||item.key===""?"":requireString(item.key,label+" variable key",1,32),
    label:requireString(item.label,label+" label",1,70),
    expression:requireString(item.expression,label+" formula",1,500),
    format,
@@ -218,7 +218,8 @@ function buildPrompt(){
   "Keep units compatible. Addition/subtraction and comparisons require matching units. Currency codes are distinct units; never convert currencies or invent exchange rates. Any conversion must be an explicit numeric input/formula in one consistent target unit.",
   "Use finite numeric defaults, sensible min/max/step, and formulas that work at both default and boundary values. Keep formulas deterministic and bounded.",
   "Do not include unknown keys, custom components, code, HTML, URLs, file references, arbitrary functions, loops, recursion, callbacks or network access.",
-  "Assumptions are optional plain-text strings. If uncertain, state the uncertainty in assumptions rather than inventing data."
+  "Assumptions are optional plain-text strings. If uncertain, state the uncertainty in assumptions rather than inventing data.",
+  "Calculator request: [REPLACE THIS PLACEHOLDER WITH THE CALCULATOR YOU WANT TO BUILD]."
  ].join("\n\n");
 }
 root.WorthItBlueprintImport=Object.freeze({parseBlueprint,buildPrompt,MAX_BLUEPRINT_CHARS});
