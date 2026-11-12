@@ -767,7 +767,7 @@ function unitDescriptor(unit){
   seconds:{time:"seconds"},second:{time:"second"},hr:{time:"hr"},hrs:{time:"hrs"},h:{time:"h"},s:{time:"s"},
   km:{length:"km"},kilometres:{length:"kilometres"},kilometers:{length:"kilometers"},
   miles:{length:"miles"},mile:{length:"mile"},m:{length:"m"},cm:{length:"cm"},mm:{length:"mm"},
-  "m²":{area:"m²"},"m2":{area:"m2},"ft²":{area:"ft²"},
+  "m²":{area:"m²"},"m2":{area:"m2"},"ft²":{area:"ft²"},
   l:{volume:"L"},litres:{volume:"litres"},liters:{volume:"liters"},
   "m³":{volume:"m³"},"m3":{volume:"m3"},ml:{volume:"mL"},
   kg:{mass:"kg"},kilograms:{mass:"kilograms"},g:{mass:"g"},grams:{mass:"grams"},tonnes:{mass:"tonnes"},
@@ -906,7 +906,7 @@ function analyseFormulaUnit(ast,inputs,groups){
   const power=constantFormulaValue(ast.args[1]);
   if(power===null)throw new Error("Power exponent must be a fixed numeric value.");
   const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(value*power)vector[key]=value*power;});
-  return{exact:"",vector,opaque:args[0].opaque};
+  return{exact:"",vector,opaque:args[0].opaque,symbols:{...(args[0].symbols||{})}};
  }
  if(["log","ln","exp","sin","cos","tan","asin","acos","atan"].includes(ast.name)){
   if(Object.keys(args[0].vector).length)throw new Error(ast.name+"() requires a dimensionless input.");
