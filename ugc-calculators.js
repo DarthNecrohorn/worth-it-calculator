@@ -859,6 +859,16 @@ function analyseFormulaUnit(ast,inputs,groups){
 function unitVectorKey(unit){
  return Object.entries(unit.vector).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>key+"^"+Number(value.toFixed(6))).join("*");
 }
+function ensureResultCurrency(result,fallback="EUR"){
+ if(!result||result.format!=="currency")return "";
+ const current=String(result.currency||"").trim().toUpperCase();
+ const isSupported=code=>CURRENCIES.some(([candidate])=>candidate===code)
+  ||(typeof HISTORICAL_CURRENCIES!=="undefined"&&HISTORICAL_CURRENCIES.some(([candidate])=>candidate===code));
+ if(current){result.currency=current;return current;}
+ const preferred=String(fallback||"").trim().toUpperCase();
+ result.currency=isSupported(preferred)?preferred:"EUR";
+ return result.currency;
+}
 function validateFormulaResultUnit(result,unit){
  const format=String(result.format||"number");
  if(format==="unit"){
@@ -867,7 +877,7 @@ function validateFormulaResultUnit(result,unit){
    throw new Error("The formula's dimensions do not match the selected result unit. Check the input units and formula.");
   }
  }else if(format==="currency"){
-  const expected=String(result.currency||"").trim().toUpperCase();
+  const expected=ensureResultCurrency(result);
   const actual=Object.keys(unit.vector);
   if(actual.length!==1||actual[0]!=="currency:"+expected||Math.abs(unit.vector[actual[0]]-1)>1e-9){
    throw new Error("The formula's units do not match the selected "+expected+" result currency. Check the input units and conversion assumptions.");
@@ -1073,7 +1083,7 @@ function validateMakerSpec(spec){
     errors.push((item.label||"Result "+(index+1))+": result variable keys must be unique lowercase names.");
    }
   }
-  const currencyCode=String(item.currency||"").trim().toUpperCase();
+  const currencyCode=item.format==="currency"?ensureResultCurrency(item):String(item.currency||"").trim().toUpperCase();
   const supportedCurrency=CURRENCIES.some(([code])=>code===currencyCode)
    ||(typeof HISTORICAL_CURRENCIES!=="undefined"&&HISTORICAL_CURRENCIES.some(([code])=>code===currencyCode));
   if(item.format==="currency"&&!supportedCurrency)errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
@@ -2292,6 +2302,9 @@ function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();if(!definition){host.hidden=true;return;}host.hidden=false;
  const manual=state.creationSource==="manual";
+ (definition.spec?.results||[]).forEach(item=>{
+  if(item.format==="currency")ensureResultCurrency(item,state.regionalDefaults?.currency||"EUR");
+ });
  if(state.regionalDefaults){
   const regionNote=text("p","ugc-maker-schema-summary","Regional suggestion: "+state.regionalDefaults.currency+" · number format "+state.regionalDefaults.locale+". This is only a starting point; you can change every input unit and result currency below. Currency selection never performs conversion.");
   regionNote.id="ugcMakerRegionalDefaults";host.appendChild(regionNote);
@@ -2584,16 +2597,20 @@ async function saveMakerDraft(publish){
   makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
  }
  const specToSave={...state.aiDraft.spec};
- specToSave.results=(Array.isArray(specToSave.results)?specToSave.results:[]).map(item=>({
-  ...item,
-  explanation:String(item.explanation||"").trim()||describeResultFormula(item,specToSave.inputs)
- }));
+ specToSave.results=(Array.isArray(specToSave.results)?specToSave.results:[]).map(item=>{
+  const normalized={
+   ...item,
+   explanation:String(item.explanation||"").trim()||describeResultFormula(item,specToSave.inputs)
+  };
+  if(normalized.format==="currency")ensureResultCurrency(normalized,state.regionalDefaults?.currency||"EUR");
+  return normalized;
+ });
  const validation=validateMakerSpec(specToSave);
  if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  if(!Array.isArray(specToSave.subcategories)&&Array.isArray(state.aiDraft.subcategories)){
   specToSave.subcategories=[...state.aiDraft.subcategories];
  }
- const invalidCurrency=(state.aiDraft.spec?.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
+ const invalidCurrency=(specToSave.results||[]).find(item=>item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase()));
  if(invalidCurrency){makerStatus("Enter a valid three-letter ISO 4217 currency code for every currency-formatted result.","error");return;}
  const save=$("ugcMakerSave");if(save)save.disabled=true;
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
