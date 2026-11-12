@@ -154,11 +154,15 @@ function normalizeBlueprint(source,validateSpec){
   if(format==="currency"){
    const currency=typeof item.currency==="string"?item.currency.trim().toUpperCase():"";
    normalized.currency=/^[A-Z]{3}$/.test(currency)?currency:"";
-   if(!normalized.currency)compatibilityNotes.push(label+": currency will be inferred from the formula when possible because its code was missing or invalid.");
+   if(!normalized.currency){
+    if(typeof validateSpec?.repairBlueprintSpec!=="function")fail(label+" must specify an explicit three-letter currency code.");
+    compatibilityNotes.push(label+": currency will be inferred from the formula's dimensions because its code was missing or invalid.");
+   }
    if(item.unit!==undefined)compatibilityNotes.push(label+": removed redundant unit metadata from a currency result.");
   }else if(format==="unit"){
    normalized.unit=typeof item.unit==="string"?item.unit.trim().slice(0,20):"";
-   if(!normalized.unit)compatibilityNotes.push(label+": result unit will be inferred from the formula when possible.");
+   if(!normalized.unit&&typeof validateSpec?.repairBlueprintSpec!=="function")fail(label+" must specify a result unit.");
+   if(!normalized.unit)compatibilityNotes.push(label+": result unit will be inferred from the formula's dimensions.");
    if(item.currency!==undefined)compatibilityNotes.push(label+": removed redundant currency metadata from a unit result.");
   }else if(item.currency!==undefined||item.unit!==undefined){
    compatibilityNotes.push(label+": removed currency or unit metadata that does not apply to its selected display format.");
