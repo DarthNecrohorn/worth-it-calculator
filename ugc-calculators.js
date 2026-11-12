@@ -560,7 +560,7 @@ function analyseFormulaUnit(ast,inputs){
   return{exact:"",vector,opaque:args[0].opaque};
  }
  if(ast.name==="pow"){
-  const power=constantFormulaValue(ast[1]);
+  const power=constantFormulaValue(ast.args[1]);
   if(power===null)throw new Error("Power exponent must be a fixed numeric value.");
   const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(value*power)vector[key]=value*power;});
   return{exact:"",vector,opaque:args[0].opaque};
@@ -590,16 +590,18 @@ function validateMakerSpec(spec){
  const errors=[];
  if(!Array.isArray(spec?.inputs)||!spec.inputs.length)errors.push("Add at least one input.");
  if(!Array.isArray(spec?.results)||!spec.results.length)errors.push("Add at least one result.");
- const inputs=Array.isArray(spec?.inputs)?spec.inputs:[];
- const values={};
+ const inputs=Array.isArray(spec?.inputs)?spec.inputs:[],values={};
+ if(inputs.length>16)errors.push("A calculator can contain up to 16 inputs.");
+ if((spec?.results||[]).length>10)errors.push("A calculator can contain up to 10 results.");
  inputs.forEach(item=>{
   const label=String(item.label||item.key||"input"),min=Number(item.min),max=Number(item.max),value=Number(item.default),step=Number(item.step);
+  if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(item.key||"")))errors.push(label+": variable keys must start with a lowercase letter and use only letters, numbers and underscores.");
   if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<min||step<=0){errors.push(label+": check its minimum, maximum, default and step.");return;}
-  const text=(label+" "+item.key).toLowerCase();
-  if(/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(text)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
+  const textValue=(label+" "+item.key).toLowerCase();
+  if(/\\b(?:commut(?:e|ing)|work|working|business)\\s+days?\\b|\\bdays?_per_week\\b/.test(textValue)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
    errors.push(label+": use positive whole days and a step of at least 1.");
   }
-  if(/\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\b/.test(text)&&min<=0){
+  if(/\\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\\b/.test(textValue)&&min<=0){
    errors.push(label+": this input should have a positive minimum.");
   }
   const stepPosition=(value-min)/step;
@@ -631,8 +633,11 @@ function validateMakerSpec(spec){
   if(item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase())){
    errors.push((item.label||"A currency result")+": enter a valid three-letter ISO currency code.");
   }
+  if(String(item.explanation||"").length>280)errors.push((item.label||"A result")+": its explanation must be 280 characters or fewer.");
   try{
    const ast=compileExpression(item.expression,keys);
+   const outputUnit=analyseFormulaUnit(ast,inputs);
+   validateFormulaResultUnit(item,outputUnit);
    scenarios.forEach(sample=>evaluate(ast,sample));
   }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||"could not be validated."));}
  });
@@ -1637,7 +1642,7 @@ function renderMakerPreview(definition){
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
- const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" inputs · "+(definition.spec?.results?.length||0)+" results · formulas use a restricted arithmetic language");
+ const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · dimensional unit checks and a restricted formula language");
  host.appendChild(summary);
  if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
@@ -1692,11 +1697,11 @@ function renderMakerPreview(definition){
  });
  if(manual){
   const addInputButton=button("＋ Add input","ugc-action-secondary",()=>{
-   if(definition.spec.inputs.length>=12){makerStatus("A calculator can contain up to 12 inputs.","error");return;}
+   if(definition.spec.inputs.length>=16){makerStatus("A calculator can contain up to 16 inputs.","error");return;}
    let index=1,key="";do{key="input_"+index++;}while(definition.spec.inputs.some(item=>item.key===key));
    definition.spec.inputs.push({key,label:"New input",min:0,max:1000000,default:0,step:1,unit:""});renderMakerPreview(definition);
   });
-  addInputButton.disabled=definition.spec.inputs.length>=12;host.appendChild(addInputButton);
+  addInputButton.disabled=definition.spec.inputs.length>=16;host.appendChild(addInputButton);
  }
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator results"));
  (definition.spec?.results||[]).forEach((item,index)=>{
@@ -1709,7 +1714,13 @@ function renderMakerPreview(definition){
    label.appendChild(input);grid.appendChild(label);return input;
   };
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
-  addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,260);});
+  addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
+  const explanationLabel=document.createElement("label");explanationLabel.className="ugc-maker-result-explanation";
+  explanationLabel.appendChild(text("span","","What does this result mean?"));
+  const explanation=document.createElement("textarea");explanation.rows=2;explanation.maxLength=280;explanation.value=String(item.explanation||"");
+  explanation.placeholder="Explain the formula in plain language, including what is included or excluded.";
+  explanation.addEventListener("input",()=>{item.explanation=String(explanation.value).slice(0,280);refreshMakerTestIfOpen();});
+  explanationLabel.appendChild(explanation);grid.appendChild(explanationLabel);
   const formatLabel=document.createElement("label");formatLabel.textContent="Display format";
   const formatSelect=document.createElement("select");
   [["number","Number"],["currency","Currency"],["percent","Percent"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;formatSelect.appendChild(option);});
@@ -1741,10 +1752,10 @@ function renderMakerPreview(definition){
  });
  if(manual){
   const addResultButton=button("＋ Add result","ugc-action-secondary",()=>{
-   if(definition.spec.results.length>=6){makerStatus("A calculator can contain up to 6 results.","error");return;}
+   if(definition.spec.results.length>=10){makerStatus("A calculator can contain up to 10 results.","error");return;}
    const firstInput=definition.spec.inputs[0];definition.spec.results.push({label:"New result",expression:String(firstInput?.key||"1"),format:"number"});renderMakerPreview(definition);
   });
-  addResultButton.disabled=definition.spec.results.length>=6;host.appendChild(addResultButton);
+  addResultButton.disabled=definition.spec.results.length>=10;host.appendChild(addResultButton);
  }
  host.appendChild(text("p","ugc-maker-schema-summary","Each result can use a different currency. Selecting a currency changes how the value is displayed; it does not convert amounts or fetch exchange rates. For currency conversion, include the exchange rate as an explicit calculator input."));
  const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
@@ -1753,7 +1764,7 @@ function renderMakerPreview(definition){
   if(!testPanel.hidden)renderMakerTestPanel(false);
  });
  testToggle.setAttribute("aria-expanded","false");host.append(testToggle,testPanel);
- host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: +, −, ×, ÷, powers, parentheses and min, max, abs, round, floor, ceil, sqrt, pow. Arbitrary JavaScript is never run."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Allowed formulas: +, −, ×, ÷, powers, parentheses, min, max, avg, abs, round, floor, ceil, trunc, sign, sqrt, pow, clamp, mod, hypot, log, ln, exp, sin, cos and tan. Arbitrary JavaScript is never run."));
  refreshMakerValidationNote();
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;if(publishButton)publishButton.disabled=false;
