@@ -1404,6 +1404,31 @@ function updateMakerTestResults(panel){
   }
   output.appendChild(card);
  });
+ const configuredScenarios=Array.isArray(spec.scenarios)?spec.scenarios:[];
+ panel.querySelector(".ugc-maker-scenario-comparisons")?.remove();
+ if(configuredScenarios.length){
+  const section=document.createElement("section");section.className="ugc-maker-scenario-comparisons";
+  section.appendChild(text("h4","ugc-maker-test-results-heading","Compare scenarios"));
+  const groups=[{label:"Current test values",values},{...configuredScenarios[0],values:{...values,...configuredScenarios[0].values}},...configuredScenarios.slice(1).map(scenario=>({...scenario,values:{...values,...scenario.values}}))];
+  groups.forEach((scenario,scenarioIndex)=>{
+   const group=document.createElement("article");group.className="ugc-maker-scenario-result-group";
+   group.appendChild(text("strong","",scenario.label||"Alternative "+scenarioIndex));
+   const grid=document.createElement("div");grid.className="ugc-maker-scenario-result-grid";
+   spec.results.forEach(item=>{
+    const result=document.createElement("div");result.className="ugc-maker-scenario-result";
+    result.appendChild(text("span","",item.label||"Result"));
+    try{
+     const ast=compileExpression(item.expression,keys),value=evaluate(ast,scenario.values);
+     const locale=state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||"");
+     result.appendChild(text("b","",formatResult(item,value,locale)));
+    }catch(error){formulaErrors++;result.classList.add("is-error");result.appendChild(text("b","","Cannot calculate"));}
+    grid.appendChild(result);
+   });
+   group.appendChild(grid);section.appendChild(group);
+  });
+  const statusAnchor=panel.querySelector(".ugc-maker-test-status");
+  if(statusAnchor)panel.insertBefore(section,statusAnchor);else panel.appendChild(section);
+ }
  const validation=validateMakerSpec(spec);
  statusNode.textContent=formulaErrors
   ?" "+formulaErrors+" result formula"+(formulaErrors===1?" needs":"s need")+" attention. Check the highlighted result"+(formulaErrors===1?".":"s.")
