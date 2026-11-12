@@ -1650,6 +1650,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" id="ugcBlueprintCopyPrompt" class="ugc-action-secondary">Copy instructions for an external AI</button>
             <p class="ugc-blueprint-import-note">After copying, add your own calculator request in the same message to the external AI. The request can cover any subject; these instructions define only the Worth It blueprint format and safety rules.</p>
           </div>
+          <label for="ugcBlueprintOriginalRequest">Original calculator request (optional)
+            <textarea id="ugcBlueprintOriginalRequest" rows="3" maxlength="5000" spellcheck="true" placeholder="Paste the same calculator request you gave the external AI. Worth It checks keyword coverage locally only."></textarea>
+          </label>
+          <p class="ugc-blueprint-import-note">The original request is used only for a local keyword coverage warning. It is not sent to an AI service, added to the calculator, or saved.</p>
           <label for="ugcBlueprintImportJson">Paste blueprint JSON
             <textarea id="ugcBlueprintImportJson" rows="7" maxlength="50000" spellcheck="false" autocomplete="off" placeholder='{"blueprintVersion":1,"title":"...","description":"...","category":"home","spec":{"inputs":[],"groups":[],"results":[],"scenarios":[]}}'></textarea>
           </label>
