@@ -11,7 +11,8 @@ const FIELD_KEYS=new Set(["key","label","min","max","default","step","unit"]);
 const RESULT_KEYS=new Set(["key","label","expression","format","currency","unit","prefix","suffix","explanation"]);
 const SCENARIO_KEYS=new Set(["key","label","values"]);
 const CHOICE_KEYS=new Set(["label","value"]);
-const SPEC_KEYS=new Set(["subcategories","inputs","groups","results","scenarios"]);\nconst MAX_ASSUMPTIONS_CHARS=5000;
+const SPEC_KEYS=new Set(["subcategories","inputs","groups","results","scenarios"]);
+const MAX_ASSUMPTIONS_CHARS=5000;
 
 function fail(message){throw new Error(message);}
 function isObject(value){return value!==null&&typeof value==="object"&&!Array.isArray(value);}
@@ -172,7 +173,8 @@ function normalizeBlueprint(source,validateSpec){
  });
  let assumptions=[];
  if(rootValue.assumptions!==undefined){
-  assumptions=requireArray(rootValue.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,1000));\n  if(assumptions.join("\\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
+  assumptions=requireArray(rootValue.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,MAX_ASSUMPTIONS_CHARS));
+  if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
  }
  const spec={subcategories,inputs,groups,results,scenarios,assumptions};
  const definition={title,description,category,spec};
