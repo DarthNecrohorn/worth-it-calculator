@@ -1601,7 +1601,7 @@ test("all built-in Manual Builder templates pass formula, unit and boundary vali
     const templateEnd=maker.indexOf("function createManualDraft",templateStart);
     assert.ok(engineStart>=0&&engineEnd>engineStart&&templateStart>=0&&templateEnd>templateStart);
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({validateMakerSpec})",
+        maker.slice(engineStart,engineEnd)+"\n({compileExpression,analyseFormulaUnit,unitVectorKey,validateMakerSpec})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["GBP","Pound sterling"]]}
     );
     const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\nMANUAL_TEMPLATES");
