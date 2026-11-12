@@ -216,7 +216,7 @@ test("repairs common Gemini-style planner units and a hard-coded 30-day projecti
     {key:"debt_payments",label:"Debt payments",expression:"sum(debts.payment)",format:"currency",currency:"EUR"},
     {key:"monthly_annual_expenses",label:"Monthly annual expenses",expression:"annual_expenses / 12",format:"currency",currency:"EUR"},
     {key:"total_planned_expenses",label:"Total planned expenses",expression:"household_expenses + debt_payments + monthly_annual_expenses",format:"currency",currency:"EUR"},
-    {key:"emergency_fund_target",label:"Emergency fund target",expression:"total_planned_expenses * target_coverage_months",format:"currency",currency:"EUR"},
+    {key:"emergency_fund_target",label:"Emergency fund target",expression:"if(gt(target_coverage_months, 0), total_planned_expenses * target_coverage_months, 0)",format:"currency",currency:"EUR"},
     {key:"emergency_fund_shortfall",label:"Emergency fund shortfall",expression:"max(0, emergency_fund_target - current_emergency_fund)",format:"currency",currency:"EUR"},
     {key:"savings_goal_monthly",label:"Required savings goal monthly contribution",expression:"if(gt(savings_goal_deadline, 0), savings_goal_target / savings_goal_deadline, 0)",format:"currency",currency:"EUR"},
     {key:"tracked_actual_spending",label:"Total tracked actual spending",expression:"sum(actual_spending_items.spent)",format:"currency",currency:"EUR"},
