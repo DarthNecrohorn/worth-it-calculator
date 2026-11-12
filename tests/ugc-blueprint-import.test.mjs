@@ -47,7 +47,7 @@ test("imports a valid version-1 blueprint into the current Manual Builder defini
  assert.match(definition.description,/Assumptions: All monetary amounts use EUR\./);
 });
 
-test("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
+test("keeps assumptions separate from the short description and supports up to 5,000 characters",()=>{\n const importer=getImporter();\n const candidate=blueprint({assumptions:["A".repeat(1000),"B".repeat(1000),"C".repeat(1000),"D".repeat(1000),"E".repeat(1000)]});\n const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));\n assert.equal(result.description,candidate.description);\n assert.equal(result.spec.assumptions.join("").length,5000);\n candidate.assumptions.push("F");\n assert.throws(()=>importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]})),/up to 5,000 characters/);\n});\n\ntest("accepts one outer JSON Markdown fence without interpreting other Markdown",()=>{
  const importer=getImporter();
  const source="\x60\x60\x60json\n"+JSON.stringify(blueprint())+"\n\x60\x60\x60";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
@@ -116,7 +116,7 @@ test("generates copyable instructions for an external AI and contains no request
  assert.match(prompt,/Return exactly one valid JSON object/);
  assert.match(prompt,/blueprintVersion/);
  assert.match(prompt,/never convert currencies/);
- assert.match(prompt,/arbitrary functions/);
+ assert.match(prompt,/arbitrary functions/);\n assert.match(prompt,/5,000 characters total/);
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
@@ -130,5 +130,5 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.ok(importFunction.includes('state.aiOperationId=""'));
  assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
  assert.match(builderSource,/ugcBlueprintCopyPrompt/);
- assert.match(builderSource,/ugcBlueprintImportButton/);
+ assert.match(builderSource,/ugcBlueprintImportButton/);\n assert.match(builderSource,/ugcMakerAssumptions/);\n assert.match(builderSource,/maxLength=5000/);
 });
