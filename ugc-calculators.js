@@ -1674,6 +1674,48 @@ function renderMakerPreview(definition){
    });
   }
   addInput("Label","text",item.label,value=>{item.label=String(value).trim().slice(0,60);});
+  const controlTypeLabel=document.createElement("label");controlTypeLabel.className="ugc-maker-control-type";
+  controlTypeLabel.appendChild(text("span","","Input control"));
+  const controlType=document.createElement("select");
+  [["number","Number field"],["slider","Slider"],["select","Dropdown choices"],["toggle","On / off toggle"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;controlType.appendChild(option);});
+  controlType.value=["number","slider","select","toggle"].includes(item.control)?item.control:"number";
+  controlType.addEventListener("change",()=>{
+   item.control=controlType.value;
+   if(item.control==="toggle"){item.min=0;item.max=1;item.step=1;item.default=Number(item.default)>=0.5?1:0;}
+   if(item.control==="select"&&(!Array.isArray(item.choices)||item.choices.length<2)){
+    const unique=[...new Set([Number(item.min),Number(item.default),Number(item.max)].filter(Number.isFinite))];
+    if(unique.length<2){makerStatus("Set a different minimum and maximum before creating dropdown choices.","error");item.control="number";controlType.value="number";return;}
+    item.choices=unique.map((value,index)=>({label:index===0?"Lower option":index===unique.length-1?"Higher option":"Default option",value}));
+   }
+   renderMakerPreview(definition);
+  });
+  controlTypeLabel.appendChild(controlType);grid.appendChild(controlTypeLabel);
+  if((item.control||"number")==="select"){
+   const choicesLabel=document.createElement("label");choicesLabel.className="ugc-maker-choice-editor";
+   choicesLabel.appendChild(text("span","","Dropdown choices · one label = numeric value per line"));
+   const choicesInput=document.createElement("textarea");choicesInput.rows=4;choicesInput.maxLength=1200;
+   choicesInput.value=(item.choices||[]).map(choice=>String(choice.label)+" = "+String(choice.value)).join("\\n");
+   choicesInput.placeholder="Basic = 0\\nStandard = 15\\nPremium = 30";
+   choicesInput.addEventListener("change",()=>{
+    const parsed=choicesInput.value.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+     const at=line.lastIndexOf("=");if(at<1)return null;
+     const label=line.slice(0,at).trim(),raw=line.slice(at+1).trim(),value=Number(raw);
+     if(!label||label.length>50||!Number.isFinite(value)||Math.abs(value)>1000000000000||!/^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[-+]?\\d+)?$/i.test(raw))return null;
+     return{label,value};
+    });
+    if(parsed.length<2||parsed.length>12||parsed.some(choice=>!choice)||new Set(parsed.map(choice=>choice.value)).size!==parsed.length||new Set(parsed.map(choice=>choice.label.toLowerCase())).size!==parsed.length){
+     makerStatus("Add 2–12 choices with unique labels and numeric values (label = value).","error");return;
+    }
+    const scaled=parsed.map(choice=>Math.round(choice.value*1000000)),differences=[];
+    for(let i=1;i<scaled.length;i++)differences.push(Math.abs(scaled[i]-scaled[0]));
+    const gcd=(a,b)=>b?gcd(b,a%b):a,stepScaled=differences.reduce((a,b)=>gcd(a,b),0)||1;
+    item.choices=parsed;item.min=Math.min(...parsed.map(choice=>choice.value));item.max=Math.max(...parsed.map(choice=>choice.value));
+    item.default=parsed.some(choice=>choice.value===Number(item.default))?Number(item.default):parsed[0].value;
+    item.step=stepScaled/1000000;renderMakerPreview(definition);
+   });
+   choicesLabel.appendChild(choicesInput);grid.appendChild(choicesLabel);
+  }
+  if((item.control||"number")==="toggle"){item.min=0;item.max=1;item.step=1;item.default=Number(item.default)>=0.5?1:0;}
   addInput("Default value","number",item.default,value=>{if(value!==""&&Number.isFinite(Number(value)))item.default=Number(value);});
   addInput("Minimum","number",item.min,value=>{if(value!==""&&Number.isFinite(Number(value)))item.min=Number(value);});
   addInput("Maximum","number",item.max,value=>{if(value!==""&&Number.isFinite(Number(value)))item.max=Number(value);});
