@@ -1143,7 +1143,7 @@ select (public.save_worth_it_ugc_calculator(
 select set_config('test.ugc_private_id', :'private_calculator_id', false);
 select public.publish_worth_it_ugc_calculator(:'private_calculator_id'::uuid,'private');
 select (public.save_worth_it_ugc_calculator(
- null,'Unpublished draft fixture','','cars',
+ null,'Unpublished draft fixture','A private draft for testing manual calculator publication and discovery.','cars',
  '{"inputs":[{"key":"distance","label":"Distance","min":0,"max":1000,"default":100}],"results":[{"label":"Distance","expression":"distance"}]}'::jsonb
 )->>'id') as draft_calculator_id \gset
 select set_config('test.ugc_draft_id', :'draft_calculator_id', false);
