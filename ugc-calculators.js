@@ -2140,6 +2140,8 @@ function setMakerModeUI(){
  if(costNote)costNote.textContent="AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations are refunded.";
  const manualAiImprove=$("ugcManualAiImproveButton");
  if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
+ const blueprintImportPanel=$("ugcBlueprintImportPanel");
+ if(blueprintImportPanel)blueprintImportPanel.hidden=!manual||Boolean(state.editingId);
 }
 function loadManualTemplate(templateKey){
  state.creationSource="manual";state.aiOperationId="";state.aiDraft=createManualDraft(templateKey);
@@ -2154,6 +2156,51 @@ function changeManualMode(mode){
  const modeSelect=$("ugcManualMode");if(modeSelect)modeSelect.value=state.manualMode;
  const templateKey=state.manualMode==="quick"?"simple-cost":state.manualMode==="advanced"?"advanced":String($("ugcManualTemplate")?.value||"simple-cost");
  loadManualTemplate(templateKey);
+}
+async function copyBlueprintPrompt(){
+ const statusNode=$("ugcBlueprintImportStatus");
+ const prompt=window.WorthItBlueprintImport?.buildPrompt?.();
+ if(!prompt){if(statusNode)statusNode.textContent="Blueprint instructions are unavailable. Reload Manual Builder.";return;}
+ try{
+  if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(prompt);
+  else{
+   const temporary=document.createElement("textarea");temporary.value=prompt;temporary.setAttribute("readonly","");
+   temporary.style.position="fixed";temporary.style.opacity="0";document.body.appendChild(temporary);
+   temporary.select();const copied=document.execCommand("copy");temporary.remove();
+   if(!copied)throw new Error("Clipboard access is unavailable in this browser.");
+  }
+  if(statusNode)statusNode.textContent="Instructions copied. Paste them into an external AI assistant; Worth It will not contact an AI service.";
+ }catch(error){
+  if(statusNode)statusNode.textContent=error?.message||"Could not copy the instructions. You can select and copy them manually.";
+ }
+}
+function importManualBlueprint(){
+ const statusNode=$("ugcBlueprintImportStatus");
+ const textarea=$("ugcBlueprintImportJson");
+ const raw=String(textarea?.value||"");
+ if(state.editingId){makerStatus("Open a new Manual Builder draft to import a blueprint. Existing saved calculators are not replaced by import.","error");return;}
+ try{
+  const importer=window.WorthItBlueprintImport;
+  if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
+  const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec));
+  if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published."))return;
+  state.creationSource="manual";
+  state.aiOperationId="";
+  state.manualMode="advanced";
+  state.regionalDefaults=null;
+  state.makerLocale="auto";
+  state.aiDraft=definition;
+  const mode=$("ugcManualMode");if(mode)mode.value="advanced";
+  const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
+  setMakerModeUI();
+  renderMakerPreview(state.aiDraft);
+  makerStatus("Blueprint imported and validated. Review the Advanced Formula Builder, then test it locally. Nothing was saved, published, sent to an AI service or charged.");
+  if(statusNode)statusNode.textContent="Import successful. Your calculator is now an editable Manual Builder draft.";
+  $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
+ }catch(error){
+  if(statusNode)statusNode.textContent=error?.message||"The blueprint could not be imported.";
+  makerStatus("Blueprint import failed. Your current draft was left unchanged.","error");
+ }
 }
 function renderManualGroupEditor(host,definition){
  const groups=definition.spec.groups||(definition.spec.groups=[]);
@@ -2841,6 +2888,8 @@ async function init(){
  $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
  $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
  $("ugcManualAiImproveButton")?.addEventListener("click",switchManualDraftToAI);
+ $("ugcBlueprintCopyPrompt")?.addEventListener("click",()=>void copyBlueprintPrompt());
+ $("ugcBlueprintImportButton")?.addEventListener("click",importManualBlueprint);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
  $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
