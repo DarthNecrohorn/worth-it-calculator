@@ -1199,7 +1199,6 @@ export async function onRequestPost(context){
         }
         if(validationError){
             await refundAiOperation();
-            await refundAiOperation();
             const invalidJson=validationError instanceof SyntaxError;
             return jsonWithAiUsage({
                 success:false,
@@ -1231,7 +1230,7 @@ export async function onRequestPost(context){
                 await refundAiOperation();
                 return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
             }
-            return jsonWithAiUsage({success:true,mode:"refine",regionalDefaults,billing:aiBilling,calculator:{
+            return jsonWithAiUsage({success:true,mode:"refine",regionalDefaults,billing:aiBilling,operation_id:aiOperationRequestId,calculator:{
                 title:existingCalculator.title,
                 description:existingCalculator.description||"",
                 category:existingCalculator.category,
@@ -1298,7 +1297,6 @@ export async function onRequestPost(context){
         }
         if(validationError){
             await refundAiOperation();
-            await refundAiOperation();
             const invalidJson=validationError instanceof SyntaxError;
             return json({
                 success:false,
@@ -1330,7 +1328,7 @@ export async function onRequestPost(context){
             await refundAiOperation();
             return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The generated calculator could not be finalized. No calculator was changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
         }
-        return jsonWithAiUsage({success:true,mode:"create",regionalDefaults,billing:aiBilling,calculator:{
+        return jsonWithAiUsage({success:true,mode:"create",regionalDefaults,billing:aiBilling,operation_id:aiOperationRequestId,calculator:{
             title:String(parsed.title).trim().slice(0,70),
             description:String(parsed.description||"").trim().slice(0,500),
             category:String(parsed.category).toLowerCase(),
