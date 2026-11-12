@@ -141,9 +141,9 @@ begin
     if coalesce(jsonb_typeof(p_spec),'') <> 'object'
        or coalesce(jsonb_typeof(p_spec->'inputs'),'') <> 'array'
        or coalesce(jsonb_typeof(p_spec->'results'),'') <> 'array'
-       or jsonb_array_length(p_spec->'inputs') not between 1 and 12
-       or jsonb_array_length(p_spec->'results') not between 1 and 6
-       or octet_length(p_spec::text) > 16000 then
+       or jsonb_array_length(p_spec->'inputs') not between 1 and 16
+       or jsonb_array_length(p_spec->'results') not between 1 and 10
+       or octet_length(p_spec::text) > 32000 then
         raise exception 'Invalid calculator definition.' using errcode = '22023';
     end if;
 
@@ -168,10 +168,15 @@ begin
 
     for v_result in select value from jsonb_array_elements(p_spec->'results') loop
         v_expression := coalesce(v_result->>'expression','');
+        if (v_result ? 'explanation'
+            and (coalesce(jsonb_typeof(v_result->'explanation'),'') <> 'string'
+                 or char_length(v_result->>'explanation') > 280)) then
+            raise exception 'Invalid result explanation. Use up to 280 plain-text characters.' using errcode = '22023';
+        end if;
         if coalesce(v_result->>'label','') = ''
            or char_length(v_result->>'label') > 70
            or char_length(v_expression) < 1
-           or char_length(v_expression) > 260
+           or char_length(v_expression) > 500
            or v_expression !~ '^[A-Za-z0-9_+*/^().,[:space:]-]+$'
            or v_expression ~ '[A-Za-z0-9_]\.[A-Za-z_]' then
             raise exception 'Invalid calculator result definition.' using errcode = '22023';
@@ -191,7 +196,7 @@ begin
         for v_match in select regexp_matches(v_expression,'[A-Za-z_][A-Za-z0-9_]*','g') loop
             v_token := v_match[1];
             if not (v_token = any(v_allowed))
-               and v_token not in ('min','max','abs','round','floor','ceil','sqrt','pow','pi','e') then
+               and v_token not in ('min','max','abs','round','floor','ceil','sqrt','pow','clamp','avg','mod','trunc','sign','hypot','log','ln','exp','sin','cos','tan','asin','acos','atan','pi','e') then
                 raise exception 'Formula contains an unsupported variable or function.' using errcode = '22023';
             end if;
         end loop;
