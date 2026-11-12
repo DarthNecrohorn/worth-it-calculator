@@ -901,7 +901,10 @@ function validateMakerSpec(spec){
   }
  }
  (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
-  if(item.format==="currency"&&!isSupportedCurrencyCode(item.currency)){
+  const currencyCode=String(item.currency||"").trim().toUpperCase();
+  const supportedCurrency=CURRENCIES.some(([code])=>code===currencyCode)
+   ||(typeof HISTORICAL_CURRENCIES!=="undefined"&&HISTORICAL_CURRENCIES.some(([code])=>code===currencyCode));
+  if(item.format==="currency"&&!supportedCurrency){
    errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
   }
   if(item.format==="unit"&&(!String(item.unit||"").trim()||String(item.unit||"").length>20)){
