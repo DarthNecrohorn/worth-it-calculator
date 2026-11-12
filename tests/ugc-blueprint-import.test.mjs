@@ -323,3 +323,66 @@ test("if() evaluates only the selected branch so guarded division is safe at zer
  assert.equal(evaluate(guarded,{income:0},{}),0);
  assert.equal(evaluate(guarded,{income:20},{}),5);
 });
+
+
+test("does not mislabel a currency total when a duration is divided out and multiplied back in",()=>{
+ const importer=getImporter();
+ const start=builderSource.indexOf("function compileExpression(");
+ const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
+ assert.ok(start>=0&&end>start,"The shared Manual Builder validator must be present.");
+ const validatorSource=builderSource.slice(start,end);
+ const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ const candidate={
+  blueprintVersion:1,
+  title:"Household Spending Projection",
+  description:"Compare projected household spending with the planned budget for the same period.",
+  category:"home",
+  subcategories:["household-budget"],
+  assumptions:["All monetary amounts use EUR.","The projection uses matching day-based periods."],
+  spec:{
+   inputs:[
+    {key:"planned_expenses",label:"Planned monthly expenses",min:0,max:100000,default:3000,step:10,unit:"EUR"},
+    {key:"tracked_spending",label:"Tracked spending",min:0,max:100000,default:600,step:10,unit:"EUR"},
+    {key:"tracking_days",label:"Tracking days",min:1,max:365,default:15,step:1,unit:"days"},
+    {key:"projection_days",label:"Projection days",min:1,max:365,default:30,step:1,unit:"days"},
+    {key:"budget_month_days",label:"Days in budget month",min:28,max:31,default:30,step:1,unit:"days"}
+   ],
+   groups:[],
+   results:[
+    {key:"average_daily_spending",label:"Average daily spending",expression:"tracked_spending / tracking_days",format:"unit",unit:"EUR/day"},
+    {key:"projected_spending",label:"Projected spending",expression:"average_daily_spending * projection_days",format:"currency",currency:"EUR"},
+    {key:"spending_variance",label:"Projected vs planned spending difference",expression:"projected_spending - (planned_expenses / budget_month_days * projection_days)",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ const difference=definition.spec.results.find(item=>item.key==="spending_variance");
+ assert.equal(difference.format,"currency");
+ assert.equal(difference.currency,"EUR");
+ assert.equal("unit" in difference,false);
+ assert.ok(!definition.importNotes?.some(note=>note.includes("Projected vs planned spending difference")));
+});
+
+test("still repairs a genuine currency-per-duration result to its exact rate unit",()=>{
+ const importer=getImporter();
+ const start=builderSource.indexOf("function compileExpression(");
+ const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
+ const validatorSource=builderSource.slice(start,end);
+ const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ const candidate=blueprint({
+  spec:{
+   inputs:[
+    {key:"tracked_spending",label:"Tracked spending",min:0,max:100000,default:600,step:10,unit:"EUR"},
+    {key:"tracking_days",label:"Tracking days",min:1,max:365,default:15,step:1,unit:"days"}
+   ],
+   groups:[],
+   results:[{key:"daily_rate",label:"Daily spending rate",expression:"tracked_spending / tracking_days",format:"currency",currency:"EUR"}],
+   scenarios:[]
+  }
+ });
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ assert.equal(definition.spec.results[0].format,"unit");
+ assert.equal(definition.spec.results[0].unit,"EUR/day");
+ assert.equal("currency" in definition.spec.results[0],false);
+});
