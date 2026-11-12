@@ -1656,7 +1656,7 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
     );
     const spec={
-        inputs:[{key:"months",label:"Months",min:1,max:60,default:12,step:1,unit:"months"}],
+        inputs:[{key:"months",label:"Number of periods",min:1,max:60,default:12,step:1,unit:""}],
         groups:[{key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:10,
             fields:[{key:"amount",label:"Amount",min:0,max:100000,default:10,step:1,unit:"EUR"}]}],
         results:[
