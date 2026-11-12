@@ -27,23 +27,22 @@ The output format is intentionally standardised. An arbitrary natural-language r
       "spec": {
         "inputs": [
           {
-            "key": "base_amount",
-            "label": "Base amount",
+            "key": "base_value",
+            "label": "Base value",
             "min": 0,
             "max": 1000000,
             "default": 30,
             "step": 1,
-            "unit": "EUR"
+            "unit": ""
           }
         ],
         "groups": [],
         "results": [
           {
-            "key": "calculated_total",
-            "label": "Calculated total",
+            "key": "calculated_value",
+            "label": "Calculated value",
             "expression": "base_amount",
-            "format": "currency",
-            "currency": "EUR",
+            "format": "number",
             "explanation": "Explain the result in plain language."
           }
         ],
