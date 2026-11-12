@@ -36,7 +36,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,creationSource:"ai",manualMode:"quick",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -549,8 +549,8 @@ async function refreshAiEditQuota(){
   if(result.error)throw result.error;
   const quota=normalizeObject(result.data);
   const limit=Number(quota?.daily_limit),used=Number(quota?.edits_used),remaining=Number(quota?.remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<2||used<0||remaining<0)throw new Error("The AI edit quota response was incomplete.");
-  host.textContent="AI improvements today: "+used+"/"+limit+" used · "+remaining+" remaining. Free 2 / Premium Lite 3 / Premium 4. Resets at 00:00 UTC.";
+  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0)throw new Error("The AI edit quota response was incomplete.");
+  host.textContent="AI improvements today: "+used+"/"+limit+" used · "+remaining+" remaining. Free 1 / Premium Lite 2 / Premium 3. Resets at 00:00 UTC.";
  }catch(error){
   host.textContent="Today's AI improvement allowance could not be loaded. The server still checks your tier and limit before each AI edit.";
   console.warn("UGC AI edit quota could not be loaded:",error);
@@ -568,7 +568,7 @@ async function refreshCreationQuota(){
   if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
    throw new Error("The account creation allowance response was incomplete.");
   }
-  host.textContent="Daily new calculator saves: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
+  host.textContent="Manual (non-AI) calculator saves today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
  }catch(error){
   host.textContent="Today's save/publish allowance could not be loaded. The server still checks your account limit securely when you save.";
   console.warn("UGC creation quota could not be loaded:",error);
@@ -583,15 +583,12 @@ async function refreshMakerGenerationQuota(){
   if(result.error)throw result.error;
   const quota=normalizeObject(result.data);
   const limit=Number(quota?.daily_limit),used=Number(quota?.requests_used),remaining=Number(quota?.remaining);
-  const globalLimit=Number(quota?.global_daily_limit),globalUsed=Number(quota?.global_requests_used),globalRemaining=Number(quota?.global_remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||
-     !Number.isInteger(globalLimit)||!Number.isInteger(globalUsed)||!Number.isInteger(globalRemaining)||
-     limit<1||used<0||remaining<0||globalLimit!==100||globalUsed<0||globalRemaining<0){
+  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
    throw new Error("The AI generation allowance response was incomplete.");
   }
-  host.textContent="AI generations today: "+used+"/"+limit+" used · "+remaining+" remaining. Worth It total: "+globalUsed+"/"+globalLimit+" used · "+globalRemaining+" remaining. Resets at 00:00 UTC.";
+  host.textContent="AI generations today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
  }catch(error){
-  host.textContent="Today's AI generation allowance could not be loaded. The server still enforces both your plan limit and Worth It's shared 100-generation limit.";
+  host.textContent="Today's AI generation allowance could not be loaded. The server still checks your plan and internal capacity before every request.";
   console.warn("UGC Maker generation quota could not be loaded:",error);
  }
 }
@@ -1168,11 +1165,11 @@ function renderMakerPreview(definition){
  }
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
  const title=document.createElement("label");title.textContent="Calculator title";
- const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=Boolean(state.editingId);title.appendChild(titleInput);
+ const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=Boolean(state.editingId&&state.creationSource!=="manual");title.appendChild(titleInput);
  const desc=document.createElement("label");desc.textContent="Description";
- const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId);desc.appendChild(descInput);
+ const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId&&state.creationSource!=="manual");desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
- const descriptionHelp=text("p","ugc-maker-schema-summary",state.editingId?"This description is preserved exactly when you improve the calculator.":"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
+ const descriptionHelp=text("p","ugc-maker-schema-summary",state.creationSource==="manual"?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters.":"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
  const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
  selected.appendChild(text("strong","","AI-selected categories"));
@@ -1180,7 +1177,7 @@ function renderMakerPreview(definition){
  host.appendChild(selected);
  const summary=text("p","ugc-maker-schema-summary",(definition.spec?.inputs?.length||0)+" inputs · "+(definition.spec?.results?.length||0)+" results · formulas use a restricted arithmetic language");
  host.appendChild(summary);
- if(state.editingId)host.appendChild(text("p","ugc-maker-schema-summary","This is an improvement of your existing calculator. Its title, category, purpose and description are locked; AI can refine the calculation fields and formulas."));
+ if(state.editingId&&state.creationSource!=="manual")host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
  (definition.spec?.inputs||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";
@@ -1316,7 +1313,7 @@ async function generateWithAI(){
 async function saveMakerDraft(publish){
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
  const title=String($("ugcMakerTitle")?.value||"").trim();
- const description=state.editingId?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
+ const description=state.editingId&&state.creationSource!=="manual"?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
  const category=String(state.aiDraft.category||"other");
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
@@ -1333,7 +1330,7 @@ async function saveMakerDraft(publish){
  let savedIdAfterWrite="";
  try{
   const saved=await sb().rpc("save_worth_it_ugc_calculator",{
-   p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:state.aiDraft.spec
+   p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:state.aiDraft.spec,p_source:state.creationSource==="manual"?"manual":"ai"
   });
   if(saved.error)throw saved.error;
   const payload=normalizeObject(saved.data),id=payload?.id;
