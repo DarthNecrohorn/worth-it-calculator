@@ -985,9 +985,6 @@ function validateMakerSpec(spec){
   if(/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(textValue)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
    errors.push(label+": use positive whole days and a step of at least 1.");
   }
-  if(/\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\b/.test(textValue)&&min<=0){
-   errors.push(label+": this input should have a positive minimum.");
-  }
   const stepPosition=(value-min)/step;
   if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)errors.push(label+": the default value does not match its step.");
   const maxStepPosition=(max-min)/step;
