@@ -76,8 +76,8 @@ revoke all on private.worth_it_ugc_ai_saved_operations from public,anon,authenti
 -- Use an explicit source and request proof. "ai" cannot be self-declared:
 -- new AI saves need a settled maker generation; AI edits need a settled edit
 -- reservation for the exact calculator. Manual saves use their separate ledger.
-drop function if exists public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text,uuid);
 drop function if exists public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb);
+drop function if exists public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text);
 create or replace function public.save_worth_it_ugc_calculator(
     p_id uuid,
     p_title text,
@@ -556,7 +556,7 @@ end;
 $$;
 
 revoke all on function public.get_worth_it_ugc_creation_quota() from public,anon;
-revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text) from public,anon;
+revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text,uuid) from public,anon;
 revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) from public,anon;
 revoke all on function public.get_worth_it_ugc_ai_edit_quota() from public,anon;
 revoke all on function public.reserve_worth_it_ugc_ai_edit(uuid,uuid) from public,anon;
@@ -566,7 +566,7 @@ revoke all on function public.settle_worth_it_ugc_ai_operation(uuid,text) from p
 revoke all on function public.refund_worth_it_ugc_ai_operation(uuid,text) from public,anon;
 
 grant execute on function public.get_worth_it_ugc_creation_quota() to authenticated;
-grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text) to authenticated;
+grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text,uuid) to authenticated;
 grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) to authenticated;
 grant execute on function public.get_worth_it_ugc_ai_edit_quota() to authenticated;
 grant execute on function public.reserve_worth_it_ugc_ai_edit(uuid,uuid) to authenticated;
