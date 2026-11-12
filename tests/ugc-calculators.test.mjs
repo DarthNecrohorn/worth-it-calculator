@@ -66,11 +66,13 @@ function withFetch(mock, callback, quotaEvents = {}) {
         const path = String(url);
         if (path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")) {
             quotaEvents.settlements = (quotaEvents.settlements || 0) + 1;
-            return new Response(JSON.stringify({ ok: true, settled: true }), { status: 200 });
+            try { return await mock(url, options); }
+            catch (_) { return new Response(JSON.stringify({ ok: true, settled: true }), { status: 200 }); }
         }
         if (path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation")) {
             quotaEvents.refunds = (quotaEvents.refunds || 0) + 1;
-            return new Response(JSON.stringify({ ok: true, refunded: true }), { status: 200 });
+            try { return await mock(url, options); }
+            catch (_) { return new Response(JSON.stringify({ ok: true, refunded: true }), { status: 200 }); }
         }
         return mock(url, options);
     };
