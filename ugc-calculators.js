@@ -20,7 +20,23 @@ const CURRENCIES=[
  ["HKD","Hong Kong dollar"],["KRW","South Korean won"],["AED","UAE dirham"],["SAR","Saudi riyal"],["UAH","Ukrainian hryvnia"],
  ["ILS","Israeli new shekel"],["THB","Thai baht"],["IDR","Indonesian rupiah"],["MYR","Malaysian ringgit"],["PHP","Philippine peso"],
  ["VND","Vietnamese dong"],["ISK","Icelandic krona"],["QAR","Qatari riyal"],["KWD","Kuwaiti dinar"],["JOD","Jordanian dinar"],
- ["EGP","Egyptian pound"],["PKR","Pakistani rupee"],["BDT","Bangladeshi taka"],["NGN","Nigerian naira"],["KES","Kenyan shilling"]
+ ["EGP","Egyptian pound"],["PKR","Pakistani rupee"],["BDT","Bangladeshi taka"],["NGN","Nigerian naira"],["KES","Kenyan shilling"],
+ ["AFN","Afghan afghani"],["ALL","Albanian lek"],["AMD","Armenian dram"],["ANG","Netherlands Antillean guilder"],["AOA","Angolan kwanza"],
+ ["ARS","Argentine peso"],["AWG","Aruban florin"],["AZN","Azerbaijani manat"],["BBD","Barbadian dollar"],["BIF","Burundian franc"],
+ ["BMD","Bermudian dollar"],["BOB","Bolivian boliviano"],["BSD","Bahamian dollar"],["BTN","Bhutanese ngultrum"],["BZD","Belize dollar"],
+ ["CDF","Congolese franc"],["CLF","Chilean Unidad de Fomento"],["CRC","Costa Rican colón"],["CUP","Cuban peso"],["CVE","Cape Verdean escudo"],
+ ["DJF","Djiboutian franc"],["ERN","Eritrean nakfa"],["FKP","Falkland Islands pound"],["GMD","Gambian dalasi"],["GNF","Guinean franc"],
+ ["GTQ","Guatemalan quetzal"],["GYD","Guyanese dollar"],["HNL","Honduran lempira"],["HTG","Haitian gourde"],["KMF","Comorian franc"],
+ ["KPW","North Korean won"],["KYD","Cayman Islands dollar"],["LBP","Lebanese pound"],["LRD","Liberian dollar"],["LSL","Lesotho loti"],
+ ["LYD","Libyan dinar"],["MGA","Malagasy ariary"],["MMK","Myanmar kyat"],["MOP","Macanese pataca"],["MRU","Mauritanian ouguiya"],
+ ["MVR","Maldivian rufiyaa"],["MWK","Malawian kwacha"],["NIO","Nicaraguan córdoba"],["PAB","Panamanian balboa"],["PGK","Papua New Guinean kina"],
+ ["SBD","Solomon Islands dollar"],["SDG","Sudanese pound"],["SHP","Saint Helena pound"],["SLE","Sierra Leonean leone"],["SOS","Somali shilling"],
+ ["SRD","Surinamese dollar"],["SSP","South Sudanese pound"],["STN","São Tomé and Príncipe dobra"],["SVC","Salvadoran colón"],["SYP","Syrian pound"],
+ ["SZL","Eswatini lilangeni"],["TJS","Tajikistani somoni"],["TMT","Turkmenistani manat"],["TOP","Tongan paʻanga"],["TTD","Trinidad and Tobago dollar"],
+ ["TWD","New Taiwan dollar"],["UYU","Uruguayan peso"],["UZS","Uzbekistani sum"],["VED","Venezuelan bolívar digital"],["VES","Venezuelan bolívar soberano"],
+ ["VUV","Vanuatu vatu"],["WST","Samoan tālā"],["YER","Yemeni rial"],["ZMW","Zambian kwacha"],["ZWG","Zimbabwe Gold"],
+ ["XAF","Central African CFA franc"],["XCD","East Caribbean dollar"],["XCG","Caribbean guilder"],["XOF","West African CFA franc"],["XPF","CFP franc"],
+ ["BGN","Bulgarian lev (historical from 2026)"]
 ];
 const UNIT_OPTIONS=[
  ["","No unit"],
@@ -28,7 +44,12 @@ const UNIT_OPTIONS=[
  ["%","Percent"],["months","Months"],["years","Years"],["days","Days"],["weeks","Weeks"],
  ["hours","Hours"],["minutes","Minutes"],["km","Kilometres"],["miles","Miles"],["kWh","Kilowatt-hours"],
  ["W","Watts"],["kW","Kilowatts"],["L","Litres"],["kg","Kilograms"],["m²","Square metres"],
- ["items","Items"],["units","Units"]
+ ["items","Items"],["units","Units"],["seconds","Seconds"],["m","Metres"],["cm","Centimetres"],["mm","Millimetres"],
+ ["m³","Cubic metres"],["mL","Millilitres"],["g","Grams"],["tonnes","Tonnes"],["MWh","Megawatt-hours"],["MJ","Megajoules"],
+ ["°C","Degrees Celsius"],["°F","Degrees Fahrenheit"],["L/100 km","Litres per 100 km"],
+ ["EUR/kWh","EUR per kWh"],["USD/kWh","USD per kWh"],["RSD/kWh","RSD per kWh"],
+ ["EUR/L","EUR per litre"],["EUR/kg","EUR per kilogram"],["EUR/m³","EUR per cubic metre"],
+ ["EUR/hour","EUR per hour"],["EUR/month","EUR per month"],["EUR/day","EUR per day"],["km/h","Kilometres per hour"]
 ];
 function getCategoryLabels(item){
  const main=CATEGORY_LABELS[item?.category]||"Other";
