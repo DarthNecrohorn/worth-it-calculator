@@ -55,6 +55,74 @@ test("imports a valid version-1 blueprint into the current Manual Builder defini
  assert.deepEqual(plain(definition.spec.assumptions),["All monetary amounts use EUR."]);
 });
 
+test("completes missing input metadata and generated keys while preserving the supplied formula",()=>{
+ const importer=getImporter();
+ const candidate={
+  blueprintVersion:1,
+  title:"Data Transfer Calculator",
+  description:"Estimate total data transferred from the supplied data amount and multiplier.",
+  category:"technology",
+  spec:{
+   inputs:[{label:"Data size",default:120,max:1000,unit:"GB"}],
+   groups:[],
+   results:[{label:"Total data transferred",expression:"data_size * 2",format:"unit",unit:"GB"}],
+   scenarios:[]
+  }
+ };
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));
+ assert.equal(result.spec.inputs[0].key,"data_size");
+ assert.equal(result.spec.inputs[0].min,0);
+ assert.equal(result.spec.inputs[0].default,120);
+ assert.equal(result.spec.inputs[0].max,1000);
+ assert.equal(result.spec.inputs[0].step,40);
+ assert.equal(result.spec.results[0].key,"total_data_transferred");
+ assert.equal(result.spec.results[0].expression,"data_size * 2");
+ assert.ok(result.importNotes.some(note=>note.includes("supplied a missing minimum")));
+ assert.ok(result.importNotes.some(note=>note.includes("supplied a missing default")===false));
+});
+
+test("maps common provider field aliases and rewrites formula references to normalized keys",()=>{
+ const importer=getImporter();
+ const candidate={
+  blueprintVersion:1,
+  title:"Data Volume Calculator",
+  description:"Calculate a transformed data volume from one supplied base amount.",
+  category:"technology",
+  spec:{
+   inputs:[{variableKey:"DataVolume",name:"Data volume",minValue:0,maxValue:100,defaultValue:10,stepSize:1,unitLabel:"GB"}],
+   groups:[],
+   results:[{name:"Tripled data volume",formula:"DataVolume * 3",format:"unit",resultUnit:"GB"}],
+   scenarios:[]
+  }
+ };
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));
+ assert.equal(result.spec.inputs[0].key,"datavolume");
+ assert.equal(result.spec.results[0].expression,"datavolume * 3");
+ assert.equal(result.spec.results[0].unit,"GB");
+ assert.ok(result.importNotes.some(note=>note.includes("generated a valid unique variable key")));
+});
+
+test("adds a clearly marked temporary passthrough result when the blueprint contains no usable results",()=>{
+ const importer=getImporter();
+ const candidate={
+  blueprintVersion:1,
+  title:"Simple Quantity Calculator",
+  description:"Show a supplied quantity as a basic result for further editing.",
+  category:"other",
+  spec:{
+   inputs:[{key:"quantity",label:"Quantity",min:0,max:100,default:5,step:1,unit:"items"}],
+   groups:[],
+   results:[],
+   scenarios:[]
+  }
+ };
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}));
+ assert.equal(result.spec.results.length,1);
+ assert.equal(result.spec.results[0].expression,"quantity");
+ assert.ok(result.importNotes.some(note=>note.includes("placeholder result")));
+ assert.ok(result.importNotes.some(note=>note.includes("temporary passthrough formula")));
+});
+
 test("keeps assumptions separate from the short description and supports up to 5,000 characters",()=>{
  const importer=getImporter();
  const candidate=blueprint({assumptions:["A".repeat(1000),"B".repeat(1000),"C".repeat(1000),"D".repeat(1000),"E".repeat(996)]});
