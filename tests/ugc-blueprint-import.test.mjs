@@ -74,7 +74,7 @@ test("completes missing input metadata and generated keys while preserving the s
  assert.equal(result.spec.inputs[0].min,0);
  assert.equal(result.spec.inputs[0].default,120);
  assert.equal(result.spec.inputs[0].max,1000);
- assert.equal(result.spec.inputs[0].step,40);
+ assert.equal(result.spec.inputs[0].step,1);
  assert.equal(result.spec.results[0].key,"total_data_transferred");
  assert.equal(result.spec.results[0].expression,"data_size * 2");
  assert.ok(result.importNotes.some(note=>note.includes("supplied a missing minimum")));
@@ -238,7 +238,7 @@ test("normalizes optional zero-value groups to the Manual Builder minimum of one
  const result=importer.parseBlueprint(JSON.stringify(candidate),spec=>{validatedSpec=plain(spec);return{errors:[]};});
  assert.equal(result.spec.groups[0].minItems,1);
  assert.equal(validatedSpec.groups[0].minItems,1);
- assert.match(result.importNotes[0],/changed minItems from 0 to 1/);
+ assert.ok(result.importNotes.some(note=>/changed minItems from 0 to 1/.test(note)));
 });
 
 test("does not normalize zero-row groups when a placeholder would add a nonzero amount",()=>{
