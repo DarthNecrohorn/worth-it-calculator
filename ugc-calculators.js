@@ -1688,6 +1688,56 @@ function changeManualMode(mode){
  const templateKey=state.manualMode==="quick"?"simple-cost":state.manualMode==="advanced"?"advanced":String($("ugcManualTemplate")?.value||"simple-cost");
  loadManualTemplate(templateKey);
 }
+function renderManualScenarioEditor(host,definition){
+ const spec=definition?.spec;if(!host||!spec)return;
+ if(!Array.isArray(spec.scenarios))spec.scenarios=[];
+ const section=document.createElement("section");section.className="ugc-maker-scenarios";
+ section.appendChild(text("h3","ugc-maker-schema-heading","What-if scenarios"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Add up to 3 alternative scenarios. Each scenario stores its own input values; all formulas are recalculated so users can compare outcomes side by side."));
+ spec.scenarios.forEach((scenario,index)=>{
+  if(!scenario.values||typeof scenario.values!=="object")scenario.values={};
+  const card=document.createElement("fieldset");card.className="ugc-maker-scenario-editor";
+  card.appendChild(text("legend","","Scenario "+(index+1)));
+  const nameLabel=document.createElement("label");nameLabel.appendChild(text("span","","Scenario name"));
+  const name=document.createElement("input");name.type="text";name.maxLength=50;name.value=String(scenario.label||"Alternative "+(index+1));
+  name.addEventListener("input",()=>{scenario.label=String(name.value).trim().slice(0,50);refreshMakerTestIfOpen();});
+  nameLabel.appendChild(name);card.appendChild(nameLabel);
+  const grid=document.createElement("div");grid.className="ugc-maker-scenario-grid";
+  spec.inputs.forEach(input=>{
+   if(!Object.prototype.hasOwnProperty.call(scenario.values,input.key))scenario.values[input.key]=Number(input.default);
+   const label=document.createElement("label");label.appendChild(text("span","",input.label||input.key));
+   const current=Number(scenario.values[input.key]);
+   let control;
+   if((input.control||"number")==="select"&&Array.isArray(input.choices)&&input.choices.length>=2){
+    control=document.createElement("select");
+    input.choices.forEach(choice=>{const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);});
+    control.value=String(input.choices.some(choice=>Number(choice.value)===current)?current:input.default);
+   }else if(input.control==="toggle"){
+    control=document.createElement("input");control.type="checkbox";control.checked=current>=0.5;
+   }else{
+    control=document.createElement("input");control.type="number";control.min=String(input.min);control.max=String(input.max);control.step=String(input.step||"any");control.value=String(Number.isFinite(current)?current:input.default);
+   }
+   control.addEventListener("change",()=>{
+    const value=control.type==="checkbox"?(control.checked?1:0):Number(control.value);
+    if(Number.isFinite(value))scenario.values[input.key]=value;
+    refreshMakerTestIfOpen();refreshMakerValidationNote();
+   });
+   label.appendChild(control);
+   if(input.unit)label.appendChild(text("small","",input.unit));
+   grid.appendChild(label);
+  });
+  card.appendChild(grid);
+  card.appendChild(button("Remove scenario","ugc-manual-remove",()=>{spec.scenarios.splice(index,1);renderMakerPreview(definition);}));
+  section.appendChild(card);
+ });
+ const add=button("＋ Add scenario","ugc-action-secondary",()=>{
+  if(spec.scenarios.length>=3){makerStatus("A calculator can contain up to 3 comparison scenarios.","error");return;}
+  let n=1,key="";do{key="scenario_"+n++;}while(spec.scenarios.some(item=>item.key===key));
+  spec.scenarios.push({key,label:"Alternative "+(spec.scenarios.length+1),values:Object.fromEntries(spec.inputs.map(input=>[input.key,Number(input.default)]))});
+  renderMakerPreview(definition);
+ });
+ add.disabled=spec.scenarios.length>=3;section.appendChild(add);host.appendChild(section);
+}
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();if(!definition){host.hidden=true;return;}host.hidden=false;
@@ -1750,6 +1800,7 @@ function renderMakerPreview(definition){
     if(oldKey!==nextKey){
      const pattern=new RegExp("\\b"+oldKey+"\\b","g");
      definition.spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(pattern,nextKey);});
+     (definition.spec.scenarios||[]).forEach(scenario=>{if(Object.prototype.hasOwnProperty.call(scenario.values||{},oldKey)){scenario.values[nextKey]=scenario.values[oldKey];delete scenario.values[oldKey];}});
      item.key=nextKey;renderMakerPreview(definition);
     }
    });
@@ -1816,7 +1867,7 @@ function renderMakerPreview(definition){
   });
   unitLabel.append(unitSelect,customUnit);grid.appendChild(unitLabel);
   if(manual){
-   const remove=button("Remove input","ugc-manual-remove",()=>{if(definition.spec.inputs.length<=1)return;definition.spec.inputs.splice(index,1);renderMakerPreview(definition);});
+   const remove=button("Remove input","ugc-manual-remove",()=>{if(definition.spec.inputs.length<=1)return;const removedKey=definition.spec.inputs[index]?.key;definition.spec.inputs.splice(index,1);(definition.spec.scenarios||[]).forEach(scenario=>{if(scenario.values)delete scenario.values[removedKey];});renderMakerPreview(definition);});
    remove.disabled=definition.spec.inputs.length<=1;grid.appendChild(remove);
   }
   group.appendChild(grid);host.appendChild(group);
@@ -1825,10 +1876,14 @@ function renderMakerPreview(definition){
   const addInputButton=button("＋ Add input","ugc-action-secondary",()=>{
    if(definition.spec.inputs.length>=16){makerStatus("A calculator can contain up to 16 inputs.","error");return;}
    let index=1,key="";do{key="input_"+index++;}while(definition.spec.inputs.some(item=>item.key===key));
-   definition.spec.inputs.push({key,label:"New input",min:0,max:1000000,default:0,step:1,unit:""});renderMakerPreview(definition);
+   const addedInput={key,label:"New input",min:0,max:1000000,default:0,step:1,unit:""};
+   definition.spec.inputs.push(addedInput);
+   (definition.spec.scenarios||[]).forEach(scenario=>{scenario.values= scenario.values||{};scenario.values[key]=addedInput.default;});
+   renderMakerPreview(definition);
   });
   addInputButton.disabled=definition.spec.inputs.length>=16;host.appendChild(addInputButton);
  }
+ if(manual)renderManualScenarioEditor(host,definition);
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator results"));
  (definition.spec?.results||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";group.appendChild(text("legend","","Result "+(index+1)));
