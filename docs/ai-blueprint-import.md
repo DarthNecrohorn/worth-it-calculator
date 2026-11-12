@@ -1,132 +1,92 @@
-# AI Blueprint Import — Implementation Plan
+# AI Blueprint Import — Universal compatibility contract
 
-**Status:** Design and implementation contract  
-**Date:** 2026-11-12  
-**Target base:** Draft PR #194 head `03770f09732564df720d9b07575d606228fb3855`  
-**Branch:** `feat/ai-blueprint-import-20261112`
+**Status:** Draft implementation contract  
+**Branch:** feat/ai-blueprint-import-20261112
 
-## 1. Purpose
+## Purpose
 
-Let a member use any external AI assistant to design a Worth It calculator, copy the resulting JSON blueprint, paste it into the Manual Builder, and have the existing Builder populate an editable local draft.
+Allow a member to use any external AI assistant to design a calculator for any supported subject, then import its result as an editable local Manual Builder draft.
 
-The import path is a convenience layer over the current Manual Builder. It is not a second calculator engine and does not execute AI-produced code.
+The feature is provider-neutral: it does not call ChatGPT, Gemini, Claude, DeepSeek, Groq or another model. The user chooses the external assistant, supplies the calculator requirements in natural language, copies the Worth It output contract, and asks the assistant to return one canonical blueprint.
 
-## 2. User flow
+## What “any prompt” means
 
-1. Open **Manual Builder**.
-2. Expand **AI Blueprint Import**.
-3. Copy the Worth It blueprint prompt/instructions.
-4. Ask an external AI assistant to create the requested calculator and return one JSON blueprint.
-5. Paste the JSON into the import field and choose **Import blueprint**.
-6. The browser parses the JSON, normalizes only documented aliases/optional fields, rejects unsupported properties, and validates the candidate against the same Manual Builder schema and formula/unit checks.
-7. If valid, the existing Advanced Formula Builder is populated with the title, description, category, inputs, dynamic groups, scenarios, formulas and result presentation.
-8. The user reviews and edits the draft, opens **Try calculator**, and tests it locally.
-9. Save draft or Publish remain separate, explicit actions. Import never saves, publishes, charges CALC, calls the AI API, or consumes an AI-generation allowance.
+The calculator request can be about any domain or use case. It can be short, detailed, technical, or written in ordinary language. The copied instructions must not impose a preset calculator topic or inject requirements from an unrelated example.
 
-## 3. Canonical blueprint format
+The output format is intentionally standardised. An arbitrary natural-language request can be adapted to the canonical blueprint, but an arbitrary JSON schema or request for executable code is not automatically compatible. Requests that exceed the current formula language or available units must be simplified transparently or reported as limitations, not executed.
 
-Version 1 uses the existing UGC calculator document shape rather than inventing a parallel runtime schema:
+## Canonical blueprint version 1
 
-```json
-{
-  "blueprintVersion": 1,
-  "title": "Household Expense Calculator",
-  "description": "Calculate a purchase total and analyse its additional expenses.",
-  "category": "home",
-  "subcategories": ["household-budget"],
-  "spec": {
-    "inputs": [
-      {
-        "key": "base_cost",
-        "label": "Base cost",
-        "min": 0,
-        "max": 1000000,
-        "default": 30,
-        "step": 1,
-        "unit": "EUR"
+    {
+      "blueprintVersion": 1,
+      "title": "Calculator title",
+      "description": "Explain what it measures and its main assumptions in at least 24 characters.",
+      "category": "other",
+      "subcategories": [],
+      "assumptions": [],
+      "spec": {
+        "inputs": [
+          {
+            "key": "base_amount",
+            "label": "Base amount",
+            "min": 0,
+            "max": 1000000,
+            "default": 30,
+            "step": 1,
+            "unit": "EUR"
+          }
+        ],
+        "groups": [],
+        "results": [
+          {
+            "key": "calculated_total",
+            "label": "Calculated total",
+            "expression": "base_amount",
+            "format": "currency",
+            "currency": "EUR",
+            "explanation": "Explain the result in plain language."
+          }
+        ],
+        "scenarios": []
       }
-    ],
-    "groups": [],
-    "results": [
-      {
-        "key": "final_total",
-        "label": "Final total",
-        "expression": "base_cost",
-        "format": "currency",
-        "currency": "EUR",
-        "explanation": "The final calculated amount."
-      }
-    ],
-    "scenarios": []
-  },
-  "assumptions": [
-    "All monetary inputs use EUR."
-  ]
-}
-```
+    }
 
-The example is illustrative. The importer must not silently convert units, infer exchange rates, or treat an omitted unit as a currency.
+Root keys, supported properties, limits and formula grammar are allowlisted in ugc-blueprint-import.js. Unknown fields, script-like fields, prototype-sensitive keys, unsupported formula functions and invalid values are rejected.
 
-### Supported fields
+## Compatibility approach
 
-- Root: `blueprintVersion`, `title`, `description`, `category`, `subcategories`, `spec`, `assumptions`.
-- `spec.inputs`: the exact supported Manual Builder input properties.
-- `spec.groups`: bounded dynamic groups and their typed fields.
-- `spec.results`: the exact supported result properties, including formula expression, format, currency/unit and explanation.
-- `spec.scenarios`: only the scenario structure already supported by the current Builder.
-- Text-only `assumptions` are explanatory notes; they never become formulas or executable instructions.
+1. The prompt states the same canonical schema for every AI provider and every calculator topic.
+2. The parser accepts raw JSON, one outer JSON fence, or one unambiguous JSON object/code block surrounded by ordinary AI explanation.
+3. It repairs only narrowly defined copy/paste artifacts that do not change the intended data.
+4. It rejects ambiguous multiple JSON objects instead of guessing.
+5. The normalized candidate goes through the existing validateMakerSpec formula, unit, dependency, range, step and scenario checks.
+6. The imported document enters the existing editable Advanced Formula Builder. Save and Publish remain explicit user actions.
 
-Unknown keys, unsupported component types, arbitrary markup, URLs, script-like fields and unrecognized formula functions must be rejected, not ignored or executed.
+## Units and formulas
 
-## 4. Formula and security contract
+The generated prompt must explain dimensional algebra with generic examples, never calculator-specific unit instructions. It must distinguish currency totals from rates such as EUR/day and EUR/month; prevent incompatible addition; require unitless multipliers where appropriate; and state that the engine does not perform currency exchange or implicit unit-scale conversion.
 
-- Every formula is a string in the existing restricted formula grammar.
-- The existing parser converts expressions to its allowlisted AST; no `eval`, `Function`, dynamic import, scripting runtime or generated JavaScript is permitted.
-- Import uses the existing `validateMakerSpec`, formula dependency/unit checks and local preview path.
-- Client validation provides immediate feedback only. Existing server-side save/publish validation remains authoritative.
-- The AI Blueprint Import path must not create a privileged bypass around server validation.
-- Enforce a small paste-size ceiling, JSON nesting/depth and object/array count limits before rendering.
-- Never use `innerHTML` with imported text. Existing text-node/textarea rendering must be retained.
-- Reject prototype-sensitive keys such as `__proto__`, `prototype` and `constructor`.
-- Currency mismatches and incompatible physical dimensions remain validation errors. No automatic conversion.
+The prompt should prefer the units understood by the current Manual Builder. Unrecognised custom unit strings are opaque and must not be treated as decomposable compound units. Formula support is limited to the allowlisted expression grammar and existing aggregate functions for dynamic groups.
 
-## 5. UX and failure behavior
+## Safety and privacy
 
-- The import panel is inside Manual Builder, not the AI Maker.
-- Include a copyable external-AI prompt that tells the external assistant to return only the documented JSON blueprint and never executable code.
-- The paste area must accept plain JSON, with an optional single ```json fenced block if the parser strips only the outer fence safely.
-- Show clear parse errors separately from schema/formula/unit errors.
-- On failure, preserve the current draft and all current form values.
-- On success, replace the current unsaved local draft only after the complete candidate passes validation; ask for confirmation if the current draft has been edited.
-- Set the authoring mode to Advanced Formula Builder and render through the existing preview/editor.
-- Keep the normal local test, Save draft and Publish controls unchanged.
-- Imported drafts remain unsaved until the user explicitly saves.
+- No eval, Function, script execution, dynamic imports, callbacks or external network access.
+- Imported text is parsed as data and rendered through existing safe UI paths.
+- Payload size, nesting depth, node count and supported item counts are bounded.
+- Unknown root/spec/input/group/result/scenario properties are rejected.
+- Prototype-sensitive keys are rejected.
+- Failed imports preserve the current draft.
+- Import never calls an AI endpoint, consumes AI quota, charges CALC, saves, or publishes.
+- Existing server-side validation remains authoritative on Save/Publish.
 
-## 6. Compatibility
+## Verification strategy
 
-- Version 1 maps to the existing current UGC spec.
-- Existing AI-generated calculators, Manual Builder templates and saved calculator documents are unchanged.
-- No database schema or migration is required for import.
-- No changes to Production configuration, secrets, Supabase schema or Cloudflare bindings are part of this feature.
-- PR #194 remains Draft and unmerged. This branch is based on its current tested head so it can be reviewed independently and later proposed as a separate PR targeting the PR #194 branch, not Production's `main`.
+Test:
+- Multiple external response styles: raw JSON, one JSON code block with surrounding prose, copied line breaks, and common escaped multiplication artifacts.
+- Ambiguous or invalid output: malformed JSON, multiple objects, multiple code blocks, unsupported languages, unknown fields, duplicate keys and prototype-sensitive keys.
+- Different domains: money, cars, home, technology and other categories.
+- Formula features: chained result dependencies, dynamic groups, guarded division, percentages, currency results, rate units, and unitless multipliers.
+- Boundary behavior: input minimum/maximum values, step alignment, scenario values, zero denominators and dynamic-group defaults.
+- Security and non-regression: no scripts, no network requests, no draft mutation on failure, and no change to the normal Manual Builder save/publish flow.
 
-## 7. Implementation sequence
-
-1. Add a pure blueprint parser/normalizer with strict allowlists and defensive limits.
-2. Add focused unit tests for valid import, fenced JSON, malformed JSON, unsupported keys, prototype keys, oversized/deep payloads, formula rejection, currency mismatch and preservation of the existing draft on failure.
-3. Add the Manual Builder import panel and prompt-copy action.
-4. Connect successful validation to the existing `state.aiDraft` / `renderMakerPreview` path; mark the source as manual and clear any AI operation ID.
-5. Verify imported content can be locally previewed and edited, while Save/Publish remain explicit and unchanged.
-6. Run targeted tests, full CI and a Cloudflare Preview. Manually inspect desktop/mobile UI before considering the feature complete.
-
-## 8. Acceptance criteria
-
-- A supported blueprint populates the Advanced Formula Builder correctly.
-- Invalid JSON or schema does not mutate the current draft.
-- Unsupported or malicious fields are rejected.
-- Formulas are parsed and evaluated only by the existing restricted engine.
-- Currency and unit mismatches are caught.
-- No AI provider request, CALC charge, save or publish occurs during import.
-- Local testing works and all imported fields remain editable.
-- Existing AI Maker, Manual Builder, save/publish and calculator regressions remain green.
-- No Production changes; PR #194 remains Draft and unmerged.
+A successful schema import is not proof that every possible natural-language request or every AI-generated formula is correct. PR #198 remains Draft until automated tests, Preview testing and manual validation of varied examples are complete.
