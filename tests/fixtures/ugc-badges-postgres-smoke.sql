@@ -1499,6 +1499,7 @@ declare
     v_used integer;
     v_count integer;
     v_before integer;
+    v_owner_status text;
     blocked boolean := false;
 begin
     -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
@@ -1652,10 +1653,10 @@ begin
     end if;
     q:=public.settle_worth_it_ugc_ai_operation(v_request,'create');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Owner AI generation could not settle: %',q; end if;
-    select amount_milli,status into v_before,v_count
+    select amount_milli,status into v_before,v_owner_status
       from private.worth_it_calc_transactions
      where user_id=v_owner and request_id=v_request and kind='ugc_ai_spend';
-    if v_before<>0 or v_count::text<>'completed' then
+    if v_before<>0 or v_owner_status<>'completed' then
         raise exception 'Owner AI generation must be recorded as a completed zero-CALC transaction.';
     end if;
 end
