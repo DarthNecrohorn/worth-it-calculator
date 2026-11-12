@@ -191,9 +191,17 @@ const CURRENCIES=[
  ["XPT","Platinum",null],
  ["XAG","Silver",null]
 ];
+// Historical ISO codes kept available for legacy and historical calculations.
+// Bulgaria switched from BGN to EUR on 2026-01-01; BGN is not in the current SIX List One.
+const HISTORICAL_CURRENCIES=[["BGN","Bulgarian lev (historical; Bulgaria adopted EUR on 2026-01-01)",2]];
+function isSupportedCurrencyCode(code){
+ const normalized=String(code||"").trim().toUpperCase();
+ return CURRENCIES.some(([currencyCode])=>currencyCode===normalized)
+  ||HISTORICAL_CURRENCIES.some(([currencyCode])=>currencyCode===normalized);
+}
 const UNIT_OPTIONS=[
  ["","No unit"],
- ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
+ ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),\n ...HISTORICAL_CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
  ["%","Percent"],["months","Months"],["years","Years"],["days","Days"],["weeks","Weeks"],
  ["hours","Hours"],["minutes","Minutes"],["km","Kilometres"],["miles","Miles"],["kWh","Kilowatt-hours"],
  ["W","Watts"],["kW","Kilowatts"],["L","Litres"],["kg","Kilograms"],["m²","Square metres"],
@@ -893,7 +901,7 @@ function validateMakerSpec(spec){
   }
  }
  (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
-  if(item.format==="currency"&&!CURRENCIES.some(([code])=>code===String(item.currency||"").trim().toUpperCase())){
+  if(item.format==="currency"&&!isSupportedCurrencyCode(item.currency)){
    errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
   }
   if(item.format==="unit"&&(!String(item.unit||"").trim()||String(item.unit||"").length>20)){
@@ -937,7 +945,7 @@ function formatResult(item,value,locale){
  const format=(options)=>{try{return new Intl.NumberFormat(locale||undefined,options).format(value);}catch(_){return new Intl.NumberFormat(undefined,options).format(value);}};
  if(item.format==="currency"){
   const currency=String(item.currency||"USD").toUpperCase();
-  const currencyMeta=CURRENCIES.find(entry=>entry[0]===currency);
+  const currencyMeta=[...CURRENCIES,...HISTORICAL_CURRENCIES].find(entry=>entry[0]===currency);
   const minorUnits=currencyMeta?.[2];
   if(Number.isInteger(minorUnits)&&minorUnits>=0&&minorUnits<=4){
    try{return prefix+format({style:"currency",currency,minimumFractionDigits:minorUnits,maximumFractionDigits:minorUnits})+suffix;}catch(_){}
