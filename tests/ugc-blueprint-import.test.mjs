@@ -241,29 +241,46 @@ test("repairs common Gemini-style planner units and a hard-coded 30-day projecti
  assert.ok(result.importNotes.length>=5);
 });
 
-test("generates copyable instructions for an external AI and contains no request operation",()=>{
+test("generates a provider-neutral prompt for arbitrary calculator requests",()=>{
  const importer=getImporter();
  const prompt=importer.buildPrompt();
  assert.match(prompt,/Return exactly one valid JSON object/);
  assert.match(prompt,/blueprintVersion/);
- assert.match(prompt,/never convert currencies|currency dimension/);
- assert.match(prompt,/arbitrary functions/);
- assert.match(prompt,/5,000 characters total/);
- assert.match(prompt,/strict dimensional algebra/);
+ assert.match(prompt,/strict dimensional algebra|UNIT SYSTEM/);
  assert.match(prompt,/EUR \/ days produces EUR\/day/);
- assert.match(prompt,/EUR \* months produces EUR\*month/);
- assert.match(prompt,/unitless scalar/);
- assert.match(prompt,/plain asterisk \* with no preceding backslash/);
+ assert.match(prompt,/EUR\/month multiplied by months produces EUR/);
+ assert.match(prompt,/unitless scalar multiplier or divisor/);
+ assert.match(prompt,/plain asterisk character/);
  assert.match(prompt,/Do not HTML-encode spaces/);
  assert.match(prompt,/maximums align with steps/);
  assert.match(prompt,/Provider-neutral requirement/);
- assert.match(prompt,/NEVER set minItems to 0/);
- assert.match(prompt,/emergency_target_months is a unitless numeric multiplier/);
- assert.match(prompt,/format unit and unit EUR\/month/);
- assert.match(prompt,/format unit with unit EUR\/day/);
- assert.match(prompt,/budget_month_days/);
- assert.match(prompt,/Include all twenty results/);
- assert.doesNotMatch(helperSource,/fetch\s*\(/i);
+ assert.match(prompt,/the user's actual calculator request/);
+ assert.match(prompt,/any subject/);
+ assert.match(prompt,/NEVER use minItems 0/);
+ assert.doesNotMatch(prompt,/Household Budget|emergency_target_months|budget_month_days|tracking_days|fixed_costs|debt_payments/);
+ assert.doesNotMatch(helperSource,/fetch\\s*\\(/i);
+});
+
+test("extracts one JSON code block even when an AI adds surrounding explanation",()=>{
+ const importer=getImporter();
+ const fence=String.fromCharCode(96).repeat(3);
+ const source="Here is the requested calculator blueprint:\\n\\n"+fence+"json\\n"+JSON.stringify(blueprint())+"\\n"+fence+"\\n\\nYou can now import it.";
+ const result=importer.parseBlueprint(source,()=>({errors:[]}));
+ assert.equal(result.title,"Household Expense Calculator");
+});
+
+test("extracts a single raw JSON object surrounded by explanatory text",()=>{
+ const importer=getImporter();
+ const source="Blueprint follows:\\n"+JSON.stringify(blueprint())+"\\nReview the assumptions after import.";
+ const result=importer.parseBlueprint(source,()=>({errors:[]}));
+ assert.equal(result.title,"Household Expense Calculator");
+});
+
+test("rejects multiple JSON objects rather than guessing which one to import",()=>{
+ const importer=getImporter();
+ const fence=String.fromCharCode(96).repeat(3);
+ const source=fence+"json\\n"+JSON.stringify(blueprint())+"\\n"+fence+"\\nAlternative:\\n"+fence+"json\\n"+JSON.stringify(blueprint({title:"Another calculator"}))+"\\n"+fence;
+ assert.throws(()=>importer.parseBlueprint(source,()=>({errors:[]})),/More than one code block/);
 });
 
 test("validates the household spending projection dimensions with the real Manual Builder validator",()=>{
