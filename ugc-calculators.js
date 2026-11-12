@@ -268,6 +268,12 @@ function renderCatalog(rows){
   const publicNumber=Number(item.calculator_number);
   if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
   head.appendChild(text("span","ugc-category",CATEGORY_LABELS[item.category]||"Other"));
+  const mainCategory=CATEGORY_LABELS[item.category]||"Other";
+  getCategoryLabels(item).filter(label=>label!==mainCategory).slice(0,3).forEach(label=>{
+   head.appendChild(text("span","ugc-subcategory-chip",label));
+  });
+  if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
+  if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
   const source=String(item.creation_source||"");
   if(source==="manual"||source==="ai"){
    const originTag=text("span","ugc-origin-tag "+(source==="manual"?"is-manual":"is-ai-made"),source==="manual"?"MANUAL":"AI MADE");
@@ -275,12 +281,6 @@ function renderCatalog(rows){
    originTag.setAttribute("aria-label",source==="manual"?"Created manually without AI":"Originally created with Worth It AI");
    head.appendChild(originTag);
   }
-  const mainCategory=CATEGORY_LABELS[item.category]||"Other";
-  getCategoryLabels(item).filter(label=>label!==mainCategory).slice(0,3).forEach(label=>{
-   head.appendChild(text("span","ugc-subcategory-chip",label));
-  });
-  if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
-  if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
   const fullDescription=String(item.description||"").trim();
@@ -1254,7 +1254,7 @@ const MANUAL_TEMPLATES={
  },
  "unit-price-compare":{
   title:"Compare price per unit",
-  description:"Compare two package prices using cost per matching unit. Both quantities must use the same unit (for example, items, grams or millilitres). The calculation does not adjust for quality, waste or product differences.",
+  description:"Compare two package prices using cost per matching unit. Enter both prices in the same currency and both quantities in the same unit (for example, items, grams or millilitres). The calculation does not adjust for quality, waste or product differences.",
   category:"money",
   inputs:[
    {key:"price_a",label:"Option A package price",min:0,max:100000000,default:12,step:0.01,unit:"EUR"},
@@ -1283,7 +1283,7 @@ const MANUAL_TEMPLATES={
  },
  "heating-compare":{
   title:"Electricity vs pellet heating cost",
-  description:"Compare the supplied monthly electricity and pellet costs and show their yearly difference. This compares your entered spending only; it does not convert both fuels into equal useful heat or account for boiler, stove or heating-system efficiency.",
+  description:"Compare monthly electricity and pellet spending and show their yearly difference. Enter both energy prices in the same currency. This compares spending only; it does not convert both fuels into equal useful heat or account for boiler, stove or heating-system efficiency.",
   category:"home",
   inputs:[
    {key:"electricity_kwh",label:"Monthly electricity use for heating",min:0,max:10000000,default:800,step:1,unit:"kWh"},
