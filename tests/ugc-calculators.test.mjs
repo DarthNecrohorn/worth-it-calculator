@@ -618,7 +618,7 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /Regional suggestion:/);
     assert.match(maker, /Number format/);
     assert.match(maker, /validateMakerSpec/);
-    assert.match(maker, /single-input and pairwise boundary checks/);
+    assert.match(maker, /Formula dependencies, unit compatibility and input boundaries were checked/);
     assert.match(maker, /for\(let left=0;left<inputs.length;left\+\+\)/);
     assert.match(maker, /maxStepPosition/);
     assert.match(maker, /ugc-maker-test-locale/);
@@ -664,8 +664,8 @@ test("AI Maker test mode recalculates locally with the restricted formula engine
     assert.match(maker, /function renderMakerTestPanel\(preserveValues\)/);
     assert.match(maker, /function updateMakerTestResults\(panel\)/);
     assert.match(maker, /control\.addEventListener\("input",\(\)=>updateMakerTestResults\(panel\)\)/);
-    assert.match(maker, /compileExpression\(item\.expression,keys\)/);
-    assert.match(maker, /evaluate\(ast,values\)/);
+    assert.match(maker, /evaluateFormulaResults\(spec/);
+    assert.match(maker, /evaluate\(ast,values,groupValues/);
     assert.match(maker, /control\.dataset\.ugcMakerTestKey=String\(item\.key\)/);
     assert.match(maker, /control\.min=String\(item\.min\)/);
     assert.match(maker, /control\.max=String\(item\.max\)/);
