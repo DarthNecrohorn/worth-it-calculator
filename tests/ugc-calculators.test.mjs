@@ -1685,6 +1685,48 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
     assert.ok(engine.validateMakerSpec(tooManyResults).errors.some(message=>/up to 20 results/i.test(message)));
 });
 
+test("Composable Manual Builder validates and evaluates all six dynamic expense aggregates with default currency normalization", () => {
+    const engineStart=maker.indexOf("function compileExpression");
+    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
+    const engine=runInNewContext(
+        maker.slice(engineStart,engineEnd)+"\\n({compileExpression,validateMakerSpec,evaluateFormulaResults,ensureResultCurrency})",
+        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"]]}
+    );
+    const spec={
+        inputs:[{key:"base_cost",label:"Base cost",min:0,max:1000000,default:30,step:0.01,unit:"EUR"}],
+        groups:[{key:"expenses",label:"Extra expenses",itemLabel:"Expense",minItems:1,maxItems:20,
+            fields:[{key:"amount",label:"Amount",min:0,max:1000000,default:0,step:0.1,unit:"EUR"}]}],
+        results:[
+            {key:"expenses_total",label:"Extra expenses total",expression:"sum(expenses.amount)",format:"currency",currency:"EUR"},
+            {key:"grand_total",label:"Final total",expression:"base_cost + expenses_total",format:"currency",currency:"EUR"},
+            {key:"average_expense",label:"Average expense",expression:"avg(expenses.amount)",format:"currency",currency:"EUR"},
+            {key:"minimum_expense",label:"Minimum expense",expression:"min(expenses.amount)",format:"currency",currency:"EUR"},
+            {key:"maximum_expense",label:"Maximum expense",expression:"max(expenses.amount)",format:"currency",currency:"EUR"},
+            {key:"expense_count",label:"Expense count",expression:"count(expenses)",format:"number"}
+        ]
+    };
+    const errors=Array.from(engine.validateMakerSpec(spec).errors);
+    assert.deepEqual(errors,[],"All six results must pass formula and unit validation: "+errors.join(" | "));
+    const calculated=engine.evaluateFormulaResults(spec,{base_cost:30},{expenses:[{amount:15},{amount:25}]});
+    assert.deepEqual(Array.from(calculated,result=>result.value),[40,70,20,15,25,2]);
+
+    const missingCurrencySpec={
+        inputs:spec.inputs,
+        groups:spec.groups,
+        results:[{...spec.results[2],currency:""}]
+    };
+    const missingCurrencyErrors=Array.from(engine.validateMakerSpec(missingCurrencySpec).errors);
+    assert.deepEqual(missingCurrencyErrors,[],"A blank currency must use the same EUR default shown by the editor.");
+    assert.equal(missingCurrencySpec.results[0].currency,"EUR");
+    const regionalDefault={format:"currency",currency:""};
+    assert.equal(engine.ensureResultCurrency(regionalDefault,"RSD"),"RSD");
+    assert.equal(regionalDefault.currency,"RSD");
+    const explicitInvalid={format:"currency",currency:"ZZZ"};
+    assert.equal(engine.ensureResultCurrency(explicitInvalid,"EUR"),"ZZZ","An explicitly invalid currency must not be silently replaced.");
+    assert.match(maker,/ensureResultCurrency\(item,state\.regionalDefaults\?\.currency\|\|"EUR"\)/);
+    assert.match(maker,/const invalidCurrency=\(specToSave\.results\|\|\[\]\)/);
+});
+
 test("UGC calculator scenarios and advanced input types are validated on the server", () => {
     assert.match(maker,/function renderManualScenarioEditor/);
     assert.match(maker,/function updateMakerTestResults/);
