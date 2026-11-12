@@ -253,7 +253,7 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  assert.match(prompt,/plain asterisk character/);
  assert.match(prompt,/Do not HTML-encode spaces/);
  assert.match(prompt,/maximums align with steps/);
- assert.match(prompt,/Provider-neutral requirement/);
+ assert.match(prompt,/PROVIDER-NEUTRAL REQUIREMENT/i);
  assert.match(prompt,/the user's actual calculator request/);
  assert.match(prompt,/any subject/);
  assert.match(prompt,/NEVER use minItems 0/);
