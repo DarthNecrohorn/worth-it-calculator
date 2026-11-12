@@ -65,6 +65,26 @@ test("accepts one outer JSON Markdown fence without interpreting other Markdown"
  assert.equal(result.title,"Household Expense Calculator");
 });
 
+test("repairs copied JSON line continuations, HTML-encoded spaces and escaped multiplication signs",()=>{
+ const importer=getImporter();
+ const candidate=blueprint();
+ candidate.spec.results[1].expression="base_cost * 2 + extra_total";
+ const clean=JSON.stringify(candidate,null,2);
+ const copiedArtifactText=clean
+  .replace(/ /g,"&#x20;")
+  .replace(/\n/g,"\\\n")
+  .replace(/\*/g,"\\*");
+ const result=importer.parseBlueprint(copiedArtifactText,()=>({errors:[]}));
+ assert.equal(result.spec.results[1].expression,"base_cost * 2 + extra_total");
+ assert.equal(result.title,candidate.title);
+});
+test("reports a JSON syntax location when copy/paste artifacts cannot be repaired",()=>{
+ const importer=getImporter();
+ assert.throws(
+  ()=>importer.parseBlueprint('{"blueprintVersion":1,\\n"title": }',()=>({errors:[]})),
+  /Could not read JSON at line/
+ );
+});
 test("rejects malformed or empty JSON with a useful error",()=>{
  const importer=getImporter();
  assert.throws(()=>importer.parseBlueprint("",()=>({errors:[]})),/Paste a JSON blueprint/);
