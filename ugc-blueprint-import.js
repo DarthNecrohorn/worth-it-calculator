@@ -298,7 +298,7 @@ function prepareBlueprintShape(source){
  let resultRows=asArray(specSource.results!==undefined?specSource.results:specSource.outputs,"Results",20);
  if(!resultRows.length){
   resultRows=[{key:"calculated_value",label:"Calculated value",expression:inputs[0].key,format:"number"}];
-  notes.push("Added a placeholder result using the first input because the blueprint contained no usable results. Replace it with the intended calculation before publishing.");
+  notes.push("Added a placeholder result with a temporary passthrough formula using the first input because the blueprint contained no usable results. Replace it with the intended calculation before publishing.");
  }
  const results=resultRows.map((raw,index)=>{
   const item=cleanObject(raw,RESULT_KEYS,"Result "+(index+1),resultAliases);
