@@ -126,9 +126,16 @@ test("generates copyable instructions for an external AI and contains no request
  const prompt=importer.buildPrompt();
  assert.match(prompt,/Return exactly one valid JSON object/);
  assert.match(prompt,/blueprintVersion/);
- assert.match(prompt,/never convert currencies/);
+ assert.match(prompt,/never convert currencies|currency dimension/);
  assert.match(prompt,/arbitrary functions/);
  assert.match(prompt,/5,000 characters total/);
+ assert.match(prompt,/strict dimensional algebra/);
+ assert.match(prompt,/EUR \/ days produces EUR\/day/);
+ assert.match(prompt,/EUR \* months produces EUR\*month/);
+ assert.match(prompt,/unitless scalar/);
+ assert.match(prompt,/plain asterisk \* with no preceding backslash/);
+ assert.match(prompt,/Do not HTML-encode spaces/);
+ assert.match(prompt,/maximums align with steps/);
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
