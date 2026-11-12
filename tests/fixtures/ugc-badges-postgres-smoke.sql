@@ -1655,7 +1655,7 @@ begin
     q:=public.settle_worth_it_ugc_ai_operation(v_request,'refine');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Premium AI improvement could not settle: %',q; end if;
     q:=public.save_worth_it_ugc_calculator(
-        v_calculator,'Premium AI-improved calculator',v_description,'money',v_spec,'ai',v_request
+        v_calculator,'Premium manual calculator',v_description,'money',v_spec,'ai',v_request
     );
     if (q->>'success')::boolean is distinct from true then raise exception 'A paid AI improvement could not be saved: %',q; end if;
     q:=public.get_worth_it_ugc_creation_quota();
