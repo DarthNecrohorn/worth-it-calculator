@@ -664,6 +664,9 @@ function evaluate(ast,values,groupValues){
  if(ast.type==="binary"){
   const a=evaluate(ast.left,values,groups),b=evaluate(ast.right,values,groups);
   if(ast.op==="+")n=a+b;else if(ast.op==="-")n=a-b;else if(ast.op==="*")n=a*b;else if(ast.op==="/"){if(b===0)throw new Error("A formula divides by zero. Change your inputs.");n=a/b;}else n=Math.pow(a,b);
+ }else if(ast.name==="if"){
+  const condition=evaluate(ast.args[0],values,groups);
+  n=evaluate(ast.args[condition!==0?1:2],values,groups);
  }else{
   const a=ast.args.map(x=>evaluate(x,values,groups));
   if(ast.name==="sum"){if(!Array.isArray(a[0]))throw new Error("sum() requires a dynamic group field, e.g. sum(expenses.amount).");n=a[0].reduce((total,value)=>total+value,0);}
@@ -678,7 +681,6 @@ function evaluate(ast,values,groupValues){
   else if(ast.name==="trunc")n=Math.trunc(a[0]);
   else if(ast.name==="sign")n=Math.sign(a[0]);
   else if(ast.name==="clamp"){if(a[1]>a[2])throw new Error("Clamp minimum cannot be greater than its maximum.");n=Math.min(a[2],Math.max(a[1],a[0]));}
-  else if(ast.name==="if")n=a[0]!==0?a[1]:a[2];
   else if(ast.name==="gt")n=a[0]>a[1]?1:0;
   else if(ast.name==="gte")n=a[0]>=a[1]?1:0;
   else if(ast.name==="lt")n=a[0]<a[1]?1:0;
