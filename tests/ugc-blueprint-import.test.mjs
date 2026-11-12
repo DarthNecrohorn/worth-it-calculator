@@ -173,3 +173,20 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(builderSource,/ugcMakerAssumptions/);
  assert.match(builderSource,/maxLength=5000/);
 });
+
+test("if() evaluates only the selected branch so guarded division is safe at zero",()=>{
+ const start=builderSource.indexOf("function evaluate(ast,values,groupValues){");
+ const end=builderSource.indexOf("\nfunction groupMapForSpec",start);
+ assert.ok(start>=0&&end>start,"The shared formula evaluator must be present.");
+ const evaluateSource=builderSource.slice(start,end);
+ const evaluate=runInNewContext("("+evaluateSource+")");
+ const guarded={
+  type:"call",name:"if",args:[
+   {type:"call",name:"gt",args:[{type:"variable",name:"income"},{type:"number",value:0}]},
+   {type:"binary",op:"/",left:{type:"number",value:100},right:{type:"variable",name:"income"}},
+   {type:"number",value:0}
+  ]
+ };
+ assert.equal(evaluate(guarded,{income:0},{}),0);
+ assert.equal(evaluate(guarded,{income:20},{}),5);
+});
