@@ -576,7 +576,14 @@ function combineUnitDescriptors(left,right,sign){
  return{exact:"",vector,opaque:left.opaque||right.opaque};
 }
 function sameUnitDescriptor(left,right){
- return left.exact===right.exact;
+ if(left.exact===right.exact)return true;
+ const sameDimensions=unitVectorKey(left)===unitVectorKey(right)&&left.opaque===right.opaque;
+ if(!sameDimensions)return false;
+ // A derived formula such as (EUR/kWh) * kWh has no literal unit label,
+ // but its currency dimension is still exactly EUR. Permit that match.
+ const vector=Object.entries(left.vector);
+ const isSingleCurrency=vector.length===1&&vector[0][0].startsWith("currency:")&&Math.abs(vector[0][1]-1)<1e-9;
+ return isSingleCurrency&&(!left.exact||!right.exact);
 }
 function constantFormulaValue(ast){
  if(ast.type==="number")return ast.value;
@@ -1683,7 +1690,7 @@ const MANUAL_TEMPLATES={
    {key:"transport_total",label:"Total transport cost",min:0,max:100000000,default:120,step:0.01,unit:"EUR"}
   ],
   results:[
-   {label:"Daily spending for all travellers",expression:"daily_spend_per_person * travellers",format:"currency",currency:"EUR"},
+   {label:"Daily spending for all travellers",expression:"daily_spend_per_person * travellers",format:"unit",unit:"EUR/day"},
    {label:"Estimated total trip budget",expression:"daily_spend_per_person * travellers * days + accommodation_total + transport_total",format:"currency",currency:"EUR"},
    {label:"Estimated cost per traveller",expression:"(daily_spend_per_person * travellers * days + accommodation_total + transport_total) / travellers",format:"currency",currency:"EUR"}
   ]
