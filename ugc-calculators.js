@@ -517,6 +517,18 @@ function unitDescriptor(unit){
  const key=raw.toLowerCase().replace(/\\s+/g," ");
  if(!raw)return{exact:"",vector:{},opaque:false};
  if(/^[A-Z]{3}$/.test(raw))return{exact:raw,vector:{["currency:"+raw]:1},opaque:false};
+ const rateMatch=raw.match(/^([A-Z]{3})\\s*\\/\\s*(.+)$/);
+ if(rateMatch){
+  const denominator=rateMatch[2].trim().toLowerCase();
+  const dimension=({
+   kwh:"energy",mwh:"energy",mj:"energy",l:"volume",litre:"volume",liter:"volume",
+   kg:"mass",g:"mass","m³":"volume",m3:"volume","m²":"area",m2:"area",
+   hour:"time",hours:"time",day:"time",days:"time",week:"time",weeks:"time",
+   month:"time",months:"time",year:"time",years:"time",unit:"count",units:"count",
+   person:"count",people:"count",km:"length",mile:"length",miles:"length"
+  })[denominator];
+  if(dimension)return{exact:raw,vector:{["currency:"+rateMatch[1]]:1,[dimension]:-1},opaque:false};
+ }
  const known={
   "%":{},
   months:{time:1},month:{time:1},years:{time:1},year:{time:1},days:{time:1},day:{time:1},weeks:{time:1},week:{time:1},hours:{time:1},hour:{time:1},minutes:{time:1},minute:{time:1},seconds:{time:1},second:{time:1},
@@ -598,7 +610,12 @@ function unitVectorKey(unit){
 }
 function validateFormulaResultUnit(result,unit){
  const format=String(result.format||"number");
- if(format==="currency"){
+ if(format==="unit"){
+  const expected=unitDescriptor(result.unit);
+  if(!sameUnitDescriptor(expected,unit)||unitVectorKey(expected)!==unitVectorKey(unit)){
+   throw new Error("The formula's dimensions do not match the selected result unit. Check the input units and formula.");
+  }
+ }else if(format==="currency"){
   const expected=String(result.currency||"").trim().toUpperCase();
   const actual=Object.keys(unit.vector);
   if(actual.length!==1||actual[0]!=="currency:"+expected||Math.abs(unit.vector[actual[0]]-1)>1e-9){
@@ -695,6 +712,7 @@ function formatResult(item,value,locale){
   try{return prefix+format({style:"currency",currency:item.currency||"USD",maximumFractionDigits:2})+suffix;}catch(_){}
  }
  if(item.format==="percent")return prefix+format({maximumFractionDigits:2})+"%"+suffix;
+ if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
  return prefix+format({maximumFractionDigits:4})+suffix;
 }
 async function refreshAiEditQuota(){
@@ -1822,9 +1840,9 @@ function renderMakerPreview(definition){
   explanationLabel.appendChild(explanation);grid.appendChild(explanationLabel);
   const formatLabel=document.createElement("label");formatLabel.textContent="Display format";
   const formatSelect=document.createElement("select");
-  [["number","Number"],["currency","Currency"],["percent","Percent"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;formatSelect.appendChild(option);});
+  [["number","Number"],["currency","Currency"],["percent","Percent"],["unit","Number with unit"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;formatSelect.appendChild(option);});
   formatSelect.value=item.format||"number";
-  const currencyLabel=document.createElement("label");currencyLabel.className="ugc-maker-currency-field";currencyLabel.appendChild(text("span","","Result currency"));
+  const currencyLabel=document.createElement("label");currencyLabel.className="ugc-maker-currency-field";currencyLabel.appendChild(text("span","",item.format==="unit"?"Result unit":"Result currency"));
   const currencySelect=document.createElement("select");currencySelect.setAttribute("aria-label","Currency for "+(item.label||"this result"));
   CURRENCIES.forEach(([code,name])=>{const option=document.createElement("option");option.value=code;option.textContent=code+" — "+name;currencySelect.appendChild(option);});
   const customCurrencyOption=document.createElement("option");customCurrencyOption.value="__custom__";customCurrencyOption.textContent="Other ISO 4217 currency…";currencySelect.appendChild(customCurrencyOption);
@@ -1838,11 +1856,18 @@ function renderMakerPreview(definition){
    refreshMakerTestIfOpen();refreshMakerValidationNote();
   });
   const syncCurrencyEnabled=()=>{
-   const enabled=formatSelect.value==="currency";currencySelect.disabled=!enabled;customCurrency.disabled=!enabled;currencyLabel.classList.toggle("is-disabled",!enabled);
+   const currencyEnabled=formatSelect.value==="currency",unitEnabled=formatSelect.value==="unit";
+   currencySelect.hidden=unitEnabled;customCurrency.hidden=unitEnabled||!customCurrency.hidden&&false;
+   currencyLabel.querySelector("span").textContent=unitEnabled?"Result unit":"Result currency";
+   currencySelect.disabled=!currencyEnabled;customCurrency.disabled=!currencyEnabled;
+   unitResult.hidden=!unitEnabled;unitResult.disabled=!unitEnabled;
+   currencyLabel.classList.toggle("is-disabled",!currencyEnabled&&!unitEnabled);
   };
   formatSelect.addEventListener("change",()=>{item.format=formatSelect.value;syncCurrencyEnabled();refreshMakerTestIfOpen();refreshMakerValidationNote();});
   formatLabel.appendChild(formatSelect);grid.appendChild(formatLabel);
-  currencyLabel.append(currencySelect,customCurrency);grid.appendChild(currencyLabel);syncCurrencyEnabled();
+  const unitResult=document.createElement("input");unitResult.type="text";unitResult.maxLength=20;unitResult.placeholder="e.g. kWh, kg, km/h";unitResult.value=String(item.unit||"");unitResult.setAttribute("aria-label","Unit for "+(item.label||"this result"));
+  unitResult.addEventListener("input",()=>{item.unit=String(unitResult.value).trim().slice(0,20);refreshMakerTestIfOpen();refreshMakerValidationNote();});
+  currencyLabel.append(currencySelect,customCurrency,unitResult);grid.appendChild(currencyLabel);syncCurrencyEnabled();
   if(manual){
    const remove=button("Remove result","ugc-manual-remove",()=>{if(definition.spec.results.length<=1)return;definition.spec.results.splice(index,1);renderMakerPreview(definition);});
    remove.disabled=definition.spec.results.length<=1;grid.appendChild(remove);
