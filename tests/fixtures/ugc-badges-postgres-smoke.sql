@@ -1501,6 +1501,7 @@ declare
     v_count integer;
     v_before integer;
     v_owner_status text;
+    v_deleted_calculator_id uuid;
     blocked boolean := false;
 begin
     -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
@@ -1542,6 +1543,25 @@ begin
     exception when insufficient_privilege then blocked:=true;
     end;
     if not blocked then raise exception 'One AI operation was reused to create a different calculator definition.'; end if;
+
+    -- Deleting an AI-generated calculator must not erase the consumed-operation
+    -- proof or make the paid request reusable for unlimited replacement saves.
+    delete from private.worth_it_user_calculators
+     where id=v_calculator and owner_user_id=v_free;
+    select calculator_id into v_deleted_calculator_id
+      from private.worth_it_ugc_ai_saved_operations
+     where request_id=v_request and user_id=v_free;
+    if not found or v_deleted_calculator_id is not null then
+        raise exception 'Deleting an AI calculator must retain its consumed operation proof with a null calculator reference.';
+    end if;
+    blocked:=false;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            null,'Recycled AI generation',v_description,'money',v_spec,'ai',v_request
+        );
+    exception when raise_exception then blocked:=true;
+    end;
+    if not blocked then raise exception 'A deleted AI calculator operation was recycled to create a replacement.'; end if;
 
     -- A client cannot claim AI provenance without both a settled quota and a
     -- matching, completed CALC transaction.
