@@ -1475,6 +1475,15 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(maker, /"electricity-cost"/);
     assert.match(maker, /"fuel-cost"/);
     assert.match(maker, /"savings-total"/);
+    for (const template of ["unit-price-compare","discount-price","heating-compare","water-cost","flooring-materials","car-ownership-cost","travel-budget","hourly-pay","simple-interest","profit-margin","break-even"]) {
+        assert.ok(html.includes('value="' + template + '"'), template + " is available in the template picker");
+        assert.ok(maker.includes('"' + template + '"'), template + " has a calculator definition");
+    }
+    assert.match(html, /id="ugcManualModeHelp"/);
+    assert.match(html, /Quick Builder[\s\S]*?Start with a simple, ready-to-edit calculator/);
+    assert.match(html, /Template Builder[\s\S]*?Choose a prepared model/);
+    assert.match(html, /Advanced Formula Builder[\s\S]*?Build a custom calculation/);
+    assert.match(maker, /const active=card\.dataset\.manualModeInfo===\(state\.manualMode\|\|"quick"\)/);
     assert.match(maker, /function editCalculatorManually/);
     assert.match(maker, /titleInput\.disabled=existing/);
     assert.match(maker, /descInput\.disabled=existing/);
@@ -1505,6 +1514,33 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(paginationFixture, /ugc_manual_ai_billing/);
     assert.match(paginationFixture, /Deleting an AI calculator must retain its consumed operation proof/);
     assert.match(workflow, /supabase\/worth-it-ugc-manual-builder-ai-costs\.sql/);
+});
+
+
+test("UGC calculator cards show verified original creation source", () => {
+    const basicStart=html.indexOf('<section class="section calculator-explore-panel" id="calculators">');
+    const communityNav=html.indexOf('id="ugcNavigationActions"',basicStart);
+    const basicEnd=html.indexOf("</section>",basicStart);
+    const basicPanel=html.slice(basicStart,basicEnd);
+    assert.ok(basicStart>=0 && communityNav>basicStart);
+    assert.match(basicPanel,/id="ugcCatalogJumpButton"[^>]*>🌐 Community calculators/);
+    assert.doesNotMatch(basicPanel,/Create with AI|ugcMakerJumpButton/);
+    assert.match(html,/id="ugcCreateButton"[^>]*>✦ Create with AI/);
+    assert.match(maker,/const source=String\(item\.creation_source\|\|""\)/);
+    assert.match(maker,/source==="manual"\?"MANUAL":"AI MADE"/);
+    assert.match(maker,/item\.creation_source/);
+    assert.match(manualBuilderSql,/add column if not exists creation_source text not null default 'legacy'/);
+    assert.match(manualBuilderSql,/creation_source in \('manual','ai','legacy'\)/);
+    assert.match(manualBuilderSql,/values\(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories',v_source\)/);
+    assert.match(manualBuilderSql,/a\.operation='generation'[\s\S]*?c\.creation_source='legacy'/);
+    assert.match(paginationSql,/'creation_source',q\.creation_source/);
+    assert.match(paginationSql,/c\.category,c\.creation_source,c\.status/);
+    assert.match(paginationSql,/'creation_source',creation_source/);
+    assert.match(paginationFixture,/successfully AI-generated calculator must keep AI provenance/);
+    assert.match(paginationFixture,/manual calculator must keep manual provenance/);
+    assert.match(paginationFixture,/AI improvement must not change the original manual provenance/);
+    assert.match(paginationCss,/\.ugc-origin-tag\.is-manual/);
+    assert.match(paginationCss,/\.ugc-origin-tag\.is-ai-made/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
