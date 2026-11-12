@@ -1476,6 +1476,10 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(maker, /"fuel-cost"/);
     assert.match(maker, /"savings-total"/);
     assert.match(maker, /function editCalculatorManually/);
+    assert.match(maker, /titleInput\.disabled=existing/);
+    assert.match(maker, /descInput\.disabled=existing/);
+    assert.match(maker, /categorySelect\.disabled=Boolean\(state\.editingId\)/);
+    assert.match(maker, /10-minute cooldown still applies/);
     assert.match(maker, /function switchManualDraftToAI/);
     assert.match(maker, /p_source:state.creationSource==="manual"\?"manual":"ai"/);
     assert.match(maker, /p_ai_request_id:state.creationSource==="manual"\?null:state.aiOperationId/);
