@@ -19,6 +19,7 @@ const calcEconomySource = economy;
 const sql = read("supabase/worth-it-ugc-badges.sql");
 const makerQuotaSql = read("supabase/worth-it-ugc-maker-generation-refunds.sql");
 const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql");
+const composableBuilderSql = read("supabase/worth-it-ugc-composable-builder.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
@@ -1646,6 +1647,43 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
     assert.ok(engine.validateMakerSpec(tooMany).errors.some(message=>/up to 3/i.test(message)));
 });
 
+
+test("Composable Manual Builder supports chained results and bounded dynamic groups", () => {
+    const engineStart=maker.indexOf("function compileExpression");
+    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
+    const engine=runInNewContext(
+        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateMakerSpec,evaluateFormulaResults})",
+        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
+    );
+    const spec={
+        inputs:[{key:"months",label:"Months",min:1,max:60,default:12,step:1,unit:"months"}],
+        groups:[{key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:10,
+            fields:[{key:"amount",label:"Amount",min:0,max:100000,default:10,step:1,unit:"EUR"}]}],
+        results:[
+            {key:"total_expenses",label:"Total expenses",expression:"sum(expenses.amount)",format:"currency",currency:"EUR"},
+            {key:"period_total",label:"Period total",expression:"total_expenses * months / 12",format:"currency",currency:"EUR"},
+            {key:"expense_rows",label:"Expense rows",expression:"count(expenses)",format:"number"}
+        ]
+    };
+    const errors=Array.from(engine.validateMakerSpec(spec).errors);
+    assert.deepEqual(errors,[],"Valid chained-result and dynamic-group definition: "+errors.join(" | "));
+    const calculated=engine.evaluateFormulaResults(spec,{months:12},{expenses:[{amount:12},{amount:18}]});
+    assert.deepEqual(calculated.map(result=>result.value),[30,30,2]);
+    assert.equal(engine.evaluate(engine.compileExpression("avg(expenses.amount)",new Set(),new Map([["expenses",new Set(["amount"]])])),{},
+        {expenses:[{amount:10},{amount:20}]}),15);
+    const forward={...spec,results:[
+        {key:"first_result",label:"First",expression:"second_result",format:"number"},
+        {key:"second_result",label:"Second",expression:"1",format:"number"}
+    ]};
+    assert.ok(engine.validateMakerSpec(forward).errors.some(message=>/invalid formula|earlier result/i.test(message)));
+    const unknownGroupField={...spec,results:[{...spec.results[0],expression:"sum(expenses.unknown)"}]};
+    assert.ok(engine.validateMakerSpec(unknownGroupField).errors.length>0);
+    const oversized={...spec,groups:[{...spec.groups[0],maxItems:21}]};
+    assert.ok(engine.validateMakerSpec(oversized).errors.some(message=>/1–20 rows/i.test(message)));
+    const tooManyResults={...spec,results:Array.from({length:21},(_,index)=>({key:"result_"+index,label:"Result "+index,expression:"1",format:"number"}))};
+    assert.ok(engine.validateMakerSpec(tooManyResults).errors.some(message=>/up to 20 results/i.test(message)));
+});
+
 test("UGC calculator scenarios and advanced input types are validated on the server", () => {
     assert.match(maker,/function renderManualScenarioEditor/);
     assert.match(maker,/function updateMakerTestResults/);
@@ -1656,8 +1694,13 @@ test("UGC calculator scenarios and advanced input types are validated on the ser
     assert.match(maker,/controlType==="slider"/);
     assert.match(maker,/Dropdown choices · one label = numeric value per line/);
     assert.match(maker,/up to 3 comparison scenarios/);
-    assert.match(maker,/up to 16 inputs/);
-    assert.match(maker,/up to 10 results/);
+    assert.match(maker,/up to 24 fixed inputs/);
+    assert.match(maker,/up to 20 results/);
+    assert.match(maker,/function renderManualGroupEditor/);
+    assert.match(maker,/sum\(group_key\.field_key\)/);
+    assert.match(composableBuilderSql,/up to four dynamic input groups/i);
+    assert.match(composableBuilderSql,/sum.*count/);
+    assert.match(paginationFixture,/Composable Manual Builder/);
     assert.match(maker,/Number with unit/);
     assert.match(maker,/function analyseFormulaUnit/);
     assert.match(maker,/Addition and subtraction require matching units/);
