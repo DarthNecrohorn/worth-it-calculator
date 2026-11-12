@@ -246,6 +246,8 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  const prompt=importer.buildPrompt();
  assert.match(prompt,/Return exactly one valid JSON object/);
  assert.match(prompt,/blueprintVersion/);
+ assert.match(prompt,/"base_value"/);
+ assert.match(prompt,/"calculated_value"/);
  assert.match(prompt,/strict dimensional algebra|UNIT SYSTEM/);
  assert.match(prompt,/EUR \/ days produces EUR\/day/);
  assert.match(prompt,/EUR\/month multiplied by months produces EUR/);
@@ -274,6 +276,21 @@ test("extracts a single raw JSON object surrounded by explanatory text",()=>{
  const source="Blueprint follows:\n"+JSON.stringify(blueprint())+"\nReview the assumptions after import.";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
  assert.equal(result.title,"Household Expense Calculator");
+});
+
+test("rejects non-JSON language fences instead of interpreting code as a blueprint",()=>{
+ const importer=getImporter();
+ const fence=String.fromCharCode(96).repeat(3);
+ const source=fence+"javascript\\n"+JSON.stringify(blueprint())+"\\n"+fence;
+ assert.throws(()=>importer.parseBlueprint(source,()=>({errors:[]})),/labelled json/);
+});
+
+test("preserves braces inside JSON strings when extracting a raw object",()=>{
+ const importer=getImporter();
+ const candidate=blueprint({description:"Calculate a value with optional details {when supplied} and explain the result."});
+ const source="Blueprint follows:\\n"+JSON.stringify(candidate)+"\\nEnd of blueprint.";
+ const result=importer.parseBlueprint(source,()=>({errors:[]}));
+ assert.equal(result.description,candidate.description);
 });
 
 test("rejects multiple JSON objects rather than guessing which one to import",()=>{
