@@ -364,7 +364,51 @@ function prepareBlueprintShape(source){
   notes
  };
 }
-function normalizeBlueprint(source,validateSpec){
+function promptCoverageNote(requestText,definition){
+ const request=String(requestText||"").trim();
+ if(!request)return "";
+ if(request.length>5000)fail("The original calculator request can contain up to 5,000 characters.");
+ const stop=new Set([
+  "the","and","or","but","for","from","with","without","into","onto","than","then","that","this","these","those","their","there","here","what","which","when","where","who","how","why","please","make","create","build","design","calculate","calculates","calculator","calculation","estimate","estimates","compare","compares","comparison","show","shows","using","use","used","based","include","includes","including","should","would","could","will","can","must","need","needs","want","wants","about","across","over","under","between","each","every","per","all","any","some","such","also","both","one","two","three","four","five","first","second","last","new","simple","complete","useful","accurate","data","value","values","input","inputs","result","results","total","overall","average","estimated","estimate",
+  "za","i","ili","ali","da","se","je","su","sam","smo","ste","mi","vi","oni","one","ono","ovo","ova","taj","ta","to","koji","koja","koje","koju","kako","kada","gde","zasto","koliko","molim","napravi","napraviti","kreiraj","izracunaj","izracunati","prikazi","pokazi","uporedi","ukljuci","ukljucujuci","koristi","koristiti","moze","treba","zelim","potrebno","svaki","svaka","svako","sve","neki","neka","neko","kao","bez","sa","u","na","od","do","po","pre","posle","tokom","izmedju","kroz","zaista","jedan","jedna","jedno","dva","tri","četiri","pet","novi","nova","novo","ukupan","ukupna","ukupno","prosecan","prosecna","prosecno"
+ ]);
+ const canonical={
+  car:"vehicle",cars:"vehicle",automobile:"vehicle",automobiles:"vehicle",vehicle:"vehicle",vehicles:"vehicle",
+  petrol:"fuel",gasoline:"fuel",diesel:"fuel",fuel:"fuel",
+  electric:"energy",electricity:"energy",energy:"energy",battery:"battery",batteries:"battery",
+  repair:"maintenance",repairs:"maintenance",servicing:"maintenance",service:"maintenance",maintenance:"maintenance",
+  expense:"cost",expenses:"cost",spending:"cost",price:"cost",prices:"cost",cost:"cost",
+  monthly:"month",months:"month",month:"month",
+  annually:"year",annual:"year",yearly:"year",years:"year",year:"year",
+  replacing:"replacement",replace:"replacement",replacement:"replacement",
+  charging:"charge",charger:"charge",chargingtime:"charge",charge:"charge",
+  transferred:"transfer",transferring:"transfer",transmission:"transfer",transfer:"transfer",
+  distance:"distance",mileage:"distance",kilometres:"distance",kilometers:"distance",
+  speed:"speed",rate:"speed",bandwidth:"speed"
+ };
+ const tokens=value=>{
+  const normal=String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const found=normal.match(/[\p{L}\p{N}]{3,}/gu)||[];
+  return found.map(token=>canonical[token]||token).filter(token=>!stop.has(token)&&token.length>=3);
+ };
+ const spec=definition?.spec||{};
+ const corpus=[
+  definition?.title,definition?.description,definition?.category,
+  ...(Array.isArray(definition?.subcategories)?definition.subcategories:[]),
+  ...(Array.isArray(spec.assumptions)?spec.assumptions:[]),
+  ...(Array.isArray(spec.inputs)?spec.inputs.flatMap(item=>[item.key,item.label,item.unit]):[]),
+  ...(Array.isArray(spec.groups)?spec.groups.flatMap(group=>[group.key,group.label,group.itemLabel,...(group.fields||[]).flatMap(field=>[field.key,field.label,field.unit])]):[]),
+  ...(Array.isArray(spec.results)?spec.results.flatMap(item=>[item.key,item.label,item.expression,item.explanation,item.unit,item.currency,item.format]):[]),
+  ...(Array.isArray(spec.scenarios)?spec.scenarios.flatMap(item=>[item.key,item.label]):[])
+ ].filter(Boolean).join(" ");
+ const present=new Set(tokens(corpus));
+ const missing=[...new Set(tokens(request))].filter(token=>!present.has(token));
+ if(!missing.length)return "";
+ const shown=missing.slice(0,8);
+ const extra=missing.length>shown.length?" and "+(missing.length-shown.length)+" more":"";
+ return "Prompt coverage review: these request keywords were not found in the calculator's title, description, assumptions or input/group/result labels: "+shown.join(", ")+extra+". This local keyword check cannot reliably detect synonyms or prove formula coverage; compare the editable calculator with your original request before saving or publishing.";
+}
+function normalizeBlueprint(source,validateSpec,requestText){
  const prepared=prepareBlueprintShape(source);
  source=prepared.blueprint;
  const compatibilityNotes=prepared.notes.slice();
@@ -623,6 +667,8 @@ function normalizeBlueprint(source,validateSpec){
   if(Array.isArray(repaired?.notes))compatibilityNotes.push(...repaired.notes);
  }
  const definition={title,description,category,spec};
+ const coverageNote=promptCoverageNote(requestText,definition);
+ if(coverageNote)compatibilityNotes.unshift(coverageNote);
  if(compatibilityNotes.length)definition.importNotes=compatibilityNotes.slice(0,20);
  const validation=validateSpec(spec);
  const errors=Array.isArray(validation?.errors)?validation.errors:[];
@@ -697,7 +743,7 @@ function extractSingleJsonPayload(source){
  if(candidates.length===1)return candidates[0];
  return source.trim();
 }
-function parseBlueprint(text,validateSpec){
+function parseBlueprint(text,validateSpec,requestText){
  if(typeof text!=="string"||!text.trim())fail("Paste a JSON blueprint first.");
  if(text.length>MAX_BLUEPRINT_CHARS)fail("The blueprint is too large. Maximum size is 50 KB.");
  const withoutBom=text.replace(/^\uFEFF/,"").trim();
@@ -719,7 +765,9 @@ function parseBlueprint(text,validateSpec){
   }
  }
  inspectTree(parsed);
- return normalizeBlueprint(parsed,validateSpec);
+ const originalRequest=typeof requestText==="string"?requestText.trim():"";
+ if(originalRequest.length>5000)fail("The original calculator request can contain up to 5,000 characters.");
+ return normalizeBlueprint(parsed,validateSpec,originalRequest);
 }
 function buildPrompt(){
  return [
