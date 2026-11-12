@@ -1666,6 +1666,24 @@ test("UGC calculator scenarios and advanced input types are validated on the ser
     assert.match(paginationCss,/\.ugc-scenario-public-results/);
 });
 
+test("UGC currency choices match the current ISO 4217 list and preserve historical BGN", () => {
+    const currentStart=maker.indexOf("const CURRENCIES=[");
+    const currentEnd=maker.indexOf("const HISTORICAL_CURRENCIES=",currentStart);
+    assert.ok(currentStart>=0&&currentEnd>currentStart);
+    const list=runInNewContext(maker.slice(currentStart,currentEnd)+"\\nCURRENCIES");
+    const codes=list.map(([code])=>code);
+    assert.equal(codes.length,178,"The current ISO 4217 List One snapshot should contain 178 unique codes.");
+    assert.equal(new Set(codes).size,178,"Currency codes must be unique.");
+    assert.ok(codes.includes("EUR"));
+    assert.ok(codes.includes("BHD")&&codes.includes("JPY"));
+    assert.ok(!codes.includes("BGN"),"BGN must not appear in the current list after Bulgaria's euro adoption.");
+    assert.match(maker,/const HISTORICAL_CURRENCIES=\[\["BGN"/);
+    assert.match(maker,/minimumFractionDigits:minorUnits,maximumFractionDigits:minorUnits/);
+    assert.match(sql,/v_supported_currency_codes constant text\[\]/);
+    assert.match(sql,/upper\(coalesce\(v_result->>'currency',''\)\) = any\(v_supported_currency_codes\)/);
+    assert.match(sql,/'BGN'/);
+});
+
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
     assert.match(maker, /function compileExpression/);
     assert.match(maker, /function evaluate/);
