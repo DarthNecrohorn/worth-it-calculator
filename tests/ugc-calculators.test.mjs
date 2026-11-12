@@ -1670,7 +1670,7 @@ test("UGC currency choices match the current ISO 4217 list and preserve historic
     const currentStart=maker.indexOf("const CURRENCIES=[");
     const currentEnd=maker.indexOf("const HISTORICAL_CURRENCIES=",currentStart);
     assert.ok(currentStart>=0&&currentEnd>currentStart);
-    const list=runInNewContext(maker.slice(currentStart,currentEnd)+"\\nCURRENCIES");
+    const list=runInNewContext(maker.slice(currentStart,currentEnd)+"\nCURRENCIES");
     const codes=list.map(([code])=>code);
     assert.equal(codes.length,178,"The current ISO 4217 List One snapshot should contain 178 unique codes.");
     assert.equal(new Set(codes).size,178,"Currency codes must be unique.");
