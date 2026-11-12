@@ -318,7 +318,7 @@ function jsonSyntaxFailure(error,source){
  fail("Could not read JSON. "+message+" Paste only the JSON object, without surrounding instructions.");
 }
 function extractSingleJsonPayload(source){
- const fencePattern=/\\x60{3}([a-z0-9_-]*)[ \\t]*\\r?\\n?([\\s\\S]*?)\\x60{3}/gi;
+ const fencePattern=/\x60{3}([a-z0-9_-]*)[ \t]*\r?\n?([\s\S]*?)\x60{3}/gi;
  const fences=[...source.matchAll(fencePattern)];
  if(fences.length>1)fail("More than one code block was found. Keep only the single calculator JSON object.");
  if(fences.length===1){
@@ -334,7 +334,7 @@ function extractSingleJsonPayload(source){
   const character=source[index];
   if(inString){
    if(escaped){escaped=false;continue;}
-   if(character==="\\\\"){escaped=true;continue;}
+   if(character==="\\"){escaped=true;continue;}
    if(character==='"')inString=false;
    continue;
   }
@@ -354,7 +354,7 @@ function extractSingleJsonPayload(source){
 function parseBlueprint(text,validateSpec){
  if(typeof text!=="string"||!text.trim())fail("Paste a JSON blueprint first.");
  if(text.length>MAX_BLUEPRINT_CHARS)fail("The blueprint is too large. Maximum size is 50 KB.");
- const withoutBom=text.replace(/^\\uFEFF/,"").trim();
+ const withoutBom=text.replace(/^\uFEFF/,"").trim();
  let source=extractSingleJsonPayload(withoutBom);
  let parsed;
  try{
@@ -408,7 +408,7 @@ function buildPrompt(){
   "Use the user's prompt as the source of calculator requirements, and this blueprint contract as the output and safety format. If details are missing but a safe calculation can still be designed, make conservative assumptions and list them in assumptions. Ask for clarification only when a missing detail makes a correct calculation impossible. Never invent data sources, live data, external connections, medical or financial guarantees, conversion rates or unsupported capabilities.",
   "If part of the requested calculator cannot be represented by the allowed fields or formula grammar, implement the supported parts and state the limitation transparently in assumptions. Do not silently omit an important requested feature.",
   "PROVIDER-NEUTRAL REQUIREMENT: These same rules apply to ChatGPT, Gemini, Claude, DeepSeek and any other AI assistant. Do not substitute another schema, add provider-specific fields or claim that the importer can execute code. Return one complete blueprint in the canonical version-1 format."
- ].join("\\n\\n");
+ ].join("\n\n");
 }
 
 root.WorthItBlueprintImport=Object.freeze({parseBlueprint,buildPrompt,MAX_BLUEPRINT_CHARS,MAX_ASSUMPTIONS_CHARS});
