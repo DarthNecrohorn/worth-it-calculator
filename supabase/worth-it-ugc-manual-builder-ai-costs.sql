@@ -140,7 +140,13 @@ begin
         select coalesce(array_agg(value),array[]::text[])
           into v_subcategories
           from jsonb_array_elements_text(p_spec->'subcategories') as items(value);
-    else
+    elsif v_source='ai' then
+        raise exception 'AI-generated calculators must include explicit category tags.' using errcode='22023';
+    end if;
+    -- The current Manual Builder lets members select a primary category but
+    -- deliberately assigns subcategories automatically. Its draft carries an
+    -- empty array; map that to the category's safe default rather than reject it.
+    if v_source='manual' and cardinality(v_subcategories)=0 then
         v_subcategories := case v_category
             when 'cars' then array['car-ownership']::text[]
             when 'money' then array['budgeting']::text[]
