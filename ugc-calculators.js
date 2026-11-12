@@ -1894,7 +1894,6 @@ async function init(){
  setExploreInitialView(window.location.pathname.startsWith("/calculator/ugc/")?"community":"basic");
  const navActions=$("ugcNavigationActions");if(navActions)navActions.hidden=!state.userId;
  $("ugcCatalogJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
- $("ugcMakerJumpButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community").then(openNewCalculatorMaker);});
  $("ugcBackToBasicButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("basic");});
  $("ugcOpenDiscoveryButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("discovery");});
  $("ugcBackToUgcButton")?.addEventListener("click",()=>{void switchCalculatorExploreView("community");});
