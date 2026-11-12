@@ -1548,7 +1548,7 @@ test("UGC formula engine supports extended math and checks physical and currency
     const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
     assert.ok(engineStart>=0&&engineEnd>engineStart,"The safe formula and dimensional-analysis engine must exist.");
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\\n({compileExpression,evaluate,analyseFormulaUnit,validateFormulaResultUnit,validateMakerSpec})",
+        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateFormulaResultUnit,validateMakerSpec})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["JPY","Japanese yen"],["BHD","Bahraini dinar"]]}
     );
     const keys=new Set(["energy","price","distance","hours","volume"]);
@@ -1595,10 +1595,10 @@ test("all built-in Manual Builder templates pass formula, unit and boundary vali
     const templateEnd=maker.indexOf("function createManualDraft",templateStart);
     assert.ok(engineStart>=0&&engineEnd>engineStart&&templateStart>=0&&templateEnd>templateStart);
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\\n({validateMakerSpec})",
+        maker.slice(engineStart,engineEnd)+"\n({validateMakerSpec})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["GBP","Pound sterling"]]}
     );
-    const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\\nMANUAL_TEMPLATES");
+    const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\nMANUAL_TEMPLATES");
     const invalid=[];
     for(const [key,template] of Object.entries(templates)){
         const validation=engine.validateMakerSpec({inputs:template.inputs,results:template.results,scenarios:[]});
@@ -1612,7 +1612,7 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
     const engineStart=maker.indexOf("function compileExpression");
     const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\\n({validateMakerSpec})",
+        maker.slice(engineStart,engineEnd)+"\n({validateMakerSpec})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
     );
     const base={
