@@ -607,23 +607,42 @@ async function loadCatalog(){
   console.warn("UGC catalogue load failed:",error);
  }
 }
-function compileExpression(source,keys){
+function groupMapForSpec(spec){
+ const groups=Array.isArray(spec?.groups)?spec.groups:[];
+ return new Map(groups.map(group=>[String(group.key||""),new Set((Array.isArray(group.fields)?group.fields:[]).map(field=>String(field.key||"")))]));
+}
+function defaultGroupValues(groups){
+ const values={};
+ (Array.isArray(groups)?groups:[]).forEach(group=>{
+  const minItems=Math.max(1,Math.min(20,Number(group.minItems)||1));
+  values[group.key]=Array.from({length:minItems},()=>Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));
+ });
+ return values;
+}
+function compileExpression(source,keys,groups){
  const input=String(source||"");let at=0;
+ const groupDefinitions=groups instanceof Map?groups:new Map();
  const fail=()=>{throw new Error("This calculator contains an invalid formula.");};
  const ws=()=>{while(at<input.length&&/\s/.test(input[at]))at++;};
  const take=value=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
  const identifier=()=>{ws();const m=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);if(!m)return null;at+=m[0].length;return m[0];};
- const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not"]);
+ const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not"]);
  function primary(){
   ws();
   if(take("(")){const node=add();if(!take(")"))fail();return node;}
   const m=input.slice(at).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i);
   if(m){at+=m[0].length;const value=Number(m[0]);if(!Number.isFinite(value))fail();return{type:"number",value};}
   const name=identifier();if(!name)fail();
+  if(take(".")){
+   const field=identifier();
+   if(!field||!groupDefinitions.get(name)?.has(field))fail();
+   return{type:"groupField",group:name,field};
+  }
   if(take("(")){
    if(!functions.has(name))fail();
    const args=[];if(!take(")")){do{args.push(add());}while(take(","));if(!take(")"))fail();}
    const valid=name==="min"||name==="max"||name==="avg"?args.length>=1&&args.length<=12
+    :name==="sum"||name==="count"?args.length===1
     :name==="pow"||name==="mod"||name==="gt"||name==="gte"||name==="lt"||name==="lte"||name==="eq"||name==="neq"?args.length===2
     :name==="if"||name==="clamp"?args.length===3
     :name==="and"||name==="or"?args.length>=2&&args.length<=12
@@ -632,6 +651,7 @@ function compileExpression(source,keys){
     :args.length===1;
    if(!valid)fail();return{type:"call",name,args};
   }
+  if(groupDefinitions.has(name))return{type:"group",name};
   if(name==="pi")return{type:"number",value:Math.PI};
   if(name==="e")return{type:"number",value:Math.E};
   if(!keys.has(name))fail();return{type:"variable",name};
@@ -642,19 +662,27 @@ function compileExpression(source,keys){
  function add(){let node=multiply();while(true){if(take("+"))node={type:"binary",op:"+",left:node,right:multiply()};else if(take("-"))node={type:"binary",op:"-",left:node,right:multiply()};else return node;}}
  const ast=add();ws();if(at!==input.length)fail();return ast;
 }
-function evaluate(ast,values){
+function evaluate(ast,values,groupValues){
+ const groups=groupValues&&typeof groupValues==="object"?groupValues:{};
  let n;
  if(ast.type==="number")return ast.value;
  if(ast.type==="variable")return Number(values[ast.name]);
- if(ast.type==="unary"){const v=evaluate(ast.value,values);return ast.op==="-"?-v:v;}
+ if(ast.type==="group")return Array.isArray(groups[ast.name])?groups[ast.name]:[];
+ if(ast.type==="groupField"){
+  const rows=Array.isArray(groups[ast.group])?groups[ast.group]:[];
+  return rows.map(row=>Number(row?.[ast.field]??0));
+ }
+ if(ast.type==="unary"){const v=evaluate(ast.value,values,groups);return ast.op==="-"?-v:v;}
  if(ast.type==="binary"){
-  const a=evaluate(ast.left,values),b=evaluate(ast.right,values);
+  const a=evaluate(ast.left,values,groups),b=evaluate(ast.right,values,groups);
   if(ast.op==="+")n=a+b;else if(ast.op==="-")n=a-b;else if(ast.op==="*")n=a*b;else if(ast.op==="/"){if(b===0)throw new Error("A formula divides by zero. Change your inputs.");n=a/b;}else n=Math.pow(a,b);
  }else{
-  const a=ast.args.map(x=>evaluate(x,values));
-  if(ast.name==="min")n=Math.min(...a);
-  else if(ast.name==="max")n=Math.max(...a);
-  else if(ast.name==="avg")n=a.reduce((sum,value)=>sum+value,0)/a.length;
+  const a=ast.args.map(x=>evaluate(x,values,groups));
+  if(ast.name==="sum"){if(!Array.isArray(a[0]))throw new Error("sum() requires a dynamic group field, e.g. sum(expenses.amount).");n=a[0].reduce((total,value)=>total+value,0);}
+  else if(ast.name==="count"){if(!Array.isArray(a[0]))throw new Error("count() requires a dynamic group, e.g. count(expenses).");n=a[0].length;}
+  else if(ast.name==="min")n=a.length===1&&Array.isArray(a[0])?Math.min(...a[0]):Math.min(...a);
+  else if(ast.name==="max")n=a.length===1&&Array.isArray(a[0])?Math.max(...a[0]):Math.max(...a);
+  else if(ast.name==="avg")n=a.length===1&&Array.isArray(a[0])?(a[0].length?a[0].reduce((sum,value)=>sum+value,0)/a[0].length:0):a.reduce((sum,value)=>sum+value,0)/a.length;
   else if(ast.name==="abs")n=Math.abs(a[0]);
   else if(ast.name==="round")n=a.length===1?Math.round(a[0]):Number(a[0].toFixed(Math.max(0,Math.min(8,Math.floor(a[1])))));
   else if(ast.name==="floor")n=Math.floor(a[0]);
@@ -686,7 +714,8 @@ function evaluate(ast,values){
   else if(ast.name==="acos")n=Math.acos(a[0]);
   else n=Math.atan(a[0]);
  }
- if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result. Check your inputs.");return n;
+ if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result for these input values.");
+ return n;
 }
 function unitDescriptor(unit){
  const raw=String(unit||"").trim();
@@ -751,14 +780,22 @@ function constantFormulaValue(ast){
  if(ast.type==="unary"){const value=constantFormulaValue(ast.value);return value===null?null:ast.op==="-"?-value:value;}
  return null;
 }
-function analyseFormulaUnit(ast,inputs){
+function analyseFormulaUnit(ast,inputs,groups){
+ const definitions=Array.isArray(groups)?groups:[];
  if(ast.type==="number")return unitDescriptor("");
  if(ast.type==="variable"){
   const input=inputs.find(item=>item.key===ast.name);
-  if(!input)throw new Error("Unknown input in formula.");
-  return unitDescriptor(input.unit);
+  if(!input)throw new Error("Unknown input or earlier result in formula.");
+  return input.unitDescriptor||unitDescriptor(input.unit);
  }
- if(ast.type==="unary")return analyseFormulaUnit(ast.value,inputs);
+ if(ast.type==="group")return unitDescriptor("");
+ if(ast.type==="groupField"){
+  const group=definitions.find(item=>item.key===ast.group);
+  const field=group?.fields?.find(item=>item.key===ast.field);
+  if(!field)throw new Error("Unknown dynamic group field in formula.");
+  return unitDescriptor(field.unit);
+ }
+ if(ast.type==="unary")return analyseFormulaUnit(ast.value,inputs,groups);
  const compatibleUnits=(units,nodes,message)=>{
   const dimensionedIndex=units.findIndex(item=>Object.keys(item.vector).length>0);
   const target=units[dimensionedIndex>=0?dimensionedIndex:0]||unitDescriptor("");
@@ -768,7 +805,7 @@ function analyseFormulaUnit(ast,inputs){
   return target;
  };
  if(ast.type==="binary"){
-  const left=analyseFormulaUnit(ast.left,inputs),right=analyseFormulaUnit(ast.right,inputs);
+  const left=analyseFormulaUnit(ast.left,inputs,groups),right=analyseFormulaUnit(ast.right,inputs,groups);
   if(ast.op==="+"||ast.op==="-"){
    return compatibleUnits([left,right],[ast.left,ast.right],"Addition and subtraction require matching units. Numeric constants inherit the other value's unit.");
   }
@@ -780,7 +817,7 @@ function analyseFormulaUnit(ast,inputs){
   const vector={};Object.entries(left.vector).forEach(([key,value])=>{const result=value*power;if(Math.abs(result)>1e-10)vector[key]=result;});
   return{exact:"",vector,opaque:left.opaque};
  }
- const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs));
+ const args=ast.args.map(arg=>analyseFormulaUnit(arg,inputs,groups));
  const sameArgs=()=>compatibleUnits(args,ast.args,ast.name+"() requires arguments with matching units. Numeric constants inherit the other argument's unit.");
  const dimensionless=()=>{if(Object.keys(args[0].vector).length)throw new Error(ast.name+"() requires a dimensionless condition.");return unitDescriptor("");};
  if(ast.name==="if"){
@@ -791,11 +828,11 @@ function analyseFormulaUnit(ast,inputs){
   compatibleUnits(args,ast.args,ast.name+"() compares values with different units. Numeric thresholds inherit the compared input's unit.");
   return unitDescriptor("");
  }
- if(["and","or","not"].includes(ast.name)){
+ if(["and","or","not","count"].includes(ast.name)){
   args.forEach(item=>{if(Object.keys(item.vector).length)throw new Error(ast.name+"() requires dimensionless conditions.");});
   return unitDescriptor("");
  }
- if(["min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
+ if(["sum","min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
  if(["abs","round","floor","ceil","trunc"].includes(ast.name))return args[0];
  if(ast.name==="sign")return unitDescriptor("");
  if(ast.name==="sqrt"){
@@ -834,22 +871,114 @@ function validateFormulaResultUnit(result,unit){
   throw new Error("A percent result must be dimensionless. Divide by the relevant base value and multiply by 100.");
  }
 }
+function evaluateFormulaResults(spec,baseValues,groupValues){
+ const inputs=Array.isArray(spec?.inputs)?spec.inputs:[];
+ const definitions=Array.isArray(spec?.results)?spec.results:[];
+ const groups=Array.isArray(spec?.groups)?spec.groups:[];
+ const groupMap=groupMapForSpec(spec);
+ const values={...(baseValues||{})};
+ const availableKeys=new Set(inputs.map(item=>item.key));
+ const unitInputs=inputs.slice();
+ const results=[];
+ definitions.forEach((item,index)=>{
+  const ast=compileExpression(item.expression,availableKeys,groupMap);
+  const outputUnit=analyseFormulaUnit(ast,unitInputs,groups);
+  validateFormulaResultUnit(item,outputUnit);
+  const value=evaluate(ast,values,groupValues||defaultGroupValues(groups));
+  results.push({label:item.label,value,explanation:String(item.explanation||""),key:String(item.key||"")});
+  const resultKey=String(item.key||"").trim();
+  if(resultKey){
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey))throw new Error("Result "+(index+1)+" has an invalid or duplicate variable key.");
+   availableKeys.add(resultKey);
+   values[resultKey]=value;
+   unitInputs.push({key:resultKey,unitDescriptor:outputUnit});
+  }
+ });
+ return results;
+}
+function collectDynamicGroupValues(root,spec){
+ const values={};
+ (Array.isArray(spec?.groups)?spec.groups:[]).forEach(group=>{
+  const groupHost=root?.querySelector?.('[data-ugc-group-key="'+CSS.escape(group.key)+'"]');
+  const rows=groupHost?Array.from(groupHost.querySelectorAll("[data-ugc-group-row]")):[];
+  values[group.key]=rows.map(row=>{
+   const item={};
+   (group.fields||[]).forEach(field=>{
+    const control=row.querySelector('[data-ugc-group-field="'+CSS.escape(field.key)+'"]');
+    const value=Number(control?.value);
+    if(!control||control.value===""||!Number.isFinite(value)||value<Number(field.min)||value>Number(field.max)||!control.validity.valid){
+     throw new Error("Enter a valid "+field.label+" value in every "+group.itemLabel.toLowerCase()+".");
+    }
+    item[field.key]=value;
+   });
+   return item;
+  });
+  if(values[group.key].length<Number(group.minItems||1)||values[group.key].length>Number(group.maxItems||20)){
+   throw new Error(group.label+" needs between "+group.minItems+" and "+group.maxItems+" items.");
+  }
+ });
+ return values;
+}
+function appendDynamicGroupControls(host,group,initialRows){
+ const section=document.createElement("fieldset");section.className="ugc-dynamic-group";
+ section.dataset.ugcGroupKey=group.key;
+ section.appendChild(text("legend","",group.label||group.key));
+ const note=text("p","ugc-dynamic-group-note","Add or remove "+String(group.itemLabel||"item").toLowerCase()+" rows. Each row is included in the group formulas.");
+ section.appendChild(note);
+ const rowsHost=document.createElement("div");rowsHost.className="ugc-dynamic-group-rows";
+ const minItems=Math.max(1,Number(group.minItems)||1),maxItems=Math.max(minItems,Math.min(20,Number(group.maxItems)||20));
+ const notify=()=>{rowsHost.dispatchEvent(new Event("input",{bubbles:true}));};
+ const addRow=(rowValues)=>{
+  if(rowsHost.children.length>=maxItems)return;
+  const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcGroupRow="";
+  const fields=document.createElement("div");fields.className="ugc-dynamic-group-fields";
+  (group.fields||[]).forEach(field=>{
+   const label=document.createElement("label");label.textContent=field.label||field.key;
+   const input=document.createElement("input");input.type="number";input.min=String(field.min);input.max=String(field.max);input.step=String(field.step||"any");input.value=String(rowValues?.[field.key]??field.default??0);input.required=true;input.dataset.ugcGroupField=field.key;
+   label.appendChild(input);if(field.unit)label.appendChild(text("small","",field.unit));
+   input.addEventListener("input",notify);fields.appendChild(label);
+  });
+  const actions=document.createElement("div");actions.className="ugc-dynamic-group-row-actions";
+  const remove=button("Remove "+String(group.itemLabel||"item").toLowerCase(),"ugc-manual-remove",()=>{
+   if(rowsHost.children.length<=minItems)return;
+   row.remove();refreshButtons();notify();
+  });
+  actions.appendChild(remove);row.append(fields,actions);rowsHost.appendChild(row);refreshButtons();
+ };
+ const refreshButtons=()=>{
+  Array.from(rowsHost.children).forEach(row=>{
+   const remove=row.querySelector("button");if(remove)remove.disabled=rowsHost.children.length<=minItems;
+  });
+  add.disabled=rowsHost.children.length>=maxItems;
+ };
+ const rows=Array.isArray(initialRows)&&initialRows.length?initialRows:defaultGroupValues([group])[group.key];
+ rows.slice(0,maxItems).forEach(addRow);
+ const add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{
+  if(rowsHost.children.length>=maxItems)return;
+  addRow(Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));notify();
+ });
+ section.append(rowsHost,add);refreshButtons();host.appendChild(section);
+ return section;
+}
 function validateMakerSpec(spec){
  const errors=[];
  if(!Array.isArray(spec?.inputs)||!spec.inputs.length)errors.push("Add at least one input.");
  if(!Array.isArray(spec?.results)||!spec.results.length)errors.push("Add at least one result.");
  const inputs=Array.isArray(spec?.inputs)?spec.inputs:[],values={};
- if(inputs.length>16)errors.push("A calculator can contain up to 16 inputs.");
- if((spec?.results||[]).length>10)errors.push("A calculator can contain up to 10 results.");
+ const results=Array.isArray(spec?.results)?spec.results:[];
+ const groups=Array.isArray(spec?.groups)?spec.groups:[];
+ if(inputs.length>24)errors.push("A calculator can contain up to 24 fixed inputs.");
+ if(results.length>20)errors.push("A calculator can contain up to 20 results.");
+ if(groups.length>4)errors.push("A calculator can contain up to 4 dynamic input groups.");
  inputs.forEach(item=>{
   const label=String(item.label||item.key||"input"),min=Number(item.min),max=Number(item.max),value=Number(item.default),step=Number(item.step);
   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(item.key||"")))errors.push(label+": variable keys must start with a lowercase letter and use only letters, numbers and underscores.");
   if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<min||step<=0){errors.push(label+": check its minimum, maximum, default and step.");return;}
   const textValue=(label+" "+item.key).toLowerCase();
-  if(/\\b(?:commut(?:e|ing)|work|working|business)\\s+days?\\b|\\bdays?_per_week\\b/.test(textValue)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
+  if(/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(textValue)&&(min<1||!Number.isInteger(value)||!Number.isInteger(step)||step<1)){
    errors.push(label+": use positive whole days and a step of at least 1.");
   }
-  if(/\\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\\b/.test(textValue)&&min<=0){
+  if(/\b(?:distance|mileage|fuel consumption|consumption|number of passengers|number of employees)\b/.test(textValue)&&min<=0){
    errors.push(label+": this input should have a positive minimum.");
   }
   const stepPosition=(value-min)/step;
@@ -858,7 +987,34 @@ function validateMakerSpec(spec){
   if(max>min&&(!Number.isFinite(maxStepPosition)||Math.abs(maxStepPosition-Math.round(maxStepPosition))>1e-7))errors.push(label+": the maximum value does not match its step.");
   values[item.key]=value;
  });
- const keys=new Set(inputs.map(item=>item.key));
+ const fixedKeys=new Set(inputs.map(item=>item.key));
+ const groupKeys=new Set(),groupFieldKeys=new Set();
+ groups.forEach((group,index)=>{
+  const label=String(group.label||group.key||"Group "+(index+1));
+  const minItems=Number(group.minItems??1),maxItems=Number(group.maxItems??10);
+  if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(group.key||""))||fixedKeys.has(group.key)||groupKeys.has(group.key)){
+   errors.push(label+": use a unique lowercase variable key for this group.");
+  }
+  groupKeys.add(group.key);
+  if(label.length<2||label.length>60||String(group.itemLabel||"Item").length>40||!Number.isInteger(minItems)||!Number.isInteger(maxItems)||minItems<1||maxItems<minItems||maxItems>20){
+   errors.push(label+": use 1–20 rows and a valid group and item label.");
+  }
+  if(!Array.isArray(group.fields)||group.fields.length<1||group.fields.length>6)errors.push(label+": each group needs 1–6 numeric fields.");
+  (Array.isArray(group.fields)?group.fields:[]).forEach(field=>{
+   const fieldLabel=String(field.label||field.key||"Field");
+   const min=Number(field.min),max=Number(field.max),value=Number(field.default),step=Number(field.step);
+   const composite=String(group.key)+"."+String(field.key);
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(String(field.key||""))||groupFieldKeys.has(composite)||fixedKeys.has(field.key)||groupKeys.has(field.key)){
+    errors.push(fieldLabel+": use a unique lowercase key within its dynamic group.");
+   }
+   groupFieldKeys.add(composite);
+   if(![min,max,value,step].every(Number.isFinite)||min>value||value>max||max<min||step<=0||String(field.unit||"").length>16){
+    errors.push(fieldLabel+": check the minimum, maximum, default, step and unit.");
+   }
+  });
+ });
+ const groupMap=groupMapForSpec(spec);
+ const groupSamples=defaultGroupValues(groups);
  const scenarios=[{...values}];
  const definedScenarios=Array.isArray(spec?.scenarios)?spec.scenarios:[];
  if(definedScenarios.length>3)errors.push("A calculator can contain up to 3 comparison scenarios.");
@@ -891,33 +1047,48 @@ function validateMakerSpec(spec){
    const low={...values};low[item.key]=Number(item.min);scenarios.push(low);
    const high={...values};high[item.key]=Number(item.max);scenarios.push(high);
   });
-  for(let left=0;left<inputs.length;left++){
-   for(let right=left+1;right<inputs.length;right++){
-    for(const leftValue of [Number(inputs[left].min),Number(inputs[left].max)]){
-     for(const rightValue of [Number(inputs[right].min),Number(inputs[right].max)]){
-      const pair={...values};pair[inputs[left].key]=leftValue;pair[inputs[right].key]=rightValue;scenarios.push(pair);
+  if(inputs.length<=12){
+   for(let left=0;left<inputs.length;left++){
+    for(let right=left+1;right<inputs.length;right++){
+     for(const leftValue of [Number(inputs[left].min),Number(inputs[left].max)]){
+      for(const rightValue of [Number(inputs[right].min),Number(inputs[right].max)]){
+       const pair={...values};pair[inputs[left].key]=leftValue;pair[inputs[right].key]=rightValue;scenarios.push(pair);
+      }
      }
     }
    }
   }
  }
- (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
+ const availableKeys=new Set(inputs.map(item=>item.key));
+ const formulaUnits=inputs.slice();
+ const resultKeys=new Set();
+ results.forEach((item,index)=>{
+  const resultKey=String(item.key||"").trim();
+  if(resultKey){
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(resultKey)||availableKeys.has(resultKey)||resultKeys.has(resultKey)||groupKeys.has(resultKey)){
+    errors.push((item.label||"Result "+(index+1))+": result variable keys must be unique lowercase names.");
+   }
+  }
   const currencyCode=String(item.currency||"").trim().toUpperCase();
   const supportedCurrency=CURRENCIES.some(([code])=>code===currencyCode)
    ||(typeof HISTORICAL_CURRENCIES!=="undefined"&&HISTORICAL_CURRENCIES.some(([code])=>code===currencyCode));
-  if(item.format==="currency"&&!supportedCurrency){
-   errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
-  }
-  if(item.format==="unit"&&(!String(item.unit||"").trim()||String(item.unit||"").length>20)){
-   errors.push((item.label||"A result")+": select or enter a result unit of up to 20 characters.");
-  }
+  if(item.format==="currency"&&!supportedCurrency)errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
+  if(item.format==="unit"&&(!String(item.unit||"").trim()||String(item.unit||"").length>20))errors.push((item.label||"A result")+": select or enter a result unit of up to 20 characters.");
   if(String(item.explanation||"").length>280)errors.push((item.label||"A result")+": its explanation must be 280 characters or fewer.");
   try{
-   const ast=compileExpression(item.expression,keys);
-   const outputUnit=analyseFormulaUnit(ast,inputs);
+   const ast=compileExpression(item.expression,availableKeys,groupMap);
+   const outputUnit=analyseFormulaUnit(ast,formulaUnits,groups);
    validateFormulaResultUnit(item,outputUnit);
-   scenarios.forEach(sample=>evaluate(ast,sample));
+   scenarios.forEach(sample=>evaluate(ast,{...sample},groupSamples));
+   if(resultKey){
+    availableKeys.add(resultKey);resultKeys.add(resultKey);
+    formulaUnits.push({key:resultKey,unitDescriptor:outputUnit});
+   }
   }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||"could not be validated."));}
+ });
+ scenarios.forEach(sample=>{
+  try{evaluateFormulaResults(spec,sample,groupSamples);}
+  catch(error){errors.push("Calculator result chain: "+String(error?.message||"could not be validated."));}
  });
  return {errors:[...new Set(errors)]};
 }
