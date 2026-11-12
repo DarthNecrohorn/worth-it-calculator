@@ -537,7 +537,8 @@ function unitDescriptor(unit){
   l:{volume:1},litres:{volume:1},liters:{volume:1},"m³":{volume:1},"m3":{volume:1},ml:{volume:1},
   kg:{mass:1},kilograms:{mass:1},g:{mass:1},grams:{mass:1},tonnes:{mass:1},
   kwh:{energy:1},mwh:{energy:1},mj:{energy:1},w:{power:1},kw:{power:1},
-  "l/100 km":{volume:1,length:-1},
+  "l/100 km":{volume:1,length:-1},"km/h":{length:1,time:-1},"m/s":{length:1,time:-1},
+  "kwh/day":{energy:1,time:-1},"kwh/month":{energy:1,time:-1},
   "eur/kwh":{"currency:EUR":1,energy:-1},"usd/kwh":{"currency:USD":1,energy:-1},"rsd/kwh":{"currency:RSD":1,energy:-1},
   "eur/l":{"currency:EUR":1,volume:-1},"usd/l":{"currency:USD":1,volume:-1},"rsd/l":{"currency:RSD":1,volume:-1},
   "eur/kg":{"currency:EUR":1,mass:-1},"eur/m²":{"currency:EUR":1,area:-1},"eur/m2":{"currency:EUR":1,area:-1},
@@ -612,7 +613,7 @@ function validateFormulaResultUnit(result,unit){
  const format=String(result.format||"number");
  if(format==="unit"){
   const expected=unitDescriptor(result.unit);
-  if(!sameUnitDescriptor(expected,unit)||unitVectorKey(expected)!==unitVectorKey(unit)){
+  if(unitVectorKey(expected)!==unitVectorKey(unit)||expected.opaque!==unit.opaque){
    throw new Error("The formula's dimensions do not match the selected result unit. Check the input units and formula.");
   }
  }else if(format==="currency"){
@@ -1857,7 +1858,7 @@ function renderMakerPreview(definition){
   });
   const syncCurrencyEnabled=()=>{
    const currencyEnabled=formatSelect.value==="currency",unitEnabled=formatSelect.value==="unit";
-   currencySelect.hidden=unitEnabled;customCurrency.hidden=unitEnabled||!customCurrency.hidden&&false;
+   currencySelect.hidden=!currencyEnabled;customCurrency.hidden=!currencyEnabled||currencySelect.value!=="__custom__";
    currencyLabel.querySelector("span").textContent=unitEnabled?"Result unit":"Result currency";
    currencySelect.disabled=!currencyEnabled;customCurrency.disabled=!currencyEnabled;
    unitResult.hidden=!unitEnabled;unitResult.disabled=!unitEnabled;
