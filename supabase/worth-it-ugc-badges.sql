@@ -304,7 +304,7 @@ begin
         end if;
     end if;
 end;
-$;
+$$;
 
 create or replace function private.worth_it_badge_is_earned(p_user_id uuid,p_badge_key text)
 returns boolean
