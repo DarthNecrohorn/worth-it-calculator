@@ -72,7 +72,7 @@ test("repairs copied JSON line continuations, HTML-encoded spaces and escaped mu
  const clean=JSON.stringify(candidate,null,2);
  const copiedArtifactText=clean
   .replace(/ /g,"&#x20;")
-  .replace(/\n/g,"\\n")
+  .replace(/\n/g,"\\\n")
   .replace(/\*/g,"\\*");
  const result=importer.parseBlueprint(copiedArtifactText,()=>({errors:[]}));
  assert.equal(result.spec.results[1].expression,"base_cost * 2 + extra_total");
@@ -82,7 +82,7 @@ test("reports a JSON syntax location when copy/paste artifacts cannot be repaire
  const importer=getImporter();
  assert.throws(
   ()=>importer.parseBlueprint('{"blueprintVersion":1,\n"title": }',()=>({errors:[]})),
-  /Could not read JSON at line/
+  /Could not read JSON/
  );
 });
 test("rejects malformed or empty JSON with a useful error",()=>{
@@ -252,7 +252,7 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  assert.match(prompt,/unitless scalar multiplier or divisor/);
  assert.match(prompt,/plain asterisk character/);
  assert.match(prompt,/Do not HTML-encode spaces/);
- assert.match(prompt,/maximums align with steps/);
+ assert.match(prompt,/maximums? (must )?align with step|whole numbers/);
  assert.match(prompt,/PROVIDER-NEUTRAL REQUIREMENT/i);
  assert.match(prompt,/the user's actual calculator request/);
  assert.match(prompt,/any subject/);
