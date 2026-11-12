@@ -660,6 +660,30 @@ function validateMakerSpec(spec){
  });
  const keys=new Set(inputs.map(item=>item.key));
  const scenarios=[{...values}];
+ const definedScenarios=Array.isArray(spec?.scenarios)?spec.scenarios:[];
+ if(definedScenarios.length>3)errors.push("A calculator can contain up to 3 comparison scenarios.");
+ const scenarioLabels=new Set();
+ definedScenarios.forEach((scenario,index)=>{
+  const label=String(scenario?.label||"").trim();
+  if(label.length<2||label.length>50)errors.push("Scenario "+(index+1)+": use a name of 2 to 50 characters.");
+  const normalized=label.toLowerCase();
+  if(normalized&&scenarioLabels.has(normalized))errors.push("Scenario names must be unique.");
+  scenarioLabels.add(normalized);
+  const scenarioValues={...values};
+  if(!scenario?.values||typeof scenario.values!=="object"||Array.isArray(scenario.values)){errors.push("Scenario "+(index+1)+" has invalid input values.");return;}
+  Object.entries(scenario.values).forEach(([key,raw])=>{
+   const input=inputs.find(item=>item.key===key),value=Number(raw);
+   if(!input||!Number.isFinite(value)||value<Number(input.min)||value>Number(input.max)){
+    errors.push("Scenario "+(index+1)+": "+key+" must be a valid value within its input range.");return;
+   }
+   if(input.control==="toggle"&&![0,1].includes(value)){errors.push("Scenario "+(index+1)+": toggle "+key+" must be 0 or 1.");return;}
+   if(input.control==="select"&&Array.isArray(input.choices)&&!input.choices.some(choice=>Number(choice.value)===value)){
+    errors.push("Scenario "+(index+1)+": "+key+" must match one of its dropdown choices.");return;
+   }
+   scenarioValues[key]=value;
+  });
+  scenarios.push(scenarioValues);
+ });
  if(inputs.length){
   scenarios.push(Object.fromEntries(inputs.map(item=>[item.key,Number(item.min)])));
   scenarios.push(Object.fromEntries(inputs.map(item=>[item.key,Number(item.max)])));
@@ -678,8 +702,11 @@ function validateMakerSpec(spec){
   }
  }
  (Array.isArray(spec?.results)?spec.results:[]).forEach(item=>{
-  if(item.format==="currency"&&!/^[A-Z]{3}$/.test(String(item.currency||"").trim().toUpperCase())){
-   errors.push((item.label||"A currency result")+": enter a valid three-letter ISO currency code.");
+  if(item.format==="currency"&&!CURRENCIES.some(([code])=>code===String(item.currency||"").trim().toUpperCase())){
+   errors.push((item.label||"A currency result")+": choose a supported ISO 4217 currency code.");
+  }
+  if(item.format==="unit"&&(!String(item.unit||"").trim()||String(item.unit||"").length>20)){
+   errors.push((item.label||"A result")+": select or enter a result unit of up to 20 characters.");
   }
   if(String(item.explanation||"").length>280)errors.push((item.label||"A result")+": its explanation must be 280 characters or fewer.");
   try{
