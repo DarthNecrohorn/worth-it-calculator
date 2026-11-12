@@ -559,7 +559,7 @@ test("reorders result dependencies before validating a provider's out-of-order r
   }
  });
  const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
- assert.deepEqual(definition.spec.results.map(item=>item.key),["fee_total","base_total","grand_total"]);
+ assert.deepEqual(plain(definition.spec.results.map(item=>item.key)),["fee_total","base_total","grand_total"]);
  assert.ok(definition.importNotes.some(note=>note.includes("Reordered result definitions")));
  assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
 });
