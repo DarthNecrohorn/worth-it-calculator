@@ -178,6 +178,69 @@ test("does not normalize zero-row groups when a placeholder would add a nonzero 
 });
 
 
+
+test("repairs common Gemini-style planner units and a hard-coded 30-day projection period before shared validation",()=>{
+ const importer=getImporter();
+ const input=(key,label,unit,defaultValue=0,max=100000,step=10)=>({key,label,control:"number",min:0,max,default:defaultValue,step,unit});
+ const field=(key,label,unit,defaultValue=0)=>({key,label,min:0,max:100000,default:defaultValue,step:10,unit});
+ const candidate={
+  blueprintVersion:1,
+  title:"Household Budget and Savings Planner",
+  description:"Plan household income, expenses, debt, savings and projected spending in EUR.",
+  category:"home",
+  subcategories:["household-budget"],
+  assumptions:["All monetary amounts use EUR."],
+  spec:{
+   inputs:[
+    input("regular_income","Regular monthly income","EUR",2500,50000,50),
+    input("extra_income","Additional monthly income","EUR",200,20000,50),
+    input("annual_expenses","Annual expenses","EUR",3600,100000,100),
+    input("planned_savings","Planned monthly savings","EUR",500,20000,50),
+    input("actual_savings","Actual monthly savings","EUR",450,20000,50),
+    input("safety_buffer","Monthly safety buffer","EUR",200,10000,25),
+    input("current_emergency_fund","Current emergency fund","EUR",6000,200000,100),
+    input("target_coverage_months","Target emergency coverage","months",6,24,1),
+    input("savings_goal_target","Savings goal target","EUR",3000,100000,100),
+    input("savings_goal_deadline","Savings goal deadline","months",12,60,1),
+    input("tracking_days","Actual spending tracking days","days",30,365,1),
+    input("projection_days","Projected spending days","days",30,365,1)
+   ],
+   groups:[
+    {key:"expenses",label:"Recurring household expenses",itemLabel:"Expense",minItems:1,maxItems:10,fields:[field("amount","Monthly amount","EUR",150)]},
+    {key:"debts",label:"Monthly debt payments",itemLabel:"Debt obligation",minItems:0,maxItems:10,fields:[field("payment","Monthly payment","EUR",0)]},
+    {key:"actual_spending_items",label:"Actual spending records",itemLabel:"Spending category",minItems:0,maxItems:10,fields:[field("spent","Amount spent","EUR",0)]}
+   ],
+   results:[
+    {key:"total_income",label:"Total monthly income",expression:"regular_income + extra_income",format:"currency",currency:"EUR"},
+    {key:"household_expenses",label:"Household expenses",expression:"sum(expenses.amount)",format:"currency",currency:"EUR"},
+    {key:"debt_payments",label:"Debt payments",expression:"sum(debts.payment)",format:"currency",currency:"EUR"},
+    {key:"monthly_annual_expenses",label:"Monthly annual expenses",expression:"annual_expenses / 12",format:"currency",currency:"EUR"},
+    {key:"total_planned_expenses",label:"Total planned expenses",expression:"household_expenses + debt_payments + monthly_annual_expenses",format:"currency",currency:"EUR"},
+    {key:"emergency_fund_target",label:"Emergency fund target",expression:"total_planned_expenses * target_coverage_months",format:"currency",currency:"EUR"},
+    {key:"emergency_fund_shortfall",label:"Emergency fund shortfall",expression:"max(0, emergency_fund_target - current_emergency_fund)",format:"currency",currency:"EUR"},
+    {key:"savings_goal_monthly",label:"Required savings goal monthly contribution",expression:"if(gt(savings_goal_deadline, 0), savings_goal_target / savings_goal_deadline, 0)",format:"currency",currency:"EUR"},
+    {key:"tracked_actual_spending",label:"Total tracked actual spending",expression:"sum(actual_spending_items.spent)",format:"currency",currency:"EUR"},
+    {key:"average_daily_spending",label:"Average daily spending",expression:"if(gt(tracking_days, 0), tracked_actual_spending / tracking_days, 0)",format:"unit",unit:"EUR/days"},
+    {key:"projected_spending",label:"Projected spending",expression:"if(gt(tracking_days, 0), tracked_actual_spending / tracking_days * projection_days, 0)",format:"currency",currency:"EUR"},
+    {key:"spending_difference",label:"Projected vs planned expenses difference",expression:"projected_spending - (total_planned_expenses / 30 * projection_days)",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[{key:"balanced",label:"Balanced",values:{regular_income:2500,extra_income:200,planned_savings:500,safety_buffer:200}}]
+  }
+ };
+ let validated;
+ const result=importer.parseBlueprint(JSON.stringify(candidate),spec=>{validated=plain(spec);return{errors:[]};});
+ assert.equal(validated.groups[1].minItems,1);
+ assert.equal(validated.groups[2].minItems,1);
+ assert.equal(validated.inputs.find(item=>item.key==="target_coverage_months").unit,"");
+ const monthly=validated.results.find(item=>item.key==="savings_goal_monthly");
+ assert.equal(monthly.format,"unit");
+ assert.equal(monthly.unit,"EUR/month");
+ assert.equal("currency" in monthly,false);
+ assert.ok(validated.inputs.some(item=>item.key==="budget_month_days"&&item.unit==="days"&&item.default===30));
+ assert.match(validated.results.find(item=>item.key==="spending_difference").expression,/total_planned_expenses \/ budget_month_days \* projection_days/);
+ assert.ok(result.importNotes.length>=5);
+});
+
 test("generates copyable instructions for an external AI and contains no request operation",()=>{
  const importer=getImporter();
  const prompt=importer.buildPrompt();
