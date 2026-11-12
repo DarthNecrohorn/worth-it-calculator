@@ -12,6 +12,13 @@ function getImporter(){
  runInNewContext(helperSource,sandbox);
  return sandbox.window.WorthItBlueprintImport;
 }
+function getManualValidator(){
+ const start=builderSource.indexOf("function compileExpression(");
+ const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
+ assert.ok(start>=0&&end>start,"The shared Manual Builder formula validator must be present.");
+ const validatorSource=builderSource.slice(start,end);
+ return runInNewContext("(function(){const CURRENCIES=[[\\\"EUR\\\",\\\"Euro\\\",2],[\\\"USD\\\",\\\"US Dollar\\\",2],[\\\"RSD\\\",\\\"Serbian Dinar\\\",2]];"+validatorSource+";return validateMakerSpec;})()");
+}
 function plain(value){return JSON.parse(JSON.stringify(value));}
 function blueprint(overrides={}){
  return {
@@ -511,4 +518,69 @@ test("imports the complete Household Budget and Savings Planner blueprint throug
  assert.equal(variance.format,"currency");
  assert.equal(variance.currency,"EUR");
  assert.match(variance.expression,/planned_expenses \/ budget_month_days \* projection_days/);
+});
+
+
+test("automatically repairs a mismatched custom compound result unit without using an AI service",()=>{
+ const importer=getImporter(),validateMakerSpec=getManualValidator();
+ const candidate=blueprint({
+  spec:{
+   inputs:[
+    {key:"transfer_size",label:"Transferred data",min:0,max:10000,default:120,step:1,unit:"GB"},
+    {key:"transfer_hours",label:"Transfer duration",min:0,max:1000,default:2,step:1,unit:"hours"}
+   ],
+   groups:[],
+   results:[
+    {key:"transfer_rate",label:"Total Data Transfer Rate",expression:"transfer_size / transfer_hours",format:"unit",unit:"GB"},
+    {key:"monthly_cost",label:"Estimated Monthly Cost",expression:"transfer_size * 2",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[]
+  }
+ });
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ assert.equal(definition.spec.results[0].format,"unit");
+ assert.equal(definition.spec.results[0].unit,"GB/hours");
+ assert.ok(definition.importNotes.some(note=>note.includes("Total Data Transfer Rate")&&note.includes("GB/hours")));
+ assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
+});
+
+test("reorders result dependencies before validating a provider's out-of-order result chain",()=>{
+ const importer=getImporter(),validateMakerSpec=getManualValidator();
+ const candidate=blueprint({
+  spec:{
+   inputs:[{key:"unit_price",label:"Unit price",min:0,max:1000,default:12,step:1,unit:"EUR"}],
+   groups:[],
+   results:[
+    {key:"grand_total",label:"Grand total",expression:"base_total + fee_total",format:"currency",currency:"EUR"},
+    {key:"fee_total",label:"Fee total",expression:"unit_price * 0.1",format:"currency",currency:"EUR"},
+    {key:"base_total",label:"Base total",expression:"unit_price * 2",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[]
+  }
+ });
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ assert.deepEqual(definition.spec.results.map(item=>item.key),["fee_total","base_total","grand_total"]);
+ assert.ok(definition.importNotes.some(note=>note.includes("Reordered result definitions")));
+ assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
+});
+
+test("adds safe guards to divisions with a variable denominator and validates zero boundaries",()=>{
+ const importer=getImporter(),validateMakerSpec=getManualValidator();
+ const candidate=blueprint({
+  spec:{
+   inputs:[
+    {key:"data_size",label:"Data size",min:0,max:10000,default:120,step:1,unit:"GB"},
+    {key:"duration_hours",label:"Duration",min:0,max:1000,default:2,step:1,unit:"hours"}
+   ],
+   groups:[],
+   results:[
+    {key:"transfer_rate",label:"Transfer rate",expression:"data_size / duration_hours",format:"unit",unit:"GB/hours"}
+   ],
+   scenarios:[]
+  }
+ });
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validateMakerSpec);
+ assert.match(definition.spec.results[0].expression,/if\(neq\(duration_hours,0\)/);
+ assert.ok(definition.importNotes.some(note=>note.includes("zero-denominator guards")));
+ assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
 });
