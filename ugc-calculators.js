@@ -545,7 +545,8 @@ function unitDescriptor(unit){
    kg:"mass",g:"mass","m³":"volume",m3:"volume","m²":"area",m2:"area",
    hour:"time",hours:"time",day:"time",days:"time",week:"time",weeks:"time",
    month:"time",months:"time",year:"time",years:"time",unit:"count",units:"count",
-   person:"count",people:"count",km:"length",mile:"length",miles:"length"
+   item:"count",items:"count",pack:"count",packs:"count",person:"count",people:"count",
+   km:"length",mile:"length",miles:"length"
   })[denominator];
   if(dimension)return{exact:raw,vector:{["currency:"+rateMatch[1]]:1,[dimension]:-1},opaque:false};
  }
@@ -564,10 +565,13 @@ function unitDescriptor(unit){
   "eur/kg":{"currency:EUR":1,mass:-1},"eur/m²":{"currency:EUR":1,area:-1},"eur/m2":{"currency:EUR":1,area:-1},
   "eur/m³":{"currency:EUR":1,volume:-1},"eur/m3":{"currency:EUR":1,volume:-1},
   "eur/hour":{"currency:EUR":1,time:-1},"usd/hour":{"currency:USD":1,time:-1},
-  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
+  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},
+  "eur/person/day":{"currency:EUR":1,count:-1,time:-1},"usd/person/day":{"currency:USD":1,count:-1,time:-1},
+  "eur/unit":{"currency:EUR":1,count:-1},"eur/item":{"currency:EUR":1,count:-1},"eur/pack":{"currency:EUR":1,count:-1},
+  "usd/unit":{"currency:USD":1,count:-1},"usd/item":{"currency:USD":1,count:-1},"rsd/unit":{"currency:RSD":1,count:-1}
  };
  if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
- if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{},opaque:false};
+ if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{count:1},opaque:false};
  return{exact:raw,vector:{["unit:"+key]:1},opaque:true};
 }
 function combineUnitDescriptors(left,right,sign){
@@ -576,9 +580,9 @@ function combineUnitDescriptors(left,right,sign){
  return{exact:"",vector,opaque:left.opaque||right.opaque};
 }
 function sameUnitDescriptor(left,right){
- if(left.exact===right.exact)return true;
  const sameDimensions=unitVectorKey(left)===unitVectorKey(right)&&left.opaque===right.opaque;
  if(!sameDimensions)return false;
+ if(left.exact===right.exact)return true;
  // A derived formula such as (EUR/kWh) * kWh has no literal unit label,
  // but its currency dimension is still exactly EUR. Permit that match.
  const vector=Object.entries(left.vector);
@@ -1593,9 +1597,9 @@ const MANUAL_TEMPLATES={
    {key:"quantity_b",label:"Option B quantity",min:0.01,max:1000000,default:10,step:0.01,unit:"units"}
   ],
   results:[
-   {label:"Option A price per unit",expression:"price_a / quantity_a",format:"currency",currency:"EUR",suffix:" / unit"},
-   {label:"Option B price per unit",expression:"price_b / quantity_b",format:"currency",currency:"EUR",suffix:" / unit"},
-   {label:"Unit price difference (A − B)",expression:"price_a / quantity_a - price_b / quantity_b",format:"currency",currency:"EUR",suffix:" / unit"}
+   {label:"Option A price per unit",expression:"price_a / quantity_a",format:"unit",unit:"EUR/unit"},
+   {label:"Option B price per unit",expression:"price_b / quantity_b",format:"unit",unit:"EUR/unit"},
+   {label:"Unit price difference (A − B)",expression:"price_a / quantity_a - price_b / quantity_b",format:"unit",unit:"EUR/unit"}
   ]
  },
  "discount-price":{
@@ -1656,7 +1660,7 @@ const MANUAL_TEMPLATES={
   results:[
    {label:"Packs required",expression:"ceil(area_m2 / coverage_per_pack)",format:"number"},
    {label:"Total material cost",expression:"ceil(area_m2 / coverage_per_pack) * price_per_pack",format:"currency",currency:"EUR"},
-   {label:"Purchased coverage",expression:"ceil(area_m2 / coverage_per_pack) * coverage_per_pack",format:"number",suffix:" m²"}
+   {label:"Purchased coverage",expression:"ceil(area_m2 / coverage_per_pack) * coverage_per_pack",format:"unit",unit:"m²"}
   ]
  },
  "car-ownership-cost":{
@@ -1692,7 +1696,7 @@ const MANUAL_TEMPLATES={
   results:[
    {label:"Daily spending for all travellers",expression:"daily_spend_per_person * travellers",format:"unit",unit:"EUR/day"},
    {label:"Estimated total trip budget",expression:"daily_spend_per_person * travellers * days + accommodation_total + transport_total",format:"currency",currency:"EUR"},
-   {label:"Estimated cost per traveller",expression:"(daily_spend_per_person * travellers * days + accommodation_total + transport_total) / travellers",format:"currency",currency:"EUR"}
+   {label:"Estimated cost per traveller",expression:"(daily_spend_per_person * travellers * days + accommodation_total + transport_total) / travellers",format:"unit",unit:"EUR/person"}
   ]
  },
  "hourly-pay":{
