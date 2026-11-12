@@ -1619,6 +1619,35 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
     assert.ok(engine.validateMakerSpec(tooMany).errors.some(message=>/up to 3/i.test(message)));
 });
 
+test("UGC calculator scenarios and advanced input types are validated on the server", () => {
+    assert.match(maker,/function renderManualScenarioEditor/);
+    assert.match(maker,/function updateMakerTestResults/);
+    assert.match(maker,/Compare scenarios/);
+    assert.match(maker,/Scenario comparison/);
+    assert.match(maker,/controlType==="select"/);
+    assert.match(maker,/controlType==="toggle"/);
+    assert.match(maker,/controlType==="slider"/);
+    assert.match(maker,/Dropdown choices · one label = numeric value per line/);
+    assert.match(maker,/up to 3 comparison scenarios/);
+    assert.match(maker,/up to 16 inputs/);
+    assert.match(maker,/up to 10 results/);
+    assert.match(maker,/Number with unit/);
+    assert.match(maker,/function analyseFormulaUnit/);
+    assert.match(maker,/Addition and subtraction require matching units/);
+    assert.match(maker,/choose a supported ISO 4217 currency code/);
+    assert.match(sql,/jsonb_array_length\(p_spec->'scenarios'\) > 3/);
+    assert.match(sql,/comparison scenario value is outside its input range/i);
+    assert.match(sql,/comparison scenario value must match one of its dropdown choices/i);
+    assert.match(sql,/Comparison scenario names must be unique/i);
+    assert.match(sql,/Dropdown inputs require 2 to 12 choices/i);
+    assert.match(sql,/Toggle inputs must use 0\/1 values/i);
+    assert.match(sql,/coalesce\(v_result->>'format','number'\) not in \('number','currency','percent','unit'\)/);
+    assert.match(paginationFixture,/comparison scenario was not preserved/);
+    assert.match(paginationFixture,/scenario value outside the input range was accepted/);
+    assert.match(paginationCss,/\.ugc-maker-scenario-grid/);
+    assert.match(paginationCss,/\.ugc-scenario-public-results/);
+});
+
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
     assert.match(maker, /function compileExpression/);
     assert.match(maker, /function evaluate/);
