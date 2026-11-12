@@ -72,7 +72,7 @@ test("repairs copied JSON line continuations, HTML-encoded spaces and escaped mu
  const clean=JSON.stringify(candidate,null,2);
  const copiedArtifactText=clean
   .replace(/ /g,"&#x20;")
-  .replace(/\n/g,"\\\n")
+  .replace(/\n/g,"\\n")
   .replace(/\*/g,"\\*");
  const result=importer.parseBlueprint(copiedArtifactText,()=>({errors:[]}));
  assert.equal(result.spec.results[1].expression,"base_cost * 2 + extra_total");
@@ -81,7 +81,7 @@ test("repairs copied JSON line continuations, HTML-encoded spaces and escaped mu
 test("reports a JSON syntax location when copy/paste artifacts cannot be repaired",()=>{
  const importer=getImporter();
  assert.throws(
-  ()=>importer.parseBlueprint('{"blueprintVersion":1,\\n"title": }',()=>({errors:[]})),
+  ()=>importer.parseBlueprint('{"blueprintVersion":1,\n"title": }',()=>({errors:[]})),
   /Could not read JSON at line/
  );
 });
@@ -258,20 +258,20 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  assert.match(prompt,/any subject/);
  assert.match(prompt,/NEVER use minItems 0/);
  assert.doesNotMatch(prompt,/Household Budget|emergency_target_months|budget_month_days|tracking_days|fixed_costs|debt_payments/);
- assert.doesNotMatch(helperSource,/fetch\\s*\\(/i);
+ assert.doesNotMatch(helperSource,/fetch\s*\(/i);
 });
 
 test("extracts one JSON code block even when an AI adds surrounding explanation",()=>{
  const importer=getImporter();
  const fence=String.fromCharCode(96).repeat(3);
- const source="Here is the requested calculator blueprint:\\n\\n"+fence+"json\\n"+JSON.stringify(blueprint())+"\\n"+fence+"\\n\\nYou can now import it.";
+ const source="Here is the requested calculator blueprint:\n\n"+fence+"json\n"+JSON.stringify(blueprint())+"\n"+fence+"\n\nYou can now import it.";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
  assert.equal(result.title,"Household Expense Calculator");
 });
 
 test("extracts a single raw JSON object surrounded by explanatory text",()=>{
  const importer=getImporter();
- const source="Blueprint follows:\\n"+JSON.stringify(blueprint())+"\\nReview the assumptions after import.";
+ const source="Blueprint follows:\n"+JSON.stringify(blueprint())+"\nReview the assumptions after import.";
  const result=importer.parseBlueprint(source,()=>({errors:[]}));
  assert.equal(result.title,"Household Expense Calculator");
 });
@@ -279,7 +279,7 @@ test("extracts a single raw JSON object surrounded by explanatory text",()=>{
 test("rejects multiple JSON objects rather than guessing which one to import",()=>{
  const importer=getImporter();
  const fence=String.fromCharCode(96).repeat(3);
- const source=fence+"json\\n"+JSON.stringify(blueprint())+"\\n"+fence+"\\nAlternative:\\n"+fence+"json\\n"+JSON.stringify(blueprint({title:"Another calculator"}))+"\\n"+fence;
+ const source=fence+"json\n"+JSON.stringify(blueprint())+"\n"+fence+"\nAlternative:\n"+fence+"json\n"+JSON.stringify(blueprint({title:"Another calculator"}))+"\n"+fence;
  assert.throws(()=>importer.parseBlueprint(source,()=>({errors:[]})),/More than one code block/);
 });
 
