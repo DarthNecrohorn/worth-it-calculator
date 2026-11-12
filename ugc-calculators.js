@@ -36,7 +36,13 @@ const CURRENCIES=[
  ["TWD","New Taiwan dollar"],["UYU","Uruguayan peso"],["UZS","Uzbekistani sum"],["VED","Venezuelan bolívar digital"],["VES","Venezuelan bolívar soberano"],
  ["VUV","Vanuatu vatu"],["WST","Samoan tālā"],["YER","Yemeni rial"],["ZMW","Zambian kwacha"],["ZWG","Zimbabwe Gold"],
  ["XAF","Central African CFA franc"],["XCD","East Caribbean dollar"],["XCG","Caribbean guilder"],["XOF","West African CFA franc"],["XPF","CFP franc"],
- ["BGN","Bulgarian lev (historical from 2026)"]
+ ["BGN","Bulgarian lev (historical from 2026)"],["BHD","Bahraini dinar"],["GMD","Gambian dalasi"],["GNF","Guinean franc"],
+ ["GIP","Gibraltar pound"],["HNL","Honduran lempira"],["IQD","Iraqi dinar"],["IRR","Iranian rial"],["JMD","Jamaican dollar"],
+ ["JOD","Jordanian dinar"],["KMF","Comorian franc"],["KPW","North Korean won"],["KYD","Cayman Islands dollar"],
+ ["LBP","Lebanese pound"],["LRD","Liberian dollar"],["LSL","Lesotho loti"],["LYD","Libyan dinar"],
+ ["NIO","Nicaraguan córdoba"],["PAB","Panamanian balboa"],["PGK","Papua New Guinean kina"],["SDG","Sudanese pound"],
+ ["TTD","Trinidad and Tobago dollar"],["TWD","New Taiwan dollar"],["UYW","Uruguayan Unidad Previsional"],
+ ["XAG","Silver (troy ounce)"],["XAU","Gold (troy ounce)"],["XDR","Special drawing rights"],["XPD","Palladium (troy ounce)"],["XPT","Platinum (troy ounce)"]
 ];
 const UNIT_OPTIONS=[
  ["","No unit"],
@@ -49,7 +55,9 @@ const UNIT_OPTIONS=[
  ["°C","Degrees Celsius"],["°F","Degrees Fahrenheit"],["L/100 km","Litres per 100 km"],
  ["EUR/kWh","EUR per kWh"],["USD/kWh","USD per kWh"],["RSD/kWh","RSD per kWh"],
  ["EUR/L","EUR per litre"],["EUR/kg","EUR per kilogram"],["EUR/m³","EUR per cubic metre"],
- ["EUR/hour","EUR per hour"],["EUR/month","EUR per month"],["EUR/day","EUR per day"],["km/h","Kilometres per hour"]
+ ["EUR/hour","EUR per hour"],["EUR/month","EUR per month"],["EUR/day","EUR per day"],["km/h","Kilometres per hour"],
+ ["m/s","Metres per second"],["g/L","Grams per litre"],["kg/m³","Kilograms per cubic metre"],["kWh/day","Kilowatt-hours per day"],
+ ["EUR/m²","EUR per square metre"],["EUR/units","EUR per unit"],["USD/L","USD per litre"],["RSD/L","RSD per litre"]
 ];
 function getCategoryLabels(item){
  const main=CATEGORY_LABELS[item?.category]||"Other";
@@ -710,7 +718,7 @@ function formatResult(item,value,locale){
  const prefix=String(item.prefix||""),suffix=String(item.suffix||"");
  const format=(options)=>{try{return new Intl.NumberFormat(locale||undefined,options).format(value);}catch(_){return new Intl.NumberFormat(undefined,options).format(value);}};
  if(item.format==="currency"){
-  try{return prefix+format({style:"currency",currency:item.currency||"USD",maximumFractionDigits:2})+suffix;}catch(_){}
+  try{return prefix+format({style:"currency",currency:item.currency||"USD"})+suffix;}catch(_){}
  }
  if(item.format==="percent")return prefix+format({maximumFractionDigits:2})+"%"+suffix;
  if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
