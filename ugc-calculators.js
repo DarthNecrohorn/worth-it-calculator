@@ -607,18 +607,6 @@ async function loadCatalog(){
   console.warn("UGC catalogue load failed:",error);
  }
 }
-function groupMapForSpec(spec){
- const groups=Array.isArray(spec?.groups)?spec.groups:[];
- return new Map(groups.map(group=>[String(group.key||""),new Set((Array.isArray(group.fields)?group.fields:[]).map(field=>String(field.key||"")))]));
-}
-function defaultGroupValues(groups){
- const values={};
- (Array.isArray(groups)?groups:[]).forEach(group=>{
-  const minItems=Math.max(1,Math.min(20,Number(group.minItems)||1));
-  values[group.key]=Array.from({length:minItems},()=>Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));
- });
- return values;
-}
 function compileExpression(source,keys,groups){
  const input=String(source||"");let at=0;
  const groupDefinitions=groups instanceof Map?groups:new Map();
@@ -716,6 +704,18 @@ function evaluate(ast,values,groupValues){
  }
  if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result for these input values.");
  return n;
+}
+function groupMapForSpec(spec){
+ const groups=Array.isArray(spec?.groups)?spec.groups:[];
+ return new Map(groups.map(group=>[String(group.key||""),new Set((Array.isArray(group.fields)?group.fields:[]).map(field=>String(field.key||"")))]));
+}
+function defaultGroupValues(groups){
+ const values={};
+ (Array.isArray(groups)?groups:[]).forEach(group=>{
+  const minItems=Math.max(1,Math.min(20,Number(group.minItems)||1));
+  values[group.key]=Array.from({length:minItems},()=>Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));
+ });
+ return values;
 }
 function unitDescriptor(unit){
  const raw=String(unit||"").trim();
@@ -2505,7 +2505,7 @@ function renderMakerPreview(definition){
   });
   addResultButton.disabled=definition.spec.results.length>=20;host.appendChild(addResultButton);
  }
- host.appendChild(text("p","ugc-maker-schema-summary","Results are evaluated from top to bottom. Give a result a variable key to use it in later formulas; move results to change their order. Dynamic group formulas: sum(group.field), avg(group.field), min(group.field), max(group.field), and count(group). Currencies are never automatically converted."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Each result can use a different currency. Results are evaluated from top to bottom. Give a result a variable key to use it in later formulas; move results to change their order. Dynamic group formulas: sum(group.field), avg(group.field), min(group.field), max(group.field), and count(group). Currencies are never automatically converted."));
  const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
  const testToggle=button("▶ Test calculator","ugc-maker-test-toggle",()=>{
   testPanel.hidden=!testPanel.hidden;testToggle.setAttribute("aria-expanded",String(!testPanel.hidden));testToggle.textContent=testPanel.hidden?"▶ Test calculator":"▾ Hide test";
