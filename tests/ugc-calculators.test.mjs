@@ -1420,7 +1420,7 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(html,/1 AI improvement to an existing UGC calculator per UTC day/);
 });
 
-test("UGC AI Maker quotas use per-tier generation caps and one shared 100-per-day cap", () => {
+test("UGC AI Maker quotas enforce per-tier caps and keep the shared cap server-side", () => {
     assert.match(makerQuotaSql, /create table if not exists private\.worth_it_ugc_maker_global_daily_usage/);
     assert.match(makerQuotaSql, /global_daily_limit',\s*100/);
     assert.match(makerQuotaSql, /requests_used < 100/);
@@ -1432,7 +1432,7 @@ test("UGC AI Maker quotas use per-tier generation caps and one shared 100-per-da
     assert.match(maker, /refreshMakerGenerationQuota/);
     assert.doesNotMatch(maker, /global_remaining/);
     assert.match(html, /id="ugcMakerGenerationQuotaStatus"/);
-    assert.match(html, /system-wide limit of 100 successful new AI generations per UTC day/i);
+    assert.doesNotMatch(html, /system-wide limit of 100 successful new AI generations per UTC day/i, "the internal shared capacity must not be shown to users");
     assert.doesNotMatch(html, /100 successful new UGC calculator generations per UTC day/i);
     assert.doesNotMatch(html, /100 UGC calculators in total are able to get generated a day/i);
     assert.match(paginationCss, /\.ugc-maker-status\.is-generating\{color:var\(--primary2\)/);
