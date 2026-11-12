@@ -1580,7 +1580,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"starting_savings",label:"Starting savings",min:0,max:100000000,default:0,step:0.01,unit:"EUR"},
    {key:"monthly_deposit",label:"Monthly contribution",min:0,max:10000000,default:100,step:0.01,unit:"EUR/month"},
-   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"periods"}
+   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"months"}
   ],
   results:[
    {label:"Total contributions",expression:"monthly_deposit * months",format:"currency",currency:"EUR"},
@@ -1674,7 +1674,7 @@ const MANUAL_TEMPLATES={
    {key:"fuel_price",label:"Fuel price",min:0,max:100000,default:1.6,step:0.001,unit:"EUR/L"},
    {key:"monthly_insurance",label:"Monthly insurance",min:0,max:1000000,default:60,step:0.01,unit:"EUR"},
    {key:"monthly_maintenance",label:"Monthly maintenance allowance",min:0,max:1000000,default:35,step:0.01,unit:"EUR"},
-   {key:"months",label:"Ownership period",min:1,max:1200,default:12,step:1,unit:"units"}
+   {key:"months",label:"Ownership period",min:1,max:1200,default:12,step:1,unit:"periods"}
   ],
   results:[
    {label:"Monthly fuel use",expression:"monthly_distance * fuel_consumption / 100",format:"number",suffix:" L"},
