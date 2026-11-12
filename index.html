@@ -1639,6 +1639,25 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <p class="ugc-maker-status">Manual Builder uses no AI and costs no CALC. You can add inputs and results, edit every formula, and test calculations locally before saving.</p>
           <button type="button" id="ugcManualAiImproveButton" class="ugc-action-secondary" hidden>✦ Improve this saved calculator with AI</button>
         </div>
+        <section id="ugcBlueprintImportPanel" class="ugc-blueprint-import" hidden aria-labelledby="ugcBlueprintImportHeading">
+          <div class="ugc-blueprint-import-head">
+            <div>
+              <h3 id="ugcBlueprintImportHeading">AI Blueprint Import <span>Optional</span></h3>
+              <p>Use an external AI assistant to draft a calculator blueprint, then paste its JSON here. Manual Builder remains fully independent and works without AI.</p>
+            </div>
+          </div>
+          <div class="ugc-blueprint-import-actions">
+            <button type="button" id="ugcBlueprintCopyPrompt" class="ugc-action-secondary">Copy instructions for an external AI</button>
+          </div>
+          <label for="ugcBlueprintImportJson">Paste blueprint JSON
+            <textarea id="ugcBlueprintImportJson" rows="7" maxlength="50000" spellcheck="false" autocomplete="off" placeholder='{"blueprintVersion":1,"title":"...","description":"...","category":"home","spec":{"inputs":[],"groups":[],"results":[],"scenarios":[]}}'></textarea>
+          </label>
+          <div class="ugc-blueprint-import-actions">
+            <button type="button" id="ugcBlueprintImportButton" class="ugc-primary-button">Import into Manual Builder</button>
+          </div>
+          <p id="ugcBlueprintImportStatus" class="ugc-maker-status" role="status" aria-live="polite"></p>
+          <p class="ugc-blueprint-import-note">Import is local only: no Worth It AI request, no CALC charge, no AI quota use, and no automatic save or publish. The imported calculator stays editable and must pass the same formula, unit and boundary checks as a manually built calculator.</p>
+        </section>
         <div id="ugcMakerAiPromptWrap">
           <label for="ugcMakerPrompt">What should your calculator calculate?</label>
           <textarea id="ugcMakerPrompt" name="prompt" maxlength="1000" rows="5" placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance."></textarea>
@@ -5901,6 +5920,7 @@ if($("carResults")){
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
+<script src="/ugc-blueprint-import.js?v=blueprint-import-v1-20261112"></script>
 <script src="/ugc-calculators.js?v=clear-30-per-page-20261104b&amp;rev=page-count-description-20261104a&amp;visibility-restore=20261105a&amp;rev=ugc-publish-detail-routing-20261106a&amp;rev=ugc-square-card-pricing-favorites-20261106a-creator-username-label-20261106a-currency-units-stats-20261108a-save-currency-check-20261108a-owner-reaction-controls-20261108a-catalogue-inline-tags-20261108a&amp;card-preview-ellipsis-20261109a&amp;live-stat-sync-20261109a&amp;creator-discovery-slide-100=20261109a&amp;subscription-card-spacing=20261109a&amp;discovery-search-follow=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a"></script>
 <script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104b&amp;web-shop-settings-back=20261105a&amp;generic-route-back-20261109a&amp;hide-ugc-detail-on-route-20261109a"></script>
 
