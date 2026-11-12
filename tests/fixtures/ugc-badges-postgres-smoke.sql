@@ -1502,6 +1502,7 @@ declare
     v_before integer;
     v_owner_status text;
     v_deleted_calculator_id uuid;
+    v_creation_source text;
     blocked boolean := false;
 begin
     -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
@@ -1526,6 +1527,8 @@ begin
     );
     v_calculator:=(q->>'id')::uuid;
     if v_calculator is null then raise exception 'A paid, settled AI generation could not be saved: %',q; end if;
+    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
+    if v_creation_source<>'ai' then raise exception 'A successfully AI-generated calculator must keep AI provenance; got %.',v_creation_source; end if;
 
     -- An identical retry returns the original calculator; changed content cannot
     -- reuse the same paid operation ID.
@@ -1581,6 +1584,8 @@ begin
     if coalesce((q->>'remaining')::integer,-1)<>0 then
         raise exception 'The Free manual save quota should be used only by a manual save: %',q;
     end if;
+    select creation_source into v_creation_source from private.worth_it_user_calculators where id=(q->>'id')::uuid;
+    if v_creation_source<>'manual' then raise exception 'A manual calculator must keep manual provenance; got %.',v_creation_source; end if;
     select creations_used into v_used from private.worth_it_ugc_manual_daily_usage
      where user_id=v_free and usage_date=(now() at time zone 'UTC')::date;
     if v_used<>1 then raise exception 'Free manual save counter should be one after the manual save; got %.',v_used; end if;
@@ -1634,6 +1639,8 @@ begin
         null,'Premium Lite AI calculator',v_description,'money',v_spec,'ai',v_request
     );
     if (q->>'success')::boolean is distinct from true then raise exception 'Premium Lite paid AI save was rejected: %',q; end if;
+    select creation_source into v_creation_source from private.worth_it_user_calculators where id=(q->>'id')::uuid;
+    if v_creation_source<>'ai' then raise exception 'Premium Lite AI calculator must keep AI provenance; got %.',v_creation_source; end if;
     q:=public.get_worth_it_ugc_creation_quota();
     if (q->>'creations_used')::integer<>0 then raise exception 'Premium Lite AI save must not consume manual quota: %',q; end if;
 
@@ -1645,6 +1652,8 @@ begin
     );
     v_calculator:=(q->>'id')::uuid;
     if v_calculator is null then raise exception 'Premium manual calculator could not be saved: %',q; end if;
+    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
+    if v_creation_source<>'manual' then raise exception 'Premium manual calculator must keep manual provenance; got %.',v_creation_source; end if;
     q:=public.get_worth_it_ugc_ai_edit_quota();
     if (q->>'daily_limit')::integer<>3 then raise exception 'Premium AI improvement allowance should be three: %',q; end if;
     v_request:=gen_random_uuid();
@@ -1658,6 +1667,8 @@ begin
         v_calculator,'Premium manual calculator',v_description,'money',v_spec,'ai',v_request
     );
     if (q->>'success')::boolean is distinct from true then raise exception 'A paid AI improvement could not be saved: %',q; end if;
+    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
+    if v_creation_source<>'manual' then raise exception 'An AI improvement must not change the original manual provenance; got %.',v_creation_source; end if;
     q:=public.get_worth_it_ugc_creation_quota();
     if (q->>'creations_used')::integer<>1 then raise exception 'AI improvement must not consume the manual save quota: %',q; end if;
     q:=public.get_worth_it_ugc_ai_edit_quota();
