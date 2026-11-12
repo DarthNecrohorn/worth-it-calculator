@@ -2199,7 +2199,7 @@ function importManualBlueprint(){
   $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
  }catch(error){
   if(statusNode)statusNode.textContent=error?.message||"The blueprint could not be imported.";
-  makerStatus("Blueprint import failed. Your current draft was left unchanged.","error");
+  makerStatus("Blueprint import failed: "+String(error?.message||"The blueprint could not be validated.")+" Your current draft was left unchanged.","error");
  }
 }
 function renderManualGroupEditor(host,definition){
