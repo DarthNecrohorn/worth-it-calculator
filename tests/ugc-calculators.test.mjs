@@ -65,25 +65,15 @@ function request(body, options = {}) {
 function withFetch(mock, callback, quotaEvents = {}) {
     const previous = globalThis.fetch;
     const defaultRpcResponse = payload => new Response(JSON.stringify(payload), { status: 200 });
-    const isRpcResult = async response => {
-        try {
-            const payload = await response.clone().json();
-            return payload && typeof payload.ok === "boolean";
-        } catch (_) {
-            return false;
-        }
-    };
     globalThis.fetch = async (url, options) => {
         const path = String(url);
         if (path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")) {
             quotaEvents.settlements = (quotaEvents.settlements || 0) + 1;
-            const response = await mock(url, options);
-            return await isRpcResult(response) ? response : defaultRpcResponse({ ok: true, settled: true });
+            return defaultRpcResponse({ ok: true, settled: true });
         }
         if (path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation")) {
             quotaEvents.refunds = (quotaEvents.refunds || 0) + 1;
-            const response = await mock(url, options);
-            return await isRpcResult(response) ? response : defaultRpcResponse({ ok: true, refunded: true });
+            return defaultRpcResponse({ ok: true, refunded: true });
         }
         return mock(url, options);
     };
@@ -1316,6 +1306,7 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
     refined.inputs[0].max = 2000000;
 
     const calls = [];
+    const quotaEvents = {};
     await withFetch(async (url, options) => {
         const path = String(url);
         calls.push(path);
@@ -1355,8 +1346,8 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         assert.equal(result.calculator.spec.inputs[0].unit,"CHF","omitted units retain their saved currency during refinement");
         assert.equal(result.calculator.spec.results[0].currency,"CHF","omitted result currency retains its saved currency during refinement");
         assert.equal(result.regionalDefaults.currency,"RSD","the Serbian regional default is RSD; the saved calculator's CHF currency remains preserved above");
-        assert.ok(calls.some(path=>path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")));
-    });
+        assert.equal(quotaEvents.settlements,1,"the AI improvement and CALC reservation must settle once");
+    },quotaEvents);
 
     const deniedCalls=[];
     await withFetch(async url=>{
@@ -1392,6 +1383,7 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
     });
 
     const identityCalls=[];
+    const identityQuotaEvents={};
     await withFetch(async (url,options)=>{
         const path=String(url);identityCalls.push(path);
         if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
@@ -1410,8 +1402,8 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         });
         assert.equal(response.status,422);
         assert.equal((await response.json()).code,"CALCULATOR_IDENTITY_CHANGED");
-        assert.ok(identityCalls.some(path=>path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation")));
-    });
+        assert.equal(identityQuotaEvents.refunds,1,"a rejected identity-changing AI improvement must be refunded once");
+    },identityQuotaEvents);
 });
 
 test("UGC enhancement migration enforces private favourites, description cooldown and AI edit quotas", () => {
