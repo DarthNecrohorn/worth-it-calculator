@@ -78,7 +78,7 @@ test("completes missing input metadata and generated keys while preserving the s
  assert.equal(result.spec.results[0].key,"total_data_transferred");
  assert.equal(result.spec.results[0].expression,"data_size * 2");
  assert.ok(result.importNotes.some(note=>note.includes("supplied a missing minimum")));
- assert.ok(result.importNotes.some(note=>note.includes("supplied a missing default")===false));
+ assert.ok(result.importNotes.some(note=>note.includes("supplied a sensible default step")));
 });
 
 test("maps common provider field aliases and rewrites formula references to normalized keys",()=>{
