@@ -201,7 +201,8 @@ function isSupportedCurrencyCode(code){
 }
 const UNIT_OPTIONS=[
  ["","No unit"],
- ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),\n ...HISTORICAL_CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
+ ...CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
+ ...HISTORICAL_CURRENCIES.map(([code,name])=>[code,code+" — "+name]),
  ["%","Percent"],["months","Months"],["years","Years"],["days","Days"],["weeks","Weeks"],
  ["hours","Hours"],["minutes","Minutes"],["km","Kilometres"],["miles","Miles"],["kWh","Kilowatt-hours"],
  ["W","Watts"],["kW","Kilowatts"],["L","Litres"],["kg","Kilograms"],["m²","Square metres"],
