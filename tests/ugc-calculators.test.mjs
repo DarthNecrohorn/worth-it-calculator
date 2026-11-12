@@ -738,7 +738,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
         "a saved draft ID is retained if the first publication attempt fails, so retries do not create duplicate calculators");
     assert.ok(html.includes("ugcMakerVisibilityWrap"));
     assert.ok(maker.includes("AI-selected categories"));
-    assert.ok(html.includes("Guest 0, Free 1, Premium Lite 2, Premium 3"));
+    assert.ok(html.includes("AI generation and AI improvement each have separate daily limits: Guest 0, Free 1, Premium Lite 2 and Premium 3."));
     assert.ok(maker.includes("get_worth_it_ugc_catalog_page"));
     assert.ok(maker.includes("p_sort:state.sort"));
     assert.ok(maker.includes("p_category:state.category"));
@@ -2275,9 +2275,9 @@ test("Community Discovery places its heading on the left and back button on the 
     assert.ok(headerStart>=0&&headerEnd>headerStart);
     const header=html.slice(headerStart,headerEnd);
     assert.ok(header.indexOf('class="ugc-discovery-page-heading"')<header.indexOf('id="ugcBackToUgcButton"'));
-    assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto/);
-    assert.match(css,/\.ugc-discovery-back-button\s*\{[^}]*justify-self:end/s);
-    assert.match(css,/\.ugc-discovery-page-header\{grid-template-columns:minmax\(0,1fr\)/);
+    assert.match(paginationCss,/grid-template-columns:minmax\(0,1fr\) auto/);
+    assert.match(paginationCss,/\.ugc-discovery-back-button\s*\{[^}]*justify-self:end/s);
+    assert.match(paginationCss,/\.ugc-discovery-page-header\{grid-template-columns:minmax\(0,1fr\)/);
 });
 
 test("Manual Builder footer clearly separates manual saves from AI quotas and refunds", () => {
