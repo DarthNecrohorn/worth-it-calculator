@@ -64,17 +64,26 @@ function request(body, options = {}) {
 
 function withFetch(mock, callback, quotaEvents = {}) {
     const previous = globalThis.fetch;
+    const defaultRpcResponse = payload => new Response(JSON.stringify(payload), { status: 200 });
+    const isRpcResult = async response => {
+        try {
+            const payload = await response.clone().json();
+            return payload && typeof payload.ok === "boolean";
+        } catch (_) {
+            return false;
+        }
+    };
     globalThis.fetch = async (url, options) => {
         const path = String(url);
         if (path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")) {
             quotaEvents.settlements = (quotaEvents.settlements || 0) + 1;
-            try { return await mock(url, options); }
-            catch (_) { return new Response(JSON.stringify({ ok: true, settled: true }), { status: 200 }); }
+            const response = await mock(url, options);
+            return await isRpcResult(response) ? response : defaultRpcResponse({ ok: true, settled: true });
         }
         if (path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation")) {
             quotaEvents.refunds = (quotaEvents.refunds || 0) + 1;
-            try { return await mock(url, options); }
-            catch (_) { return new Response(JSON.stringify({ ok: true, refunded: true }), { status: 200 }); }
+            const response = await mock(url, options);
+            return await isRpcResult(response) ? response : defaultRpcResponse({ ok: true, refunded: true });
         }
         return mock(url, options);
     };
@@ -626,7 +635,7 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
     assert.match(html, /AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
     assert.match(html, /Manual Builder uses no AI and costs no CALC/);
-    assert.match(html, /Testing your calculator is always free and runs locally in your browser/);
+    assert.match(html, /Testing remains free and runs locally in your browser/);
     assert.match(maker, /24–500 characters/);
 });
 
@@ -723,7 +732,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(guest.includes("openWorthItUGCCalculator"));
     assert.doesNotMatch(maker, /MAX_CALCULATORS/);
     assert.doesNotMatch(html, /You can save up to 10 community calculators/);
-    assert.ok(html.includes("There is no total limit on how many community calculators you can save."));
+    assert.ok(html.includes("There is no lifetime limit on saved community calculators."));
     assert.ok(html.includes('data-ugc-sort="my-drafts"'));
     assert.ok(maker.includes('state.sort==="my-drafts"'));
     assert.ok(maker.includes("set_worth_it_ugc_visibility"));
@@ -1282,7 +1291,7 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         assert.equal(response.status, 503);
         const result = await response.json();
         assert.equal(result.code, "AI_PROVIDER_UNAVAILABLE");
-        assert.match(result.error, /generation attempt was returned/i);
+        assert.match(result.error, /reserved CALC charge and AI allowance were returned/i);
         assert.equal(quotaEvents.refunds, 1);
         assert.equal(quotaEvents.settlements || 0, 0);
     }, quotaEvents);
@@ -1416,7 +1425,7 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(sqlEnhancements,/private\.worth_it_guard_ugc_calculator_update/);
     assert.match(makerApi,/CALCULATOR_IDENTITY_CHANGED/);
     assert.match(makerApi,/NOT_CALCULATOR_OWNER/);
-    assert.match(html,/Free 2, Premium Lite 3, Premium 4/);
+    assert.match(html,/1 AI improvement to an existing UGC calculator per UTC day/);
 });
 
 test("UGC AI Maker quotas use per-tier generation caps and one shared 100-per-day cap", () => {
