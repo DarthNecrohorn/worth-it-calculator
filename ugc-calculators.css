@@ -1845,3 +1845,81 @@ body.ugc-maker-open{overflow:hidden}
  color:var(--danger);font-size:10px;font-weight:800;cursor:pointer;
 }
 .ugc-manual-remove:disabled{opacity:.4;cursor:not-allowed}
+
+
+/* Manual Builder mode guide: concise explanations with a clear active mode. */
+.ugc-manual-mode-help{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:9px;
+ margin:12px 0 15px;
+}
+.ugc-manual-mode-help[hidden]{display:none!important}
+.ugc-manual-mode-card{
+ min-width:0;
+ padding:11px 12px;
+ border:1px solid var(--border);
+ border-radius:12px;
+ background:var(--surface-soft);
+ opacity:.78;
+ transition:border-color .18s ease,background .18s ease,opacity .18s ease,transform .18s ease;
+}
+.ugc-manual-mode-card strong{
+ display:block;
+ margin:0 0 5px;
+ color:var(--text);
+ font-size:12px;
+ font-weight:900;
+}
+.ugc-manual-mode-card p{
+ margin:0;
+ color:var(--muted);
+ font-size:10px;
+ line-height:1.5;
+}
+.ugc-manual-mode-card.is-active{
+ opacity:1;
+ border-color:rgba(139,116,255,.72);
+ background:linear-gradient(140deg,rgba(124,92,255,.11),rgba(56,189,248,.07));
+ box-shadow:0 5px 18px rgba(79,70,229,.08);
+ transform:translateY(-1px);
+}
+.ugc-manual-mode-card.is-active strong{color:var(--primary2)}
+@media(max-width:760px){
+ .ugc-manual-mode-help{grid-template-columns:1fr}
+ .ugc-manual-mode-card{padding:10px 11px}
+ .ugc-manual-mode-card p{font-size:11px}
+}
+
+/* Verified creation provenance on community calculator cards. */
+.ugc-origin-tag{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ flex:0 0 auto;
+ min-height:20px;
+ padding:3px 7px;
+ border:1px solid var(--border);
+ border-radius:999px;
+ color:var(--muted);
+ background:var(--surface-soft);
+ font-size:8px;
+ font-weight:950;
+ line-height:1;
+ letter-spacing:.065em;
+ white-space:nowrap;
+}
+.ugc-origin-tag.is-manual{
+ color:#0f9b78;
+ border-color:rgba(16,185,129,.32);
+ background:rgba(16,185,129,.09);
+}
+.ugc-origin-tag.is-ai-made{
+ color:#8b78ff;
+ border-color:rgba(139,116,255,.35);
+ background:rgba(139,116,255,.10);
+}
+.ugc-card-head .ugc-origin-tag{margin-left:auto}
+@media(max-width:640px){
+ .ugc-origin-tag{min-height:18px;padding:3px 6px;font-size:7px}
+}
