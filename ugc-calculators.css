@@ -1923,3 +1923,128 @@ body.ugc-maker-open{overflow:hidden}
 @media(max-width:640px){
  .ugc-origin-tag{min-height:18px;padding:3px 6px;font-size:7px}
 }
+
+
+/* Scenario comparison builder and output groups. */
+.ugc-maker-scenarios{
+ display:grid;
+ gap:10px;
+ margin:18px 0;
+ padding:14px;
+ border:1px solid var(--border);
+ border-radius:14px;
+ background:var(--surface-soft);
+}
+.ugc-maker-scenario-editor{
+ min-width:0;
+ margin:0;
+ padding:12px;
+ border:1px solid var(--border);
+ border-radius:12px;
+ background:var(--surface);
+}
+.ugc-maker-scenario-editor legend{
+ padding:0 6px;
+ color:var(--text);
+ font-size:12px;
+ font-weight:900;
+}
+.ugc-maker-scenario-editor>label{
+ display:grid;
+ gap:5px;
+ max-width:440px;
+ margin-bottom:10px;
+ color:var(--muted);
+ font-size:11px;
+ font-weight:750;
+}
+.ugc-maker-scenario-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:8px;
+}
+.ugc-maker-scenario-grid label{
+ display:grid;
+ align-content:start;
+ gap:5px;
+ min-width:0;
+ color:var(--muted);
+ font-size:10px;
+ font-weight:700;
+}
+.ugc-maker-scenario-grid input,.ugc-maker-scenario-grid select,
+.ugc-maker-scenario-editor>label input{
+ width:100%;
+ min-width:0;
+ min-height:36px;
+ padding:7px 9px;
+ border:1px solid var(--border);
+ border-radius:8px;
+ background:var(--surface);
+ color:var(--text);
+}
+.ugc-maker-scenario-grid input[type=checkbox]{width:20px;min-height:20px}
+.ugc-maker-scenario-editor .ugc-manual-remove{margin-top:10px}
+.ugc-maker-scenario-result-group,.ugc-scenario-public-group{
+ display:grid;
+ gap:8px;
+ margin-top:10px;
+ padding:10px;
+ border:1px solid var(--border);
+ border-radius:11px;
+ background:var(--surface-soft);
+}
+.ugc-maker-scenario-result-group>strong,.ugc-scenario-public-group h4{
+ color:var(--text);
+ font-size:12px;
+ font-weight:900;
+}
+.ugc-maker-scenario-result-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:7px;
+}
+.ugc-maker-scenario-result{
+ display:grid;
+ gap:4px;
+ min-width:0;
+ padding:8px;
+ border:1px solid var(--border);
+ border-radius:8px;
+ background:var(--surface);
+}
+.ugc-maker-scenario-result span,.ugc-maker-scenario-result b{
+ overflow-wrap:anywhere;
+}
+.ugc-maker-scenario-result span{
+ color:var(--muted);
+ font-size:9px;
+}
+.ugc-maker-scenario-result b{
+ color:var(--text);
+ font-size:12px;
+}
+.ugc-maker-scenario-result.is-error b{color:var(--danger)}
+.ugc-scenario-public-results{
+ display:grid;
+ gap:8px;
+ margin-top:16px;
+}
+.ugc-scenario-public-note{
+ color:var(--muted);
+ font-size:11px;
+ line-height:1.5;
+}
+.ugc-scenario-public-group h4{margin:0}
+.ugc-result-explanation{
+ display:block;
+ margin-top:3px;
+ color:var(--muted);
+ font-size:10px;
+ line-height:1.45;
+}
+@media(max-width:640px){
+ .ugc-maker-scenario-grid,.ugc-maker-scenario-result-grid{grid-template-columns:1fr}
+ .ugc-maker-scenario-editor{padding:10px}
+ .ugc-maker-scenarios{padding:10px}
+}
