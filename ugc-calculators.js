@@ -268,6 +268,13 @@ function renderCatalog(rows){
   const publicNumber=Number(item.calculator_number);
   if(Number.isSafeInteger(publicNumber)&&publicNumber>=51)head.appendChild(text("span","ugc-number","#"+publicNumber));
   head.appendChild(text("span","ugc-category",CATEGORY_LABELS[item.category]||"Other"));
+  const source=String(item.creation_source||"");
+  if(source==="manual"||source==="ai"){
+   const originTag=text("span","ugc-origin-tag "+(source==="manual"?"is-manual":"is-ai-made"),source==="manual"?"MANUAL":"AI MADE");
+   originTag.title=source==="manual"?"Created manually without AI.":"Originally created with Worth It AI.";
+   originTag.setAttribute("aria-label",source==="manual"?"Created manually without AI":"Originally created with Worth It AI");
+   head.appendChild(originTag);
+  }
   const mainCategory=CATEGORY_LABELS[item.category]||"Other";
   getCategoryLabels(item).filter(label=>label!==mainCategory).slice(0,3).forEach(label=>{
    head.appendChild(text("span","ugc-subcategory-chip",label));
@@ -1245,6 +1252,178 @@ const MANUAL_TEMPLATES={
    {label:"Estimated total savings",expression:"starting_savings + monthly_deposit * months",format:"currency",currency:"EUR"}
   ]
  },
+ "unit-price-compare":{
+  title:"Compare price per unit",
+  description:"Compare two package prices using cost per matching unit. Both quantities must use the same unit (for example, items, grams or millilitres). The calculation does not adjust for quality, waste or product differences.",
+  category:"money",
+  inputs:[
+   {key:"price_a",label:"Option A package price",min:0,max:100000000,default:12,step:0.01,unit:"EUR"},
+   {key:"quantity_a",label:"Option A quantity",min:0.01,max:1000000,default:6,step:0.01,unit:"units"},
+   {key:"price_b",label:"Option B package price",min:0,max:100000000,default:18,step:0.01,unit:"EUR"},
+   {key:"quantity_b",label:"Option B quantity",min:0.01,max:1000000,default:10,step:0.01,unit:"units"}
+  ],
+  results:[
+   {label:"Option A price per unit",expression:"price_a / quantity_a",format:"currency",currency:"EUR",suffix:" / unit"},
+   {label:"Option B price per unit",expression:"price_b / quantity_b",format:"currency",currency:"EUR",suffix:" / unit"},
+   {label:"Unit price difference (A − B)",expression:"price_a / quantity_a - price_b / quantity_b",format:"currency",currency:"EUR",suffix:" / unit"}
+  ]
+ },
+ "discount-price":{
+  title:"Discount and final price calculator",
+  description:"Calculate the money saved and final price after a percentage discount. This estimate excludes taxes, delivery, coupons and additional fees unless they are included in the original price.",
+  category:"money",
+  inputs:[
+   {key:"original_price",label:"Original price",min:0,max:100000000,default:100,step:0.01,unit:"EUR"},
+   {key:"discount_percent",label:"Discount",min:0,max:100,default:15,step:0.1,unit:"%"}
+  ],
+  results:[
+   {label:"Money saved",expression:"original_price * discount_percent / 100",format:"currency",currency:"EUR"},
+   {label:"Final price",expression:"original_price * (1 - discount_percent / 100)",format:"currency",currency:"EUR"}
+  ]
+ },
+ "heating-compare":{
+  title:"Electricity vs pellet heating cost",
+  description:"Compare the supplied monthly electricity and pellet costs and show their yearly difference. This compares your entered spending only; it does not convert both fuels into equal useful heat or account for boiler, stove or heating-system efficiency.",
+  category:"home",
+  inputs:[
+   {key:"electricity_kwh",label:"Monthly electricity use for heating",min:0,max:10000000,default:800,step:1,unit:"kWh"},
+   {key:"electricity_price",label:"Electricity price per kWh",min:0,max:100000,default:0.15,step:0.001,unit:"EUR/kWh"},
+   {key:"pellet_kg",label:"Monthly pellet use",min:0,max:10000000,default:500,step:1,unit:"kg"},
+   {key:"pellet_price",label:"Pellet price per kg",min:0,max:100000,default:0.30,step:0.001,unit:"EUR/kg"}
+  ],
+  results:[
+   {label:"Electricity heating per month",expression:"electricity_kwh * electricity_price",format:"currency",currency:"EUR"},
+   {label:"Pellet heating per month",expression:"pellet_kg * pellet_price",format:"currency",currency:"EUR"},
+   {label:"Electricity heating per year",expression:"electricity_kwh * electricity_price * 12",format:"currency",currency:"EUR"},
+   {label:"Pellet heating per year",expression:"pellet_kg * pellet_price * 12",format:"currency",currency:"EUR"},
+   {label:"Annual cost difference (electricity − pellets)",expression:"(electricity_kwh * electricity_price - pellet_kg * pellet_price) * 12",format:"currency",currency:"EUR"}
+  ]
+ },
+ "water-cost":{
+  title:"Water usage cost calculator",
+  description:"Estimate a monthly and yearly water bill from consumption, a variable price per cubic metre and a fixed monthly fee. The estimate assumes constant monthly use and prices and excludes additional taxes or charges not entered.",
+  category:"home",
+  inputs:[
+   {key:"monthly_water_m3",label:"Monthly water use",min:0,max:1000000,default:15,step:0.1,unit:"m³"},
+   {key:"price_per_m3",label:"Price per cubic metre",min:0,max:100000,default:2.5,step:0.01,unit:"EUR/m³"},
+   {key:"fixed_monthly_fee",label:"Fixed monthly fee",min:0,max:100000,default:5,step:0.01,unit:"EUR"}
+  ],
+  results:[
+   {label:"Monthly usage charge",expression:"monthly_water_m3 * price_per_m3",format:"currency",currency:"EUR"},
+   {label:"Estimated monthly bill",expression:"monthly_water_m3 * price_per_m3 + fixed_monthly_fee",format:"currency",currency:"EUR"},
+   {label:"Estimated yearly bill",expression:"(monthly_water_m3 * price_per_m3 + fixed_monthly_fee) * 12",format:"currency",currency:"EUR"}
+  ]
+ },
+ "flooring-materials":{
+  title:"Flooring materials estimate",
+  description:"Estimate the number of flooring packs and material cost for a measured area. Pack count is rounded up to a whole pack. Add a suitable cutting and waste allowance to the measured area before calculating; no waste allowance is added automatically.",
+  category:"home",
+  inputs:[
+   {key:"area_m2",label:"Floor area",min:0,max:1000000,default:24,step:0.1,unit:"m²"},
+   {key:"coverage_per_pack",label:"Coverage per pack",min:0.01,max:100000,default:2.2,step:0.01,unit:"m²/pack"},
+   {key:"price_per_pack",label:"Price per pack",min:0,max:1000000,default:25,step:0.01,unit:"EUR"}
+  ],
+  results:[
+   {label:"Packs required",expression:"ceil(area_m2 / coverage_per_pack)",format:"number"},
+   {label:"Total material cost",expression:"ceil(area_m2 / coverage_per_pack) * price_per_pack",format:"currency",currency:"EUR"},
+   {label:"Purchased coverage",expression:"ceil(area_m2 / coverage_per_pack) * coverage_per_pack",format:"number",suffix:" m²"}
+  ]
+ },
+ "car-ownership-cost":{
+  title:"Monthly car ownership cost",
+  description:"Estimate recurring car costs over a selected number of months using distance, fuel consumption, fuel price, insurance and maintenance. Purchase price, depreciation, financing, registration, taxes, parking and resale value are excluded unless you add them separately.",
+  category:"cars",
+  inputs:[
+   {key:"monthly_distance",label:"Distance driven per month",min:0,max:1000000,default:1000,step:1,unit:"km"},
+   {key:"fuel_consumption",label:"Fuel consumption",min:0,max:1000,default:7,step:0.1,unit:"L/100 km"},
+   {key:"fuel_price",label:"Fuel price",min:0,max:100000,default:1.6,step:0.001,unit:"EUR/L"},
+   {key:"monthly_insurance",label:"Monthly insurance",min:0,max:1000000,default:60,step:0.01,unit:"EUR"},
+   {key:"monthly_maintenance",label:"Monthly maintenance allowance",min:0,max:1000000,default:35,step:0.01,unit:"EUR"},
+   {key:"months",label:"Ownership period",min:1,max:1200,default:12,step:1,unit:"months"}
+  ],
+  results:[
+   {label:"Monthly fuel use",expression:"monthly_distance * fuel_consumption / 100",format:"number",suffix:" L"},
+   {label:"Estimated monthly ownership cost",expression:"monthly_distance * fuel_consumption / 100 * fuel_price + monthly_insurance + monthly_maintenance",format:"currency",currency:"EUR"},
+   {label:"Estimated cost over selected period",expression:"(monthly_distance * fuel_consumption / 100 * fuel_price + monthly_insurance + monthly_maintenance) * months",format:"currency",currency:"EUR"},
+   {label:"Estimated yearly recurring cost",expression:"(monthly_distance * fuel_consumption / 100 * fuel_price + monthly_insurance + monthly_maintenance) * 12",format:"currency",currency:"EUR"}
+  ]
+ },
+ "travel-budget":{
+  title:"Trip budget calculator",
+  description:"Estimate a trip budget from travellers, trip days, daily spending per person, total accommodation and transport costs. Daily spending should exclude accommodation and transport entered separately. Assumes equal daily spending for every traveller.",
+  category:"other",
+  inputs:[
+   {key:"travellers",label:"Number of travellers",min:1,max:50,default:2,step:1,unit:"people"},
+   {key:"days",label:"Trip duration",min:1,max:365,default:5,step:1,unit:"days"},
+   {key:"daily_spend_per_person",label:"Daily spending per person",min:0,max:1000000,default:50,step:0.01,unit:"EUR/person/day"},
+   {key:"accommodation_total",label:"Total accommodation cost",min:0,max:100000000,default:300,step:0.01,unit:"EUR"},
+   {key:"transport_total",label:"Total transport cost",min:0,max:100000000,default:120,step:0.01,unit:"EUR"}
+  ],
+  results:[
+   {label:"Daily spending for all travellers",expression:"daily_spend_per_person * travellers",format:"currency",currency:"EUR"},
+   {label:"Estimated total trip budget",expression:"daily_spend_per_person * travellers * days + accommodation_total + transport_total",format:"currency",currency:"EUR"},
+   {label:"Estimated cost per traveller",expression:"(daily_spend_per_person * travellers * days + accommodation_total + transport_total) / travellers",format:"currency",currency:"EUR"}
+  ]
+ },
+ "hourly-pay":{
+  title:"Hourly pay to yearly income",
+  description:"Convert an hourly rate into estimated weekly, monthly and yearly gross income using working hours per week and working weeks per year. This is before tax, social contributions, unpaid leave, overtime, bonuses and other deductions.",
+  category:"money",
+  inputs:[
+   {key:"hourly_rate",label:"Hourly pay",min:0,max:1000000,default:15,step:0.01,unit:"EUR/hour"},
+   {key:"hours_per_week",label:"Working hours per week",min:0,max:168,default:40,step:0.5,unit:"hours"},
+   {key:"weeks_per_year",label:"Working weeks per year",min:0,max:52,default:48,step:0.5,unit:"weeks"}
+  ],
+  results:[
+   {label:"Estimated weekly gross pay",expression:"hourly_rate * hours_per_week",format:"currency",currency:"EUR"},
+   {label:"Estimated monthly gross pay",expression:"hourly_rate * hours_per_week * weeks_per_year / 12",format:"currency",currency:"EUR"},
+   {label:"Estimated yearly gross pay",expression:"hourly_rate * hours_per_week * weeks_per_year",format:"currency",currency:"EUR"}
+  ]
+ },
+ "simple-interest":{
+  title:"Simple interest calculator",
+  description:"Estimate simple interest on a principal amount using an annual interest rate and time in years. Interest is calculated on the original principal only; this is not compound interest and excludes taxes, fees and changing rates.",
+  category:"money",
+  inputs:[
+   {key:"principal",label:"Principal amount",min:0,max:1000000000,default:1000,step:0.01,unit:"EUR"},
+   {key:"annual_rate",label:"Annual interest rate",min:0,max:1000,default:5,step:0.01,unit:"%"},
+   {key:"years",label:"Time",min:0,max:100,default:3,step:0.1,unit:"years"}
+  ],
+  results:[
+   {label:"Interest earned",expression:"principal * annual_rate / 100 * years",format:"currency",currency:"EUR"},
+   {label:"Principal plus simple interest",expression:"principal + principal * annual_rate / 100 * years",format:"currency",currency:"EUR"}
+  ]
+ },
+ "profit-margin":{
+  title:"Business profit and margin",
+  description:"Estimate revenue, variable costs, fixed costs, net profit and profit margin for a period. Enter at least one unit sold and a positive selling price. This simplified model excludes tax, financing, depreciation and other costs not entered.",
+  category:"money",
+  inputs:[
+   {key:"units_sold",label:"Units sold",min:1,max:100000000,default:100,step:1,unit:"units"},
+   {key:"selling_price",label:"Selling price per unit",min:0.01,max:1000000,default:20,step:0.01,unit:"EUR"},
+   {key:"variable_cost",label:"Variable cost per unit",min:0,max:1000000,default:8,step:0.01,unit:"EUR"},
+   {key:"fixed_costs",label:"Fixed costs for this period",min:0,max:100000000,default:500,step:0.01,unit:"EUR"}
+  ],
+  results:[
+   {label:"Revenue",expression:"units_sold * selling_price",format:"currency",currency:"EUR"},
+   {label:"Total variable costs",expression:"units_sold * variable_cost",format:"currency",currency:"EUR"},
+   {label:"Estimated net profit",expression:"units_sold * selling_price - units_sold * variable_cost - fixed_costs",format:"currency",currency:"EUR"},
+   {label:"Profit margin",expression:"(units_sold * selling_price - units_sold * variable_cost - fixed_costs) / (units_sold * selling_price) * 100",format:"percent"}
+  ]
+ },
+ "break-even":{
+  title:"Break-even units calculator",
+  description:"Estimate how many units are needed to cover fixed costs when each unit contributes a known amount toward those costs. Enter a positive contribution margin per unit (selling price minus variable cost). This model assumes constant costs and selling conditions.",
+  category:"money",
+  inputs:[
+   {key:"fixed_costs",label:"Fixed costs",min:0,max:100000000,default:1000,step:0.01,unit:"EUR"},
+   {key:"contribution_per_unit",label:"Contribution margin per unit",min:0.01,max:1000000,default:10,step:0.01,unit:"EUR/unit"}
+  ],
+  results:[
+   {label:"Break-even units required",expression:"ceil(fixed_costs / contribution_per_unit)",format:"number",suffix:" units"},
+   {label:"Contribution at break-even",expression:"ceil(fixed_costs / contribution_per_unit) * contribution_per_unit",format:"currency",currency:"EUR"}
+  ]
+ },
  "advanced":{
   title:"Custom formula calculator",
   description:"Build a custom calculator by defining numeric inputs and restricted arithmetic formulas. Explain the assumptions and units so other members can understand the result.",
@@ -1270,6 +1449,15 @@ function setMakerModeUI(){
  if(intro)intro.textContent=manual
   ?"Build a safe calculator with formulas, inputs and currencies. No AI request or CALC charge is used."
   :"Describe the decision or calculation. AI creates a safe, editable calculator draft.";
+ const modeHelp=$("ugcManualModeHelp");
+ if(modeHelp){
+  modeHelp.hidden=!manual;
+  modeHelp.querySelectorAll("[data-manual-mode-info]").forEach(card=>{
+   const active=card.dataset.manualModeInfo===(state.manualMode||"quick");
+   card.classList.toggle("is-active",active);
+   card.setAttribute("aria-current",active?"true":"false");
+  });
+ }
  const costNote=$("ugcMakerBillingNotice");
  if(costNote)costNote.textContent="AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations are refunded.";
  const manualAiImprove=$("ugcManualAiImproveButton");
