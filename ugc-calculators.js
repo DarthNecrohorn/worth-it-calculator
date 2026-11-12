@@ -454,14 +454,14 @@ async function loadCatalog(){
 function compileExpression(source,keys){
  const input=String(source||"");let at=0;
  const fail=()=>{throw new Error("This calculator contains an invalid formula.");};
- const ws=()=>{while(at<input.length&&/\\s/.test(input[at]))at++;};
+ const ws=()=>{while(at<input.length&&/\s/.test(input[at]))at++;};
  const take=value=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
  const identifier=()=>{ws();const m=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);if(!m)return null;at+=m[0].length;return m[0];};
  const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not"]);
  function primary(){
   ws();
   if(take("(")){const node=add();if(!take(")"))fail();return node;}
-  const m=input.slice(at).match(/^(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?/i);
+  const m=input.slice(at).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i);
   if(m){at+=m[0].length;const value=Number(m[0]);if(!Number.isFinite(value))fail();return{type:"number",value};}
   const name=identifier();if(!name)fail();
   if(take("(")){
