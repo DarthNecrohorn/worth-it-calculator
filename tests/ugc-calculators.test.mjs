@@ -650,7 +650,13 @@ test("AI Maker test mode recalculates locally with the restricted formula engine
         "current_monthly_cost * period_months - (new_monthly_cost * period_months + switching_fee)",
         "(current_monthly_cost * period_months - (new_monthly_cost * period_months + switching_fee)) / period_months"
     ];
-    const results = expressions.map(expression => engine.evaluate(engine.compileExpression(expression, keys), values));
+    const results = expressions.map(expression => {
+        try {
+            return engine.evaluate(engine.compileExpression(expression, keys), values);
+        } catch (error) {
+            throw new Error("Formula failed: " + expression + " — " + (error?.message || error));
+        }
+    });
     assert.deepEqual(results, [360, 120, 240, 20], "the same evaluator should calculate the subscription example correctly");
 
     assert.match(maker, /button\("▶ Test calculator","ugc-maker-test-toggle"/);
