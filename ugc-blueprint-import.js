@@ -51,7 +51,321 @@ function inspectTree(value){
  };
  visit(value,0);
 }
+function blueprintSlugKey(value,fallback){
+ const text=String(value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ let key=text.replace(/[^a-z0-9_]+/g,"_").replace(/_+/g,"_").replace(/^_+|_+$/g,"");
+ if(!key)key=fallback||"value";
+ if(!/^[a-z]/.test(key))key="field_"+key;
+ return key.slice(0,32).replace(/_+$/g,"")||"value";
+}
+function blueprintGcd(a,b){a=Math.abs(Math.round(a));b=Math.abs(Math.round(b));while(b){const next=a%b;a=b;b=next;}return a;}
+function blueprintAligned(value,min,step){
+ if(!(step>0))return false;
+ const position=(value-min)/step;
+ return Number.isFinite(position)&&Math.abs(position-Math.round(position))<=1e-7;
+}
+function blueprintDecimalPlaces(value){
+ const text=String(Number(value));
+ if(/[eE]/.test(text)){const [base,exponent]=text.toLowerCase().split("e");return Math.max(0,Math.min(8,(base.split(".")[1]||"").length-Number(exponent)));}
+ return Math.max(0,Math.min(8,(text.split(".")[1]||"").length);
+}
+function normalizeBlueprintRange(raw,label,notes){
+ const has=(key)=>Object.prototype.hasOwnProperty.call(raw,key);
+ let min=has("min")?raw.min:undefined,max=has("max")?raw.max:undefined;
+ let value=has("default")?raw.default:undefined,step=has("step")?raw.step:undefined;
+ if(min!==undefined&&!(typeof min==="number"&&Number.isFinite(min)))return{min,max,default:value,step};
+ if(max!==undefined&&!(typeof max==="number"&&Number.isFinite(max)))return{min,max,default:value,step};
+ if(value!==undefined&&!(typeof value==="number"&&Number.isFinite(value)))return{min,max,default:value,step};
+ if(step!==undefined&&!(typeof step==="number"&&Number.isFinite(step)))return{min,max,default:value,step};
+ if(min===undefined){min=typeof value==="number"?Math.min(0,value):0;notes.push(label+": supplied a missing minimum based on the default value.");}
+ if(value===undefined){value=min<=0?0:min;notes.push(label+": supplied a missing default value.");}
+ if(max===undefined){max=Math.max(100,min+100,value+100);notes.push(label+": supplied a bounded maximum based on the default value.");}
+ if(min>max){const old=min;min=max;max=old;notes.push(label+": swapped reversed minimum and maximum values.");}
+ if(value<min){min=value;notes.push(label+": expanded the minimum to include its existing default value.");}
+ if(value>max){max=value;notes.push(label+": expanded the maximum to include its existing default value.");}
+ const precision=Math.max(blueprintDecimalPlaces(min),blueprintDecimalPlaces(max),blueprintDecimalPlaces(value));
+ if(step===undefined||step<=0||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step)){
+  let scale=Math.pow(10,precision);
+  let divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
+  if(divisor<=0){
+   scale=Math.max(scale,1);
+   divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
+  }
+  step=divisor>0?divisor/scale:1/scale;
+  if(!(step>0)||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step))step=1;
+  notes.push(label+": adjusted the step so the default and maximum align with the minimum.");
+ }
+ return{min,max,default:value,step};
+}
+function prepareBlueprintShape(source){
+ const raw=requireObject(source,"Blueprint"),notes=[];
+ const forbidden=new Set(["__proto__","prototype","constructor"]);
+ const rejectForbidden=(value,label)=>{
+  if(!isObject(value))return;
+  Object.keys(value).forEach(key=>{if(forbidden.has(key))fail(label+" contains a forbidden property.");});
+ };
+ rejectForbidden(raw,"Blueprint");
+ const allowedRoot=new Set(["blueprintVersion","title","name","description","summary","category","primaryCategory","subcategories","assumptions","spec","calculator","inputs","groups","results","outputs","scenarios"]);
+ Object.keys(raw).forEach(key=>{if(!allowedRoot.has(key))notes.push("Ignored unsupported top-level property: "+key+".");});
+ const rootAlias=(preferred,alias)=>raw[preferred]!==undefined?raw[preferred]:raw[alias];
+ const version=raw.blueprintVersion===undefined?1:raw.blueprintVersion;
+ if(version!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1.");
+ let title=typeof rootAlias("title","name")==="string"?rootAlias("title","name").trim():"";
+ if(title.length<3){title="Imported Calculator";notes.push("Added a generic title because the blueprint did not provide a usable title.");}
+ if(title.length>70){title=title.slice(0,70).trim();notes.push("Shortened the calculator title to the supported 70-character limit.");}
+ let description=typeof rootAlias("description","summary")==="string"?rootAlias("description","summary").trim():"";
+ if(description.length<24){description=title+" calculates results from the supplied inputs. Review formulas and assumptions before saving.";notes.push("Added a neutral description because the blueprint did not provide a usable description.");}
+ if(description.length>500){description=description.slice(0,500).trim();notes.push("Shortened the calculator description to the supported 500-character limit.");}
+ let category=String(rootAlias("category","primaryCategory")||"").trim().toLowerCase();
+ const categoryAliases={car:"cars",automotive:"cars",vehicle:"cars",vehicles:"cars",finance:"money",financial:"money",budget:"money",business:"money",tech:"technology",computing:"technology",house:"home",housing:"home",property:"home",general:"other"};
+ category=categoryAliases[category]||category;
+ if(!CATEGORIES.has(category)){category="other";notes.push("Set the primary category to Other because the supplied category was missing or unsupported.");}
+ let specSource=isObject(raw.spec)?raw.spec:isObject(raw.calculator)?raw.calculator:null;
+ if(!specSource){
+  specSource={inputs:raw.inputs,groups:raw.groups,results:raw.results||raw.outputs,scenarios:raw.scenarios};
+  notes.push("Adapted calculator fields supplied at the blueprint root into the canonical spec object.");
+ }
+ rejectForbidden(specSource,"spec");
+ const allowedSpec=new Set(["subcategories","inputs","fixedInputs","groups","dynamicGroups","results","outputs","scenarios","alternatives"]);
+ Object.keys(specSource).forEach(key=>{if(!allowedSpec.has(key))notes.push("Ignored unsupported spec property: "+key+".");});
+ let subcategoriesRaw=raw.subcategories!==undefined?raw.subcategories:specSource.subcategories;
+ if(raw.subcategories!==undefined&&specSource.subcategories!==undefined)notes.push("Used root-level subcategories and ignored the duplicate list inside spec.");
+ if(!Array.isArray(subcategoriesRaw)){if(subcategoriesRaw!==undefined)notes.push("Removed an invalid subcategory list.");subcategoriesRaw=[];}
+ const subcategories=[];
+ subcategoriesRaw.slice(0,12).forEach(item=>{
+  if(typeof item!=="string"||!item.trim())return;
+  const slug=item.trim().toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,40);
+  if(slug&&!subcategories.includes(slug))subcategories.push(slug);
+ });
+ if(subcategories.length!==subcategoriesRaw.length)notes.push("Normalized or removed empty and duplicate subcategory labels.");
+ let assumptions=[];
+ if(raw.assumptions!==undefined){
+  if(Array.isArray(raw.assumptions)){
+   assumptions=raw.assumptions.filter(item=>typeof item==="string"&&item.trim()).slice(0,50).map(item=>item.trim());
+   let remaining=MAX_ASSUMPTIONS_CHARS;
+   assumptions=assumptions.map(item=>{const clipped=item.slice(0,remaining);remaining-=clipped.length+1;return clipped;}).filter(Boolean);
+   if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)assumptions=assumptions.slice(0,49);
+  }else notes.push("Removed an invalid assumptions list.");
+ }
+ const keyAliases=new Map(),ambiguousAliases=new Set(),qualifiedAliases=[];
+ const usedKeys=new Set();
+ const reserved=new Set(["pi","e","min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not"]);
+ const rememberAlias=(rawKey,key)=>{
+  if(typeof rawKey!=="string")return;
+  const alias=rawKey.trim().toLowerCase();
+  if(!/^[a-z_][a-z0-9_]*$/.test(alias))return;
+  if(ambiguousAliases.has(alias))return;
+  if(keyAliases.has(alias)&&keyAliases.get(alias)!==key){keyAliases.delete(alias);ambiguousAliases.add(alias);return;}
+  keyAliases.set(alias,key);
+ };
+ const createKey=(rawKey,label,fallback)=>{
+  const original=typeof rawKey==="string"?rawKey.trim():"";
+  let base=/^[a-z][a-z0-9_]{0,31}$/.test(original)?original:blueprintSlugKey(original||label,fallback);
+  if(reserved.has(base))base=(base+"_value").slice(0,32);
+  let key=base,index=2;
+  while(usedKeys.has(key)){
+   const suffix="_"+index++;
+   key=base.slice(0,32-suffix.length)+suffix;
+  }
+  usedKeys.add(key);
+  if(original!==key)notes.push(label+": generated a valid unique variable key ("+key+").");
+  rememberAlias(original,key);
+  return key;
+ };
+ const cleanObject=(raw,allowed,label,aliases={})=>{
+  rejectForbidden(raw,label);
+  const output={};
+  Object.keys(raw).forEach(key=>{
+   const mapped=aliases[key]||aliases[key.toLowerCase()]||key;
+   if(allowed.has(mapped)){
+    if(output[mapped]===undefined)output[mapped]=raw[key];
+    else notes.push(label+": ignored a duplicate alias for "+mapped+".");
+   }else notes.push(label+": ignored unsupported property "+key+".");
+  });
+  return output;
+ };
+ const asArray=(value,label,max)=>{
+  if(value===undefined||value===null)return[];
+  if(!Array.isArray(value)){notes.push("Replaced an invalid "+label.toLowerCase()+" list with an empty list.");return[];}
+  if(value.length>max)notes.push("Kept the first "+max+" "+label.toLowerCase()+" within the Manual Builder limit.");
+  return value.slice(0,max).filter(isObject);
+ };
+ const inputAliases={
+  variable_key:"key",variableKey:"key",field_key:"key",fieldKey:"key",
+  name:"label",displayName:"label",display_name:"label",
+  minValue:"min",min_value:"min",minimum:"min",
+  maxValue:"max",max_value:"max",maximum:"max",
+  defaultValue:"default",default_value:"default",initialValue:"default",initial_value:"default",
+  stepSize:"step",step_size:"step",unitLabel:"unit",unit_label:"unit",
+  inputType:"control",input_type:"control",type:"control"
+ };
+ let inputRows=asArray(specSource.inputs!==undefined?specSource.inputs:specSource.fixedInputs,"Inputs",24);
+ if(!inputRows.length){inputRows=[{}];notes.push("Added a neutral Base value input because the blueprint did not contain usable fixed inputs. Replace it with the intended input before saving.");}
+ const inputs=inputRows.map((raw,index)=>{
+  const item=cleanObject(raw,INPUT_KEYS,"Input "+(index+1),inputAliases);
+  const label=typeof item.label==="string"&&item.label.trim()?item.label.trim().slice(0,60):"Input "+(index+1);
+  if(item.label!==label)notes.push(label+": supplied a fallback or shortened input label.");
+  const range=normalizeBlueprintRange(item,label,notes);
+  const input={
+   key:createKey(item.key,label,"input_"+(index+1)),
+   label,...range,
+   unit:item.unit===undefined?"":typeof item.unit==="string"?item.unit.trim().slice(0,16):item.unit
+  };
+  if(typeof input.unit!=="string")notes.push(label+": removed a non-text unit label.");
+  if(typeof input.unit!=="string")input.unit="";
+  let control=item.control===undefined?"number":String(item.control).toLowerCase();
+  if(!["number","slider","select","toggle"].includes(control)){control="number";notes.push(label+": changed an unsupported control to a number field.");}
+  if(control!=="number")input.control=control;
+  if(control==="toggle"){
+   const normalized=range.default>=0.5?1:0;
+   input.min=0;input.max=1;input.default=normalized;input.step=1;input.unit="";
+   delete input.choices;
+   if(range.min!==0||range.max!==1||range.default!==normalized||range.step!==1)notes.push(label+": normalized toggle values to 0 or 1 and removed its unit.");
+  }else if(control==="select"){
+   const choicesRaw=Array.isArray(item.choices)?item.choices.slice(0,12):[];
+   const choices=[],valuesSeen=new Set(),labelsSeen=new Set();
+   choicesRaw.forEach((choice,choiceIndex)=>{
+    if(!isObject(choice))return;
+    const clean=cleanObject(choice,CHOICE_KEYS,"Input choice "+(choiceIndex+1),{name:"label",text:"label"});
+    if(typeof clean.value!=="number"||!Number.isFinite(clean.value)||valuesSeen.has(clean.value))return;
+    let choiceLabel=typeof clean.label==="string"&&clean.label.trim()?clean.label.trim().slice(0,50):String(clean.value);
+    const baseLabel=choiceLabel;let suffix=2;
+    while(labelsSeen.has(choiceLabel.toLowerCase()))choiceLabel=baseLabel.slice(0,43)+" "+suffix++;
+    valuesSeen.add(clean.value);labelsSeen.add(choiceLabel.toLowerCase());choices.push({label:choiceLabel,value:clean.value});
+   });
+   if(choices.length<2){
+    input.control="number";delete input.choices;
+    notes.push(label+": changed an incomplete dropdown into a number field because it had fewer than two valid numeric choices.");
+   }else{
+    input.choices=choices;
+    const values=choices.map(choice=>choice.value),oldDefault=input.default;
+    input.min=Math.min(...values);input.max=Math.max(...values);
+    if(!choices.some(choice=>choice.value===oldDefault)){
+     input.default=choices.reduce((best,choice)=>Math.abs(choice.value-oldDefault)<Math.abs(best.value-oldDefault)?choice:best,choices[0]).value;
+     notes.push(label+": selected the closest available dropdown choice as its default.");
+    }
+    const precision=Math.max(...[input.min,input.max,input.default].map(blueprintDecimalPlaces));
+    const scale=Math.pow(10,precision),gcd=blueprintGcd(Math.round((input.default-input.min)*scale),Math.round((input.max-input.min)*scale));
+    input.step=gcd>0?gcd/scale:1/scale;
+   }
+  }else delete input.choices;
+  return input;
+ });
+ const groupAliases={group_key:"key",groupKey:"key",name:"label",item_name:"itemLabel",itemName:"itemLabel",rows_min:"minItems",rowsMin:"minItems",rows_max:"maxItems",rowsMax:"maxItems"};
+ const fieldAliases={variable_key:"key",variableKey:"key",field_key:"key",fieldKey:"key",name:"label",minValue:"min",min_value:"min",minimum:"min",maxValue:"max",max_value:"max",maximum:"max",defaultValue:"default",default_value:"default",stepSize:"step",step_size:"step",unitLabel:"unit",unit_label:"unit"};
+ const groupRows=asArray(specSource.groups!==undefined?specSource.groups:specSource.dynamicGroups,"Dynamic groups",4);
+ const groups=groupRows.map((raw,index)=>{
+  const group=cleanObject(raw,GROUP_KEYS,"Dynamic group "+(index+1),groupAliases);
+  const groupLabel=typeof group.label==="string"&&group.label.trim()?group.label.trim().slice(0,60):"Dynamic group "+(index+1);
+  if(group.label!==groupLabel)notes.push(groupLabel+": supplied a fallback or shortened group label.");
+  const originalGroupKey=typeof group.key==="string"?group.key.trim():"";
+  const groupKey=createKey(group.key,groupLabel,"group_"+(index+1));
+  let fieldRows=asArray(group.fields,"Group fields",6);
+  if(!fieldRows.length){fieldRows=[{}];notes.push(groupLabel+": added a neutral Amount field because no usable dynamic fields were supplied.");}
+  const fields=fieldRows.map((rawField,fieldIndex)=>{
+   const field=cleanObject(rawField,FIELD_KEYS,groupLabel+" field "+(fieldIndex+1),fieldAliases);
+   const fieldLabel=typeof field.label==="string"&&field.label.trim()?field.label.trim().slice(0,60):"Field "+(fieldIndex+1);
+   const originalFieldKey=typeof field.key==="string"?field.key.trim():"";
+   const range=normalizeBlueprintRange(field,groupLabel+" "+fieldLabel,notes);
+   const fieldKey=createKey(field.key,fieldLabel,"field_"+(fieldIndex+1));
+   if(/^[a-z_][a-z0-9_]*$/i.test(originalGroupKey)&&/^[a-z_][a-z0-9_]*$/i.test(originalFieldKey)){
+    const from=originalGroupKey+"."+originalFieldKey,to=groupKey+"."+fieldKey;
+    if(!qualifiedAliases.some(alias=>alias.from.toLowerCase()===from.toLowerCase()))qualifiedAliases.push({from,to});
+   }
+   let unit=field.unit===undefined?"":typeof field.unit==="string"?field.unit.trim().slice(0,16):"";
+   if(field.unit!==undefined&&typeof field.unit!=="string")notes.push(groupLabel+" "+fieldLabel+": removed a non-text unit label.");
+   return{key:fieldKey,label:fieldLabel,...range,unit};
+  });
+  let minItems=group.minItems===undefined?1:group.minItems;
+  let maxItems=group.maxItems===undefined?10:group.maxItems;
+  if(typeof minItems!=="number"||!Number.isInteger(minItems)){minItems=1;notes.push(groupLabel+": supplied a valid minimum row count.");}
+  if(typeof maxItems!=="number"||!Number.isInteger(maxItems)){maxItems=10;notes.push(groupLabel+": supplied a valid maximum row count.");}
+  const originalMinItems=minItems,originalMaxItems=maxItems;
+  minItems=Math.max(1,Math.min(20,minItems));
+  maxItems=Math.max(minItems,Math.min(20,maxItems));
+  if(minItems!==originalMinItems||maxItems!==originalMaxItems)notes.push(groupLabel+": adjusted the row limits to the supported 1–20 range.");
+  if(originalMinItems===0){
+   fields.forEach(field=>{field.min=Math.min(0,field.min);field.max=Math.max(0,field.max);field.default=0;});
+   notes.push(groupLabel+": converted an optional empty list into one zero-value placeholder row.");
+  }
+  return{
+   key:groupKey,label:groupLabel.length>=2?groupLabel:groupLabel+" group",
+   itemLabel:typeof group.itemLabel==="string"&&group.itemLabel.trim()?group.itemLabel.trim().slice(0,40):"Item",
+   minItems,maxItems,fields
+  };
+ });
+ const resultAliases={result_key:"key",resultKey:"key",variable_key:"key",variableKey:"key",name:"label",formula:"expression",calculation:"expression",result_unit:"unit",resultUnit:"unit",currency_code:"currency",currencyCode:"currency",displayFormat:"format",display_format:"format"};
+ let resultRows=asArray(specSource.results!==undefined?specSource.results:specSource.outputs,"Results",20);
+ if(!resultRows.length){
+  resultRows=[{key:"calculated_value",label:"Calculated value",expression:inputs[0].key,format:"number"}];
+  notes.push("Added a placeholder result using the first input because the blueprint contained no usable results. Replace it with the intended calculation before publishing.");
+ }
+ const results=resultRows.map((raw,index)=>{
+  const item=cleanObject(raw,RESULT_KEYS,"Result "+(index+1),resultAliases);
+  const label=typeof item.label==="string"&&item.label.trim()?item.label.trim().slice(0,70):"Result "+(index+1);
+  const key=createKey(item.key,label,"result_"+(index+1));
+  let expression=typeof item.expression==="string"?item.expression.trim():"";
+  if(!expression){
+   expression=inputs[0].key;
+   notes.push(label+": added a temporary passthrough formula using the first input because no formula was supplied. Review and replace it before publishing.");
+  }
+  let format=typeof item.format==="string"?item.format.toLowerCase():"number";
+  if(!["number","currency","percent","unit"].includes(format)){format="number";notes.push(label+": changed an unsupported display format to Number; dimensions will be inferred where possible.");}
+  const result={
+   key,label,expression,format,
+   explanation:typeof item.explanation==="string"&&item.explanation.trim()?item.explanation.trim().slice(0,280):label+" is calculated from the formula and current input values.",
+   prefix:typeof item.prefix==="string"?item.prefix.trim().slice(0,16):"",
+   suffix:typeof item.suffix==="string"?item.suffix.trim().slice(0,16):""
+  };
+  if(format==="currency"){
+   result.currency=typeof item.currency==="string"?item.currency.trim().toUpperCase():undefined;
+  }else if(format==="unit"){
+   result.unit=typeof item.unit==="string"?item.unit.trim().slice(0,20):undefined;
+  }
+  return result;
+ });
+ const rewriteExpression=expression=>{
+  let result=String(expression||"").replace(/[×·]/g,"*").replace(/÷/g,"/").replace(/[−–—]/g,"-");
+  qualifiedAliases.forEach(alias=>{
+   const escaped=alias.from.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&");
+   result=result.replace(new RegExp("(^|[^A-Za-z0-9_])"+escaped+"(?=$|[^A-Za-z0-9_])","gi"),"$1"+alias.to);
+  });
+  const functions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not","pi","e"]);
+  result=result.replace(/[A-Za-z_][A-Za-z0-9_]*/g,token=>{
+   const lower=token.toLowerCase();
+   if(functions.has(lower))return lower;
+   return keyAliases.get(lower)||token;
+  });
+  return result;
+ };
+ results.forEach(result=>{result.expression=rewriteExpression(result.expression);});
+ const rawScenarios=asArray(specSource.scenarios!==undefined?specSource.scenarios:specSource.alternatives,"Scenarios",3);
+ const scenarios=rawScenarios.map((raw,index)=>{
+  const scenario=cleanObject(raw,SCENARIO_KEYS,"Scenario "+(index+1),{name:"label",inputValues:"values",input_values:"values"});
+  const rawValues=isObject(scenario.values)?scenario.values:{};
+  const values={};
+  Object.keys(rawValues).forEach(rawKey=>{
+   const key=keyAliases.get(String(rawKey).toLowerCase())||rawKey;
+   const input=inputs.find(item=>item.key===key);
+   if(!input){notes.push("Scenario "+(index+1)+": removed an input value that did not match a known input.");return;}
+   const value=rawValues[rawKey];
+   values[key]=value;
+  });
+  const scenarioLabel=typeof scenario.label==="string"&&scenario.label.trim()?scenario.label.trim().slice(0,50):"Scenario "+(index+1);
+  return{...(typeof scenario.key==="string"?{key:blueprintSlugKey(scenario.key,"scenario_"+(index+1))}:{}),label:scenarioLabel.length>=2?scenarioLabel:"Scenario "+(index+1),values};
+ });
+ return{
+  blueprint:{
+   blueprintVersion:1,title,description,category,subcategories,assumptions,
+   spec:{subcategories,inputs,groups,results,scenarios}
+  },
+  notes
+ };
+}
 function normalizeBlueprint(source,validateSpec){
+ const prepared=prepareBlueprintShape(source);
+ source=prepared.blueprint;
+ const compatibilityNotes=prepared.notes.slice();
  const rootValue=requireObject(source,"Blueprint");
  rejectUnknownKeys(rootValue,new Set(["blueprintVersion","title","description","category","subcategories","spec","assumptions"]),"Blueprint");
  if(rootValue.blueprintVersion!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1.");
@@ -100,7 +414,6 @@ function normalizeBlueprint(source,validateSpec){
   if(control==="toggle"&&(normalized.min!==0||normalized.max!==1||normalized.step!==1||![0,1].includes(normalized.default)))fail(label+" toggle values must use min 0, max 1, step 1 and default 0 or 1.");
   return normalized;
  });
- const compatibilityNotes=[];
  const rawGroups=specSource.groups===undefined?[]:requireArray(specSource.groups,"Dynamic groups",4);
  const groups=rawGroups.map((raw,index)=>{
   const label="Dynamic group "+(index+1),group=requireObject(raw,label);
