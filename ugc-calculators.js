@@ -552,7 +552,7 @@ function unitDescriptor(unit){
   "eur/kg":{"currency:EUR":1,mass:-1},"eur/m²":{"currency:EUR":1,area:-1},"eur/m2":{"currency:EUR":1,area:-1},
   "eur/m³":{"currency:EUR":1,volume:-1},"eur/m3":{"currency:EUR":1,volume:-1},
   "eur/hour":{"currency:EUR":1,time:-1},"usd/hour":{"currency:USD":1,time:-1},
-  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1}
+  "eur/month":{"currency:EUR":1,time:-1},"eur/day":{"currency:EUR":1,time:-1},"eur/person/day":{"currency:EUR":1,time:-1},"eur/unit":{"currency:EUR":1},\n  "%/year":{time:-1},"%/month":{time:-1},"%/day":{time:-1}
  };
  if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
  if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{},opaque:false};
@@ -1456,7 +1456,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"starting_savings",label:"Starting savings",min:0,max:100000000,default:0,step:0.01,unit:"EUR"},
    {key:"monthly_deposit",label:"Monthly contribution",min:0,max:10000000,default:100,step:0.01,unit:"EUR/month"},
-   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"units"}
+   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"months"}
   ],
   results:[
    {label:"Total contributions",expression:"monthly_deposit * months",format:"currency",currency:"EUR"},
@@ -1597,7 +1597,7 @@ const MANUAL_TEMPLATES={
   category:"money",
   inputs:[
    {key:"principal",label:"Principal amount",min:0,max:1000000000,default:1000,step:0.01,unit:"EUR"},
-   {key:"annual_rate",label:"Annual interest rate",min:0,max:1000,default:5,step:0.01,unit:"%"},
+   {key:"annual_rate",label:"Annual interest rate",min:0,max:1000,default:5,step:0.01,unit:"%/year"},
    {key:"years",label:"Time",min:0,max:100,default:3,step:0.1,unit:"years"}
   ],
   results:[
