@@ -64,13 +64,24 @@ $$;
 create table if not exists private.worth_it_ugc_ai_saved_operations (
     request_id uuid primary key,
     user_id uuid not null references auth.users(id) on delete cascade,
-    calculator_id uuid not null references private.worth_it_user_calculators(id) on delete cascade,
+    calculator_id uuid references private.worth_it_user_calculators(id) on delete set null,
     operation text not null check (operation in ('generation','improvement')),
     definition_hash text not null,
     created_at timestamptz not null default now()
 );
 alter table private.worth_it_ugc_ai_saved_operations
     add column if not exists definition_hash text;
+-- Preserve consumed AI operation proofs after a calculator is deleted, so the
+-- same paid generation cannot be recycled to create unlimited replacements.
+alter table private.worth_it_ugc_ai_saved_operations
+    alter column calculator_id drop not null;
+alter table private.worth_it_ugc_ai_saved_operations
+    drop constraint if exists worth_it_ugc_ai_saved_operations_calculator_id_fkey;
+alter table private.worth_it_ugc_ai_saved_operations
+    add constraint worth_it_ugc_ai_saved_operations_calculator_id_fkey
+    foreign key (calculator_id)
+    references private.worth_it_user_calculators(id)
+    on delete set null;
 create index if not exists worth_it_ugc_ai_saved_operations_user_idx
     on private.worth_it_ugc_ai_saved_operations(user_id,created_at desc);
 alter table private.worth_it_ugc_ai_saved_operations enable row level security;
@@ -472,9 +483,18 @@ begin
     select * into v_existing from private.worth_it_calc_transactions
      where user_id=v_user_id and request_id=p_request_id;
     if found then
+        if v_existing.kind<>'ugc_ai_spend'
+           or v_existing.status not in ('reserved','completed')
+           or v_existing.metadata->>'operation' is distinct from p_operation then
+            return jsonb_build_object('ok',false,'code','REQUEST_ID_CONFLICT',
+                'duplicate',true,'status',v_existing.status);
+        end if;
         return jsonb_build_object(
-            'ok',v_existing.kind='ugc_ai_spend' and v_existing.status in ('reserved','completed'),
-            'duplicate',true,'status',v_existing.status,
+            'ok',true,'duplicate',true,'status',v_existing.status,
+            'plan',v_existing.metadata->>'plan',
+            'price_milli',coalesce((v_existing.metadata->>'price_milli')::integer,greatest(0,-v_existing.amount_milli)),
+            'price',coalesce((v_existing.metadata->>'price_milli')::numeric,greatest(0,-v_existing.amount_milli)) / 1000,
+            'owner_exempt',coalesce((v_existing.metadata->>'owner_exempt')::boolean,false),
             'required_milli',greatest(0,-v_existing.amount_milli),
             'balance_milli',v_existing.balance_after_milli
         );
