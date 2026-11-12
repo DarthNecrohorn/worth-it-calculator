@@ -59,8 +59,24 @@ begin
 end;
 $$;
 
--- The six-argument RPC makes the origin of a new calculator explicit.
--- The compatibility five-argument overload remains manual-only.
+-- Bind each successful AI operation to at most one saved calculator. This prevents
+-- callers from claiming "ai" as the source and bypassing the manual save quota.
+create table if not exists private.worth_it_ugc_ai_saved_operations (
+    request_id uuid primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    calculator_id uuid not null references private.worth_it_user_calculators(id) on delete cascade,
+    operation text not null check (operation in ('generation','improvement')),
+    created_at timestamptz not null default now()
+);
+create index if not exists worth_it_ugc_ai_saved_operations_user_idx
+    on private.worth_it_ugc_ai_saved_operations(user_id,created_at desc);
+alter table private.worth_it_ugc_ai_saved_operations enable row level security;
+revoke all on private.worth_it_ugc_ai_saved_operations from public,anon,authenticated;
+
+-- Use an explicit source and request proof. "ai" cannot be self-declared:
+-- new AI saves need a settled maker generation; AI edits need a settled edit
+-- reservation for the exact calculator. Manual saves use their separate ledger.
+drop function if exists public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text,uuid);
 drop function if exists public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb);
 create or replace function public.save_worth_it_ugc_calculator(
     p_id uuid,
@@ -68,7 +84,8 @@ create or replace function public.save_worth_it_ugc_calculator(
     p_description text,
     p_category text,
     p_spec jsonb,
-    p_source text
+    p_source text,
+    p_ai_request_id uuid
 )
 returns jsonb
 language plpgsql
@@ -87,6 +104,9 @@ declare
     v_description text := btrim(coalesce(p_description,''));
     v_category text := lower(btrim(coalesce(p_category,'')));
     v_source text := lower(btrim(coalesce(p_source,'manual')));
+    v_expected_operation text;
+    v_reservation_status text;
+    v_saved_operation private.worth_it_ugc_ai_saved_operations%rowtype;
 begin
     if v_user_id is null then raise exception 'Sign in required.' using errcode='28000'; end if;
     if not exists(select 1 from auth.users where id=v_user_id and email_confirmed_at is not null) then
@@ -94,6 +114,10 @@ begin
     end if;
     if v_source not in ('manual','ai') then
         raise exception 'Calculator source must be manual or ai.' using errcode='22023';
+    end if;
+    if (v_source='manual' and p_ai_request_id is not null)
+       or (v_source='ai' and p_ai_request_id is null) then
+        raise exception 'The calculator source proof is invalid.' using errcode='22023';
     end if;
     if char_length(v_title) not between 3 and 70
        or char_length(v_description) not between 24 and 500
@@ -103,7 +127,8 @@ begin
     perform private.worth_it_validate_ugc_spec(p_spec);
 
     if p_id is null then
-        -- Lock the account row to serialize concurrent manual-save reservations.
+        -- Lock the account row to serialize concurrent manual-save reservations
+        -- and plan reads against simultaneous subscription changes.
         perform 1 from auth.users where id=v_user_id for update;
         select case
                  when lower(coalesce(u.email,''))='pedjasebez3545@gmail.com' then 'premium'
@@ -130,6 +155,39 @@ begin
                     using errcode='54000';
             end if;
         else
+            -- A new AI-created calculator must be backed by a settled and
+            -- authenticated generation reservation, not merely a client flag.
+            select status into v_reservation_status
+              from private.worth_it_ugc_maker_generation_reservations
+             where request_id=p_ai_request_id and user_id=v_user_id
+             for update;
+            if not found or v_reservation_status<>'consumed' then
+                raise exception 'A completed AI generation reservation is required.' using errcode='42501';
+            end if;
+
+            -- Idempotent retry: if the first save committed but its HTTP
+            -- response was lost, return that same saved calculator.
+            select * into v_saved_operation
+              from private.worth_it_ugc_ai_saved_operations
+             where request_id=p_ai_request_id
+             for update;
+            if found then
+                if v_saved_operation.user_id<>v_user_id
+                   or v_saved_operation.operation<>'generation' then
+                    raise exception 'This AI generation was already used for another operation.' using errcode='42501';
+                end if;
+                select id,calculator_number into v_id,v_calculator_number
+                  from private.worth_it_user_calculators
+                 where id=v_saved_operation.calculator_id and owner_user_id=v_user_id;
+                if v_id is null then raise exception 'The calculator attached to this AI generation no longer exists.'; end if;
+                select creations_used into v_creations_used
+                  from private.worth_it_ugc_manual_daily_usage
+                 where user_id=v_user_id and usage_date=v_today;
+                return jsonb_build_object('success',true,'id',v_id,'calculator_number',v_calculator_number,
+                    'source','ai','daily_limit',v_daily_limit,'creations_used',coalesce(v_creations_used,0),
+                    'remaining',greatest(0,v_daily_limit-coalesce(v_creations_used,0)),'already_saved',true);
+            end if;
+
             select creations_used into v_creations_used
               from private.worth_it_ugc_manual_daily_usage
              where user_id=v_user_id and usage_date=v_today;
@@ -139,12 +197,46 @@ begin
         insert into private.worth_it_user_calculators(owner_user_id,title,description,category,spec)
         values(v_user_id,v_title,v_description,v_category,p_spec)
         returning id,calculator_number into v_id,v_calculator_number;
+
+        if v_source='ai' then
+            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation)
+            values(p_ai_request_id,v_user_id,v_id,'generation');
+        end if;
     else
+        if v_source='ai' then
+            -- AI improvements are valid only for a completed improvement
+            -- reservation that names this exact calculator and owner.
+            select status into v_reservation_status
+              from private.worth_it_ugc_ai_edit_requests
+             where request_id=p_ai_request_id
+               and user_id=v_user_id
+               and calculator_id=p_id
+             for update;
+            if not found or v_reservation_status<>'completed' then
+                raise exception 'A completed AI improvement reservation for this calculator is required.' using errcode='42501';
+            end if;
+            select * into v_saved_operation
+              from private.worth_it_ugc_ai_saved_operations
+             where request_id=p_ai_request_id
+             for update;
+            if found and (v_saved_operation.user_id<>v_user_id
+                or v_saved_operation.calculator_id<>p_id
+                or v_saved_operation.operation<>'improvement') then
+                raise exception 'This AI improvement was already used for another calculator.' using errcode='42501';
+            end if;
+        end if;
+
         update private.worth_it_user_calculators
            set title=v_title,description=v_description,category=v_category,spec=p_spec,updated_at=now()
          where id=p_id and owner_user_id=v_user_id
         returning id,calculator_number into v_id,v_calculator_number;
         if v_id is null then raise exception 'Calculator not found or not owned by you.' using errcode='42501'; end if;
+
+        if v_source='ai' and v_saved_operation.request_id is null then
+            insert into private.worth_it_ugc_ai_saved_operations(request_id,user_id,calculator_id,operation)
+            values(p_ai_request_id,v_user_id,v_id,'improvement');
+        end if;
+
         select case
                  when lower(coalesce(u.email,''))='pedjasebez3545@gmail.com' then 'premium'
                  when w.premium_plan='premium' and w.premium_expires_at>now() then 'premium'
@@ -170,6 +262,8 @@ begin
 end;
 $$;
 
+-- Backwards compatibility is intentionally manual-only. A caller cannot claim
+-- AI provenance through the old five-argument RPC.
 create or replace function public.save_worth_it_ugc_calculator(
     p_id uuid,p_title text,p_description text,p_category text,p_spec jsonb
 )
@@ -179,7 +273,7 @@ security definer
 set search_path = pg_catalog, public, private, auth
 as $$
     select public.save_worth_it_ugc_calculator(
-        p_id,p_title,p_description,p_category,p_spec,'manual'
+        p_id,p_title,p_description,p_category,p_spec,'manual',null::uuid
     );
 $$;
 
