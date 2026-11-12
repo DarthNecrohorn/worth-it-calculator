@@ -1298,11 +1298,15 @@ function renderMakerPreview(definition){
   regionNote.id="ugcMakerRegionalDefaults";host.appendChild(regionNote);
  }
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
+ const existing=Boolean(state.editingId);
  const title=document.createElement("label");title.textContent="Calculator title";
- const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=Boolean(state.editingId&&!manual);title.appendChild(titleInput);
+ const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=existing;title.appendChild(titleInput);
  const desc=document.createElement("label");desc.textContent="Description";
- const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=Boolean(state.editingId&&!manual);desc.appendChild(descInput);
+ const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=existing;desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
+ if(existing&&manual){
+  host.appendChild(text("p","ugc-maker-schema-summary","A saved calculator's title and primary category stay fixed. To update its description, use the description editor on the calculator detail page; its 10-minute cooldown still applies."));
+ }
  const descriptionHelp=text("p","ugc-maker-schema-summary",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
   :"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
@@ -1313,7 +1317,7 @@ function renderMakerPreview(definition){
   [["cars","Cars"],["money","Money"],["technology","Technology"],["home","Home"],["other","Other"]].forEach(([value,label])=>{
    const option=document.createElement("option");option.value=value;option.textContent=label;categorySelect.appendChild(option);
   });
-  categorySelect.value=definition.category||"other";
+  categorySelect.value=definition.category||"other";categorySelect.disabled=Boolean(state.editingId);
   categorySelect.addEventListener("change",()=>{definition.category=categorySelect.value;definition.spec.subcategories=[];});
   categoryLabel.appendChild(categorySelect);host.appendChild(categoryLabel);
   host.appendChild(text("p","ugc-maker-schema-summary","Manual Builder does not use AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved manual calculator uses the separate 1/2/3 daily save allowance."));
