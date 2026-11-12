@@ -197,25 +197,35 @@ function normalizeBlueprint(source,validateSpec){
    compatibilityNotes.push(input.label+": treated as a unitless multiplier because it scales a monthly EUR amount; the selected value still represents the number of months of coverage.");
   }
  });
- // A currency amount divided by a duration is a rate, not a currency total.
+ // A currency amount divided by a duration is a rate only when that
+ // duration dimension is still present in the final expression. If a matching
+ // duration is multiplied later (e.g. EUR / budget_month_days * projection_days),
+ // the time dimension cancels and the final result remains currency.
+ const timeUnitKind=unit=>{
+  const value=String(unit||"").trim().toLowerCase();
+  return ["month","months","day","days","week","weeks","year","years","hour","hours"].includes(value)?"time":"";
+ };
+ const isMultipliedReference=(expression,key)=>
+  new RegExp("(?:\\\\b"+String(key)+"\\\\s*\\\\*|\\\\*\\\\s*"+String(key)+"\\\\b)","i").test(expression);
  results.forEach((result,index)=>{
   if(result.format!=="currency")return;
   const expression=String(result.expression||"");
-  const denominator=inputs.find(input=>{
-   const unit=String(input.unit||"").trim().toLowerCase();
-   return ["month","months","day","days","week","weeks","year","years","hour","hours"].includes(unit)
-    &&new RegExp("/\\s*"+String(input.key)+"\\b","i").test(expression);
-  });
+  const denominator=inputs.find(input=>timeUnitKind(input.unit)
+   &&new RegExp("/\\\\s*"+String(input.key)+"\\\\b","i").test(expression));
   if(!denominator)return;
   const currency=referencedCurrency(expression,index);
   if(!currency)return;
+  const finalDimensionCancels=timeUnitKind(denominator.unit)&&inputs.some(input=>
+   input.key!==denominator.key&&timeUnitKind(input.unit)===timeUnitKind(denominator.unit)
+   &&isMultipliedReference(expression,input.key));
+  if(finalDimensionCancels)return;
   const timeUnit=String(denominator.unit).trim().toLowerCase();
   const canonicalTime=({month:"month",months:"month",day:"day",days:"day",week:"week",weeks:"week",year:"year",years:"year",hour:"hour",hours:"hour"})[timeUnit];
   if(!canonicalTime)return;
   result.format="unit";
   result.unit=currency+"/"+canonicalTime;
   delete result.currency;
-  compatibilityNotes.push(result.label+": changed the display from currency to "+result.unit+" because the formula divides a currency amount by a duration.");
+  compatibilityNotes.push(result.label+": changed the display from currency to "+result.unit+" because the formula divides a currency amount by a duration and retains that rate dimension.");
  });
  // Replace a hard-coded 30-day monthly divisor with an explicit duration input.
  const hardCodedPeriod=/([a-z][a-z0-9_]*)\s*\/\s*30(?:\.0+)?\s*\*\s*([a-z][a-z0-9_]*)/i;
