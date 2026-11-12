@@ -36,7 +36,7 @@ const CURRENCIES=[
  ["TWD","New Taiwan dollar"],["UYU","Uruguayan peso"],["UZS","Uzbekistani sum"],["VED","Venezuelan bolívar digital"],["VES","Venezuelan bolívar soberano"],
  ["VUV","Vanuatu vatu"],["WST","Samoan tālā"],["YER","Yemeni rial"],["ZMW","Zambian kwacha"],["ZWG","Zimbabwe Gold"],
  ["XAF","Central African CFA franc"],["XCD","East Caribbean dollar"],["XCG","Caribbean guilder"],["XOF","West African CFA franc"],["XPF","CFP franc"],
- ["BGN","Bulgarian lev (historical from 2026)"],["BHD","Bahraini dinar"],["GMD","Gambian dalasi"],["GNF","Guinean franc"],
+ ,["BHD","Bahraini dinar"],["GMD","Gambian dalasi"],["GNF","Guinean franc"],
  ["GIP","Gibraltar pound"],["HNL","Honduran lempira"],["IQD","Iraqi dinar"],["IRR","Iranian rial"],["JMD","Jamaican dollar"],
  ["JOD","Jordanian dinar"],["KMF","Comorian franc"],["KPW","North Korean won"],["KYD","Cayman Islands dollar"],
  ["LBP","Lebanese pound"],["LRD","Liberian dollar"],["LSL","Lesotho loti"],["LYD","Libyan dinar"],
@@ -572,6 +572,7 @@ function unitDescriptor(unit){
  };
  if(Object.prototype.hasOwnProperty.call(known,key))return{exact:raw,vector:known[key],opaque:false};
  if(["items","item","units","unit","people","person","packs","pack"].includes(key))return{exact:raw,vector:{count:1},opaque:false};
+ if(["period","periods","occurrences","times"].includes(key))return{exact:raw,vector:{},opaque:false};
  return{exact:raw,vector:{["unit:"+key]:1},opaque:true};
 }
 function combineUnitDescriptors(left,right,sign){
@@ -1514,7 +1515,7 @@ const MANUAL_TEMPLATES={
   category:"other",
   inputs:[
    {key:"quantity",label:"Quantity",min:0,max:1000000,default:1,step:1,unit:"units"},
-   {key:"unit_price",label:"Price per unit",min:0,max:1000000,default:10,step:0.01,unit:"EUR"}
+   {key:"unit_price",label:"Price per unit",min:0,max:1000000,default:10,step:0.01,unit:"EUR/unit"}
   ],
   results:[{label:"Total cost",expression:"quantity * unit_price",format:"currency",currency:"EUR"}]
  },
@@ -1579,7 +1580,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"starting_savings",label:"Starting savings",min:0,max:100000000,default:0,step:0.01,unit:"EUR"},
    {key:"monthly_deposit",label:"Monthly contribution",min:0,max:10000000,default:100,step:0.01,unit:"EUR/month"},
-   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"months"}
+   {key:"months",label:"Number of months",min:1,max:1200,default:12,step:1,unit:"periods"}
   ],
   results:[
    {label:"Total contributions",expression:"monthly_deposit * months",format:"currency",currency:"EUR"},
@@ -1655,7 +1656,7 @@ const MANUAL_TEMPLATES={
   inputs:[
    {key:"area_m2",label:"Floor area",min:0,max:1000000,default:24,step:0.1,unit:"m²"},
    {key:"coverage_per_pack",label:"Coverage per pack",min:0.01,max:100000,default:2.2,step:0.01,unit:"m²/pack"},
-   {key:"price_per_pack",label:"Price per pack",min:0,max:1000000,default:25,step:0.01,unit:"EUR"}
+   {key:"price_per_pack",label:"Price per pack",min:0,max:1000000,default:25,step:0.01,unit:"EUR/pack"}
   ],
   results:[
    {label:"Packs required",expression:"ceil(area_m2 / coverage_per_pack)",format:"number"},
@@ -1734,8 +1735,8 @@ const MANUAL_TEMPLATES={
   category:"money",
   inputs:[
    {key:"units_sold",label:"Units sold",min:1,max:100000000,default:100,step:1,unit:"units"},
-   {key:"selling_price",label:"Selling price per unit",min:0.01,max:1000000,default:20,step:0.01,unit:"EUR"},
-   {key:"variable_cost",label:"Variable cost per unit",min:0,max:1000000,default:8,step:0.01,unit:"EUR"},
+   {key:"selling_price",label:"Selling price per unit",min:0.01,max:1000000,default:20,step:0.01,unit:"EUR/unit"},
+   {key:"variable_cost",label:"Variable cost per unit",min:0,max:1000000,default:8,step:0.01,unit:"EUR/unit"},
    {key:"fixed_costs",label:"Fixed costs for this period",min:0,max:100000000,default:500,step:0.01,unit:"EUR"}
   ],
   results:[
@@ -1754,7 +1755,7 @@ const MANUAL_TEMPLATES={
    {key:"contribution_per_unit",label:"Contribution margin per unit",min:0.01,max:1000000,default:10,step:0.01,unit:"EUR/unit"}
   ],
   results:[
-   {label:"Break-even units required",expression:"ceil(fixed_costs / contribution_per_unit)",format:"number",suffix:" units"},
+   {label:"Break-even units required",expression:"ceil(fixed_costs / contribution_per_unit)",format:"unit",unit:"units"},
    {label:"Contribution at break-even",expression:"ceil(fixed_costs / contribution_per_unit) * contribution_per_unit",format:"currency",currency:"EUR"}
   ]
  },
