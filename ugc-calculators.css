@@ -2052,3 +2052,76 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-maker-scenario-editor{padding:10px}
  .ugc-maker-scenarios{padding:10px}
 }
+
+
+/* Composable UGC Builder: bounded repeated rows and group schema editor. */
+.ugc-dynamic-group,
+.ugc-maker-dynamic-field-editor{
+    min-width:0;
+    margin:12px 0;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface-soft);
+}
+.ugc-dynamic-group>legend,
+.ugc-maker-dynamic-group-editor>legend{
+    padding:0 6px;
+    color:var(--text);
+    font-size:13px;
+    font-weight:850;
+}
+.ugc-dynamic-group-note{
+    margin:2px 0 10px;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.45;
+}
+.ugc-dynamic-group-rows{display:grid;gap:9px}
+.ugc-dynamic-group-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:end;
+    gap:8px;
+    padding:10px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--card-solid);
+}
+.ugc-dynamic-group-fields{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+}
+.ugc-dynamic-group-fields label{
+    display:grid;
+    gap:4px;
+    min-width:0;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:700;
+}
+.ugc-dynamic-group-fields input{
+    min-width:0;
+    width:100%;
+    min-height:38px;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--surface);
+    color:var(--text);
+    font:inherit;
+}
+.ugc-dynamic-group-fields small{color:var(--muted);font-size:10px}
+.ugc-dynamic-group-row-actions{display:flex;align-items:end}
+.ugc-dynamic-group-row-actions button{white-space:nowrap}
+.ugc-maker-dynamic-field-editor{padding:10px;margin:9px 0}
+.ugc-maker-dynamic-group-editor>h4{margin:12px 0 6px}
+.ugc-dynamic-group button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:640px){
+ .ugc-dynamic-group-row{grid-template-columns:1fr}
+ .ugc-dynamic-group-fields{grid-template-columns:1fr}
+ .ugc-dynamic-group-row-actions button{width:100%}
+ .ugc-dynamic-group,.ugc-maker-dynamic-field-editor{padding:9px}
+}
+
