@@ -1624,7 +1624,7 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
     const base={
         inputs:[
             {key:"quantity",label:"Quantity",min:1,max:100,default:10,step:1,unit:"units"},
-            {key:"price",label:"Price",min:0,max:1000,default:2,step:0.01,unit:"EUR"}
+            {key:"price",label:"Price",min:0,max:1000,default:2,step:0.01,unit:"EUR/unit"}
         ],
         results:[{label:"Total",expression:"quantity * price",format:"currency",currency:"EUR"}]
     };
@@ -2028,7 +2028,7 @@ test("Public UGC cards keep only the calculator CTA; reactions stay inside the d
 
 test("UGC Maker offers multi-currency result formatting and selectable measurement units", () => {
     assert.match(maker, /const CURRENCIES=\[/);
-    assert.match(maker, /\["RSD","Serbian dinar"\]/);
+    assert.match(maker, /\["RSD","Serbian Dinar",2\]/);
     assert.match(maker, /const UNIT_OPTIONS=\[/);
     assert.match(maker, /UNIT_OPTIONS\.forEach/);
     assert.match(maker, /CURRENCIES\.forEach/);
