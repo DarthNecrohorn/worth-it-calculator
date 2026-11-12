@@ -129,6 +129,8 @@ as $$
 declare
     v_input jsonb;
     v_result jsonb;
+    v_choice jsonb;
+    v_choice_count integer;
     v_key text;
     v_expression text;
     v_token text;
@@ -164,6 +166,39 @@ begin
             raise exception 'Duplicate calculator input key.' using errcode = '22023';
         end if;
         v_allowed := array_append(v_allowed,v_key);
+
+        if v_input ? 'control' and v_input->>'control' not in ('number','slider','select','toggle') then
+            raise exception 'Unsupported calculator input control.' using errcode = '22023';
+        end if;
+        if coalesce(v_input->>'control','number')='toggle'
+           and ((v_input->>'min')::numeric<>0 or (v_input->>'max')::numeric<>1
+                or coalesce((v_input->>'step')::numeric,0)<>1
+                or (v_input->>'default')::numeric not in (0,1)) then
+            raise exception 'Toggle inputs must use 0/1 values and a step of 1.' using errcode = '22023';
+        end if;
+        if coalesce(v_input->>'control','number')='select' then
+            if coalesce(jsonb_typeof(v_input->'choices'),'')<>'array'
+               or jsonb_array_length(v_input->'choices') not between 2 and 12 then
+                raise exception 'Dropdown inputs require 2 to 12 choices.' using errcode = '22023';
+            end if;
+            select count(*) into v_choice_count
+              from jsonb_array_elements(v_input->'choices') as choice(value)
+             where coalesce(jsonb_typeof(choice.value->'label'),'')='string'
+               and char_length(btrim(choice.value->>'label')) between 1 and 50
+               and coalesce(jsonb_typeof(choice.value->'value'),'')='number'
+               and abs((choice.value->>'value')::numeric)<=1000000000000;
+            if v_choice_count<>jsonb_array_length(v_input->'choices') then
+                raise exception 'A dropdown choice has an invalid label or numeric value.' using errcode = '22023';
+            end if;
+            if (select count(distinct (choice.value->>'value')::numeric)
+                  from jsonb_array_elements(v_input->'choices') as choice(value))<>v_choice_count
+               or (select count(distinct lower(btrim(choice.value->>'label')))
+                     from jsonb_array_elements(v_input->'choices') as choice(value))<>v_choice_count
+               or not exists(select 1 from jsonb_array_elements(v_input->'choices') as choice(value)
+                              where (choice.value->>'value')::numeric=(v_input->>'default')::numeric) then
+                raise exception 'Dropdown choices must have unique labels and values and include the default.' using errcode = '22023';
+            end if;
+        end if;
     end loop;
 
     for v_result in select value from jsonb_array_elements(p_spec->'results') loop
