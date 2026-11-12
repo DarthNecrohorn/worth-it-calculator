@@ -1516,7 +1516,7 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-community-discovery-section{padding:28px 0 44px}
 .ugc-discovery-page-header{
  display:grid;
- grid-template-columns:minmax(190px,auto) minmax(0,1fr);
+ grid-template-columns:minmax(0,1fr) auto;
  align-items:center;
  gap:20px;
  margin:0 auto 17px;
@@ -1526,6 +1526,10 @@ body.ugc-maker-open{overflow:hidden}
  background:var(--card);
 }
 .ugc-discovery-page-heading{min-width:0}
+.ugc-discovery-back-button{
+ justify-self:end;
+ align-self:center;
+}
 .ugc-discovery-page-heading h2{
  margin:2px 0 5px;
  color:var(--text);
