@@ -1689,7 +1689,7 @@ test("Composable Manual Builder validates and evaluates all six dynamic expense 
     const engineStart=maker.indexOf("function compileExpression");
     const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
     const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\\n({compileExpression,validateMakerSpec,evaluateFormulaResults,ensureResultCurrency})",
+        maker.slice(engineStart,engineEnd)+"\n({compileExpression,validateMakerSpec,evaluateFormulaResults,ensureResultCurrency})",
         {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"]]}
     );
     const spec={
