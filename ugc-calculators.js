@@ -1249,8 +1249,16 @@ function repairMakerBlueprintSpec(sourceSpec){
  const orderedResults=Array.isArray(spec.results)?spec.results:results;
  orderedResults.forEach((result,index)=>{
   const label=String(result?.label||("Result "+(index+1)));
+  let expression=String(result?.expression||"");
+  const normalizedExpression=expression.replace(/[×·]/g,"*").replace(/÷/g,"/").replace(/[−–—]/g,"-")
+   .replace(/[A-Za-z_][A-Za-z0-9_]*/g,token=>knownFormulaFunctions.has(token.toLowerCase())?token.toLowerCase():token);
+  if(normalizedExpression!==expression&&normalizedExpression.length<=500){
+   result.expression=normalizedExpression;
+   expression=normalizedExpression;
+   notes.push(label+": normalized common mathematical symbols and formula-function casing without changing variable names.");
+  }
   let ast;
-  try{ast=compileExpression(result.expression,availableKeys,groupMap);}
+  try{ast=compileExpression(expression,availableKeys,groupMap);}
   catch(_){
    // A malformed or unresolved formula cannot be safely invented. Keep it for
    // the final validator to explain rather than replacing it with a guess.
