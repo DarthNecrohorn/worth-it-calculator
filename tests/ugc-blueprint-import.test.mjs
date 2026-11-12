@@ -316,6 +316,60 @@ test("repairs common Gemini-style planner units and a hard-coded 30-day projecti
  assert.ok(result.importNotes.length>=5);
 });
 
+
+test("repairs implicit USD-per-operation coefficients in a provider blueprint using editable dimensional rate inputs",()=>{
+ const importer=getImporter();
+ const validate=getManualValidator();
+ const candidate={
+  blueprintVersion:1,
+  title:"Cloudflare Pages & Supabase Stack Cost Estimator",
+  description:"Calculates monthly operational costs for a static frontend and serverless backend architecture based on visitors, database reads, and edge function executions.",
+  category:"technology",
+  subcategories:["hosting","serverless","database"],
+  assumptions:["Pricing models are based on standard tiers for edge compute requests and relational database operations.","Data egress and storage sizes are estimated per user session."],
+  spec:{
+   inputs:[
+    {key:"monthly_active_users",label:"Monthly Active Users",control:"number",min:100,max:1000000,default:10000,step:100,unit:""},
+    {key:"sessions_per_user",label:"Sessions per User",control:"number",min:1,max:50,default:5,step:1,unit:""},
+    {key:"db_reads_per_session",label:"Database Reads per Session",control:"number",min:1,max:200,default:20,step:1,unit:""},
+    {key:"edge_requests_per_session",label:"Edge Requests per Session",control:"number",min:0,max:50,default:10,step:1,unit:""}
+   ],
+   groups:[],
+   results:[
+    {key:"total_sessions",label:"Total Monthly Sessions",expression:"monthly_active_users * sessions_per_user",format:"number",explanation:"Total number of user sessions handled across the platform per month."},
+    {key:"total_db_reads",label:"Total Database Reads",expression:"total_sessions * db_reads_per_session",format:"number",explanation:"Total relational database query operations performed per month."},
+    {key:"total_edge_requests",label:"Total Edge Function Requests",expression:"total_sessions * edge_requests_per_session",format:"number",explanation:"Total serverless edge function invocations executed per month."},
+    {key:"estimated_monthly_cost",label:"Estimated Monthly Cost",expression:"total_edge_requests * 0.000015 + total_db_reads * 0.000001",format:"currency",currency:"USD",explanation:"Estimated total monthly infrastructure bill based on request volume and database reads."}
+   ],
+   scenarios:[
+    {key:"small_project",label:"Indie Project",values:{monthly_active_users:1000,sessions_per_user:3,db_reads_per_session:10,edge_requests_per_session:5}},
+    {key:"scaling_platform",label:"Scaling Application",values:{monthly_active_users:100000,sessions_per_user:10,db_reads_per_session:30,edge_requests_per_session:15}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ const inputs=definition.spec.inputs;
+ const byKey=key=>inputs.find(item=>item.key===key);
+ assert.equal(byKey("monthly_active_users").unit,"user");
+ assert.equal(byKey("sessions_per_user").unit,"session/user");
+ assert.equal(byKey("db_reads_per_session").unit,"read/session");
+ assert.equal(byKey("edge_requests_per_session").unit,"request/session");
+ assert.equal(byKey("cost_per_request").unit,"USD/request");
+ assert.equal(byKey("cost_per_request").default,0.000015);
+ assert.equal(byKey("cost_per_read").unit,"USD/read");
+ assert.equal(byKey("cost_per_read").default,0.000001);
+ assert.equal(definition.spec.results.find(item=>item.key==="total_sessions").unit,"session");
+ assert.equal(definition.spec.results.find(item=>item.key==="total_db_reads").unit,"read");
+ assert.equal(definition.spec.results.find(item=>item.key==="total_edge_requests").unit,"request");
+ const totalCost=definition.spec.results.find(item=>item.key==="estimated_monthly_cost");
+ assert.equal(totalCost.format,"currency");
+ assert.equal(totalCost.currency,"USD");
+ assert.match(totalCost.expression,/cost_per_request/);
+ assert.match(totalCost.expression,/cost_per_read/);
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ assert.ok(definition.importNotes.some(note=>note.includes("implicit numeric cost coefficient")));
+});
+
 test("generates a provider-neutral prompt for arbitrary calculator requests",()=>{
  const importer=getImporter();
  const prompt=importer.buildPrompt();
@@ -327,6 +381,7 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  assert.match(prompt,/EUR \/ days produces EUR\/day/);
  assert.match(prompt,/EUR\/month multiplied by months produces EUR/);
  assert.match(prompt,/unitless scalar multiplier or divisor/);
+ assert.match(prompt,/never hide a currency-per-operation rate only inside a bare numeric formula/i);
  assert.match(prompt,/plain asterisk character/);
  assert.match(prompt,/Do not HTML-encode spaces/);
  assert.match(prompt,/maximums? (must )?align with step|whole numbers/);

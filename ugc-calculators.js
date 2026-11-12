@@ -1222,11 +1222,101 @@ function guardFormulaDivisions(ast,denominatorMayBeZero){
  }
  return ast;
 }
+
+function blueprintCountAtomFromText(value){
+ const text=String(value||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ if(/\b(?:database|db)\s+reads?\b|\breads?\b/.test(text))return "read";
+ if(/\b(?:edge(?:\s+function)?\s+requests?|function requests?|requests?)\b/.test(text))return "request";
+ if(/\bsessions?\b/.test(text))return "session";
+ if(/\b(?:monthly\s+active\s+)?users?\b/.test(text))return "user";
+ return "";
+}
+function inferBlueprintCountInputUnits(inputs,notes){
+ inputs.forEach(input=>{
+  if(String(input.unit||"").trim())return;
+  const label=String(input.label||input.key||"");
+  const normalized=label.toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+  let inferred="";
+  const perMatch=normalized.match(/\b(.+?)\s+per\s+(.+?)\b/);
+  if(perMatch){
+   const numerator=blueprintCountAtomFromText(perMatch[1]);
+   const denominator=blueprintCountAtomFromText(perMatch[2]);
+   if(numerator&&denominator)inferred=numerator+"/"+denominator;
+  }else{
+   inferred=blueprintCountAtomFromText(normalized);
+  }
+  if(inferred){
+   input.unit=inferred;
+   notes.push(label+": inferred the explicit count/rate unit "+inferred+" from its label.");
+  }
+ });
+}
+function materializeCurrencyRateConstants(ast,result,currency,formulaUnits,groups,inputs,usedKeys){
+ const pending=[],localKeys=new Set(usedKeys);
+ const makeRateInput=(quantityNode,rate)=>{
+  if(!(Number.isFinite(rate)&&rate>0)||inputs.length+pending.length>=24)return null;
+  let quantityUnit;
+  try{quantityUnit=analyseFormulaUnit(quantityNode,formulaUnits,groups);}catch(_){return null;}
+  const dimensions=Object.entries(quantityUnit.vector||{});
+  if(!dimensions.length||!dimensions.every(([dimension])=>dimension==="count"||dimension.startsWith("unit:")))return null;
+  const quantityLabel=unitLabelFromDescriptor(quantityUnit);
+  if(!quantityLabel||!/^([A-Za-zµμ%°][A-Za-z0-9_µμ%°²³-]*)$/.test(quantityLabel))return null;
+  const unit=currency+"/"+quantityLabel;
+  if(unit.length>16)return null;
+  const slug=quantityLabel.toLowerCase().replace(/[^a-z0-9_]+/g,"_").replace(/^_+|_+$/g,"");
+  const baseKey=("cost_per_"+slug).slice(0,32);
+  let key=baseKey,suffix=2;
+  while(localKeys.has(key)){
+   const ending="_"+suffix++;
+   key=baseKey.slice(0,32-ending.length)+ending;
+  }
+  const mantissa=String(rate).toLowerCase().split("e")[0];
+  const exponent=Number(String(rate).toLowerCase().split("e")[1]||0);
+  const decimals=Math.max(0,(mantissa.split(".")[1]||"").length-exponent);
+  let step=Math.pow(10,-Math.min(8,decimals));
+  if(!(step>0)||Math.abs(rate/step-Math.round(rate/step))>1e-7)step=rate;
+  const max=Number((Math.max(1,Math.ceil(rate*100/step-1e-9))*step).toPrecision(12));
+  const label="Cost per "+quantityLabel.replace(/[_-]+/g," ");
+  const input={key,label,control:"number",min:0,max,default:rate,step,unit};
+  pending.push(input);
+  localKeys.add(key);
+  return{type:"variable",name:key};
+ };
+ const visit=node=>{
+  if(!node||typeof node!=="object")return node;
+  if(node.type==="binary"&&(node.op==="+"||node.op==="-")){
+   return{...node,left:visit(node.left),right:visit(node.right)};
+  }
+  if(node.type==="binary"&&node.op==="*"){
+   const leftConstant=constantFormulaValue(node.left),rightConstant=constantFormulaValue(node.right);
+   if((leftConstant!==null)!==(rightConstant!==null)){
+    const rate=leftConstant!==null?leftConstant:rightConstant;
+    const quantity=leftConstant!==null?node.right:node.left;
+    const rateVariable=makeRateInput(quantity,rate);
+    if(rateVariable){
+     const replacement={type:"binary",op:"*",left:quantity,right:rateVariable};
+     return replacement;
+    }
+   }
+   return{...node,left:visit(node.left),right:visit(node.right)};
+  }
+  if(node.type==="unary")return{...node,value:visit(node.value)};
+  if(node.type==="call")return{...node,args:node.args.map(visit)};
+  return node;
+ };
+ const repaired=visit(ast);
+ if(!pending.length)return{ast,inputs:[],changed:false};
+ const expression=formulaAstToText(repaired);
+ if(expression.length>500)return{ast,inputs:[],changed:false};
+ return{ast:repaired,inputs:pending,changed:true,expression};
+}
+
 function repairMakerBlueprintSpec(sourceSpec){
  const spec=JSON.parse(JSON.stringify(sourceSpec||{})),notes=[];
  const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
  const groups=Array.isArray(spec.groups)?spec.groups:[];
  const results=Array.isArray(spec.results)?spec.results:[];
+ inferBlueprintCountInputUnits(inputs,notes);
  const groupMap=groupMapForSpec(spec);
  const resultKeySet=new Set(results.map(item=>String(item?.key||"")).filter(Boolean));
  const knownFormulaFunctions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not","pi","e"]);
@@ -1250,6 +1340,7 @@ function repairMakerBlueprintSpec(sourceSpec){
  }
  const availableKeys=new Set(inputs.map(item=>item.key));
  const formulaUnits=inputs.slice();
+ const usedVariableKeys=new Set([...inputs.map(item=>item.key),...groups.map(item=>item.key),...groups.flatMap(item=>(item.fields||[]).map(field=>field.key)),...results.map(item=>item.key).filter(Boolean)]);
  const orderedResults=Array.isArray(spec.results)?spec.results:results;
  orderedResults.forEach((result,index)=>{
   const label=String(result?.label||("Result "+(index+1)));
@@ -1290,6 +1381,25 @@ function repairMakerBlueprintSpec(sourceSpec){
    result.expression=guardedText;
    notes.push(label+": added zero-denominator guards to division or remainder operations; a zero denominator now produces 0 instead of an invalid result.");
    ast=guarded;
+  }
+  if(result.format==="currency"){
+   const currency=ensureResultCurrency(result);
+   const supported=CURRENCIES.some(([code])=>code===currency);
+   if(supported){
+    const materialized=materializeCurrencyRateConstants(ast,result,currency,formulaUnits,groups,inputs,usedVariableKeys);
+    if(materialized.changed){
+     materialized.inputs.forEach(input=>{
+      inputs.push(input);
+      formulaUnits.push(input);
+      availableKeys.add(input.key);
+      usedVariableKeys.add(input.key);
+      notes.push(label+": converted an implicit numeric cost coefficient into the editable input "+input.label+" ("+input.unit+").");
+     });
+     ast=materialized.ast;
+     expression=materialized.expression;
+     result.expression=expression;
+    }
+   }
   }
   let outputUnit;
   try{outputUnit=analyseFormulaUnit(ast,formulaUnits,groups);}
