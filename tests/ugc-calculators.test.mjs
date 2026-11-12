@@ -1557,6 +1557,11 @@ test("UGC formula engine supports extended math and checks physical and currency
     assert.equal(engine.evaluate(engine.compileExpression("hypot(3, 4)",keys),{}),5);
     assert.equal(engine.evaluate(engine.compileExpression("mod(17, 5)",keys),{}),2);
     assert.equal(engine.evaluate(engine.compileExpression("round(1.2345, 2)",keys),{}),1.23);
+    assert.equal(engine.evaluate(engine.compileExpression("if(gt(energy, 10), 25, 5)",keys),{energy:11}),25);
+    assert.equal(engine.evaluate(engine.compileExpression("if(gte(energy, 10), 25, 5)",keys),{energy:10}),25);
+    assert.equal(engine.evaluate(engine.compileExpression("and(gt(energy, 0), lt(energy, 20))",keys),{energy:11}),1);
+    assert.equal(engine.evaluate(engine.compileExpression("or(lt(energy, 0), eq(energy, 11))",keys),{energy:11}),1);
+    assert.equal(engine.evaluate(engine.compileExpression("not(eq(energy, 0))",keys),{energy:11}),1);
 
     const electricityInputs=[{key:"energy",unit:"kWh"},{key:"price",unit:"EUR/kWh"}];
     const costAst=engine.compileExpression("energy * price",new Set(["energy","price"]));
