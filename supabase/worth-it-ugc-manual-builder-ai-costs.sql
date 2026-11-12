@@ -130,7 +130,8 @@ begin
         raise exception 'The calculator source proof is invalid.' using errcode='22023';
     end if;
     if char_length(v_title) not between 3 and 70
-       or char_length(v_description) not between 24 and 500
+       or char_length(v_description)>500
+       or (p_id is null and char_length(v_description)<24)
        or v_category not in ('cars','money','technology','home','other') then
         raise exception 'Invalid calculator details.' using errcode='22023';
     end if;
