@@ -17,7 +17,7 @@ function getManualValidator(){
  const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
  assert.ok(start>=0&&end>start,"The shared Manual Builder formula validator must be present.");
  const validatorSource=builderSource.slice(start,end);
- return runInNewContext("(function(){const CURRENCIES=[[\\\"EUR\\\",\\\"Euro\\\",2],[\\\"USD\\\",\\\"US Dollar\\\",2],[\\\"RSD\\\",\\\"Serbian Dinar\\\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ return runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2],[\"USD\",\"US Dollar\",2],[\"RSD\",\"Serbian Dinar\",2]];"+validatorSource+";return validateMakerSpec;})()");
 }
 function plain(value){return JSON.parse(JSON.stringify(value));}
 function blueprint(overrides={}){
