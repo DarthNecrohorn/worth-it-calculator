@@ -131,6 +131,11 @@ declare
     v_result jsonb;
     v_choice jsonb;
     v_choice_count integer;
+    v_scenario jsonb;
+    v_override record;
+    v_input_definition jsonb;
+    v_scenario_label text;
+    v_scenario_value numeric;
     v_key text;
     v_expression text;
     v_token text;
@@ -238,8 +243,65 @@ begin
             end if;
         end loop;
     end loop;
+
+    -- Optional comparison scenarios contain numeric overrides for known inputs.
+    -- The original input defaults remain the baseline; each scenario can change
+    -- only values that are already part of the calculator definition.
+    if p_spec ? 'scenarios' then
+        if coalesce(jsonb_typeof(p_spec->'scenarios'),'') <> 'array'
+           or jsonb_array_length(p_spec->'scenarios') > 3 then
+            raise exception 'A calculator can define up to three comparison scenarios.' using errcode = '22023';
+        end if;
+
+        for v_scenario in select value from jsonb_array_elements(p_spec->'scenarios') loop
+            v_scenario_label := btrim(coalesce(v_scenario->>'label',''));
+            if char_length(v_scenario_label) not between 2 and 50
+               or coalesce(jsonb_typeof(v_scenario->'values'),'') <> 'object'
+               or (v_scenario->'values') = '{}'::jsonb then
+                raise exception 'Each comparison scenario needs a unique name and at least one input value.' using errcode = '22023';
+            end if;
+
+            for v_override in select key,value from jsonb_each(v_scenario->'values') loop
+                select value into v_input_definition
+                  from jsonb_array_elements(p_spec->'inputs') as inputs(value)
+                 where value->>'key'=v_override.key
+                 limit 1;
+                if not found
+                   or coalesce(jsonb_typeof(v_override.value),'') <> 'number' then
+                    raise exception 'A comparison scenario references an unknown input or non-numeric value.' using errcode = '22023';
+                end if;
+
+                v_scenario_value := (v_override.value #>> '{}')::numeric;
+                if v_scenario_value < (v_input_definition->>'min')::numeric
+                   or v_scenario_value > (v_input_definition->>'max')::numeric then
+                    raise exception 'A comparison scenario value is outside its input range.' using errcode = '22023';
+                end if;
+                if coalesce(v_input_definition->>'control','number')='toggle'
+                   and v_scenario_value not in (0,1) then
+                    raise exception 'A comparison scenario toggle must be 0 or 1.' using errcode = '22023';
+                end if;
+                if coalesce(v_input_definition->>'control','number')='select'
+                   and not exists(
+                       select 1 from jsonb_array_elements(v_input_definition->'choices') as options(value)
+                        where (options.value->>'value')::numeric=v_scenario_value
+                   ) then
+                    raise exception 'A comparison scenario value must match one of its dropdown choices.' using errcode = '22023';
+                end if;
+            end loop;
+        end loop;
+
+        if exists(
+            select 1
+              from jsonb_array_elements(p_spec->'scenarios') with ordinality as first_scenario(value,position)
+              join jsonb_array_elements(p_spec->'scenarios') with ordinality as second_scenario(value,position)
+                on first_scenario.position<second_scenario.position
+             where lower(btrim(coalesce(first_scenario.value->>'label','')))=lower(btrim(coalesce(second_scenario.value->>'label','')))
+        ) then
+            raise exception 'Comparison scenario names must be unique.' using errcode = '22023';
+        end if;
+    end if;
 end;
-$$;
+$;
 
 create or replace function private.worth_it_badge_is_earned(p_user_id uuid,p_badge_key text)
 returns boolean
