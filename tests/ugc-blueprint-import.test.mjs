@@ -652,3 +652,57 @@ test("adds safe guards to divisions with a variable denominator and validates ze
  assert.ok(definition.importNotes.some(note=>note.includes("zero-denominator guards")));
  assert.deepEqual(plain(validateMakerSpec(definition.spec).errors),[]);
 });
+
+
+test("checks prompt keyword coverage locally without storing or transmitting the original request",()=>{
+ const importer=getImporter();
+ const candidate=blueprint({
+  title:"Electric vehicle monthly cost planner",
+  description:"Estimate the monthly running cost of an electric vehicle from its energy and service inputs.",
+  spec:{
+   inputs:[{key:"energy_cost",label:"Monthly energy cost",min:0,max:10000,default:100,step:1,unit:"EUR"}],
+   groups:[],
+   results:[{key:"monthly_cost",label:"Monthly vehicle cost",expression:"energy_cost",format:"currency",currency:"EUR"}],
+   scenarios:[]
+  }
+ });
+ const request="Calculate battery degradation, charging time, and monthly charging cost for an electric vehicle.";
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}),request);
+ const coverage=result.importNotes.find(note=>note.includes("Prompt coverage review"));
+ assert.ok(coverage);
+ assert.match(coverage,/degradation/);
+ assert.match(coverage,/charge/);
+ const serialized=JSON.stringify(result);
+ assert.equal(serialized.includes(request),false);
+ assert.equal(serialized.includes("battery degradation, charging time"),false);
+});
+
+test("does not add a prompt coverage warning when key request concepts appear in calculator fields",()=>{
+ const importer=getImporter();
+ const candidate=blueprint({
+  title:"Electric vehicle charging planner",
+  description:"Estimate battery degradation, charging time, and monthly charging cost for an electric vehicle.",
+  spec:{
+   inputs:[
+    {key:"battery_degradation",label:"Battery degradation",min:0,max:100,default:10,step:1,unit:"%"},
+    {key:"charging_time",label:"Charging time",min:0,max:48,default:2,step:1,unit:"hours"}
+   ],
+   groups:[],
+   results:[
+    {key:"monthly_charging_cost",label:"Monthly charging cost",expression:"battery_degradation + charging_time",format:"number"}
+   ],
+   scenarios:[]
+  }
+ });
+ const request="Calculate battery degradation, charging time, and monthly charging cost for an electric vehicle.";
+ const result=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:[]}),request);
+ assert.ok(!result.importNotes?.some(note=>note.includes("Prompt coverage review")));
+});
+
+test("rejects an oversized original request before importing a blueprint",()=>{
+ const importer=getImporter();
+ assert.throws(
+  ()=>importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[]}),"x".repeat(5001)),
+  /original calculator request can contain up to 5,000 characters/
+ );
+});
