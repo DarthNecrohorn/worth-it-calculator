@@ -238,7 +238,7 @@ begin
     end if;
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Free second draft','','money',
+            null,'Free second draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     exception when raise_exception then blocked:=true;
@@ -252,7 +252,7 @@ insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_a
 values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days')
 on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
 select (public.save_worth_it_ugc_calculator(
- null,'Second savings calculator','','money',
+ null,'Second savings calculator','A concise description for this calculator.','money',
  '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
 )->>'calculator_number') as second_calculator_number \gset
 select set_config('test.ugc_second_number', :'second_calculator_number', false);
@@ -770,7 +770,7 @@ do $test$
 begin
     begin
         perform public.save_worth_it_ugc_calculator(
-            current_setting('test.ugc_id',true)::uuid,'Hijacked title','','money',
+            current_setting('test.ugc_id',true)::uuid,'Hijacked title','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
         raise exception 'Non-owner edit unexpectedly succeeded.';
@@ -786,12 +786,12 @@ do $unlimited_ugc$
 declare i integer; today_utc date:=(now() at time zone 'utc')::date; total_count integer;
 begin
     for i in 1..12 loop
-        update private.worth_it_ugc_creation_daily_usage
+        update private.worth_it_ugc_manual_daily_usage
            set usage_date=today_utc-i,updated_at=now()
          where user_id='11111111-1111-4111-8111-111111111111'
            and usage_date=today_utc;
         perform public.save_worth_it_ugc_calculator(
-            null,'Unlimited saved calculator '||i,'','money',
+            null,'Unlimited saved calculator '||i,'A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     end loop;
@@ -810,13 +810,13 @@ begin
     if (q->>'daily_limit')::integer<>3 then raise exception 'Premium quota must be three per day: %',q; end if;
     for i in 1..3 loop
         perform public.save_worth_it_ugc_calculator(
-            null,'Premium draft '||i,'','money',
+            null,'Premium draft '||i,'A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     end loop;
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Premium fourth draft','','money',
+            null,'Premium fourth draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     exception when raise_exception then blocked:=true;
@@ -833,13 +833,13 @@ begin
     if (q->>'daily_limit')::integer<>2 then raise exception 'Premium Lite quota must be two per day: %',q; end if;
     for i in 1..2 loop
         perform public.save_worth_it_ugc_calculator(
-            null,'Premium Lite draft '||i,'','money',
+            null,'Premium Lite draft '||i,'A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     end loop;
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Premium Lite third draft','','money',
+            null,'Premium Lite third draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     exception when raise_exception then blocked:=true;
@@ -859,7 +859,7 @@ declare failed boolean:=false;
 begin
     begin
         perform public.save_worth_it_ugc_calculator(
-            null,'Unconfirmed draft','','money',
+            null,'Unconfirmed draft','A concise description for this calculator.','money',
             '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":10,"default":1}],"results":[{"label":"Amount","expression":"amount"}]}'::jsonb
         );
     exception when insufficient_privilege then
@@ -1127,7 +1127,7 @@ values ('11111111-1111-4111-8111-111111111111','premium',now()+interval '30 days
 on conflict(user_id) do update set premium_plan='premium',premium_expires_at=excluded.premium_expires_at;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select (public.save_worth_it_ugc_calculator(
- null,'Private visibility fixture','','money',
+ null,'Private visibility fixture','A concise description for this calculator.','money',
  '{"subcategories":["saving","budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10}],"results":[{"label":"Total","expression":"amount"}]}'::jsonb
 )->>'id') as private_calculator_id \gset
 select set_config('test.ugc_private_id', :'private_calculator_id', false);
