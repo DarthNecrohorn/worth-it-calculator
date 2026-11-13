@@ -2592,3 +2592,70 @@ test("AI Creator normalizes dynamic groups, chained results, typed numeric contr
  assert.equal(definition.results[2].expression,"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)");
  assert.deepEqual(definition.scenarios[0].values,{base_cost:20,include_tax:0});
 });
+
+
+
+test("AI Creator API returns dynamic groups, result chains, percentage rates, dropdowns and scenarios",async()=>{
+ const candidate={
+  title:"Household Expense Calculator",
+  description:"Calculate a household purchase total, add repeated expenses, optionally include tax and compare a lower-cost scenario.",
+  classification:{category:"home",subcategories:["household-budget"]},
+  inputs:[
+   {key:"base_cost",label:"Base cost",min:0,max:1000000,default:30,step:1,unit:"EUR",control:"number",choices:[]},
+   {key:"include_tax",label:"Include tax",min:0,max:1,default:1,step:1,unit:"",control:"toggle",choices:[]},
+   {key:"tax_rate",label:"Tax rate",min:0,max:100,default:20,step:1,unit:"%",control:"slider",choices:[]},
+   {key:"billing_cycle",label:"Billing periods per year",min:1,max:12,default:12,step:1,unit:"",control:"select",choices:[{label:"Monthly",value:1},{label:"Annual",value:12}]}
+  ],
+  groups:[{
+   key:"expenses",label:"Extra expenses",itemLabel:"Item",minItems:1,maxItems:10,
+   fields:[{key:"amount",label:"Expense amount",min:0,max:1000000,default:0,step:1,unit:"EUR"}]
+  }],
+  results:[
+   {key:"extra_total",label:"Extra expenses total",expression:"sum(expenses.amount)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Total of the added expense rows."},
+   {key:"subtotal",label:"Subtotal",expression:"base_cost + extra_total",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus additional expenses."},
+   {key:"final_total",label:"Final total",expression:"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Subtotal plus optional tax."},
+   {key:"annualized_total",label:"Annualized total",expression:"final_total * billing_cycle",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Final total multiplied by the selected billing period count."}
+  ],
+  scenarios:[{label:"Lower cost",overrides:[{key:"base_cost",value:20},{key:"include_tax",value:0}]}]
+ };
+ let providerCalls=0,settlements=0;
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")){settlements++;return new Response(JSON.stringify({ok:true}),{status:200});}
+  if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true}),{status:200});
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   providerCalls++;
+   const body=JSON.parse(options.body);
+   const schema=body.response_format.json_schema.schema;
+   assert.equal(schema.properties.groups.maxItems,4);
+   assert.equal(schema.properties.results.maxItems,20);
+   assert.equal(schema.properties.scenarios.maxItems,3);
+   assert.match(body.messages[0].content,/sum\(group_key\.field_key\)/);
+   assert.match(body.messages[0].content,/comparison scenario/);
+   return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
+  }
+  throw new Error("Unexpected AI Creator API request: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({prompt:"Create a household expense calculator with a base cost of 30 EUR, extra expense rows, an optional tax toggle, a 20 percent tax rate, a monthly or annual billing choice and a lower-cost scenario."},{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
+  });
+  const responseBody=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(responseBody));
+  assert.equal(responseBody.success,true);
+  const spec=responseBody.calculator.spec;
+  assert.equal(spec.groups[0].key,"expenses");
+  assert.equal(spec.groups[0].fields[0].unit,"EUR");
+  assert.equal(spec.inputs.find(item=>item.key==="include_tax").control,"toggle");
+  assert.equal(spec.inputs.find(item=>item.key==="tax_rate").unit,"%");
+  assert.equal(spec.inputs.find(item=>item.key==="tax_rate").default,20);
+  assert.equal(spec.inputs.find(item=>item.key==="billing_cycle").choices.length,2);
+  assert.deepEqual(spec.results.map(item=>item.key),["extra_total","subtotal","final_total","annualized_total"]);
+  assert.equal(spec.results[2].expression,"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)");
+  assert.deepEqual(spec.scenarios[0].values,{base_cost:20,include_tax:0});
+  assert.equal(providerCalls,1);
+  assert.equal(settlements,1);
+ });
+});
