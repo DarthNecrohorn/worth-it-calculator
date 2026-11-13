@@ -153,6 +153,13 @@ test("removes only a stray boundary Markdown fence and preserves literal backtic
  assert.equal(importer.parseBlueprint(raw,()=>({errors:[]})).description,candidate.description);
 });
 
+test("repairs escaped newline artifacts around a single JSON code fence",()=>{
+ const importer=getImporter(),fence=String.fromCharCode(96).repeat(3);
+ const source=fence+"json\\n"+JSON.stringify(blueprint())+"\\n"+fence;
+ const result=importer.parseBlueprint(source,()=>({errors:[]}));
+ assert.equal(result.title,"Household Expense Calculator");
+});
+
 test("repairs a serverless scaling blueprint with read, write, request and API call dimensions",()=>{
  const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
  const input=(key,label,min,max,def,step,unit,control)=>{
@@ -209,7 +216,10 @@ test("repairs a serverless scaling blueprint with read, write, request and API c
    {key:"api_calls_per_session",label:"Uncached API Calls per Session",min:0,max:50,default:1,step:1,unit:""},
    {key:"api_cost_per_call",label:"Cost per API Call",min:0,max:1,default:0.0005,step:0.0001,unit:"USD/item"},
    {key:"api_fixed_monthly",label:"Fixed API Subscription",min:0,max:2000,default:15,step:5,unit:"USD"}
-  ]}],results,scenarios:[]}
+  ]}],results,scenarios:[
+   {key:"viral_growth",label:"Viral Spike",values:{monthly_active_users:250000,sessions_per_user:12,cache_hit_ratio_pct:75,base_platform_plan:75,enable_security_waf:1,avg_revenue_per_user:0.06}},
+   {key:"high_scale",label:"High Scale",values:{monthly_active_users:1500000,sessions_per_user:15,cache_hit_ratio_pct:85,base_platform_plan:125,enable_security_waf:1,avg_revenue_per_user:0.08}}
+  ]}
  };
  const fence=String.fromCharCode(96).repeat(3);
  const definition=importer.parseBlueprint(fence+"json\n"+JSON.stringify(candidate)+"\n"+fence,validate);
@@ -244,6 +254,14 @@ test("repairs a serverless scaling blueprint with read, write, request and API c
  assert.equal(get("net_monthly_profit"),1085);
  assert.ok(Math.abs(get("gross_margin_pct")-86.8)<1e-8);
  assert.equal(get("cost_per_thousand_users"),6.6);
+ const scenarioValues=key=>({...values,...definition.spec.scenarios.find(item=>item.key===key).values});
+ const viral=engine.evaluateFormulaResults(definition.spec,scenarioValues("viral_growth"),{external_apis:[{api_calls_per_session:1,api_cost_per_call:0.0005,api_fixed_monthly:15}]});
+ const high=engine.evaluateFormulaResults(definition.spec,scenarioValues("high_scale"),{external_apis:[{api_calls_per_session:1,api_cost_per_call:0.0005,api_fixed_monthly:15}]});
+ const scenarioResult=(items,key)=>items.find(item=>item.key===key).value;
+ assert.equal(scenarioResult(viral,"total_monthly_infra_cost"),1624.8);
+ assert.equal(scenarioResult(high,"total_monthly_infra_cost"),11581.5);
+ assert.equal(scenarioResult(viral,"net_monthly_profit"),13375.2);
+ assert.equal(scenarioResult(high,"net_monthly_profit"),108418.5);
 });
 
 test("repairs copied JSON line continuations, HTML-encoded spaces and escaped multiplication signs",()=>{
