@@ -1595,6 +1595,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <strong>Advanced Formula Builder</strong>
                 <p>Build a custom calculation by adding your own inputs and result rows, then writing formulas with the supported arithmetic functions. Best for multi-step calculations and specialised comparisons.</p>
               </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="random">
+                <strong>Random calculator</strong>
+                <p>Let Worth It choose a tested calculator template at random. The selected title, description, inputs and formulas always match the calculator that was actually created.</p>
+              </article>
             </div>
           </div>
           <button type="button" class="ugc-maker-close" id="ugcMakerClose" aria-label="Close calculator maker"><span class="ugc-maker-close-glyph" aria-hidden="true">×</span></button>
@@ -1605,6 +1609,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <option value="quick">Quick Builder</option>
               <option value="template">Template Builder</option>
               <option value="advanced">Advanced Formula Builder</option>
+              <option value="random">Random calculator</option>
             </select>
           </label>
           <label id="ugcManualTemplateWrap" for="ugcManualTemplate">Start from a template
@@ -1618,6 +1623,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               </optgroup>
               <optgroup label="Home and utilities">
                 <option value="electricity-cost">Electricity cost</option>
+                <option value="smart-led-lighting">Smart LED lighting energy and cost</option>
                 <option value="heating-compare">Electricity vs pellet heating cost</option>
                 <option value="water-cost">Water usage cost</option>
                 <option value="flooring-materials">Flooring materials estimate</option>
@@ -1650,10 +1656,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" id="ugcBlueprintCopyPrompt" class="ugc-action-secondary">Copy instructions for an external AI</button>
             <p class="ugc-blueprint-import-note">After copying, add your own calculator request in the same message to the external AI. The request can cover any subject; these instructions define only the Worth It blueprint format and safety rules.</p>
           </div>
-          <label for="ugcBlueprintOriginalRequest">Original calculator request (optional)
+          <label for="ugcBlueprintOriginalRequest">Original calculator request (recommended for adaptive recovery)
             <textarea id="ugcBlueprintOriginalRequest" rows="3" maxlength="5000" spellcheck="true" placeholder="Paste the same calculator request you gave the external AI. Worth It checks keyword coverage locally only."></textarea>
           </label>
-          <p class="ugc-blueprint-import-note">The original request is used only for a local keyword coverage warning. It is not sent to an AI service, added to the calculator, or saved.</p>
+          <p class="ugc-blueprint-import-note">Worth It uses this text locally to check requested coverage and choose the closest Manual Builder mode/template if the imported blueprint cannot be repaired safely. Enter “random calculator” here when that was your request; the Random calculator mode will then be selected. The text is never sent to an AI service, added to the calculator, or saved.</p>
           <label for="ugcBlueprintImportJson">Paste blueprint JSON
             <textarea id="ugcBlueprintImportJson" rows="7" maxlength="50000" spellcheck="false" autocomplete="off" placeholder='{"blueprintVersion":1,"title":"...","description":"...","category":"home","spec":{"inputs":[],"groups":[],"results":[],"scenarios":[]}}'></textarea>
           </label>
@@ -1661,7 +1667,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" id="ugcBlueprintImportButton" class="ugc-primary-button">Import into Manual Builder</button>
           </div>
           <p id="ugcBlueprintImportStatus" class="ugc-maker-status" role="status" aria-live="polite"></p>
-          <p class="ugc-blueprint-import-note">Import is local only: no Worth It AI request, no CALC charge, no AI quota use, and no automatic save or publish. Quick Fix repairs what can be determined safely and opens an editable draft even when formula or unit issues remain. Review and edit the draft; the same formula, unit and boundary checks still block Save and Publish until everything passes.</p>
+          <p class="ugc-blueprint-import-note">Import is local only: no Worth It AI request, no CALC charge, no AI quota use, and no automatic save or publish. Quick Fix first tries to preserve and repair the blueprint. If the result still cannot pass shared checks, Creator automatically switches to the closest safe Manual Builder mode/template (or Random calculator when the request is random) and prepares a usable editable draft. Save and Publish remain subject to the normal checks.</p>
         </section>
         <div id="ugcMakerAiPromptWrap">
           <label for="ugcMakerPrompt">What should your calculator calculate?</label>
