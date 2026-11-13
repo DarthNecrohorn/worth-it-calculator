@@ -23,6 +23,7 @@ const makerQuotaSql = read("supabase/worth-it-ugc-maker-generation-refunds.sql")
 const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql");
 const composableBuilderSql = read("supabase/worth-it-ugc-composable-builder.sql");
 const v2DatabaseValidatorSql = read("supabase/worth-it-ugc-v2-database-validator.sql");
+const v2PersistenceSql = read("supabase/worth-it-ugc-v2-persistence.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
@@ -3108,7 +3109,29 @@ test("AI Creator exposes a separate experimental typed V2 schema choice and rout
  assert.match(maker,/if\(typedV2\)\{renderManualV2Preview\(host,definition\);return;\}/);
  assert.match(maker,/Typed V2 AI generation passed server schema, formula, unit and default-value validation/);
  assert.match(maker,/if\(Number\(state\.aiDraft\?\.spec\?\.schemaVersion\)===2\)/);
- assert.match(maker,/Typed V2 drafts can be edited and tested locally, but cannot be saved or published/);
+ assert.match(maker,/V2 remains local-only in this database/);
+ assert.match(maker,/V2 save and publish are enabled in this database/);
+});
+
+test("Typed V2 persistence uses a database capability gate and a strict member runtime without changing V1 evaluation",()=>{
+ assert.match(maker,/async function refreshUGCSchemaCapabilities\(\)/);
+ assert.match(maker,/rpc\("get_worth_it_ugc_schema_capabilities"\)/);
+ assert.match(maker,/function updateV2PersistenceControls\(\)/);
+ assert.match(maker,/state\.v2PersistenceAvailable===true/);
+ assert.match(maker,/function appendV2RuntimeGroupControls\(host,group\)/);
+ assert.match(maker,/function collectV2RuntimeValues\(root,spec\)/);
+ assert.match(maker,/function executableV2Spec\(spec\)/);
+ assert.match(maker,/delete executable\.assumptions;delete executable\.subcategories/);
+ assert.match(maker,/evaluateV2TypedResults\(evaluationSpec,scenarioValues,groupValues\)/);
+ assert.match(maker,/evaluateFormulaResults\(evaluationSpec,scenarioValues,groupValues\)/);
+ assert.match(maker,/if\(typedV2&&state\.v2PersistenceAvailable!==true\)/);
+ assert.match(maker,/typedV2\?validateManualDraftSpec\(specToSave\):validateMakerSpec\(specToSave\)/);
+ assert.match(maker,/if\(Number\(calculator\.spec\?\.schemaVersion\)===2\)\{await editCalculatorManually\(id\);return;\}/);
+ assert.match(v2PersistenceSql,/private\.worth_it_validate_ugc_v2_spec\(p_spec - 'subcategories' - 'assumptions'\)/);
+ assert.match(v2PersistenceSql,/public\.get_worth_it_ugc_schema_capabilities/);
+ assert.match(v2PersistenceSql,/revoke all on function public\.get_worth_it_ugc_schema_capabilities\(\) from public, anon, service_role/);
+ assert.match(workflow,/supabase\/worth-it-ugc-v2-persistence\.sql/);
+ assert.match(workflow,/tests\/fixtures\/ugc-v2-persistence-postgres-smoke\.sql/);
 });
 
 test("AI Creator API supports a separate strict typed V2 provider schema and validates through the shared Blueprint importer",()=>{
