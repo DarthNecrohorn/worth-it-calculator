@@ -801,7 +801,7 @@ function inferV2Expression(ast,symbols,groups){
   const sameScalar=(left,right,context)=>{
    if(left.type==="string"&&right.type==="enum"||right.type==="string"&&left.type==="enum"){
     const enumType=left.type==="enum"?left:right,literal=left.type==="string"?left:right;
-    if(!enumType.choices.some(choice=>choice?.value===literal.value))throw new Error(context+" uses a string that is not one of the enum's declared choices.");
+    if(!enumType.choices.some(choice=>choice?.value===literal.value))throw new Error(context+" string "+JSON.stringify(literal.value)+" is not in enum choices "+JSON.stringify(enumType.choices.map(choice=>choice?.value))+".");
     return;
    }
    if(left.type!==right.type||!scalarTypes.has(left.type))throw new Error(context+" requires values of the same supported type.");
