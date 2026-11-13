@@ -1314,26 +1314,63 @@ function blueprintCountAtomFromText(value){
  if(/\b(?:api\s+)?calls?\b/.test(text))return "call";
  if(/\bsessions?\b/.test(text))return "session";
  if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
+ // Generic sellable/countable quantities are dimensional values too.
+ // Recognize common English and Serbian Latin labels.
+ if(/\b(?:units?|items?|products?|pieces?|skus?)\b|\b(?:jedinic\p{L}*|proizvod\p{L}*|artikl\p{L}*|komad\p{L}*|stavk\p{L}*)\b/u.test(text))return "items";
  return "";
+}
+function blueprintPerCountDenominator(label){
+ const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ const english=normalized.match(/\bper\s+(?:each\s+)?(.+)$/);
+ const serbian=normalized.match(/\bpo\s+(.+)$/u);
+ const match=english||serbian;
+ if(match)return blueprintCountAtomFromText(match[1]);
+ if(/\b(?:unit|item|product|piece)\s+(?:price|cost|rate)\b/.test(normalized))return "items";
+ return "";
+}
+function blueprintIsPerCountPriceLabel(label){
+ const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ const denominator=blueprintPerCountDenominator(normalized);
+ const hasMoneyMeaning=/\b(?:price|cost|rate|fee|expense|revenue|cena|trošak|trosak|naknada|prihod|zarada|iznos)\b/u.test(normalized);
+ return Boolean(denominator&&hasMoneyMeaning);
 }
 function blueprintCountUnitFromLabel(label){
  const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ // Do not misclassify a price-per-item input as a quantity input.
+ if(blueprintIsPerCountPriceLabel(normalized))return "";
  const perMatch=normalized.match(/\b(.+?)\s+per\s+(.+?)\b/);
  if(perMatch){
   const numerator=blueprintCountAtomFromText(perMatch[1]);
   const denominator=blueprintCountAtomFromText(perMatch[2]);
   if(numerator&&denominator)return numerator+"/"+denominator;
+  if(denominator)return denominator;
+ }
+ const serbianPerMatch=normalized.match(/\bpo\s+(.+)$/u);
+ if(serbianPerMatch){
+  const denominator=blueprintCountAtomFromText(serbianPerMatch[1]);
+  if(denominator)return denominator;
  }
  return blueprintCountAtomFromText(normalized);
 }
 function inferBlueprintCountFieldUnit(item,label,notes){
- const inferred=blueprintCountUnitFromLabel(label),current=String(item.unit||"").trim();
+ const current=String(item.unit||"").trim();
+ const currencyMatch=/^([A-Z]{3})$/.exec(current);
+ const rateDenominator=blueprintPerCountDenominator(label);
+ if(currencyMatch&&rateDenominator&&blueprintIsPerCountPriceLabel(label)&&isSupportedCurrencyCode(currencyMatch[1])){
+  const inferredRate=currencyMatch[1]+"/"+rateDenominator;
+  if(current!==inferredRate){
+   item.unit=inferredRate;
+   notes.push(label+": inferred "+inferredRate+" because this monetary input is explicitly a price or cost per "+rateDenominator+".");
+  }
+  return;
+ }
+ const inferred=blueprintCountUnitFromLabel(label);
  const countPlaceholder=/^(?:items?|units?)$/i.test(current);
  const ratePlaceholder=/^([A-Z]{3})\s*\/\s*(?:items?|units?)$/i.exec(current);
  if(!current&&inferred){
   item.unit=inferred;
   notes.push(label+": inferred the explicit count/rate unit "+inferred+" from its label.");
- }else if(countPlaceholder&&inferred){
+ }else if(countPlaceholder&&inferred&&inferred!==current){
   item.unit=inferred;
   notes.push(label+": replaced the generic "+current+" unit with "+inferred+" based on its label.");
  }else if(ratePlaceholder&&inferred&&!inferred.includes("/")){

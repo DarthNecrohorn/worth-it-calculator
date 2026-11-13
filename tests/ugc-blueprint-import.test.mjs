@@ -1112,6 +1112,99 @@ test("adds safe guards to divisions with a variable denominator and validates ze
 });
 
 
+test("repairs Serbian small-business unit-price dimensions before opening the editable test calculator",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const candidate={
+  blueprintVersion:1,
+  title:"Kalkulator profitabilnosti i tačke pokrića malog biznisa",
+  description:"Izračunajte mesečni prihod, fiksne i promenljive troškove, neto dobit, profitnu maržu i tačku pokrića za mali biznis.",
+  category:"money",
+  subcategories:["business","profit","breakeven"],
+  assumptions:[
+   "Svi finansijski iznosi su izraženi u EUR.",
+   "Fiksni troškovi ostaju stabilni bez obzira na obim prodaje u posmatranom periodu.",
+   "Promenljivi troškovi i dodatni troškovi se obračunavaju na mesečnom nivou."
+  ],
+  spec:{
+   inputs:[
+    {key:"average_price_per_unit",label:"Prosečna cena po jedinici proizvoda/usluge",control:"number",min:1,max:1000,default:50,step:1,unit:"EUR"},
+    {key:"monthly_units_sold",label:"Očekivana mesečna prodaja (jedinice)",control:"number",min:0,max:10000,default:300,step:10,unit:"items"},
+    {key:"variable_cost_per_unit",label:"Promenljivi trošak po jedinici",control:"number",min:0,max:500,default:20,step:1,unit:"EUR"},
+    {key:"monthly_fixed_costs",label:"Osnovni mesečni fiksni troškovi",control:"number",min:0,max:50000,default:4000,step:100,unit:"EUR"},
+    {key:"tax_rate_pct",label:"Poreska stopa na dobit",control:"slider",min:0,max:50,default:15,step:1,unit:""}
+   ],
+   groups:[{key:"additional_expenses",label:"Dodatni mesečni troškovi poslovanja",itemLabel:"Trošak",minItems:1,maxItems:5,fields:[
+    {key:"expense_amount",label:"Iznos troška",min:0,max:5000,default:100,step:50,unit:"EUR"}
+   ]}],
+   results:[
+    {key:"gross_revenue",label:"Ukupan mesečni prihod",expression:"average_price_per_unit * monthly_units_sold",format:"currency",currency:"EUR",explanation:"Ukupan prihod od prodaje bez odbitka troškova."},
+    {key:"total_variable_costs",label:"Ukupni promenljivi troškovi",expression:"(variable_cost_per_unit * monthly_units_sold) + sum(additional_expenses.expense_amount)",format:"currency",currency:"EUR",explanation:"Direktni promenljivi i dodatni mesečni troškovi."},
+    {key:"total_fixed_expenses",label:"Ukupni fiksni troškovi",expression:"monthly_fixed_costs",format:"currency",currency:"EUR",explanation:"Fiksni mesečni troškovi poslovanja."},
+    {key:"total_costs",label:"Ukupni troškovi poslovanja",expression:"total_variable_costs + total_fixed_expenses",format:"currency",currency:"EUR",explanation:"Zbir fiksnih i promenljivih troškova."},
+    {key:"net_profit_before_tax",label:"Neto dobit pre oporezivanja",expression:"gross_revenue - total_costs",format:"currency",currency:"EUR",explanation:"Dobit pre poreza."},
+    {key:"net_profit_after_tax",label:"Neto dobit nakon oporezivanja",expression:"net_profit_before_tax * (1 - tax_rate_pct / 100)",format:"currency",currency:"EUR",explanation:"Dobit nakon primene unete poreske stope."},
+    {key:"profit_margin_pct",label:"Neto profitna marža",expression:"if(gt(gross_revenue, 0), (net_profit_after_tax / gross_revenue) * 100, 0)",format:"percent",explanation:"Udeo neto dobiti u ukupnom prihodu."},
+    {key:"contribution_margin_per_unit",label:"Marža pokrića po jedinici",expression:"average_price_per_unit - variable_cost_per_unit",format:"currency",currency:"EUR",explanation:"Prodajna cena umanjena za promenljivi trošak po jedinici."},
+    {key:"break_even_units",label:"Tačka pokrića (Break-even u jedinicama)",expression:"if(gt(contribution_margin_per_unit, 0), (monthly_fixed_costs + sum(additional_expenses.expense_amount)) / contribution_margin_per_unit, 0)",format:"number",explanation:"Broj jedinica potreban za pokriće troškova."}
+   ],
+   scenarios:[
+    {label:"Osnovni scenario poslovanja",values:{average_price_per_unit:50,monthly_units_sold:300,variable_cost_per_unit:20,monthly_fixed_costs:4000,tax_rate_pct:15}},
+    {label:"Scenario rasta i veće prodaje",values:{average_price_per_unit:55,monthly_units_sold:600,variable_cost_per_unit:18,monthly_fixed_costs:4500,tax_rate_pct:15}},
+    {label:"Konzervativni početni scenario",values:{average_price_per_unit:45,monthly_units_sold:150,variable_cost_per_unit:22,monthly_fixed_costs:3500,tax_rate_pct:10}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ assert.equal(definition.spec.inputs.find(item=>item.key==="average_price_per_unit").unit,"EUR/items");
+ assert.equal(definition.spec.inputs.find(item=>item.key==="variable_cost_per_unit").unit,"EUR/items");
+ assert.equal(definition.spec.inputs.find(item=>item.key==="monthly_units_sold").unit,"items");
+ assert.equal(definition.spec.results.find(item=>item.key==="gross_revenue").format,"currency");
+ assert.equal(definition.spec.results.find(item=>item.key==="total_variable_costs").format,"currency");
+ assert.equal(definition.spec.results.find(item=>item.key==="contribution_margin_per_unit").format,"unit");
+ assert.equal(definition.spec.results.find(item=>item.key==="contribution_margin_per_unit").unit,"EUR/items");
+ assert.equal(definition.spec.results.find(item=>item.key==="break_even_units").format,"unit");
+ assert.equal(definition.spec.results.find(item=>item.key==="break_even_units").unit,"items");
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ assert.ok(definition.importNotes.some(note=>note.includes("inferred EUR/items")));
+ assert.ok(definition.importNotes.some(note=>note.includes("Quick Fix self-test passed")));
+ const groupValues={additional_expenses:[{expense_amount:100}]};
+ const calculate=(overrides={})=>{
+  const values={...Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item.default])),...overrides};
+  return Object.fromEntries(engine.evaluateFormulaResults(definition.spec,values,groupValues).map(result=>[result.key,result.value]));
+ };
+ const base=calculate();
+ assert.equal(base.gross_revenue,15000);
+ assert.equal(base.total_variable_costs,6100);
+ assert.equal(base.total_fixed_expenses,4000);
+ assert.equal(base.total_costs,10100);
+ assert.equal(base.net_profit_before_tax,4900);
+ assert.equal(base.net_profit_after_tax,4165);
+ assert.ok(Math.abs(base.profit_margin_pct-27.7666666667)<1e-8);
+ assert.equal(base.contribution_margin_per_unit,30);
+ assert.ok(Math.abs(base.break_even_units-(4100/30))<1e-8);
+ const growth=calculate(definition.spec.scenarios[1].values);
+ assert.equal(growth.gross_revenue,33000);
+ assert.equal(growth.total_variable_costs,10900);
+ assert.equal(growth.total_costs,15400);
+ assert.equal(growth.net_profit_after_tax,14960);
+ assert.ok(Math.abs(growth.profit_margin_pct-45.3333333333)<1e-8);
+ assert.equal(growth.contribution_margin_per_unit,37);
+ assert.ok(Math.abs(growth.break_even_units-(4600/37))<1e-8);
+ const conservative=calculate(definition.spec.scenarios[2].values);
+ assert.equal(conservative.gross_revenue,6750);
+ assert.equal(conservative.total_variable_costs,3400);
+ assert.equal(conservative.total_costs,6900);
+ assert.equal(conservative.net_profit_before_tax,-150);
+ assert.equal(conservative.net_profit_after_tax,-135);
+ const noSales=calculate({monthly_units_sold:0});
+ assert.equal(noSales.gross_revenue,0);
+ assert.equal(noSales.profit_margin_pct,0);
+ assert.equal(noSales.break_even_units,4100/30);
+ const noContribution=calculate({average_price_per_unit:20,variable_cost_per_unit:20});
+ assert.equal(noContribution.contribution_margin_per_unit,0);
+ assert.equal(noContribution.break_even_units,0);
+});
+
 test("checks prompt keyword coverage locally without storing or transmitting the original request",()=>{
  const importer=getImporter();
  const candidate=blueprint({
