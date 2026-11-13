@@ -1319,7 +1319,7 @@ function blueprintCountAtomFromText(value){
  if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
  // Generic sellable/countable quantities are dimensional values too.
  // Recognize common English and Serbian Latin labels.
- if(/\b(?:units?|items?|products?|pieces?|skus?)\b|\b(?:jedinic\p{L}*|proizvod\p{L}*|artikl\p{L}*|komad\p{L}*|stavk\p{L}*)\b/u.test(text))return "items";
+ if(/\b(?:cups?|mugs?|units?|items?|products?|pieces?|skus?)\b|\b(?:jedinic\p{L}*|proizvod\p{L}*|artikl\p{L}*|komad\p{L}*|stavk\p{L}*)\b/u.test(text))return "items";
  return "";
 }
 function blueprintStripRatePeriod(value){
@@ -1361,6 +1361,15 @@ function blueprintCountUnitFromLabel(label){
 }
 function inferBlueprintCountFieldUnit(item,label,notes){
  const current=String(item.unit||"").trim();
+ const normalizedLabel=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ const denominator=blueprintPerCountDenominator(normalizedLabel);
+ // A caffeine field keyed in milligrams and explicitly measured per cup is a
+ // mass-per-serving rate, not a dimensionless number or a cup count.
+ if(!current&&/\bcaffeine\b/.test(normalizedLabel)&&/\bmg$/.test(String(item.key||""))&&denominator){
+  item.unit="mg/"+denominator;
+  notes.push(label+": inferred mg/"+denominator+" from its caffeine key and per-cup label.");
+  return;
+ }
  const currencyMatch=/^([A-Z]{3})$/.exec(current);
  const ratePlaceholder=/^([A-Z]{3})\s*\/\s*(?:items?|units?)$/i.exec(current);
  const currencyCode=currencyMatch?.[1]||ratePlaceholder?.[1]||"";
