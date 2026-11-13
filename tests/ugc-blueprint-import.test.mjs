@@ -20,7 +20,14 @@ function getManualEngine(){
  const currencyTableEnd=builderSource.indexOf("function isSupportedCurrencyCode",currencyTableStart);
  assert.ok(currencyTableStart>=0&&currencyTableEnd>currencyTableStart,"The shared engine currency configuration must be available.");
  const currencyData=runInNewContext(builderSource.slice(currencyTableStart,currencyTableEnd)+"\n({currencies:CURRENCIES,historicalCurrencies:HISTORICAL_CURRENCIES})");
- return sandbox.WorthItCalculatorEngine.create(currencyData);
+ const engine=sandbox.WorthItCalculatorEngine.create(currencyData);
+ const repairStart=builderSource.indexOf("function unitLabelFromDescriptor(unit){");
+ const repairEnd=builderSource.indexOf("function makerCurrencyWarnings(spec){",repairStart);
+ assert.ok(repairStart>=0&&repairEnd>repairStart,"The local Blueprint Quick Fix repair helpers must exist.");
+ const repairSandbox={...engine,CURRENCIES:currencyData.currencies,HISTORICAL_CURRENCIES:currencyData.historicalCurrencies};
+ runInNewContext(builderSource.slice(repairStart,repairEnd)+"\\nvalidateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;",repairSandbox);
+ engine.validateMakerSpec.repairBlueprintSpec=repairSandbox.validateMakerSpec.repairBlueprintSpec;
+ return engine;
 }
 function getManualValidator(){return getManualEngine().validateMakerSpec;}
 function plain(value){return JSON.parse(JSON.stringify(value));}
