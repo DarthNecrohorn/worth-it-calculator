@@ -2990,6 +2990,7 @@ function isRandomCalculatorRequest(value){
 }
 function inferManualTemplateKey(request,definition){
  if(isRandomCalculatorRequest(request))return "random";
+ if(!String(request||"").trim()&&!definition?.title&&!definition?.spec)return "random";
  const spec=definition?.spec||{};
  const textParts=[
   String(request||""),String(definition?.title||""),String(definition?.description||""),
@@ -3019,7 +3020,7 @@ function inferManualTemplateKey(request,definition){
  ];
  for(const [key,pattern] of rules)if(pattern.test(text))return key;
  if(/\b(?:cost|expense|price|total|budget)\b/.test(text))return "simple-cost";
- return "random";
+ return "advanced";
 }
 function createManualDraft(templateKey){
  const selectedKey=templateKey==="random"?pickRandomManualTemplateKey():templateKey;
@@ -3104,7 +3105,7 @@ function applyAdaptiveManualFallback(originalRequest,sourceDefinition,reason,sta
  const intentKey=inferManualTemplateKey(originalRequest,sourceDefinition||{});
  const randomIntent=intentKey==="random";
  const selectedTemplateKey=randomIntent?pickRandomManualTemplateKey():intentKey;
- const mode=randomIntent?"random":selectedTemplateKey==="simple-cost"?"quick":"template";
+ const mode=randomIntent?"random":selectedTemplateKey==="simple-cost"?"quick":selectedTemplateKey==="advanced"?"advanced":"template";
  state.creationSource="manual";
  state.aiOperationId="";
  state.manualMode=mode;
@@ -3113,6 +3114,15 @@ function applyAdaptiveManualFallback(originalRequest,sourceDefinition,reason,sta
  state.makerLocale="auto";
  state.blueprintImportActive=false;
  state.aiDraft=createManualDraft(selectedTemplateKey);
+ if(selectedTemplateKey==="advanced"&&sourceDefinition?.title){
+  const requestedTitle=String(sourceDefinition.title).trim().slice(0,70);
+  if(requestedTitle.length>=3)state.aiDraft.title=requestedTitle;
+  state.aiDraft.description="Safe starter structure for "+state.aiDraft.title+". The imported formula model could not be reconstructed reliably; add the required inputs, units and formulas, then test them before saving or publishing.";
+  const sourceCategory=String(sourceDefinition.category||"other");
+  if(["cars","money","technology","home","other"].includes(sourceCategory))state.aiDraft.category=sourceCategory;
+  const sourceSubcategories=sourceDefinition.spec?.subcategories||sourceDefinition.subcategories;
+  if(Array.isArray(sourceSubcategories))state.aiDraft.spec.subcategories=sourceSubcategories.slice(0,12);
+ }
  const modeSelect=$("ugcManualMode");
  if(modeSelect)modeSelect.value=mode;
  const templateSelect=$("ugcManualTemplate");
