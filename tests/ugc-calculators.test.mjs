@@ -1877,8 +1877,8 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
  const executionSpec=JSON.parse(JSON.stringify(converted.spec));
  delete executionSpec.assumptions;delete executionSpec.subcategories;
  assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(executionSpec).errors)),[]);
- assert.deepEqual(converted.spec.assumptions,["Test assumption"]);
- assert.deepEqual(converted.spec.subcategories,["household-budget"]);
+ assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.assumptions)),["Test assumption"]);
+ assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.subcategories)),["household-budget"]);
  const evaluated=engine.evaluateV2TypedResults(executionSpec,{},{expenses:[{cost:15}]});
  assert.equal(evaluated.results[0].value,65);
  const saveStart=maker.indexOf("async function saveMakerDraft(publish){");
