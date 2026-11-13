@@ -1702,12 +1702,45 @@ function repairGuardedPerEntityFallbacks(ast,inputs,formulaUnits,groups,notes,la
  return repaired;
 }
 
+function repairBlueprintLightingZoneUsage(spec,notes){
+ const groups=Array.isArray(spec?.groups)?spec.groups:[];
+ const results=Array.isArray(spec?.results)?spec.results:[];
+ const group=groups.find(item=>{
+  const text=String(item.key||"")+" "+String(item.label||"");
+  return /\b(?:room|lighting|light)\b/i.test(text)
+   &&Array.isArray(item.fields)
+   &&item.fields.some(field=>/\b(?:bulbs?|lamps?)\b/i.test(String(field.key||"")+" "+String(field.label||"")))
+   &&item.fields.some(field=>/\b(?:dimming|brightness)\b/i.test(String(field.key||"")+" "+String(field.label||"")));
+ });
+ if(!group)return;
+ const bulb=group.fields.find(field=>/\b(?:bulbs?|lamps?)\b/i.test(String(field.key||"")+" "+String(field.label||"")));
+ const dimming=group.fields.find(field=>/\b(?:dimming|brightness)\b/i.test(String(field.key||"")+" "+String(field.label||"")));
+ if(!bulb||!dimming)return;
+ const isPercent=/[%]|percent|percentage/i.test(String(dimming.label||""))||Number(dimming.max)===100;
+ if(!isPercent)return;
+ const result=results.find(item=>
+  /\bled\b/i.test(String(item.key||"")+" "+String(item.label||""))
+  &&/\b(?:energy|consumption|kwh)\b/i.test(String(item.key||"")+" "+String(item.label||""))
+ );
+ if(!result||String(result.expression||"").includes(group.key+"."+dimming.key))return;
+ const refs=group.key+"."+bulb.key;
+ const dim=group.key+"."+dimming.key;
+ const expression="("+String(result.expression||"")+") * if(gt(sum("+refs+"),0),sum("+refs+" * "+dim+") / sum("+refs+") / 100,1)";
+ if(expression.length>500)return;
+ result.expression=expression;
+ const assumptions=Array.isArray(spec.assumptions)?spec.assumptions:(spec.assumptions=[]);
+ const assumption="Room-zone dimming levels are weighted by the number of bulbs in each zone and applied to active LED energy use; standby energy is calculated separately.";
+ if(!assumptions.includes(assumption))assumptions.push(assumption);
+ notes.push(result.label+": incorporated the bulb-count-weighted room-zone dimming level into LED energy consumption.");
+}
+
 function repairMakerBlueprintSpec(sourceSpec){
  const spec=JSON.parse(JSON.stringify(sourceSpec||{})),notes=[];
  const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
  const groups=Array.isArray(spec.groups)?spec.groups:[];
  const results=Array.isArray(spec.results)?spec.results:[];
  inferBlueprintCountInputUnits(inputs,groups,notes);
+ repairBlueprintLightingZoneUsage(spec,notes);
  inferBlueprintSelectRateUnits(inputs,Array.isArray(spec.scenarios)?spec.scenarios:[],notes);
  normalizeMortgageTermExponentUnits(inputs,results,groups,notes);
  const groupMap=groupMapForSpec(spec);
