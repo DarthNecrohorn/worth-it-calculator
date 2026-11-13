@@ -1465,7 +1465,7 @@ test("repairs a Gemini home Wi-Fi estimator with rate choices, per-device group 
  assert.equal(byKey("online_gaming_hours").unit,"hours");
  assert.equal(definition.spec.groups[0].fields.find(field=>field.key==="device_monthly_gb").unit,"GB/device");
  assert.equal(definition.spec.groups[0].fields.find(field=>field.key==="device_count").unit,"device");
- const rates=definition.spec.inputs.filter(input=>input.key.startsWith("estimated_gb_per_hour"));
+ const rates=definition.spec.inputs.filter(input=>input.key.startsWith("estimated_gb_hour"));
  assert.equal(rates.length,2);
  assert.deepEqual(rates.map(input=>input.default).sort((a,b)=>a-b),[0.15,0.8]);
  assert.ok(rates.every(input=>input.unit==="GB/hour"));
