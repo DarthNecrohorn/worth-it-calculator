@@ -37,6 +37,8 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
                     category: { type: "string", enum: [...ALLOWED_CATEGORIES] },
                     subcategories: {
                         type: "array",
+                        minItems: 1,
+                        maxItems: 3,
                         items: {
                             type: "string",
                             enum: [...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]
@@ -48,6 +50,8 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
             },
             inputs: {
                 type: "array",
+                minItems: 1,
+                maxItems: 24,
                 items: {
                     type: "object",
                     properties: {
@@ -57,35 +61,113 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
                         max: { type: "number" },
                         default: { type: "number" },
                         step: { type: "number" },
-                        unit: { type: "string" }
+                        unit: { type: "string" },
+                        control: { type: "string", enum: ["number","slider","select","toggle"] },
+                        choices: {
+                            type: "array",
+                            maxItems: 12,
+                            items: {
+                                type: "object",
+                                properties: {
+                                    label: { type: "string" },
+                                    value: { type: "number" }
+                                },
+                                required: ["label","value"],
+                                additionalProperties: false
+                            }
+                        }
                     },
-                    required: ["key","label","min","max","default","step","unit"],
+                    required: ["key","label","min","max","default","step","unit","control","choices"],
+                    additionalProperties: false
+                }
+            },
+            groups: {
+                type: "array",
+                maxItems: 4,
+                items: {
+                    type: "object",
+                    properties: {
+                        key: { type: "string" },
+                        label: { type: "string" },
+                        itemLabel: { type: "string" },
+                        minItems: { type: "integer" },
+                        maxItems: { type: "integer" },
+                        fields: {
+                            type: "array",
+                            minItems: 1,
+                            maxItems: 6,
+                            items: {
+                                type: "object",
+                                properties: {
+                                    key: { type: "string" },
+                                    label: { type: "string" },
+                                    min: { type: "number" },
+                                    max: { type: "number" },
+                                    default: { type: "number" },
+                                    step: { type: "number" },
+                                    unit: { type: "string" }
+                                },
+                                required: ["key","label","min","max","default","step","unit"],
+                                additionalProperties: false
+                            }
+                        }
+                    },
+                    required: ["key","label","itemLabel","minItems","maxItems","fields"],
                     additionalProperties: false
                 }
             },
             results: {
                 type: "array",
+                minItems: 1,
+                maxItems: 20,
                 items: {
                     type: "object",
                     properties: {
+                        key: { type: "string" },
                         label: { type: "string" },
                         expression: { type: "string" },
                         format: { type: "string", enum: ["number","currency","percent","unit"] },
                         currency: { type: "string" },
                         unit: { type: "string" },
                         prefix: { type: "string" },
-                        suffix: { type: "string" }
+                        suffix: { type: "string" },
+                        explanation: { type: "string" }
                     },
-                    required: ["label","expression","format","currency","unit","prefix","suffix"],
+                    required: ["key","label","expression","format","currency","unit","prefix","suffix","explanation"],
+                    additionalProperties: false
+                }
+            },
+            scenarios: {
+                type: "array",
+                maxItems: 3,
+                items: {
+                    type: "object",
+                    properties: {
+                        label: { type: "string" },
+                        overrides: {
+                            type: "array",
+                            minItems: 1,
+                            maxItems: 24,
+                            items: {
+                                type: "object",
+                                properties: {
+                                    key: { type: "string" },
+                                    value: { type: "number" }
+                                },
+                                required: ["key","value"],
+                                additionalProperties: false
+                            }
+                        }
+                    },
+                    required: ["label","overrides"],
                     additionalProperties: false
                 }
             }
         },
-        required: ["title","description","classification","inputs","results"],
+        required: ["title","description","classification","inputs","groups","results","scenarios"],
         additionalProperties: false
     }
 };
-
 const COUNTRY_DEFAULTS = {
  US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
  CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
