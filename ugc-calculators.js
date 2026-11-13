@@ -936,7 +936,11 @@ function analyseFormulaUnit(ast,inputs,groups){
  }
  if(ast.name==="pow"){
   const power=constantFormulaValue(ast.args[1]);
-  if(power===null)throw new Error("Power exponent must be a fixed numeric value.");
+  if(power===null){
+   if(Object.keys(args[1].vector).length)throw new Error("A variable power exponent must be dimensionless.");
+   if(Object.keys(args[0].vector).length)throw new Error("A variable exponent requires a dimensionless base.");
+   return unitDescriptor("");
+  }
   const vector={};Object.entries(args[0].vector).forEach(([key,value])=>{if(value*power)vector[key]=value*power;});
   return{exact:"",vector,opaque:args[0].opaque,symbols:{...(args[0].symbols||{})}};
  }
@@ -1384,12 +1388,52 @@ function materializeCurrencyRateConstants(ast,result,currency,formulaUnits,group
  return{ast:repaired,inputs:pending,changed:true,expression};
 }
 
+function formulaNodeContainsVariable(node,key){
+ if(!node||typeof node!=="object")return false;
+ if(node.type==="variable")return node.name===key;
+ if(node.type==="binary")return formulaNodeContainsVariable(node.left,key)||formulaNodeContainsVariable(node.right,key);
+ if(node.type==="unary")return formulaNodeContainsVariable(node.value,key);
+ if(node.type==="call")return node.args.some(argument=>formulaNodeContainsVariable(argument,key));
+ return false;
+}
+function isYearToMonthlyPaymentCount(node,key){
+ if(!node||node.type!=="binary"||node.op!=="*")return false;
+ return(node.left?.type==="variable"&&node.left.name===key&&constantFormulaValue(node.right)===12)
+  ||(node.right?.type==="variable"&&node.right.name===key&&constantFormulaValue(node.left)===12);
+}
+function formulaContainsYearToMonthlyPower(ast,key){
+ if(!ast||typeof ast!=="object")return false;
+ if(ast.type==="call"&&ast.name==="pow"&&ast.args?.length===2
+  &&formulaNodeContainsVariable(ast.args[1],key)&&isYearToMonthlyPaymentCount(ast.args[1],key))return true;
+ if(ast.type==="binary")return formulaContainsYearToMonthlyPower(ast.left,key)||formulaContainsYearToMonthlyPower(ast.right,key);
+ if(ast.type==="unary")return formulaContainsYearToMonthlyPower(ast.value,key);
+ if(ast.type==="call")return ast.args.some(argument=>formulaContainsYearToMonthlyPower(argument,key));
+ return false;
+}
+function normalizeMortgageTermExponentUnits(inputs,results,groups,notes){
+ const keys=new Set([
+  ...(Array.isArray(inputs)?inputs:[]).map(input=>input.key),
+  ...(Array.isArray(results)?results:[]).map(result=>result.key).filter(Boolean)
+ ]);
+ const groupMap=groupMapForSpec({groups});
+ (Array.isArray(inputs)?inputs:[]).forEach(input=>{
+  if(!/year/i.test(String(input.unit||""))||!/(?:mortgage|loan).*(?:term|duration)|(?:term|duration).*(?:mortgage|loan)/i.test(String(input.label||input.key||"")))return;
+  const formulas=(Array.isArray(results)?results:[]).map(result=>{
+   try{return compileExpression(String(result.expression||""),keys,groupMap);}catch(_){return null;}
+  });
+  if(!formulas.some(ast=>formulaContainsYearToMonthlyPower(ast,input.key)))return;
+  input.unit="";
+  notes.push(String(input.label||input.key)+": treated the entered year value as a dimensionless year count because the mortgage formula explicitly multiplies it by 12 to calculate monthly payment periods.");
+ });
+}
+
 function repairMakerBlueprintSpec(sourceSpec){
  const spec=JSON.parse(JSON.stringify(sourceSpec||{})),notes=[];
  const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
  const groups=Array.isArray(spec.groups)?spec.groups:[];
  const results=Array.isArray(spec.results)?spec.results:[];
  inferBlueprintCountInputUnits(inputs,groups,notes);
+ normalizeMortgageTermExponentUnits(inputs,results,groups,notes);
  const groupMap=groupMapForSpec(spec);
  const resultKeySet=new Set(results.map(item=>String(item?.key||"")).filter(Boolean));
  const knownFormulaFunctions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not","pi","e"]);

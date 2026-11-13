@@ -509,6 +509,80 @@ test("recognizes kW multiplied by hours as kWh and repairs solar savings depende
  assert.equal(results.find(item=>item.key==="payback_period_years").value,12000/720);
 });
 
+test("repairs mortgage amortization formulas with a variable monthly-payment exponent",()=>{
+ const importer=getImporter();
+ const engine=getManualEngine();
+ const candidate={
+  blueprintVersion:1,
+  title:"Advanced Real Estate Rental Property & ROI Analyzer",
+  description:"Models rental property profitability, mortgage payments, operating expenses and investment returns using editable assumptions.",
+  category:"money",
+  subcategories:["realestate","investment","finance"],
+  assumptions:["Mortgage calculations use a fixed annual interest rate and monthly amortization; the year count is multiplied by 12 to determine payment periods."],
+  spec:{
+   inputs:[
+    {key:"property_purchase_price",label:"Total Property Purchase Price",control:"number",min:20000,max:1000000,default:180000,step:5000,unit:"EUR"},
+    {key:"down_payment_pct",label:"Down Payment Percentage",control:"slider",min:10,max:100,default:20,step:5,unit:""},
+    {key:"mortgage_interest_rate",label:"Annual Mortgage Interest Rate",control:"number",min:1,max:12,default:4.5,step:0.1,unit:""},
+    {key:"mortgage_term_years",label:"Mortgage Loan Term",control:"select",min:10,max:30,default:25,step:5,unit:"years",choices:[
+     {label:"10 Years",value:10},{label:"15 Years",value:15},{label:"20 Years",value:20},{label:"25 Years",value:25},{label:"30 Years",value:30}
+    ]},
+    {key:"monthly_gross_rent",label:"Expected Monthly Gross Rent",control:"number",min:200,max:10000,default:1200,step:50,unit:"EUR"},
+    {key:"vacancy_rate_pct",label:"Estimated Vacancy Allowance",control:"slider",min:0,max:20,default:5,step:1,unit:""},
+    {key:"annual_property_tax",label:"Annual Property Tax",control:"number",min:0,max:10000,default:1200,step:100,unit:"EUR"},
+    {key:"annual_insurance",label:"Annual Property Insurance",control:"number",min:0,max:3000,default:400,step:50,unit:"EUR"},
+    {key:"property_management_pct",label:"Property Management Fee",control:"slider",min:0,max:15,default:8,step:1,unit:""},
+    {key:"include_hoa_fees",label:"Include Monthly HOA or Maintenance Dues",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"monthly_hoa_fee",label:"Monthly HOA / Maintenance Dues",control:"number",min:0,max:1000,default:150,step:25,unit:"EUR"}
+   ],
+   groups:[{key:"capex_items",label:"Initial Renovation & Setup Expenses",itemLabel:"Renovation Item",minItems:1,maxItems:6,fields:[
+    {key:"item_cost",label:"Estimated Expense Cost",min:0,max:20000,default:2500,step:500,unit:"EUR"},
+    {key:"urgency_rating",label:"Priority / Urgency Rating",min:1,max:5,default:3,step:1,unit:""}
+   ]}],
+   results:[
+    {key:"down_payment_amount",label:"Total Down Payment Required",expression:"property_purchase_price * (down_payment_pct / 100)",format:"currency",currency:"EUR",explanation:"Absolute upfront equity capital required for the property down payment."},
+    {key:"loan_amount",label:"Total Mortgage Loan Amount",expression:"property_purchase_price - down_payment_amount",format:"currency",currency:"EUR",explanation:"Principal loan balance financed through the bank mortgage lender."},
+    {key:"monthly_mortgage_payment",label:"Estimated Monthly Mortgage Payment",expression:"if(gt(mortgage_interest_rate, 0), (loan_amount * ((mortgage_interest_rate / 1200) * pow(1 + (mortgage_interest_rate / 1200), mortgage_term_years * 12))) / (pow(1 + (mortgage_interest_rate / 1200), mortgage_term_years * 12) - 1), loan_amount / (mortgage_term_years * 12))",format:"currency",currency:"EUR",explanation:"Monthly principal and interest debt service obligation."},
+    {key:"effective_gross_income",label:"Effective Monthly Rental Income",expression:"monthly_gross_rent * (1 - vacancy_rate_pct / 100)",format:"currency",currency:"EUR",explanation:"Adjusted gross monthly rental income accounting for average tenant vacancy loss."},
+    {key:"total_renovation_cost",label:"Total Initial Renovation Budget",expression:"sum(capex_items.item_cost)",format:"currency",currency:"EUR",explanation:"Aggregated upfront capital expenditures required before renting out the property."},
+    {key:"total_monthly_operating_expenses",label:"Total Monthly Operating Expenses",expression:"(annual_property_tax / 12) + (annual_insurance / 12) + (monthly_gross_rent * (property_management_pct / 100)) + if(eq(include_hoa_fees, 1), monthly_hoa_fee, 0)",format:"currency",currency:"EUR",explanation:"Combined monthly expenses covering taxes, insurance, management fees, and maintenance dues."},
+    {key:"net_operating_income_monthly",label:"Monthly Net Operating Income (NOI)",expression:"effective_gross_income - total_monthly_operating_expenses",format:"currency",currency:"EUR",explanation:"Monthly operating income before accounting for debt service financing costs."},
+    {key:"net_monthly_cash_flow",label:"Net Monthly Cash Flow",expression:"net_operating_income_monthly - monthly_mortgage_payment",format:"currency",currency:"EUR",explanation:"Actual net monthly cash flow remaining after paying operating expenses and mortgage."},
+    {key:"annual_net_cash_flow",label:"Annual Net Cash Flow",expression:"net_monthly_cash_flow * 12",format:"currency",currency:"EUR",explanation:"Total projected cash profit generated over a full 12-month period."},
+    {key:"cap_rate_pct",label:"Capitalization Rate (Cap Rate)",expression:"if(gt(property_purchase_price, 0), ((net_operating_income_monthly * 12) / property_purchase_price) * 100, 0)",format:"percent",explanation:"Unleveraged annual return metric comparing net operating income to purchase price."},
+    {key:"cash_on_cash_return_pct",label:"Cash-on-Cash Return",expression:"if(gt(down_payment_amount + total_renovation_cost, 0), (annual_net_cash_flow / (down_payment_amount + total_renovation_cost)) * 100, 0)",format:"percent",explanation:"Annual pre-tax cash return percentage relative to total initial cash invested."}
+   ],
+   scenarios:[
+    {label:"Conservative Residential Buy",values:{property_purchase_price:180000,down_payment_pct:20,mortgage_interest_rate:4.5,mortgage_term_years:25,monthly_gross_rent:1200,vacancy_rate_pct:5,annual_property_tax:1200,annual_insurance:400,property_management_pct:8,include_hoa_fees:1,monthly_hoa_fee:150}},
+    {label:"Aggressive Leverage Multi-Unit",values:{property_purchase_price:350000,down_payment_pct:15,mortgage_interest_rate:5.2,mortgage_term_years:30,monthly_gross_rent:2600,vacancy_rate_pct:4,annual_property_tax:2400,annual_insurance:750,property_management_pct:10,include_hoa_fees:1,monthly_hoa_fee:250}},
+    {label:"All-Cash Rental Acquisition",values:{property_purchase_price:140000,down_payment_pct:100,mortgage_interest_rate:1,mortgage_term_years:10,monthly_gross_rent:1000,vacancy_rate_pct:6,annual_property_tax:900,annual_insurance:350,property_management_pct:0,include_hoa_fees:0,monthly_hoa_fee:0}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),engine.validateMakerSpec);
+ assert.equal(definition.spec.inputs.find(item=>item.key==="mortgage_term_years").unit,"");
+ assert.ok(definition.importNotes.some(note=>/dimensionless year count/.test(note)));
+ assert.deepEqual(plain(engine.validateMakerSpec(definition.spec).errors),[]);
+ const groupValues={capex_items:[{item_cost:2500,urgency_rating:3}]};
+ const defaultValues=Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item.default]));
+ const current=engine.evaluateFormulaResults(definition.spec,defaultValues,groupValues);
+ const pay=results=>results.find(item=>item.key==="monthly_mortgage_payment").value;
+ const monthlyRate=0.045/12,periods=25*12;
+ const expectedPayment=144000*(monthlyRate*Math.pow(1+monthlyRate,periods))/(Math.pow(1+monthlyRate,periods)-1);
+ assert.ok(Math.abs(pay(current)-expectedPayment)<1e-8);
+ assert.ok(current.every(item=>Number.isFinite(item.value)));
+ for(const scenario of definition.spec.scenarios){
+  const values={...defaultValues,...scenario.values};
+  const outputs=engine.evaluateFormulaResults(definition.spec,values,groupValues);
+  assert.ok(outputs.every(item=>Number.isFinite(item.value)),scenario.label+" must produce finite results");
+  assert.ok(pay(outputs)>=0);
+ }
+ const allCash=engine.evaluateFormulaResults(definition.spec,definition.spec.scenarios[2].values,groupValues);
+ assert.equal(allCash.find(item=>item.key==="loan_amount").value,0);
+ assert.equal(pay(allCash),0);
+});
+
+
 test("repairs implicit USD-per-operation coefficients in a provider blueprint using editable dimensional rate inputs",()=>{
  const importer=getImporter();
  const engine=getManualEngine();
