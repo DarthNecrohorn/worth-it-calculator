@@ -770,7 +770,7 @@ function unitDescriptor(unit){
  const knownSymbols={
   months:{time:"month"},month:{time:"month"},years:{time:"year"},year:{time:"year"},
   days:{time:"day"},day:{time:"day"},weeks:{time:"week"},week:{time:"week"},
-  hours:{time:"hour"},hour:{time:"hour"},minutes:{time:"minute"},minute:{time:"minute"},
+  hours:{time:"hour"},hour:{time:"hour"},wh:{energy:"Wh"},minutes:{time:"minute"},minute:{time:"minute"},
   seconds:{time:"second"},second:{time:"second"},hr:{time:"hour"},hrs:{time:"hour"},h:{time:"hour"},s:{time:"second"},
   km:{length:"km"},kilometres:{length:"kilometres"},kilometers:{length:"kilometers"},
   miles:{length:"miles"},mile:{length:"mile"},m:{length:"m"},cm:{length:"cm"},mm:{length:"mm"},
@@ -778,7 +778,7 @@ function unitDescriptor(unit){
   l:{volume:"L"},litres:{volume:"litres"},liters:{volume:"liters"},
   "m³":{volume:"m³"},"m3":{volume:"m3"},ml:{volume:"mL"},
   kg:{mass:"kg"},kilograms:{mass:"kilograms"},g:{mass:"g"},grams:{mass:"grams"},tonnes:{mass:"tonnes"},
-  kwh:{energy:"kWh"},mwh:{energy:"MWh"},mj:{energy:"MJ"},w:{power:"W"},kw:{power:"kW"},
+  wh:{energy:"Wh"},kwh:{energy:"kWh"},mwh:{energy:"MWh"},mj:{energy:"MJ"},w:{power:"W"},kw:{power:"kW"},
   "l/100 km":{volume:"L",length:"km"},"km/h":{length:"km",time:"hour"},"m/s":{length:"m",time:"second"},
   "m²/pack":{area:"m²",count:"pack"},"kwh/day":{energy:"kWh",time:"day"},"kwh/month":{energy:"kWh",time:"month"}
  };
@@ -817,11 +817,32 @@ function unitDescriptor(unit){
      else if(base.symbols?.[dimension])symbols[dimension]=base.symbols[dimension];
     });
    }
-   if(valid)return descriptor(raw,vector,Object.keys(vector).some(dimension=>dimension.startsWith("unit:")),symbols);
+   if(valid){
+    normalizeDerivedEnergyUnit(vector,symbols);
+    return descriptor(raw,vector,Object.keys(vector).some(dimension=>dimension.startsWith("unit:")),symbols);
+   }
   }
  }
  if(["period","periods","occurrences","times"].includes(key))return descriptor(raw,{},false,{});
  return descriptor(raw,{["unit:"+key]:1},true,{["unit:"+key]:raw});
+}
+function normalizeDerivedEnergyUnit(vector,symbols){
+ // Power multiplied by one hour is energy. Keep the scale in the displayed unit:
+ // kW × hour = kWh; W × hour = Wh.
+ if(Math.abs(Number(vector.power||0)-1)<1e-10&&Math.abs(Number(vector.time||0)-1)<1e-10){
+  const powerSymbol=String(symbols.power||"");
+  const timeSymbol=String(symbols.time||"");
+  const energySymbol=powerSymbol==="kW"&&timeSymbol==="hour"?"kWh"
+   :powerSymbol==="W"&&timeSymbol==="hour"?"Wh":"";
+  if(energySymbol){
+   delete vector.power;
+   delete vector.time;
+   delete symbols.power;
+   delete symbols.time;
+   vector.energy=(vector.energy||0)+1;
+   symbols.energy=energySymbol;
+  }
+ }
 }
 function combineUnitDescriptors(left,right,sign){
  const vector={...left.vector},symbols={...(left.symbols||{})};
@@ -830,6 +851,7 @@ function combineUnitDescriptors(left,right,sign){
   if(Math.abs(vector[key])<1e-10){delete vector[key];delete symbols[key];}
   else if(!symbols[key]&&right.symbols?.[key])symbols[key]=right.symbols[key];
  });
+ normalizeDerivedEnergyUnit(vector,symbols);
  return{exact:"",vector,opaque:Object.keys(vector).some(dimension=>dimension.startsWith("unit:")),symbols};
 }
 function sameUnitDescriptor(left,right){
