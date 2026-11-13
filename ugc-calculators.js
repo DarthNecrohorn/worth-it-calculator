@@ -769,6 +769,7 @@ function unitDescriptor(unit){
   "m²":{area:1},"m2":{area:1},"ft²":{area:1},
   l:{volume:1},litres:{volume:1},liters:{volume:1},"m³":{volume:1},"m3":{volume:1},ml:{volume:1},
   kg:{mass:1},kilograms:{mass:1},g:{mass:1},grams:{mass:1},tonnes:{mass:1},
+  b:{data:1},kb:{data:1},mb:{data:1},gb:{data:1},tb:{data:1},pb:{data:1},
   kwh:{energy:1},mwh:{energy:1},mj:{energy:1},w:{power:1},kw:{power:1},
   "l/100 km":{volume:1,length:-1},"km/h":{length:1,time:-1},"m/s":{length:1,time:-1},
   "m²/pack":{area:1,count:-1},"kwh/day":{energy:1,time:-1},"kwh/month":{energy:1,time:-1},
@@ -793,6 +794,7 @@ function unitDescriptor(unit){
   l:{volume:"L"},litres:{volume:"litres"},liters:{volume:"liters"},
   "m³":{volume:"m³"},"m3":{volume:"m3"},ml:{volume:"mL"},
   kg:{mass:"kg"},kilograms:{mass:"kilograms"},g:{mass:"g"},grams:{mass:"grams"},tonnes:{mass:"tonnes"},
+  b:{data:"B"},kb:{data:"KB"},mb:{data:"MB"},gb:{data:"GB"},tb:{data:"TB"},pb:{data:"PB"},
   wh:{energy:"Wh"},kwh:{energy:"kWh"},mwh:{energy:"MWh"},mj:{energy:"MJ"},w:{power:"W"},kw:{power:"kW"},
   "l/100 km":{volume:"L",length:"km"},"km/h":{length:"km",time:"hour"},"m/s":{length:"m",time:"second"},
   "m²/pack":{area:"m²",count:"pack"},"kwh/day":{energy:"kWh",time:"day"},"kwh/month":{energy:"kWh",time:"month"}
@@ -808,7 +810,7 @@ function unitDescriptor(unit){
  if(key==="token"||key==="tokens")return descriptor(raw,{token:1},false,{token:"token"});
  const countSymbols={items:"items",item:"item",units:"units",unit:"unit",people:"people",person:"person",packs:"packs",pack:"pack",
   users:"user",user:"user",vehicles:"vehicles",vehicle:"vehicle",cars:"cars",car:"car",
-  requests:"request",request:"request",reads:"read",read:"read",writes:"write",write:"write",calls:"call",call:"call"};
+  requests:"request",request:"request",reads:"read",read:"read",writes:"write",write:"write",calls:"call",call:"call",devices:"device",device:"device"};
  if(Object.prototype.hasOwnProperty.call(countSymbols,key)){
   return descriptor(raw,{count:1},false,{count:countSymbols[key]});
  }
@@ -1334,6 +1336,7 @@ function blueprintCountAtomFromText(value){
  if(/\b(?:prompts?|invocations?)\b/.test(text))return "request";
  if(/\btokens?\b/.test(text))return "token";
  if(/\b(?:api\s+)?calls?\b/.test(text))return "call";
+ if(/\bdevices?\b/.test(text))return "device";
  if(/\bsessions?\b/.test(text))return "session";
  if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
  // Generic sellable/countable quantities are dimensional values too.
@@ -1401,6 +1404,24 @@ function inferBlueprintCountFieldUnit(item,label,notes){
    notes.push(label+": inferred "+inferredRate+" because this monetary input is explicitly a price or cost per "+rateDenominator+".");
   }
   return;
+ }
+ const timeMatch=normalizedLabel.match(/\b(hours?|hrs?|minutes?|seconds?|days?|weeks?|months?|years?)\b/);
+ if(!current&&timeMatch){
+  const timeUnit=({hrs:"hours",hr:"hours",hour:"hours",hours:"hours",minute:"minutes",minutes:"minutes",second:"seconds",seconds:"seconds",day:"days",days:"days",week:"weeks",weeks:"weeks",month:"months",months:"months",year:"years",years:"years"})[timeMatch[1]]||timeMatch[1];
+  item.unit=timeUnit;
+  notes.push(label+": inferred the explicit time unit "+timeUnit+" from its label.");
+  return;
+ }
+ if(current&&denominator&&!currencyCode&&!current.includes("/")){
+  const base=unitDescriptor(current);
+  const dimensions=Object.keys(base.vector||{});
+  const hasSingleBaseDimension=dimensions.length===1&&!dimensions[0].startsWith("currency:")&&dimensions[0]!=="count"&&Math.abs(base.vector[dimensions[0]]-1)<1e-9&&!base.opaque;
+  if(hasSingleBaseDimension){
+   const inferredRate=current+"/"+denominator;
+   item.unit=inferredRate;
+   notes.push(label+": refined the unit to "+inferredRate+" because the label specifies a per-"+denominator+" quantity.");
+   return;
+  }
  }
  const inferred=blueprintCountUnitFromLabel(label);
  const countPlaceholder=/^(?:items?|units?)$/i.test(current);
