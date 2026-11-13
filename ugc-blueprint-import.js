@@ -1047,7 +1047,7 @@ function buildTypedV2Prompt(){
    title:"Calculator title",
    description:"Explain what the calculator measures and its key assumptions in at least 24 characters.",
    category:"other",
-   subcategories:[],
+   subcategories:["general-comparison"],
    assumptions:["State important assumptions, exclusions and limitations as plain text."],
    spec:{
     schemaVersion:2,engineVersion:2,
@@ -1063,8 +1063,8 @@ function buildTypedV2Prompt(){
    }
   },null,2),
   "The spec object contains only schemaVersion, engineVersion, inputs, groups, results and scenarios. It must declare schemaVersion 2 and engineVersion 2 exactly. The top-level blueprintVersion must be 2. Do not mix V1 and V2 schemas.",
-  "Limits: title 3–70 characters; description 24–500 characters; subcategories up to 12 unique text keys; assumptions up to 50 text entries and 5,000 characters total; 1–24 inputs; up to 4 groups; 1–20 results; up to 3 scenarios; formula text up to 500 characters.",
-  "Use unique lowercase variable keys matching ^[a-z][a-z0-9_]{0,31}$ across all inputs, group names, group fields and results. Never use reserved function names as keys.",
+  "Limits: title 3–70 characters; description 24–500 characters; subcategories 1–3 unique IDs from the selected primary category; assumptions up to 50 text entries and 5,000 characters total; 1–24 inputs; up to 4 groups; 1–20 results; up to 3 scenarios; formula text up to 500 characters.",
+  "Use unique lowercase variable keys matching ^[a-z][a-z0-9_]{0,31}$ across all inputs, group names, group fields and results. Never use reserved function names as keys. Every fixed input and every dynamic group field must be referenced by at least one result formula, including values used only inside a condition.",
   "Every input has key, label, type and control. Supported types are number, boolean, enum and date. Number inputs use control number, slider or select and require finite min, max, default, positive step and a unit string (use an empty string for dimensionless). Require min <= default <= max; default and maximum must align with step. A numeric select uses 2–12 unique label/value choices, min/max equal the extreme values, and default equal one choice.",
   "Boolean inputs use type boolean, control toggle and a true/false default. They must not have numeric range, unit, choice or date-bound properties.",
   "Enum inputs use type enum, control select, a non-empty string default, and 2–12 choices with unique labels and unique non-empty string values. The default must exactly match a declared choice. Do not use numeric enum values.",

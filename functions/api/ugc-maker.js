@@ -979,6 +979,27 @@ function normalizeTypedV2Definition(raw,defaultCurrency){
             throw new Error("A currency result uses an unsupported ISO currency code.");
         }
     });
+    // Match the V1 contract: every fixed input and dynamic field must affect
+    // at least one result, including typed values used only in conditions.
+    const engineSpec={...normalized.spec};
+    delete engineSpec.assumptions;delete engineSpec.subcategories;
+    const availableKeys=new Set((engineSpec.inputs||[]).map(item=>item.key));
+    const referencedInputs=new Set();
+    const groupMap=SERVER_CALCULATOR_ENGINE.groupMapForSpec(engineSpec);
+    const referencedGroupFields=new Map((engineSpec.groups||[]).map(group=>[group.key,new Set()]));
+    (engineSpec.results||[]).forEach(result=>{
+        const ast=SERVER_CALCULATOR_ENGINE.compileExpression(result.expression,availableKeys,groupMap);
+        SERVER_CALCULATOR_ENGINE.formulaInputReferences(ast,referencedInputs);
+        SERVER_CALCULATOR_ENGINE.formulaGroupFieldReferences(ast).forEach(reference=>{
+            if(referencedGroupFields.has(reference.group))referencedGroupFields.get(reference.group).add(reference.field);
+        });
+        if(result.key)availableKeys.add(result.key);
+    });
+    const unusedInputs=(engineSpec.inputs||[]).filter(item=>!referencedInputs.has(item.key)).map(item=>item.label||item.key);
+    const unusedFields=(engineSpec.groups||[]).flatMap(group=>(group.fields||[]).filter(field=>!referencedGroupFields.get(group.key)?.has(field.key)).map(field=>group.label+": "+(field.label||field.key)));
+    if(unusedInputs.length||unusedFields.length){
+        throw new Error("The generated V2 calculator contains unused inputs or group fields: "+[...unusedInputs,...unusedFields].join(", ")+". Use them in a result formula or remove them.");
+    }
     return normalized.spec;
 }
 
