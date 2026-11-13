@@ -1578,7 +1578,7 @@ test("Manual Builder exposes random mode and adaptive recovery selects a topic-m
  assert.ok(randomDraft.description.length>=24);
  const ledDraft=helpers.createManualDraft("smart-led-lighting");
  assert.equal(ledDraft.title,"Smart Home LED Lighting Energy & Cost Calculator");
- assert.deepEqual(plain(validateMakerSpec(ledDraft.spec).errors),[]);
+ assert.deepEqual(plain(getManualValidator()(ledDraft.spec).errors),[]);
  assert.match(builderSource,/applyAdaptiveManualFallback\\(originalRequest,definition,reason,statusNode\\)/);
  assert.match(builderSource,/state\\.manualMode=mode/);
  assert.match(html,/option value="random">Random calculator/);
