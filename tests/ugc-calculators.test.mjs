@@ -2750,7 +2750,7 @@ test("v2 typed formula checker rejects invalid boolean logic, enum literals, dat
  assert.ok(invalid("amount + enabled").some(error=>/Arithmetic operators require numeric values/.test(error)));
  assert.ok(invalid("and(enabled, plan)").some(error=>/accepts only boolean/.test(error)));
  assert.ok(invalid("if(enabled, amount, plan)").some(error=>/same supported value type/.test(error)));
- assert.ok(invalid("if(eq(plan, \"enterprise\"), 1, 0)").some(error=>/not one of the enum's declared choices/.test(error)));
+ assert.ok(invalid("if(eq(plan, \"enterprise\"), 1, 0)").some(error=>/does not match a declared enum choice/.test(error)))
  assert.ok(invalid("add_days(start_date, 1.5)").some(error=>/offset constants must be whole numbers/.test(error)));
  assert.ok(invalid("date_diff_days(start_date, 12)").some(error=>/requires two calendar dates/.test(error)));
  const crossGroupErrors=invalid("sum_if(items.amount, eq(other_items.amount, 1))");
