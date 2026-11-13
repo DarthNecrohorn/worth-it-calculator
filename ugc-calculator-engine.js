@@ -817,11 +817,16 @@ function inferV2Expression(ast,symbols,groups){
    return yes;
   }
   if(["eq","neq"].includes(name)){
-   sameScalar(args[0],args[1],name+"()");
+   if(args[0].type==="number"&&args[1].type==="number")typedUnitCompatible([args[0].unit,args[1].unit],expression.args,name+"() compares values with incompatible units.");
+   else if(args[0].type==="date"&&args[1].type==="string"&&isIsoDateOnly(expression.args[1].value)){}
+   else if(args[1].type==="date"&&args[0].type==="string"&&isIsoDateOnly(expression.args[0].value)){}
+   else sameScalar(args[0],args[1],name+"()");
    return {type:"boolean"};
   }
   if(["gt","gte","lt","lte"].includes(name)){
    if(args[0].type==="date"&&args[1].type==="date")return {type:"boolean"};
+   if(args[0].type==="date"&&args[1].type==="string"&&isIsoDateOnly(expression.args[1].value))return {type:"boolean"};
+   if(args[1].type==="date"&&args[0].type==="string"&&isIsoDateOnly(expression.args[0].value))return {type:"boolean"};
    if(args[0].type!=="number"||args[1].type!=="number")throw new Error(name+"() supports only compatible numbers or calendar dates.");
    typedUnitCompatible([args[0].unit,args[1].unit],expression.args,name+"() compares values with incompatible units.");
    return {type:"boolean"};
@@ -1234,12 +1239,8 @@ function validateV2TypedSpec(spec){
   });
   if(Object.keys(numericValues).length)numericScenarios.push({label:scenario.label,values:numericValues});
  });
- const formulaTexts=results.map(item=>String(item?.expression||""));
- if(formulaTexts.some(formula=>formula.includes("v2_internal_anchor")||formula.includes("v2_internal_field_")))add("A formula references a reserved internal validation key.");
- const projectedInputs=numericInputs.length?numericInputs:[{key:"v2_internal_anchor",label:"Internal validation input",min:0,max:1,default:0,step:1,unit:""}];
- const projection={inputs:projectedInputs,groups:numericGroups,results,scenarios:numericScenarios};
- const legacyValidation=validateMakerSpec(projection);
- (Array.isArray(legacyValidation?.errors)?legacyValidation.errors:[]).forEach(add);
+ const formulaValidation=validateV2FormulaResults(spec);
+ (Array.isArray(formulaValidation?.errors)?formulaValidation.errors:[]).forEach(add);
  return {errors:[...new Set(errors)]};
 }
 function validateVersionedSpec(spec){
