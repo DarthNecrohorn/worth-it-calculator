@@ -527,14 +527,14 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(html,/id="ugcBlueprintImportPanel"[^>]*hidden/);
  assert.match(html,/id="ugcBlueprintImportJson"/);
  assert.match(html,/ugc-blueprint-import\.js/);
- const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\\s\\S]*?\\n\}/)?.[0]||"";
+ const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\s\S]*?\n\}/)?.[0]||"";
  assert.ok(importFunction.includes("parseBlueprint"));
  assert.ok(importFunction.includes("Working on a quick fix"));
  assert.ok(importFunction.includes("importValidationIssueCount"));
  assert.ok(importFunction.includes('state.creationSource="manual"'));
  assert.ok(importFunction.includes('state.aiOperationId=""'));
- assert.doesNotMatch(importFunction,/fetch\\s*\\(|\\/api\\/ugc-maker|\\.rpc\\s*\\(/);
- const saveFunction=builderSource.match(/async function saveMakerDraft\(publish\)\{[\\s\\S]*?\\n\}/)?.[0]||"";
+ assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
+ const saveFunction=builderSource.match(/async function saveMakerDraft\(publish\)\{[\s\S]*?\n\}/)?.[0]||"";
  assert.ok(saveFunction.includes("validateMakerSpec(specToSave)"));
  assert.ok(saveFunction.includes("Please fix the calculator validation issues before saving"));
  assert.match(builderSource,/ugcBlueprintCopyPrompt/);
