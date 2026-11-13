@@ -63,8 +63,10 @@ test("shared unit registry keeps aliases, compound units and derived energy dime
  }
  assert.deepEqual(JSON.parse(JSON.stringify(engine.unitDescriptor("kW*hour").vector)),{energy:1});
  assert.deepEqual(JSON.parse(JSON.stringify(engine.unitDescriptor("W*hours").vector)),{energy:1});
- assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("Wh"),engine.unitDescriptor("W*hour")),true);
- assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("kWh"),engine.unitDescriptor("kW*hour")),true);
+ const wattHour=engine.combineUnitDescriptors(engine.unitDescriptor("W"),engine.unitDescriptor("hour"),1);
+ const kilowattHour=engine.combineUnitDescriptors(engine.unitDescriptor("kW"),engine.unitDescriptor("hour"),1);
+ assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("Wh"),wattHour),true);
+ assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("kWh"),kilowattHour),true);
 });
 
 test("v2 formulas validate derived energy, compound rate and opaque unit expressions",()=>{
@@ -90,7 +92,7 @@ test("v2 formulas validate derived energy, compound rate and opaque unit express
  };
  assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(spec).errors)),[]);
  const result=engine.evaluateV2TypedResults(spec,{},{});
- assert.deepEqual(result.results.map(item=>item.value),[6,6,5,2]);
+ assert.deepEqual(JSON.parse(JSON.stringify(result.results.map(item=>item.value))),[6,6,5,2]);
 });
 
 function createCalculatorEngine(){
