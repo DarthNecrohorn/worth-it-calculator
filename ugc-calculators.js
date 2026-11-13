@@ -2684,16 +2684,19 @@ function changeManualSchemaVersion(definition,version){
 function validateManualDraftSpec(spec){
  if(Number(spec?.schemaVersion)!==2)return validateMakerSpec(spec);
  const errors=[];
+ const engineSpec=cloneCalculatorData(spec);
+ // These are Manual Builder presentation metadata, not executable schema fields.
+ delete engineSpec.assumptions;delete engineSpec.subcategories;
  let validation;
- try{validation=validateVersionedSpec(spec);}catch(error){return{errors:[String(error?.message||"V2 validation failed.")]};}
+ try{validation=validateVersionedSpec(engineSpec);}catch(error){return{errors:[String(error?.message||"V2 validation failed.")]};}
  if(!Array.isArray(validation?.errors))return{errors:["The V2 validator returned an invalid response."]};
  errors.push(...validation.errors.map(String));
  if(errors.length)return{errors};
  try{
-  const inputs=createDefaultTypedValues(spec),groups=createDefaultTypedGroupValues(spec);
+  const inputs=createDefaultTypedValues(engineSpec),groups=createDefaultTypedGroupValues(engineSpec);
   if(inputs?.valid!==true)errors.push(...(Array.isArray(inputs?.errors)?inputs.errors.map(String):["V2 input defaults are invalid."]));
   if(groups?.valid!==true)errors.push(...(Array.isArray(groups?.errors)?groups.errors.map(String):["V2 dynamic-group defaults are invalid."]));
-  if(!errors.length)evaluateV2TypedResults(spec,inputs.values,groups.groups);
+  if(!errors.length)evaluateV2TypedResults(engineSpec,inputs.values,groups.groups);
  }catch(error){errors.push(String(error?.message||"The V2 default-value test failed."));}
  return{errors};
 }

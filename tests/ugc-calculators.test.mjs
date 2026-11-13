@@ -1862,7 +1862,7 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
    ]}],
    results:[{key:"total",label:"Total",expression:"if(enabled, amount, 0)+sum(expenses.cost)",format:"currency",currency:"EUR",unit:""}],
    scenarios:[{label:"Disabled",values:{amount:20,enabled:0,tier:1}}],
-   assumptions:["Test assumption"]
+   assumptions:["Test assumption"],subcategories:["household-budget"]
   }
  });
  assert.equal(converted.spec.schemaVersion,2);
