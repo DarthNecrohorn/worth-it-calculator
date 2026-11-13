@@ -3125,6 +3125,13 @@ test("AI Creator API supports a separate strict typed V2 provider schema and val
 
 
 
+test("explicit base prices do not leak into generic expense amount defaults",()=>{
+ const original=extractExplicitMonetaryAmounts("Create a household expense calculator with a base cost of 30 EUR.");
+ const base={key:"base_cost",label:"Base cost",unit:"EUR"};
+ const expense={key:"amount",label:"Expense amount",unit:"EUR"};
+ assert.equal(explicitAmountMatchesInput(base,original,[base,expense]),true);
+ assert.equal(explicitAmountMatchesInput(expense,original,[base,expense]),false);
+});
 test("AI Creator generates and server-validates typed V2 blueprints without enabling persistence",async()=>{
  const nullableTyped=(type,control,defaultValue,extras={})=>({
   key:"",label:"",type,control,min:null,max:null,default:defaultValue,step:null,unit:null,

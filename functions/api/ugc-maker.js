@@ -799,7 +799,7 @@ function explicitAmountContextMatchesInput(input,context){
     if(!semantic)return false;
     const tokens=semantic.split(/\s+/).filter(Boolean);
     const generic=new Set([
-        "per","price","prices","cost","costs","amount","amounts","fee","fees","rate","rates","tariff","tariffs",
+        "per","price","prices","cost","costs","amount","amounts","expense","expenses","fee","fees","rate","rates","tariff","tariffs",
         "charge","charges","fixed","monthly","month","annual","annually","yearly","year","weekly","week","daily","day",
         "total","average","the","and","for","from","with","of","in","on","by","input","value","currency"
     ]);
