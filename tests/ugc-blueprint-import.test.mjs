@@ -213,8 +213,8 @@ test("adds model-readable correction hints for common group and unit validation 
    "Emergency fund target formula: The formula's units do not match the selected EUR result currency. Check the input units and conversion assumptions."
   ]})),
   error=>/minItems 1 or greater/.test(error.message)
-   &&/month count used only as a multiplier/.test(error.message)
-   &&/EUR\/month/.test(error.message)
+   &&/USD\/request or USD\/read/.test(error.message)
+   &&!/dividing EUR/.test(error.message)
  );
 });
 
