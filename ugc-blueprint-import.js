@@ -521,6 +521,7 @@ function normalizeTypedV2Blueprint(root,validateSpec,requestText,notes){
    if(kind==="field"&&item.control!==undefined)fail(label+" dynamic fields cannot declare a UI control.");
    if(["min","max","step","choices","minDate","maxDate"].some(key=>item[key]!==undefined))fail(label+" boolean values cannot declare numeric ranges, choices or date bounds.");
    result.default=item.default;
+   if(kind==="input")result.control="toggle";
    if(item.unit!==undefined)result.unit=item.unit;
    return result;
   }

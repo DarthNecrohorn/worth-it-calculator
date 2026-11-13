@@ -144,7 +144,7 @@ test("keeps structurally valid V2 blueprints with formula issues editable withou
  assert.equal(definition.spec.inputs[1].type,"boolean");
  assert.equal(definition.spec.inputs[1].default,true);
  assert.ok(definition.importValidationIssueCount>0);
- assert.ok(definition.importValidationIssues.some(issue=>/boolean condition/.test(issue)));
+ assert.ok(definition.importValidationIssues.some(issue=>/condition must be boolean/.test(issue)));
  assert.ok(definition.importNotes.some(note=>/typed V2 blueprint imported as an editable local draft/i.test(note)));
 });
 
@@ -169,7 +169,7 @@ test("copies provider-neutral prompts for V1 and the typed V2 blueprint contract
  const v1=importer.buildPrompt(),v2=importer.buildPrompt(2);
  assert.match(v1,/blueprintVersion 1/);
  assert.match(v2,/blueprintVersion 2/);
- assert.match(v2,/schemaVersion:2,engineVersion:2/);
+ assert.match(v2,/"schemaVersion": 2,[\s\S]*"engineVersion": 2/);
  assert.match(v2,/Boolean inputs use type boolean/);
  assert.match(v2,/date_diff_days/);
  assert.match(v2,/sum_if/);
