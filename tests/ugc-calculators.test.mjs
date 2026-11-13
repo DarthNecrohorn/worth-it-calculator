@@ -57,7 +57,7 @@ const validDefinition = {
     inputs: [
         { key: "starting_amount", label: "Starting savings", min: 0, max: 1000000, default: 1000, step: 1, unit: "EUR" },
         { key: "monthly_deposit", label: "Monthly deposit", min: 0, max: 100000, default: 300, step: 1, unit: "EUR" },
-        { key: "years", label: "Years", min: 1, max: 80, default: 5, step: 1, unit: "years" }
+        { key: "years", label: "Years", min: 1, max: 80, default: 5, step: 1, unit: "" }
     ],
     results: [
         { label: "Total deposits", expression: "starting_amount + monthly_deposit * 12 * years", format: "currency", currency: "EUR" }
@@ -190,10 +190,10 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
         subcategories: ["utilities-energy", "household-budget"],
         inputs: [
             { key: "electricity_kwh", label: "Monthly electricity usage", min: 10, max: 3000, default: 350, step: 10, unit: "kWh" },
-            { key: "electricity_rate", label: "Electricity rate per kWh", min: 1, max: 50, default: 12, step: 0.5, unit: "RSD" },
+            { key: "electricity_rate", label: "Electricity rate per kWh", min: 1, max: 50, default: 12, step: 0.5, unit: "RSD/kWh" },
             { key: "electricity_fixed", label: "Electricity fixed monthly fee", min: 0, max: 2000, default: 250, step: 10, unit: "RSD" },
             { key: "water_m3", label: "Monthly water consumption", min: 1, max: 100, default: 12, step: 0.5, unit: "m³" },
-            { key: "water_rate", label: "Water rate per m3", min: 10, max: 500, default: 95, step: 1, unit: "RSD" },
+            { key: "water_rate", label: "Water rate per m3", min: 10, max: 500, default: 95, step: 1, unit: "RSD/m3" },
             { key: "water_fixed", label: "Water fixed monthly fee", min: 0, max: 2000, default: 150, step: 10, unit: "RSD" }
         ],
         results: [
@@ -245,12 +245,12 @@ test("AI Maker zeros unprovided monetary defaults but preserves explicitly suppl
         category: "cars",
         subcategories: ["fuel-costs"],
         inputs: [
-            { key: "petrol_rate", label: "Petrol price per liter", min: 1, max: 500, default: 190, step: 1, unit: "RSD" },
-            { key: "diesel_rate", label: "Diesel price per liter", min: 1, max: 500, default: 210, step: 1, unit: "RSD" }
+            { key: "petrol_rate", label: "Petrol price per liter", min: 1, max: 500, default: 190, step: 1, unit: "RSD/L" },
+            { key: "diesel_rate", label: "Diesel price per liter", min: 1, max: 500, default: 210, step: 1, unit: "RSD/L" }
         ],
         results: [
-            { label: "Petrol price", expression: "petrol_rate", format: "currency", currency: "RSD" },
-            { label: "Diesel price", expression: "diesel_rate", format: "currency", currency: "RSD" }
+            { label: "Petrol price", expression: "petrol_rate", format: "unit", currency: "RSD", unit: "RSD/L" },
+            { label: "Diesel price", expression: "diesel_rate", format: "unit", currency: "RSD", unit: "RSD/L" }
         ]
     };
     const oneFuelPrice = await generate("Set petrol price to 190 RSD per liter.", sameUnitDefinition);
@@ -451,13 +451,13 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         inputs:[
             {key:"monthly_distance_km",label:"Monthly distance driven",min:1,max:10000,default:1200,step:1,unit:"km"},
             {key:"fuel_consumption",label:"Fuel consumption",min:1,max:30,default:7,step:0.1,unit:"L/100 km"},
-            {key:"fuel_price_per_liter",label:"Fuel price per liter",min:0.1,max:10,default:1.5,step:0.01,unit:"EUR"},
+            {key:"fuel_price_per_liter",label:"Fuel price per liter",min:0.1,max:10,default:1.5,step:0.01,unit:"EUR/L"},
             {key:"monthly_insurance",label:"Monthly insurance",min:0,max:1000,default:50,step:1,unit:"EUR"},
             {key:"monthly_maintenance",label:"Monthly maintenance and repairs",min:0,max:1500,default:75,step:1,unit:"EUR"},
             {key:"monthly_parking",label:"Monthly parking",min:0,max:1000,default:50,step:1,unit:"EUR"},
             {key:"monthly_tolls",label:"Monthly tolls",min:0,max:500,default:20,step:1,unit:"EUR"},
             {key:"monthly_loan_payment",label:"Optional monthly loan or lease payment",min:0,max:5000,default:0,step:1,unit:"EUR"},
-            {key:"comparison_months",label:"Comparison period in months",min:1,max:120,default:12,step:1,unit:"months"}
+            {key:"comparison_months",label:"Comparison period in months",min:1,max:120,default:12,step:1,unit:""}
         ],
         results:[
             {label:"Monthly fuel cost",expression:"monthly_distance_km*fuel_consumption/100*fuel_price_per_liter",format:"currency",currency:"EUR"},
@@ -465,7 +465,7 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
             {label:"Average weekly ownership cost",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*12/52",format:"currency",currency:"EUR"},
             {label:"Total yearly ownership cost",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*12",format:"currency",currency:"EUR"},
             {label:"Total cost over selected months",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)*comparison_months",format:"currency",currency:"EUR"},
-            {label:"Cost per kilometer",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)/monthly_distance_km",format:"currency",currency:"EUR"}
+            {label:"Cost per kilometer",expression:"(monthly_distance_km*fuel_consumption/100*fuel_price_per_liter+monthly_insurance+monthly_maintenance+monthly_parking+monthly_tolls+monthly_loan_payment)/monthly_distance_km",format:"unit",currency:"EUR",unit:"EUR/km"}
         ]
     };
     const requestPrompt=[
@@ -1748,17 +1748,14 @@ test("UGC calculator scenarios and advanced input types are validated on the ser
 });
 
 test("UGC currency choices match the current ISO 4217 list and preserve historical BGN", () => {
-    const currentStart=maker.indexOf("const CURRENCIES=[");
-    const currentEnd=maker.indexOf("const HISTORICAL_CURRENCIES=",currentStart);
-    assert.ok(currentStart>=0&&currentEnd>currentStart);
-    const list=runInNewContext(maker.slice(currentStart,currentEnd)+"\nCURRENCIES");
+    const list=currencyData.currencies;
     const codes=list.map(([code])=>code);
     assert.equal(codes.length,178,"The current ISO 4217 List One snapshot should contain 178 unique codes.");
     assert.equal(new Set(codes).size,178,"Currency codes must be unique.");
     assert.ok(codes.includes("EUR"));
     assert.ok(codes.includes("BHD")&&codes.includes("JPY"));
     assert.ok(!codes.includes("BGN"),"BGN must not appear in the current list after Bulgaria's euro adoption.");
-    assert.match(maker,/const HISTORICAL_CURRENCIES=\[\["BGN"/);
+    assert.ok(currencyData.historicalCurrencies.some(([code])=>code==="BGN"));
     assert.match(maker,/minimumFractionDigits:minorUnits,maximumFractionDigits:minorUnits/);
     assert.match(sql,/v_supported_currency_codes constant text\[\]/);
     assert.match(sql,/upper\(coalesce\(v_result->>'currency',''\)\) = any\(v_supported_currency_codes\)/);
@@ -2119,7 +2116,7 @@ test("Public UGC cards keep only the calculator CTA; reactions stay inside the d
 });
 
 test("UGC Maker offers multi-currency result formatting and selectable measurement units", () => {
-    assert.match(maker, /const CURRENCIES=\[/);
+    assert.match(maker, /const CURRENCIES=currencyMetadata\.currencies/);\n    assert.match(calculatorCurrencyDataSource, /const CURRENCIES=\[/);\n    assert.match(calculatorCurrencyDataSource, /\["RSD","Serbian Dinar",2\]/);
     assert.match(maker, /\["RSD","Serbian Dinar",2\]/);
     assert.match(maker, /const UNIT_OPTIONS=\[/);
     assert.match(maker, /UNIT_OPTIONS\.forEach/);
