@@ -31,6 +31,7 @@ on:
       - "functions/api/ugc-maker.js"
       - "ugc-calculators.js"
       - "ugc-calculator-engine.js"
+      - "ugc-calculator-currency-data.js"
       - "ugc-blueprint-import.js"
       - "ugc-calculators.css"
       - "tests/ugc-blueprint-import.test.mjs"
