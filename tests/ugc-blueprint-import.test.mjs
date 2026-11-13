@@ -1558,3 +1558,29 @@ test("repairs the Smart Home LED lighting calculator with per-bulb power units, 
  assert.ok(Math.abs(get(large,"monthly_lighting_cost")-9.28125)<1e-9);
  assert.ok(Math.abs(get(large,"annual_monetary_savings")-732.375)<1e-9);
 });
+
+
+test("Manual Builder exposes random mode and adaptive recovery selects a topic-matched or random safe template",()=>{
+ const start=builderSource.indexOf("const MANUAL_TEMPLATES={");
+ const end=builderSource.indexOf("\nfunction setMakerModeUI",start);
+ assert.ok(start>=0&&end>start,"Manual Builder templates and mode selection helpers must be present.");
+ const source=builderSource.slice(start,end);
+ const helpers=runInNewContext("(function(){"+source+";return{MANUAL_TEMPLATES,isRandomCalculatorRequest,inferManualTemplateKey,pickRandomManualTemplateKey,createManualDraft};})()");
+ assert.equal(helpers.isRandomCalculatorRequest("daj neki random calculator"),true);
+ assert.equal(helpers.isRandomCalculatorRequest("Create an electricity cost calculator"),false);
+ assert.equal(helpers.inferManualTemplateKey("daj neki random calculator",{}),"random");
+ assert.equal(helpers.inferManualTemplateKey("smart home LED lighting energy and cost calculator",{}),"smart-led-lighting");
+ assert.equal(helpers.inferManualTemplateKey("",{title:"Smart Home LED Lighting Energy & Cost Calculator",description:"Compares electricity use, kWh and lighting costs."}),"smart-led-lighting");
+ const chosen=helpers.pickRandomManualTemplateKey();
+ assert.ok(Object.hasOwn(helpers.MANUAL_TEMPLATES,chosen));
+ const randomDraft=helpers.createManualDraft(chosen);
+ assert.ok(randomDraft.title.length>=3);
+ assert.ok(randomDraft.description.length>=24);
+ const ledDraft=helpers.createManualDraft("smart-led-lighting");
+ assert.equal(ledDraft.title,"Smart Home LED Lighting Energy & Cost Calculator");
+ assert.deepEqual(plain(validateMakerSpec(ledDraft.spec).errors),[]);
+ assert.match(builderSource,/applyAdaptiveManualFallback\\(originalRequest,definition,reason,statusNode\\)/);
+ assert.match(builderSource,/state\\.manualMode=mode/);
+ assert.match(html,/option value="random">Random calculator/);
+ assert.match(html,/data-manual-mode-info="random"/);
+});
