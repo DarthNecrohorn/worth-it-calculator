@@ -484,7 +484,7 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         assert.equal(providerRequest.max_tokens,8192);
         const body=providerRequest;
         assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
-        assert.match(body.messages[0].content,/Support 1 to 6 result rows/);
+        assert.match(body.messages[0].content,/Support up to 20 result rows/);
         assert.match(body.messages[0].content,/genuinely informative description/i);
         assert.match(body.messages[0].content,/140 to 380 characters/);
         assert.match(body.messages[0].content,/time-basis conversions or consistency assumptions/);
@@ -1106,7 +1106,8 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
                 GROQ_API_KEY:"groq-test"
             }
         });
-        assert.equal(response.status,200);
+        const responseBody=await response.clone().json();
+        assert.equal(response.status,200,JSON.stringify(responseBody));
         const result=await response.json();
         assert.equal(result.success,true);
         assert.equal(result.calculator.category,"money");
