@@ -46,6 +46,14 @@ Allowed root, spec, input, group, field, result and scenario properties are allo
 6. **Quick Fix and validation** run a bounded sequence of deterministic repairs and re-run the same Manual Builder formula, unit, dependency, boundary and scenario validator used for manually created calculators.
 7. **Draft-first import** opens the editable Advanced Formula Builder even when safe-to-display formula, unit, dependency or boundary issues remain. The original formula text is preserved when the repair engine cannot infer a safe replacement. The editor displays live validation issues; Save and Publish remain blocked until the shared validator passes.
 
+## Content language and regional formatting
+
+AI-generated calculator text (title, description, input labels and result labels) follows the language that is clearly identifiable in the user's prompt. If the prompt is language-neutral or its language is unclear, the generated text defaults to English. The visitor's country and `Accept-Language` header do not override a clear prompt language and are not used to select the prose language.
+
+Regional country information may suggest a currency, while `Accept-Language` may set the number-formatting locale. These are presentation defaults only and remain independent from the calculator text language. A user can therefore create an English calculator in Germany with EUR values and German number formatting, or a Serbian calculator in the United Kingdom with GBP values and Serbian number formatting. Currency suggestions never perform conversion.
+
+Manual Blueprint Import does not translate pasted content: it preserves the language and wording supplied in the blueprint. To obtain another language, the user must supply a blueprint already written in that language or explicitly request a translation from their external AI assistant before importing.
+
 ## Original request coverage check
 
 The import panel may also receive the exact calculator request that the member gave to the external AI. This text is optional and is used only in the browser for a lightweight keyword coverage check.

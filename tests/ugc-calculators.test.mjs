@@ -335,7 +335,10 @@ test("AI Maker uses regional currency only as an editable default and never stor
         const body = JSON.parse(options.body);
         assert.doesNotMatch(body.messages[0].content, /regional suggestion RSD/i);
         assert.match(body.messages[1].content, /Regional defaults: currency RSD/i);
-        assert.match(body.messages[0].content, /same language as the user's prompt/i);
+        assert.match(body.messages[0].content, /same language as the user's prompt when that language is clearly identifiable/i);
+        assert.match(body.messages[0].content, /If the prompt has no clear language or is language-neutral\/ambiguous, use English/i);
+        assert.match(body.messages[0].content, /Do not use the visitor's country, region or Accept-Language header to choose the language of calculator text/i);
+        assert.match(body.messages[0].content, /Accept-Language and regional settings are for number formatting and currency defaults only/i);
         assert.doesNotMatch(JSON.stringify(body), /client.?ip|ip.?address/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
