@@ -583,10 +583,299 @@ function validateMakerSpec(spec){
  });
  return {errors:[...new Set(errors)]};
 }
+
+function hasOwn(object,key){return Object.prototype.hasOwnProperty.call(object,key);}
+function isRecord(value){return Boolean(value)&&typeof value==="object"&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);}
+function validKey(value){return typeof value==="string"&&/^[a-z][a-z0-9_]{0,31}$/.test(value);}
+function isIsoDateOnly(value){
+ if(typeof value!=="string"||!/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.test(value))return false;
+ const year=Number(value.slice(0,4));
+ if(year<1||year>9999)return false;
+ const date=new Date(value+"T00:00:00.000Z");
+ return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+function normalizeTypedValue(definition,rawValue){
+ const type=String(definition?.type||"");
+ const fail=error=>({valid:false,value:undefined,error});
+ if(type==="number"){
+  if(rawValue===null||rawValue===undefined||rawValue===""||typeof rawValue==="boolean")return fail("Enter a numeric value.");
+  const value=Number(rawValue),min=Number(definition.min),max=Number(definition.max),step=Number(definition.step);
+  if(!Number.isFinite(value)||!Number.isFinite(min)||!Number.isFinite(max)||!Number.isFinite(step)||step<=0||value<min||value>max)return fail("The number is outside its allowed range.");
+  const stepPosition=(value-min)/step;
+  if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)return fail("The number does not match the permitted step.");
+  if(definition.control==="select"&&(!Array.isArray(definition.choices)||!definition.choices.some(choice=>Number(choice?.value)===value)))return fail("Choose one of the listed numeric options.");
+  return {valid:true,value,error:null};
+ }
+ if(type==="boolean")return typeof rawValue==="boolean"?{valid:true,value:rawValue,error:null}:fail("Choose true or false.");
+ if(type==="enum"){
+  const choices=Array.isArray(definition.choices)?definition.choices:[];
+  return typeof rawValue==="string"&&choices.some(choice=>choice?.value===rawValue)
+   ?{valid:true,value:rawValue,error:null}:fail("Choose one of the listed options.");
+ }
+ if(type==="date"){
+  if(!isIsoDateOnly(rawValue))return fail("Enter a valid calendar date in YYYY-MM-DD format.");
+  if(typeof definition.minDate==="string"&&isIsoDateOnly(definition.minDate)&&rawValue<definition.minDate)return fail("The date is earlier than the allowed minimum.");
+  if(typeof definition.maxDate==="string"&&isIsoDateOnly(definition.maxDate)&&rawValue>definition.maxDate)return fail("The date is later than the allowed maximum.");
+  return {valid:true,value:rawValue,error:null};
+ }
+ return fail("This calculator input type is not supported.");
+}
+function resolveCalculatorVersions(spec){
+ if(!isRecord(spec))throw new Error("The calculator definition must be an object.");
+ const hasSchema=hasOwn(spec,"schemaVersion"),hasEngine=hasOwn(spec,"engineVersion");
+ if(!hasSchema&&!hasEngine){
+  if(spec.version!==undefined&&Number(spec.version)!==1)throw new Error("Legacy calculator definitions must use version 1.");
+  return {schemaVersion:1,engineVersion:1,legacy:true};
+ }
+ if(!hasSchema||!hasEngine)throw new Error("A versioned calculator must declare both schemaVersion and engineVersion.");
+ const schemaVersion=spec.schemaVersion,engineVersion=spec.engineVersion;
+ if(!Number.isInteger(schemaVersion)||!Number.isInteger(engineVersion))throw new Error("Calculator schemaVersion and engineVersion must be integers.");
+ if(schemaVersion===1&&engineVersion===1)return {schemaVersion:1,engineVersion:1,legacy:false};
+ if(schemaVersion===2&&engineVersion===2)return {schemaVersion:2,engineVersion:2,legacy:false};
+ throw new Error("This calculator schema/engine version combination is not supported.");
+}
+function validateV2TypedSpec(spec){
+ const errors=[];
+ const add=message=>errors.push(message);
+ const allowed=(value,keys,label)=>{
+  if(!isRecord(value)){add(label+" must be an object.");return;}
+  const unexpected=Object.keys(value).filter(key=>!keys.has(key));
+  if(unexpected.length)add(label+" contains unsupported properties: "+unexpected.join(", ")+".");
+ };
+ allowed(spec,new Set(["schemaVersion","engineVersion","inputs","groups","results","scenarios"]),"Calculator definition");
+ if(spec.schemaVersion!==2||spec.engineVersion!==2)add("V2 definitions must declare schemaVersion 2 and engineVersion 2.");
+ const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
+ const groups=Array.isArray(spec.groups)?spec.groups:[];
+ const results=Array.isArray(spec.results)?spec.results:[];
+ const scenarios=Array.isArray(spec.scenarios)?spec.scenarios:[];
+ if(!Array.isArray(spec.inputs)||inputs.length<1||inputs.length>24)add("A v2 calculator needs 1–24 fixed inputs.");
+ if(!Array.isArray(spec.groups)||groups.length>4)add("A v2 calculator can define up to 4 dynamic groups.");
+ if(!Array.isArray(spec.results)||results.length<1||results.length>20)add("A v2 calculator needs 1–20 results.");
+ if(!Array.isArray(spec.scenarios)||scenarios.length>3)add("A v2 calculator can define up to 3 scenarios.");
+ try{if(JSON.stringify(spec).length>32000)add("The calculator definition exceeds the 32,000-character limit.");}
+ catch(_){add("The calculator definition cannot be serialized safely.");}
+ const allKeys=new Set(),numericInputs=[],numericGroups=[],numericScenarios=[];
+ const reserveKey=(key,label)=>{
+  if(!validKey(key)){add(label+" must use a lowercase key beginning with a letter.");return false;}
+  if(allKeys.has(key)){add(label+" uses a duplicate key.");return false;}
+  allKeys.add(key);return true;
+ };
+ const validateChoices=(definition,kind,label)=>{
+  const choices=definition.choices;
+  if(!Array.isArray(choices)||choices.length<2||choices.length>12){add(label+" needs 2–12 choices.");return false;}
+  const labels=new Set(),values=new Set();
+  choices.forEach((choice,index)=>{
+   if(!isRecord(choice)||typeof choice.label!=="string"||choice.label.trim().length<1||choice.label.length>50){
+    add(label+" choice "+(index+1)+" has an invalid label.");return;
+   }
+   const normalizedLabel=choice.label.trim().toLowerCase();
+   if(labels.has(normalizedLabel))add(label+" choice labels must be unique.");
+   labels.add(normalizedLabel);
+   if(kind==="number"){
+    if(typeof choice.value!=="number"||!Number.isFinite(choice.value)||Math.abs(choice.value)>1e12)add(label+" choice "+(index+1)+" needs a finite numeric value.");
+   }else if(typeof choice.value!=="string"||!choice.value.length||choice.value.length>64){
+    add(label+" choice "+(index+1)+" needs a non-empty string value of at most 64 characters.");
+   }
+   const valueKey=typeof choice.value==="string"?choice.value:String(choice.value);
+   if(values.has(valueKey))add(label+" choice values must be unique.");
+   values.add(valueKey);
+  });
+  return true;
+ };
+ const validateTypedDefinition=(definition,label,kind)=>{
+  if(!isRecord(definition)){add(label+" must be an object.");return null;}
+  const type=definition.type;
+  if(!["number","boolean","enum","date"].includes(type)){add(label+" must declare type number, boolean, enum or date.");return null;}
+  if(kind==="input"){
+   allowed(definition,new Set(["key","label","type","min","max","default","step","unit","control","choices","minDate","maxDate"]),label);
+  }else{
+   allowed(definition,new Set(["key","label","type","min","max","default","step","unit","choices","minDate","maxDate"]),label);
+  }
+  if(typeof definition.label!=="string"||!definition.label.trim()||definition.label.length>60)add(label+" needs a label of 1–60 characters.");
+  if(type==="number"){
+   const min=definition.min,max=definition.max,value=definition.default,step=definition.step;
+   if(![min,max,value,step].every(item=>typeof item==="number"&&Number.isFinite(item))||min>value||value>max||max-min>1e12||step<=0){
+    add(label+" has invalid numeric minimum, maximum, default or step values.");
+   }else{
+    const defaultStep=(value-min)/step,maximumStep=(max-min)/step;
+    if(Math.abs(defaultStep-Math.round(defaultStep))>1e-7)add(label+" default value does not match its step.");
+    if(max>min&&Math.abs(maximumStep-Math.round(maximumStep))>1e-7)add(label+" maximum value does not match its step.");
+   }
+   if(typeof definition.unit!=="string"||definition.unit.length>16)add(label+" unit must be plain text of up to 16 characters.");
+   if(kind==="input"&&!["number","slider","select"].includes(definition.control))add(label+" must use a number, slider or numeric select control.");
+   if(kind==="input"&&definition.control==="select"){
+    validateChoices(definition,"number",label);
+    if(!Array.isArray(definition.choices)||!definition.choices.some(choice=>choice?.value===value))add(label+" numeric choices must include the default.");
+   }else if(Array.isArray(definition.choices)&&definition.choices.length)add(label+" choices are only allowed for a numeric select control.");
+   if(kind==="field"&&definition.choices!==undefined&&(!Array.isArray(definition.choices)||definition.choices.length))add(label+" choices are not supported on dynamic numeric fields.");
+   if(kind==="field"&&definition.unit===undefined)add(label+" must declare its unit (use an empty string when dimensionless).");
+   return {type:"number"};
+  }
+  if(definition.unit!==undefined&&definition.unit!=="")add(label+" non-numeric values cannot declare a measurement unit.");
+  if(type==="boolean"){
+   if(typeof definition.default!=="boolean")add(label+" boolean default must be true or false.");
+   if(kind==="input"&&definition.control!=="toggle")add(label+" boolean inputs must use the toggle control.");
+   if(kind==="field"&&definition.control!==undefined)add(label+" dynamic fields do not declare UI controls.");
+   if(["min","max","step","choices","minDate","maxDate"].some(key=>definition[key]!==undefined))add(label+" boolean values cannot declare numeric ranges, choices or date bounds.");
+   return {type:"boolean"};
+  }
+  if(type==="enum"){
+   if(typeof definition.default!=="string"||!definition.default.length)add(label+" enum default must be a non-empty string.");
+   if(kind==="input"&&definition.control!=="select")add(label+" enum inputs must use the select control.");
+   if(kind==="field"&&definition.control!==undefined)add(label+" dynamic fields do not declare UI controls.");
+   if(["min","max","step","minDate","maxDate"].some(key=>definition[key]!==undefined))add(label+" enum values cannot declare numeric ranges or date bounds.");
+   validateChoices(definition,"enum",label);
+   if(Array.isArray(definition.choices)&&!definition.choices.some(choice=>choice?.value===definition.default))add(label+" enum choices must include the default.");
+   return {type:"enum"};
+  }
+  if(type==="date"){
+   if(!isIsoDateOnly(definition.default))add(label+" date default must be a real YYYY-MM-DD calendar date.");
+   if(kind==="input"&&definition.control!=="date")add(label+" date inputs must use the date control.");
+   if(kind==="field"&&definition.control!==undefined)add(label+" dynamic fields do not declare UI controls.");
+   if(["min","max","step","unit","choices"].some(key=>definition[key]!==undefined&&definition[key]!==""))add(label+" date values cannot declare numeric ranges, units or choices.");
+   if(definition.minDate!==undefined&&!isIsoDateOnly(definition.minDate))add(label+" minimum date must use a real YYYY-MM-DD date.");
+   if(definition.maxDate!==undefined&&!isIsoDateOnly(definition.maxDate))add(label+" maximum date must use a real YYYY-MM-DD date.");
+   if(isIsoDateOnly(definition.minDate)&&isIsoDateOnly(definition.maxDate)&&definition.minDate>definition.maxDate)add(label+" minimum date cannot be later than its maximum date.");
+   if(isIsoDateOnly(definition.default)&&isIsoDateOnly(definition.minDate)&&definition.default<definition.minDate)add(label+" default date is earlier than its minimum.");
+   if(isIsoDateOnly(definition.default)&&isIsoDateOnly(definition.maxDate)&&definition.default>definition.maxDate)add(label+" default date is later than its maximum.");
+   return {type:"date"};
+  }
+  return null;
+ };
+ inputs.forEach((input,index)=>{
+  const label="Input "+(index+1);
+  if(!isRecord(input)){add(label+" must be an object.");return;}
+  reserveKey(input.key,label+" key");
+  if(typeof input.label!=="string"||!input.label.trim()||input.label.length>60)add(label+" needs a label of 1–60 characters.");
+  validateTypedDefinition(input,label,"input");
+  if(input.type==="number")numericInputs.push(input);
+ });
+ groups.forEach((group,index)=>{
+  const label="Group "+(index+1);
+  if(!isRecord(group)){add(label+" must be an object.");return;}
+  allowed(group,new Set(["key","label","itemLabel","minItems","maxItems","fields"]),label);
+  reserveKey(group.key,label+" key");
+  if(typeof group.label!=="string"||!group.label.trim()||group.label.length>60)add(label+" needs a label of 1–60 characters.");
+  if(typeof group.itemLabel!=="string"||!group.itemLabel.trim()||group.itemLabel.length>40)add(label+" needs an item label of 1–40 characters.");
+  if(!Number.isInteger(group.minItems)||!Number.isInteger(group.maxItems)||group.minItems<1||group.maxItems>20||group.maxItems<group.minItems)add(label+" must allow between 1 and 20 rows.");
+  if(!Array.isArray(group.fields)||group.fields.length<1||group.fields.length>6){add(label+" needs 1–6 typed fields.");return;}
+  const numericFields=[];
+  group.fields.forEach((field,fieldIndex)=>{
+   const fieldLabel=label+" field "+(fieldIndex+1);
+   if(!isRecord(field)){add(fieldLabel+" must be an object.");return;}
+   reserveKey(field.key,fieldLabel+" key");
+   validateTypedDefinition(field,fieldLabel,"field");
+   if(field.type==="number")numericFields.push(field);
+  });
+  numericGroups.push({key:group.key,label:group.label,itemLabel:group.itemLabel,minItems:group.minItems,maxItems:group.maxItems,fields:numericFields.length?numericFields:[{
+   key:"v2_internal_field_"+index,label:"Internal validation field",min:0,max:1,default:0,step:1,unit:""
+  }]});
+ });
+ results.forEach((result,index)=>{
+  const label="Result "+(index+1);
+  if(!isRecord(result)){add(label+" must be an object.");return;}
+  allowed(result,new Set(["key","label","expression","format","currency","unit","prefix","suffix","explanation"]),label);
+  if(typeof result.label!=="string"||!result.label.trim()||result.label.length>70)add(label+" needs a label of 1–70 characters.");
+  if(typeof result.expression!=="string"||!result.expression.trim()||result.expression.length>500)add(label+" needs a formula of 1–500 characters.");
+  if(result.key!==undefined)reserveKey(result.key,label+" key");
+  if(!["number","currency","percent","unit"].includes(result.format||"number"))add(label+" has an unsupported result format.");
+  if(result.format==="unit"&&(typeof result.unit!=="string"||!result.unit.trim()||result.unit.length>20))add(label+" needs a result unit of up to 20 characters.");
+  if(result.format==="currency"&&typeof result.currency!=="string")add(label+" must declare an ISO currency code.");
+  if(result.explanation!==undefined&&(typeof result.explanation!=="string"||result.explanation.length>280))add(label+" explanation must be plain text of up to 280 characters.");
+ });
+ scenarios.forEach((scenario,index)=>{
+  const label="Scenario "+(index+1);
+  if(!isRecord(scenario)){add(label+" must be an object.");return;}
+  allowed(scenario,new Set(["label","values"]),label);
+  if(typeof scenario.label!=="string"||scenario.label.trim().length<2||scenario.label.length>50)add(label+" needs a name of 2–50 characters.");
+  if(!isRecord(scenario.values)||Object.keys(scenario.values).length===0){add(label+" needs at least one typed input override.");return;}
+  const numericValues={};
+  Object.entries(scenario.values).forEach(([key,value])=>{
+   const definition=inputs.find(item=>item?.key===key);
+   if(!definition){add(label+" references an unknown input: "+key+".");return;}
+   const normalized=normalizeTypedValue(definition,value);
+   if(!normalized.valid){add(label+" "+key+": "+normalized.error);return;}
+   if(definition.type==="number")numericValues[key]=normalized.value;
+  });
+  if(Object.keys(numericValues).length)numericScenarios.push({label:scenario.label,values:numericValues});
+ });
+ const formulaTexts=results.map(item=>String(item?.expression||""));
+ if(formulaTexts.some(formula=>formula.includes("v2_internal_anchor")||formula.includes("v2_internal_field_")))add("A formula references a reserved internal validation key.");
+ const projectedInputs=numericInputs.length?numericInputs:[{key:"v2_internal_anchor",label:"Internal validation input",min:0,max:1,default:0,step:1,unit:""}];
+ const projection={inputs:projectedInputs,groups:numericGroups,results,scenarios:numericScenarios};
+ const legacyValidation=validateMakerSpec(projection);
+ (Array.isArray(legacyValidation?.errors)?legacyValidation.errors:[]).forEach(add);
+ return {errors:[...new Set(errors)]};
+}
+function validateVersionedSpec(spec){
+ let versions;
+ try{versions=resolveCalculatorVersions(spec);}
+ catch(error){return {errors:[String(error?.message||"Unsupported calculator version.")]};}
+ if(versions.schemaVersion===1)return validateMakerSpec(spec);
+ return validateV2TypedSpec(spec);
+}
+function createDefaultTypedValues(spec){
+ const values={},errors=[];
+ (Array.isArray(spec?.inputs)?spec.inputs:[]).forEach(input=>{
+  const normalized=normalizeTypedValue(input,input?.default);
+  if(!normalized.valid)errors.push(String(input?.label||input?.key||"Input")+": "+normalized.error);
+  else values[input.key]=normalized.value;
+ });
+ return {valid:errors.length===0,values,errors};
+}
+function createDefaultTypedGroupValues(spec){
+ const groups={},errors=[];
+ (Array.isArray(spec?.groups)?spec.groups:[]).forEach(group=>{
+  const row=Object.fromEntries((Array.isArray(group.fields)?group.fields:[]).map(field=>{
+   const normalized=normalizeTypedValue(field,field?.default);
+   if(!normalized.valid)errors.push(String(group.label||group.key)+" / "+String(field.label||field.key)+": "+normalized.error);
+   return [field.key,normalized.value];
+  }));
+  const count=Math.max(1,Math.min(20,Number(group.minItems)||1));
+  groups[group.key]=Array.from({length:count},()=>({...row}));
+ });
+ return {valid:errors.length===0,groups,errors};
+}
+function normalizeTypedGroupValues(spec,rawGroups){
+ const source=isRecord(rawGroups)?rawGroups:{};
+ const groups={},errors=[];
+ const definitions=Array.isArray(spec?.groups)?spec.groups:[];
+ const known=new Set(definitions.map(group=>group.key));
+ Object.keys(source).forEach(key=>{if(!known.has(key))errors.push("Unknown dynamic group: "+key+".");});
+ definitions.forEach(group=>{
+  const supplied=source[group.key];
+  if(supplied===undefined){
+   const defaults=createDefaultTypedGroupValues({groups:[group]});
+   groups[group.key]=defaults.groups[group.key]||[];
+   errors.push(...defaults.errors);
+   return;
+  }
+  if(!Array.isArray(supplied)){errors.push(String(group.label||group.key)+" must contain a list of rows.");return;}
+  if(supplied.length<Number(group.minItems)||supplied.length>Number(group.maxItems)){errors.push(String(group.label||group.key)+" must contain "+group.minItems+"–"+group.maxItems+" rows.");return;}
+  groups[group.key]=supplied.map((row,index)=>{
+   const label=String(group.label||group.key)+" row "+(index+1);
+   if(!isRecord(row)){errors.push(label+" must be an object.");return {};}
+   const allowedFields=new Set(group.fields.map(field=>field.key));
+   Object.keys(row).forEach(key=>{if(!allowedFields.has(key))errors.push(label+" contains an unknown field: "+key+".");});
+   const normalizedRow={};
+   group.fields.forEach(field=>{
+    const value=hasOwn(row,field.key)?row[field.key]:field.default;
+    const normalized=normalizeTypedValue(field,value);
+    if(!normalized.valid)errors.push(label+" / "+String(field.label||field.key)+": "+normalized.error);
+    else normalizedRow[field.key]=normalized.value;
+   });
+   return normalizedRow;
+  });
+ });
+ return {valid:errors.length===0,groups,errors};
+}
+
  return Object.freeze({
   compileExpression,formulaGroupFieldReferences,formulaInputReferences,evaluate,groupMapForSpec,defaultGroupValues,
   unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
-  validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors
+  validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
+  resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
+  createDefaultTypedGroupValues,normalizeTypedGroupValues
  });
 }
 root.WorthItCalculatorEngine=Object.freeze({apiVersion:1,create});
