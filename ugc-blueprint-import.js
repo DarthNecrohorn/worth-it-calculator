@@ -1036,7 +1036,55 @@ function parseBlueprint(text,validateSpec,requestText){
  if(originalRequest.length>5000)fail("The original calculator request can contain up to 5,000 characters.");
  return normalizeBlueprint(parsed,validateSpec,originalRequest);
 }
-function buildPrompt(){
+function buildTypedV2Prompt(){
+ return [
+  "You are producing a data-only, safe Worth It Calculator Engine V2 blueprint.",
+  "Return exactly one valid JSON object with no Markdown fences, headings, comments, or explanatory text before or after it. Use ordinary JSON syntax, finite JSON numbers, and no trailing commas.",
+  "The root must use blueprintVersion 2 and contain only these keys: blueprintVersion, title, description, category, subcategories, assumptions, spec.",
+  JSON.stringify({
+   blueprintVersion:2,
+   title:"Calculator title",
+   description:"Explain what the calculator measures and its key assumptions in at least 24 characters.",
+   category:"other",
+   subcategories:[],
+   assumptions:["State important assumptions, exclusions and limitations as plain text."],
+   spec:{
+    schemaVersion:2,engineVersion:2,
+    inputs:[
+     {key:"amount",label:"Amount",type:"number",control:"number",min:0,max:1000,default:100,step:1,unit:"EUR"},
+     {key:"enabled",label:"Enabled",type:"boolean",control:"toggle",default:true},
+     {key:"plan",label:"Plan",type:"enum",control:"select",default:"basic",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+     {key:"start_date",label:"Start date",type:"date",control:"date",default:"2026-01-01"}
+    ],
+    groups:[],
+    results:[{key:"total",label:"Total",expression:"if(enabled, amount, 0)",format:"currency",currency:"EUR",explanation:"Explain the numeric result."}],
+    scenarios:[{label:"Alternative",values:{enabled:false,plan:"basic"}}]
+   }
+  },null,2),
+  "The spec object contains only schemaVersion, engineVersion, inputs, groups, results and scenarios. It must declare schemaVersion 2 and engineVersion 2 exactly. The top-level blueprintVersion must be 2. Do not mix V1 and V2 schemas.",
+  "Limits: title 3–70 characters; description 24–500 characters; subcategories up to 12 unique text keys; assumptions up to 50 text entries and 5,000 characters total; 1–24 inputs; up to 4 groups; 1–20 results; up to 3 scenarios; formula text up to 500 characters.",
+  "Use unique lowercase variable keys matching ^[a-z][a-z0-9_]{0,31}$ across all inputs, group names, group fields and results. Never use reserved function names as keys.",
+  "Every input has key, label, type and control. Supported types are number, boolean, enum and date. Number inputs use control number, slider or select and require finite min, max, default, positive step and a unit string (use an empty string for dimensionless). Require min <= default <= max; default and maximum must align with step. A numeric select uses 2–12 unique label/value choices, min/max equal the extreme values, and default equal one choice.",
+  "Boolean inputs use type boolean, control toggle and a true/false default. They must not have numeric range, unit, choice or date-bound properties.",
+  "Enum inputs use type enum, control select, a non-empty string default, and 2–12 choices with unique labels and unique non-empty string values. The default must exactly match a declared choice. Do not use numeric enum values.",
+  "Date inputs use type date, control date and a real calendar date in YYYY-MM-DD format. Optional minDate and maxDate use the same format and must contain the default date. Do not add time, timezone, timestamp, numeric ranges or units.",
+  "Groups use only key, label, itemLabel, minItems, maxItems and fields. Each group must have 1–20 rows and 1–6 fields. Each field uses a typed definition: number fields require finite min/max/default/positive step and an explicit unit string; boolean fields require a strict true/false default; enum fields require a string default and 2–12 declared choices; date fields require a real YYYY-MM-DD default. Group fields do not declare UI controls. Non-numeric fields must not declare numeric units or ranges.",
+  "Scenarios use only label and values. Each scenario must override at least one existing fixed input. Preserve primitive types exactly: number as JSON number, boolean as JSON true/false, enum as one declared string choice, and date as a real YYYY-MM-DD string within any declared date bounds. Scenarios do not override dynamic group rows or result values.",
+  "Results use only key, label, expression, format, currency, unit, prefix, suffix and explanation. Use 1–20 results. Every result must be a finite numeric expression; boolean, enum and date values may be used in conditions and intermediate expressions but never as a final result. Results run top to bottom and can reference inputs, dynamic group fields and only earlier result keys. Currency results must declare a three-letter ISO currency code; unit results must declare the exact resulting unit; do not add currency/unit fields to unrelated formats.",
+  "V2 formulas are declarative only. Supported operators are +, -, *, /, ^, parentheses and unary signs. Supported numeric functions include min, max, abs, round, floor, ceil, sqrt, pow, clamp, avg, sum, count, mod, trunc, sign, hypot, log, ln, exp, sin, cos, tan, asin, acos and atan. Use ordinary * for multiplication.",
+  "Typed logic and comparison functions: if, gt, gte, lt, lte, eq, neq, and, or, not. if() requires a boolean condition and matching result branch types. Comparisons never coerce booleans, enum values, dates or numeric strings. Enum string literals must match the declared choices exactly. Ordered comparisons support compatible numbers or calendar dates.",
+  "Calendar functions: date_diff_days, add_days, add_months, days_in_month, calendar_year, calendar_month and weekday. Dates are calendar-only values with no timezone or instant semantics. add_days/add_months offsets must be whole numbers when written as constants; dynamic offsets must use the matching day/days or month/months unit.",
+  "Dynamic group aggregations: sum(group.field), avg(group.field), min(group.field), max(group.field), count(group), sum_if(value_expression, boolean_predicate) and count_if(boolean_predicate). sum_if/count_if must reference fields from exactly one group, and sum_if's value and predicate must refer to the same group. Do not mix group references.",
+  "Unit algebra is strict. Addition/subtraction and comparisons require compatible units. Multiplication multiplies dimensions; division divides them. Numeric constants do not inherit units through multiplication or division. Currency codes are not interchangeable. Unknown unit atoms are opaque and must match exactly. Never invent conversions or exchange rates.",
+  "Use finite bounded defaults and guard all divisions whose denominator may be zero. Do not rely on hidden constants for market prices, rates or exchange rates. State conservative assumptions and exclusions explicitly.",
+  "Security: never return JavaScript, Python, SQL, HTML, CSS, callbacks, URLs, network instructions, files, scripts, loops, recursion, arbitrary code, custom functions or external-service instructions. Only the supported declarative schema and formula grammar are allowed.",
+  "Before returning, validate every type, primitive, key, choice, bound, date, scenario and formula reference. Confirm formulas are statically type-safe, units match outputs, dependencies point backwards, and every default input/group combination produces finite numeric results.",
+  "Follow the user's actual request, not the example above. Preserve all supported requirements and do not silently omit important features. Do not invent prices, live data, external sources, conversion rates or guarantees. If a requested capability cannot be represented, implement the supported parts and state the limitation in assumptions."
+ ].join("\n\n")+"\n\nUSER'S ACTUAL CALCULATOR REQUEST:\n";
+}
+
+function buildPrompt(version){
+ if(Number(version)===2)return buildTypedV2Prompt();
  return [
   "You are designing a data-only calculator blueprint for Worth It Manual Builder.",
   "GOAL: Turn the user's actual calculator request into a complete, correct and useful calculator. The subject may be any domain. These instructions define the output format and safety limits; they do not prescribe a calculator topic.",
