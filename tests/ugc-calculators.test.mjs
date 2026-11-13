@@ -551,7 +551,7 @@ test("AI Maker rejects omitted requested periods and required calculator inputs"
         });
         assert.equal(response.status, 422);
         const result = await response.json();
-        assert.equal(result.code, "INCOMPLETE_CALCULATOR");
+        assert.equal(result.code, "INCOMPLETE_CALCULATOR", JSON.stringify(result));
         assert.match(result.error, /monthly result/i);
         assert.match(result.error, /yearly result/i);
         assert.match(makerApi, /Cover every requested output and time period/);
