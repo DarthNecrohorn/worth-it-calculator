@@ -55,6 +55,17 @@ function formulaGroupFieldReferences(ast,output=[]){
  else if(ast.type==="call")(ast.args||[]).forEach(arg=>formulaGroupFieldReferences(arg,output));
  return output;
 }
+function formulaInputReferences(ast,output=new Set()){
+ if(!(output instanceof Set))output=new Set();
+ if(!ast||typeof ast!=="object")return output;
+ if(ast.type==="variable")output.add(ast.name);
+ else if(ast.type==="unary")formulaInputReferences(ast.value,output);
+ else if(ast.type==="binary"){
+  formulaInputReferences(ast.left,output);
+  formulaInputReferences(ast.right,output);
+ }else if(ast.type==="call")(ast.args||[]).forEach(argument=>formulaInputReferences(argument,output));
+ return output;
+}
 function evaluate(ast,values,groupValues,rowContext=null){
  const groups=groupValues&&typeof groupValues==="object"?groupValues:{};
  let n;
@@ -573,7 +584,7 @@ function validateMakerSpec(spec){
  return {errors:[...new Set(errors)]};
 }
  return Object.freeze({
-  compileExpression,formulaGroupFieldReferences,evaluate,groupMapForSpec,defaultGroupValues,
+  compileExpression,formulaGroupFieldReferences,formulaInputReferences,evaluate,groupMapForSpec,defaultGroupValues,
   unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
   validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors
  });
