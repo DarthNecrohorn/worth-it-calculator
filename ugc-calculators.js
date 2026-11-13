@@ -2549,7 +2549,7 @@ async function importManualBlueprint(){
   const importer=window.WorthItBlueprintImport;
   if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
   const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
-  const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec),originalRequest);
+  const definition=importer.parseBlueprint(raw,validateMakerSpec,originalRequest);
   const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
   const validationIssueCount=Number(definition.importValidationIssueCount)||0;
   delete definition.importNotes;

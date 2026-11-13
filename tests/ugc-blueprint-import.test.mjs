@@ -12,13 +12,14 @@ function getImporter(){
  runInNewContext(helperSource,sandbox);
  return sandbox.window.WorthItBlueprintImport;
 }
-function getManualValidator(){
+function getManualEngine(){
  const start=builderSource.indexOf("function compileExpression(");
  const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- assert.ok(start>=0&&end>start,"The shared Manual Builder formula validator must be present.");
- const validatorSource=builderSource.slice(start,end);
- return runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2],[\"USD\",\"US Dollar\",2],[\"RSD\",\"Serbian Dinar\",2]];"+validatorSource+";return validateMakerSpec;})()");
+ assert.ok(start>=0&&end>start,"The shared Manual Builder formula engine must be present.");
+ const engineSource=builderSource.slice(start,end);
+ return runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2],[\"USD\",\"US Dollar\",2],[\"RSD\",\"Serbian Dinar\",2]];"+engineSource+";return{validateMakerSpec,evaluateFormulaResults};})()");
 }
+function getManualValidator(){return getManualEngine().validateMakerSpec;}
 function plain(value){return JSON.parse(JSON.stringify(value));}
 function blueprint(overrides={}){
  return {
@@ -340,7 +341,8 @@ test("repairs common Gemini-style planner units and a hard-coded 30-day projecti
 
 test("repairs implicit USD-per-operation coefficients in a provider blueprint using editable dimensional rate inputs",()=>{
  const importer=getImporter();
- const validate=getManualValidator();
+ const engine=getManualEngine();
+ const validate=engine.validateMakerSpec;
  const candidate={
   blueprintVersion:1,
   title:"Cloudflare Pages & Supabase Stack Cost Estimator",
@@ -388,6 +390,16 @@ test("repairs implicit USD-per-operation coefficients in a provider blueprint us
  assert.match(totalCost.expression,/cost_per_request/);
  assert.match(totalCost.expression,/cost_per_read/);
  assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ const defaultValues=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
+ const current=engine.evaluateFormulaResults(definition.spec,defaultValues,{});
+ assert.equal(current.find(item=>item.key==="estimated_monthly_cost").value,8.5);
+ const indie=engine.evaluateFormulaResults(definition.spec,definition.spec.scenarios.find(item=>item.key==="small_project").values,{});
+ assert.equal(indie.find(item=>item.key==="estimated_monthly_cost").value,0.255);
+ const scaling=engine.evaluateFormulaResults(definition.spec,definition.spec.scenarios.find(item=>item.key==="scaling_platform").values,{});
+ assert.equal(scaling.find(item=>item.key==="estimated_monthly_cost").value,255);
+ assert.ok(indie.every(item=>Number.isFinite(item.value)));
+ assert.ok(scaling.every(item=>Number.isFinite(item.value)));
+
  assert.ok(definition.importNotes.some(note=>note.includes("implicit numeric cost coefficient")));
 });
 
@@ -533,6 +545,8 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(html,/ugc-blueprint-import\.js/);
  const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\s\S]*?\n\}/)?.[0]||"";
  assert.ok(importFunction.includes("parseBlueprint"));
+ assert.ok(importFunction.includes("parseBlueprint(raw,validateMakerSpec,originalRequest)"));
+ assert.doesNotMatch(importFunction,/parseBlueprint\(raw,\s*spec\s*=>/);
  assert.ok(importFunction.includes("Working on a quick fix"));
  assert.ok(importFunction.includes("importValidationIssueCount"));
  assert.ok(importFunction.includes('state.creationSource="manual"'));
