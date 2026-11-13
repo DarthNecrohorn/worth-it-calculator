@@ -87,17 +87,17 @@ A successful import means the blueprint was safely parsed and made editable; it 
 
 ### Count-rate dimensions and range normalization
 
-The local repair engine can infer common count-based rates from clear labels, including prompts per user, tokens per prompt and monetary cost per token. It preserves the distinction between tokens and generic items, so a formula chain such as users × prompts/user × tokens/prompt has a coherent token-volume dimension and token-volume × currency/token produces a currency result. Result units are also checked against the semantic quantity named by the result label when the dimensional category allows an unambiguous match.
+The local repair engine can infer common count-based rates from clear labels, including prompts per user, tokens per prompt and monetary cost per token. It preserves the distinction between tokens and generic items, so a formula chain such as users × prompts/user × tokens/prompt has a coherent token-volume dimension and token-volume × currency/token produces a currency result. Result units are also checked against the semantic quantity named by the result label when the dimensional category allows an unambiguous match. It also recognises clearly labeled per-device quantities, time inputs and common data units/rates such as GB, TB and GB/hour. If a unit-bearing result formula uses one unambiguous positive decimal physical-rate coefficient, Quick Fix can replace that bare constant with a visible editable rate input while preserving its numeric default. Select options that explicitly contain a numeric rate such as `3 GB/hour` can be normalised to use the displayed rate as their numeric value, with scenario selections remapped to the same named option.
 
 When a numeric range has a positive but incompatible step, Quick Fix prefers a familiar 1/2/5 × 10^n common step no larger than the original step. It preserves the supplied minimum, maximum and default wherever a valid increment can be found, instead of replacing a meaningful step with an unexpectedly coarse greatest common divisor. Scenario values are then checked against the normalized input step.
 
 ## Units and formulas
 
-The Manual Builder uses dimensional algebra. Common units and rates are recognised, including currency-per-time and physical compound units. Simple explicit products and quotients such as `GB/hour`, `EUR/month` or `kWh/day` can be analysed.
+The Manual Builder uses dimensional algebra. Common units and rates are recognised, including currency-per-time and physical compound units. Simple explicit products and quotients such as `GB/hour`, `GB/device`, `EUR/month` or `kWh/day` can be analysed. Data units such as B, KB, MB, GB, TB and PB share a data dimension so explicit scale conversion formulas can be checked dimensionally.
 
-Unknown unit atoms remain distinct dimensions. For example, an unknown `GB` token is not assumed to be equivalent to `MB`, bytes or any other unit. Combining it with an explicit time unit can produce a checkable unit such as `GB/hour`, but it does not perform scale conversion. There is no implicit currency exchange, unit conversion, or conversion between days, weeks, months and years.
+Unknown unit atoms remain distinct dimensions. Combining them with explicit units is not assumed safe unless the unit system recognises each atom. There is no implicit currency exchange, unit conversion, or conversion between days, weeks, months and years.
 
-The formula language remains a restricted data-only expression grammar. It does not execute JavaScript, Python, arbitrary functions, network access, callbacks or dynamic imports.
+The formula language remains a restricted data-only expression grammar. `sum()` may aggregate either one field or a row-wise arithmetic expression using fields from one dynamic group, such as `sum(devices.data_per_device * devices.device_count)`. The row expression is evaluated independently for each row and checked dimensionally before summation. It does not execute JavaScript, Python, arbitrary functions, network access, callbacks or dynamic imports.
 
 ## Safety and privacy
 
