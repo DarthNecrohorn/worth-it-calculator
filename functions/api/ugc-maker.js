@@ -880,14 +880,34 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             throw new Error(label+": a dynamic group needs 1 to 6 numeric fields.");
         }
         seen.add(key);
+        const previousGroup=Array.isArray(previousSpec?.groups)?previousSpec.groups.find(item=>String(item?.key||"")===key):null;
         const fields=group.fields.map(field=>{
             const fieldKey=String(field?.key||"").trim().toLowerCase();
+            const previousField=Array.isArray(previousGroup?.fields)?previousGroup.fields.find(item=>String(item?.key||"")===fieldKey):null;
             const fieldLabel=String(field?.label||"").trim().slice(0,60);
             const min=Number(field?.min),max=Number(field?.max),value=Number(field?.default),step=Number(field?.step);
-            const unit=String(field?.unit||"").trim().slice(0,16);
+            let unit=String(Object.prototype.hasOwnProperty.call(field||{},"unit")?field.unit:(previousField?.unit||"")).trim().slice(0,16);
+            const semantic=(fieldLabel+" "+fieldKey).toLowerCase();
+            const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+            const monetaryField=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
+                ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix);
+            const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+            const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
+                /^(?:m3|m³)$/i.test(rateBasis)?"m3":
+                /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
+                /^(?:kilometres?|kilometers?|km)$/i.test(rateBasis)?"km":
+                /^(?:kg)$/i.test(rateBasis)?"kg":
+                /^(?:g)$/i.test(rateBasis)?"g":
+                /^(?:hours?)$/i.test(rateBasis)?"hour":
+                /^(?:days?)$/i.test(rateBasis)?"day":"";
+            if(forceCurrency&&monetaryField){
+                const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
+                unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
+            }else if(!unit&&!previousField&&monetaryField)unit=currencyFallback;
+            if(monetaryField&&normalizedRateBasis&&/^[A-Z]{3}$/.test(unit))unit=unit+"/"+normalizedRateBasis;
             if(!/^[a-z][a-z0-9_]{0,31}$/.test(fieldKey)||seen.has(fieldKey)||!fieldLabel||
                 ![min,max,value,step].every(Number.isFinite)||min>value||value>max||max-min>1e12||
-                step<=0||!Number.isFinite((value-min)/step)||Math.abs((value-min)/step-Math.round((value-min)/step))>1e-7||
+                step<=0||unit.length>16||!Number.isFinite((value-min)/step)||Math.abs((value-min)/step-Math.round((value-min)/step))>1e-7||
                 (max>min&&Math.abs((max-min)/step-Math.round((max-min)/step))>1e-7)){
                 throw new Error(label+": the dynamic group contains an invalid field definition.");
             }
