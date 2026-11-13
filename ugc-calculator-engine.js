@@ -630,7 +630,10 @@ function resolveCalculatorVersions(spec){
  if(!hasSchema||!hasEngine)throw new Error("A versioned calculator must declare both schemaVersion and engineVersion.");
  const schemaVersion=spec.schemaVersion,engineVersion=spec.engineVersion;
  if(!Number.isInteger(schemaVersion)||!Number.isInteger(engineVersion))throw new Error("Calculator schemaVersion and engineVersion must be integers.");
- if(schemaVersion===1&&engineVersion===1)return {schemaVersion:1,engineVersion:1,legacy:false};
+ if(schemaVersion===1&&engineVersion===1){
+  if(spec.version!==undefined&&Number(spec.version)!==1)throw new Error("Schema 1 definitions must keep the legacy version field at 1.");
+  return {schemaVersion:1,engineVersion:1,legacy:false};
+ }
  if(schemaVersion===2&&engineVersion===2)return {schemaVersion:2,engineVersion:2,legacy:false};
  throw new Error("This calculator schema/engine version combination is not supported.");
 }
@@ -675,7 +678,7 @@ function validateV2TypedSpec(spec){
    labels.add(normalizedLabel);
    if(kind==="number"){
     if(typeof choice.value!=="number"||!Number.isFinite(choice.value)||Math.abs(choice.value)>1e12)add(label+" choice "+(index+1)+" needs a finite numeric value.");
-   }else if(typeof choice.value!=="string"||!choice.value.length||choice.value.length>64){
+   }else if(typeof choice.value!=="string"||!choice.value.trim().length||choice.value.length>64){
     add(label+" choice "+(index+1)+" needs a non-empty string value of at most 64 characters.");
    }
    const valueKey=typeof choice.value==="string"?choice.value:String(choice.value);
@@ -727,7 +730,7 @@ function validateV2TypedSpec(spec){
    return {type:"boolean"};
   }
   if(type==="enum"){
-   if(typeof definition.default!=="string"||!definition.default.length)add(label+" enum default must be a non-empty string.");
+   if(typeof definition.default!=="string"||!definition.default.trim().length)add(label+" enum default must be a non-empty string.");
    if(kind==="input"&&definition.control!=="select")add(label+" enum inputs must use the select control.");
    if(kind==="field"&&definition.control!==undefined)add(label+" dynamic fields do not declare UI controls.");
    if(["min","max","step","minDate","maxDate"].some(key=>definition[key]!==undefined))add(label+" enum values cannot declare numeric ranges or date bounds.");
