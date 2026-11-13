@@ -141,6 +141,106 @@ test("accepts one outer JSON Markdown fence without interpreting other Markdown"
  assert.equal(result.title,"Household Expense Calculator");
 });
 
+test("removes only a stray boundary Markdown fence and preserves literal backticks inside JSON strings",()=>{
+ const importer=getImporter();
+ const fence=String.fromCharCode(96).repeat(3);
+ const candidate=blueprint({description:"A calculator whose explanation may contain literal "+fence+" markers as text, without treating them as executable code."});
+ const raw=JSON.stringify(candidate);
+ const openingOnly=fence+" json\n"+raw;
+ const closingOnly=raw+"\n"+fence;
+ assert.equal(importer.parseBlueprint(openingOnly,()=>({errors:[]})).title,candidate.title);
+ assert.equal(importer.parseBlueprint(closingOnly,()=>({errors:[]})).title,candidate.title);
+ assert.equal(importer.parseBlueprint(raw,()=>({errors:[]})).description,candidate.description);
+});
+
+test("repairs a serverless scaling blueprint with read, write, request and API call dimensions",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const input=(key,label,min,max,def,step,unit,control)=>{
+  const item={key,label,min,max,default:def,step,unit};
+  if(control)item.control=control;
+  if(control==="select")item.choices=[{label:"Free Tier",value:0},{label:"Pro Starter",value:30},{label:"Growth Tier",value:75},{label:"Business Scale",value:125}];
+  return item;
+ };
+ const inputs=[
+  input("monthly_active_users","Monthly Active Users",0,5000000,25000,1000,"people"),
+  input("sessions_per_user","Sessions per User per Month",1,60,8,1,"","slider"),
+  input("edge_requests_per_session","Edge Requests per Session",1,200,12,1,""),
+  input("db_reads_per_session","Database Reads per Session",0,500,20,1,""),
+  input("db_writes_per_session","Database Writes per Session",0,200,4,1,""),
+  input("cache_hit_ratio_pct","Edge Cache Hit Ratio",0,95,65,5,"","slider"),
+  input("base_platform_plan","Base Hosting & DB Plan",0,125,30,5,"USD","select"),
+  input("included_edge_requests","Included Edge Requests",0,100000000,10000000,1000000,"items"),
+  input("edge_overage_rate","Edge Overage Rate per Request",0,0.01,0.0000003,0.0000001,"USD/item"),
+  input("included_db_reads","Included Database Reads",0,500000000,25000000,5000000,"items"),
+  input("db_read_rate","Database Read Overage Rate",0,0.01,0.0000002,0.0000001,"USD/item"),
+  input("included_db_writes","Included Database Writes",0,100000000,5000000,1000000,"items"),
+  input("db_write_rate","Database Write Overage Rate",0,0.05,0.000001,0.0000005,"USD/item"),
+  input("enable_security_waf","Enable Advanced Bot & WAF Protection",0,1,1,1,"","toggle"),
+  input("waf_monthly_fee","Advanced WAF Add-on Fee",0,500,20,5,"USD"),
+  input("avg_revenue_per_user","Average Monthly Revenue per User",0,100,0.05,0.01,"USD/people")
+ ];
+ const results=[
+  ["total_monthly_sessions","Total Monthly Sessions","monthly_active_users * sessions_per_user","unit","people"],
+  ["total_edge_requests","Total Edge Function Requests","(monthly_active_users / 1) * sessions_per_user * edge_requests_per_session","number"],
+  ["billable_edge_requests","Billable Edge Overage Requests","max(0, total_edge_requests * 1 - included_edge_requests / 1)","number"],
+  ["edge_overage_cost","Edge Compute Overage Cost","max(0, (monthly_active_users * (1 / 1)) * 0 + (total_edge_requests - (included_edge_requests / 1))) * (edge_overage_rate * 1)","number"],
+  ["effective_db_reads","Origin Database Reads (Post-Cache)","monthly_active_users * (1 / 1) * sessions_per_user * db_reads_per_session * (1 - cache_hit_ratio_pct / 100)","unit","people"],
+  ["total_db_writes","Total Database Writes","monthly_active_users * sessions_per_user * db_writes_per_session","unit","people"],
+  ["db_overage_usd","Database Overage Cost","(max(0, (effective_db_reads / 1) - (included_db_reads / 1)) * (db_read_rate * 1) + max(0, (total_db_writes / 1) - (included_db_writes / 1)) * (db_write_rate * 1)) * (base_platform_plan * 0 + 1)","currency","USD"],
+  ["external_api_variable_usd","External APIs Variable Usage Cost","(monthly_active_users / 1) * sessions_per_user * sum(external_apis.api_calls_per_session) * avg(external_apis.api_cost_per_call) * (base_platform_plan * 0 + 1)","currency","USD"],
+  ["external_api_fixed_usd","External APIs Fixed Subscriptions","sum(external_apis.api_fixed_monthly)","currency","USD"],
+  ["total_monthly_infra_cost","Total Monthly Infrastructure Cost","base_platform_plan + if(eq(enable_security_waf, 1), waf_monthly_fee, 0) + (edge_overage_cost * (base_platform_plan * 0 + 1)) + db_overage_usd + external_api_variable_usd + external_api_fixed_usd","currency","USD"],
+  ["gross_monthly_revenue","Gross Monthly Revenue","monthly_active_users * avg_revenue_per_user","currency","USD"],
+  ["net_monthly_profit","Net Monthly Operating Profit","gross_monthly_revenue - total_monthly_infra_cost","currency","USD"],
+  ["gross_margin_pct","Infrastructure Gross Margin","if(gt(gross_monthly_revenue, 0), (net_monthly_profit / gross_monthly_revenue) * 100, 0)","percent"],
+  ["cost_per_thousand_users","Infrastructure Cost per 1,000 Users","if(gt(monthly_active_users, 0), (total_monthly_infra_cost / (monthly_active_users / 1000)) * (1 / (1 / 1)), 0)","unit","USD/people"]
+ ].map(([key,label,expression,format,unit])=>({key,label,expression,format,...(format==="currency"?{currency:unit}:{format==="unit"?{unit}:{}}),explanation:"A deterministic scaling model result."}));
+ const candidate={
+  blueprintVersion:1,title:"Serverless Edge & Database Scaling Cost Calculator",
+  description:"Models monthly cloud architecture expenses across serverless edge workers, database reads/writes, storage, and custom external API tiers with traffic growth projections.",
+  category:"technology",subcategories:["serverless","cloud-hosting","database","unit-economics"],
+  assumptions:["Rates are editable assumptions, not verified provider tariffs."],
+  spec:{inputs,groups:[{key:"external_apis",label:"Third-Party Data & Telemetry APIs",itemLabel:"API Integration",minItems:1,maxItems:8,fields:[
+   {key:"api_calls_per_session",label:"Uncached API Calls per Session",min:0,max:50,default:1,step:1,unit:""},
+   {key:"api_cost_per_call",label:"Cost per API Call",min:0,max:1,default:0.0005,step:0.0001,unit:"USD/item"},
+   {key:"api_fixed_monthly",label:"Fixed API Subscription",min:0,max:2000,default:15,step:5,unit:"USD"}
+  ]}],results,scenarios:[]}
+ };
+ const fence=String.fromCharCode(96).repeat(3);
+ const definition=importer.parseBlueprint(fence+"json\n"+JSON.stringify(candidate)+"\n"+fence,validate);
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ const byKey=key=>definition.spec.inputs.find(item=>item.key===key);
+ assert.equal(byKey("db_writes_per_session").unit,"write/session");
+ assert.equal(byKey("included_edge_requests").unit,"request");
+ assert.equal(byKey("included_db_reads").unit,"read");
+ assert.equal(byKey("included_db_writes").unit,"write");
+ assert.equal(byKey("edge_overage_rate").unit,"USD/request");
+ assert.equal(byKey("db_read_rate").unit,"USD/read");
+ assert.equal(byKey("db_write_rate").unit,"USD/write");
+ const group=definition.spec.groups[0];
+ assert.equal(group.fields.find(field=>field.key==="api_calls_per_session").unit,"call/session");
+ assert.equal(group.fields.find(field=>field.key==="api_cost_per_call").unit,"USD/call");
+ assert.equal(definition.spec.results.find(item=>item.key==="edge_overage_cost").format,"currency");
+ assert.equal(definition.spec.results.find(item=>item.key==="total_db_writes").unit,"write");
+ const values=Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item.default]));
+ const actual=engine.evaluateFormulaResults(definition.spec,values,{external_apis:[{api_calls_per_session:1,api_cost_per_call:0.0005,api_fixed_monthly:15}]});
+ const get=key=>actual.find(item=>item.key===key).value;
+ assert.equal(get("total_monthly_sessions"),200000);
+ assert.equal(get("total_edge_requests"),2400000);
+ assert.equal(get("billable_edge_requests"),0);
+ assert.equal(get("edge_overage_cost"),0);
+ assert.equal(get("effective_db_reads"),1400000);
+ assert.equal(get("total_db_writes"),800000);
+ assert.equal(get("db_overage_usd"),0);
+ assert.equal(get("external_api_variable_usd"),100);
+ assert.equal(get("external_api_fixed_usd"),15);
+ assert.equal(get("total_monthly_infra_cost"),165);
+ assert.equal(get("gross_monthly_revenue"),1250);
+ assert.equal(get("net_monthly_profit"),1085);
+ assert.ok(Math.abs(get("gross_margin_pct")-86.8)<1e-8);
+ assert.equal(get("cost_per_thousand_users"),6.6);
+});
+
 test("repairs copied JSON line continuations, HTML-encoded spaces and escaped multiplication signs",()=>{
  const importer=getImporter();
  const candidate=blueprint();

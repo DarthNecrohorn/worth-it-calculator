@@ -711,20 +711,41 @@ function jsonSyntaxFailure(error,source){
  fail("Could not read JSON. "+message+" Paste only the JSON object, without surrounding instructions.");
 }
 function extractSingleJsonPayload(source){
- const fencePattern=/\x60{3}([a-z0-9_-]*)[ \t]*\r?\n?([\s\S]*?)\x60{3}/gi;
- const fences=[...source.matchAll(fencePattern)];
- if(fences.length>1)fail("More than one code block was found. Keep only the single calculator JSON object.");
- if(fences.length===1){
-  const language=String(fences[0][1]||"").toLowerCase();
-  if(language&&language!=="json")fail("The calculator blueprint code block must be labelled json or have no language label.");
-  return String(fences[0][2]||"").trim();
+ const lines=source.split(/\r?\n/);
+ const markers=[];
+ lines.forEach((line,index)=>{
+  const match=line.match(/^[ \t]*\x60{3}[ \t]*([a-z0-9_-]*)[ \t]*$/i);
+  if(match)markers.push({index,language:String(match[1]||"").toLowerCase()});
+ });
+ if(markers.length>2)fail("More than one code block was found. Keep only the single calculator JSON object.");
+ let candidateLines=lines;
+ if(markers.length===2){
+  const [opening,closing]=markers;
+  if(opening.index>=closing.index)fail("The JSON code fence is incomplete. Paste one opening and one closing fence.");
+  if(opening.language&&opening.language!=="json")fail("The calculator blueprint code block must be labelled json or have no language label.");
+  if(closing.language)fail("The closing JSON code fence must contain only three backticks.");
+  candidateLines=lines.slice(opening.index+1,closing.index);
+ }else if(markers.length===1){
+  const marker=markers[0];
+  const firstContent=lines.findIndex(line=>line.trim());
+  let lastContent=lines.length-1;
+  while(lastContent>=0&&!lines[lastContent].trim())lastContent--;
+  if(marker.index===firstContent){
+   if(marker.language&&marker.language!=="json")fail("The calculator blueprint code block must be labelled json or have no language label.");
+   candidateLines=lines.slice(marker.index+1);
+  }else if(marker.index===lastContent&&!marker.language){
+   candidateLines=lines.slice(0,marker.index);
+  }else{
+   fail("A stray code-fence marker was found inside the pasted text. Keep code fences only around the complete JSON object.");
+  }
  }
+ const payload=candidateLines.join("\n").trim();
  // Some assistants return one raw JSON object with a short introduction or closing sentence.
  // Extract only when there is exactly one balanced top-level object; never guess between candidates.
  let depth=0,start=-1,inString=false,escaped=false;
  const candidates=[];
- for(let index=0;index<source.length;index++){
-  const character=source[index];
+ for(let index=0;index<payload.length;index++){
+  const character=payload[index];
   if(inString){
    if(escaped){escaped=false;continue;}
    if(character==="\\"){escaped=true;continue;}
@@ -737,12 +758,12 @@ function extractSingleJsonPayload(source){
    depth++;
   }else if(character==="}"&&depth>0){
    depth--;
-   if(depth===0&&start>=0){candidates.push(source.slice(start,index+1));start=-1;}
+   if(depth===0&&start>=0){candidates.push(payload.slice(start,index+1));start=-1;}
   }
  }
  if(candidates.length>1)fail("More than one JSON object was found. Paste only the single calculator blueprint.");
  if(candidates.length===1)return candidates[0];
- return source.trim();
+ return payload;
 }
 function parseBlueprint(text,validateSpec,requestText){
  if(typeof text!=="string"||!text.trim())fail("Paste a JSON blueprint first.");

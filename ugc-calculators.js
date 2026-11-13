@@ -741,7 +741,9 @@ function unitDescriptor(unit){
    week:"time",weeks:"time",month:"time",months:"time",year:"time",years:"time",
    minute:"time",minutes:"time",second:"time",seconds:"time",
    unit:"count",units:"count",item:"count",items:"count",pack:"count",packs:"count",
-   person:"count",people:"count",km:"length",mile:"length",miles:"length",m:"length"
+   person:"count",people:"count",user:"count",users:"count",
+   request:"count",requests:"count",read:"count",reads:"count",write:"count",writes:"count",
+   call:"count",calls:"count",km:"length",mile:"length",miles:"length",m:"length"
   })[denominator];
   if(dimension)return descriptor(raw,{["currency:"+rateMatch[1]]:1,[dimension]:-1},false,{["currency:"+rateMatch[1]]:rateMatch[1],[dimension]:rateMatch[2].trim()});
  }
@@ -788,8 +790,11 @@ function unitDescriptor(unit){
   });
   return descriptor(raw,vector,false,symbols);
  }
- if(["items","item","units","unit","people","person","packs","pack","users","user","vehicles","vehicle","cars","car"].includes(key)){
-  return descriptor(raw,{count:1},false,{count:raw});
+ const countSymbols={items:"items",item:"item",units:"units",unit:"unit",people:"people",person:"person",packs:"packs",pack:"pack",
+  users:"user",user:"user",vehicles:"vehicles",vehicle:"vehicle",cars:"cars",car:"car",
+  requests:"request",request:"request",reads:"read",read:"read",writes:"write",write:"write",calls:"call",call:"call"};
+ if(Object.prototype.hasOwnProperty.call(countSymbols,key)){
+  return descriptor(raw,{count:1},false,{count:countSymbols[key]});
  }
  if(["period","periods","occurrences","times"].includes(key))return descriptor(raw,{},false,{});
  // Compose simple products and quotients dimensionally. Unknown atoms remain distinct
@@ -1198,6 +1203,39 @@ function formulaAstToText(ast){
  if(ast.type==="call")return ast.name+"("+ast.args.map(formulaAstToText).join(",")+")";
  throw new Error("Unsupported formula node.");
 }
+function simplifyFormulaConstants(ast){
+ if(!ast||typeof ast!=="object")return ast;
+ if(ast.type==="unary"){
+  const value=simplifyFormulaConstants(ast.value);
+  const constant=constantFormulaValue({type:"unary",op:ast.op,value});
+  return constant!==null&&Number.isFinite(constant)?{type:"number",value:constant}:{...ast,value};
+ }
+ if(ast.type==="binary"){
+  const left=simplifyFormulaConstants(ast.left),right=simplifyFormulaConstants(ast.right);
+  const l=constantFormulaValue(left),r=constantFormulaValue(right);
+  if(l!==null&&r!==null){
+   let value=null;
+   if(ast.op==="+")value=l+r;
+   else if(ast.op==="-")value=l-r;
+   else if(ast.op==="*")value=l*r;
+   else if(ast.op==="/"&&r!==0)value=l/r;
+   else if(ast.op==="^")value=Math.pow(l,r);
+   if(value!==null&&Number.isFinite(value))return{type:"number",value};
+  }
+  if(ast.op==="*"&&l===1)return right;
+  if(ast.op==="*"&&r===1)return left;
+  if(ast.op==="*"&&l===0&&right.type==="variable")return{type:"number",value:0};
+  if(ast.op==="*"&&r===0&&left.type==="variable")return{type:"number",value:0};
+  if(ast.op==="/"&&r===1)return left;
+  if(ast.op==="+"&&l===0)return right;
+  if(ast.op==="+"&&r===0)return left;
+  if(ast.op==="-"&&r===0)return left;
+  if(ast.op==="-"&&l===0)return{type:"unary",op:"-",value:right};
+  return{...ast,left,right};
+ }
+ if(ast.type==="call")return{...ast,args:ast.args.map(simplifyFormulaConstants)};
+ return ast;
+}
 function guardFormulaDivisions(ast,denominatorMayBeZero){
  const mayBeZero=typeof denominatorMayBeZero==="function"?denominatorMayBeZero:()=>true;
  if(ast.type==="binary"){
@@ -1225,31 +1263,44 @@ function guardFormulaDivisions(ast,denominatorMayBeZero){
 
 function blueprintCountAtomFromText(value){
  const text=String(value||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ if(/\b(?:database|db)\s+writes?\b|\bwrites?\b/.test(text))return "write";
  if(/\b(?:database|db)\s+reads?\b|\breads?\b/.test(text))return "read";
  if(/\b(?:edge(?:\s+function)?\s+requests?|function requests?|requests?)\b/.test(text))return "request";
+ if(/\b(?:api\s+)?calls?\b/.test(text))return "call";
  if(/\bsessions?\b/.test(text))return "session";
- if(/\b(?:monthly\s+active\s+)?users?\b/.test(text))return "user";
+ if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
  return "";
 }
-function inferBlueprintCountInputUnits(inputs,notes){
- inputs.forEach(input=>{
-  if(String(input.unit||"").trim())return;
-  const label=String(input.label||input.key||"");
-  const normalized=label.toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
-  let inferred="";
-  const perMatch=normalized.match(/\b(.+?)\s+per\s+(.+?)\b/);
-  if(perMatch){
-   const numerator=blueprintCountAtomFromText(perMatch[1]);
-   const denominator=blueprintCountAtomFromText(perMatch[2]);
-   if(numerator&&denominator)inferred=numerator+"/"+denominator;
-  }else{
-   inferred=blueprintCountAtomFromText(normalized);
-  }
-  if(inferred){
-   input.unit=inferred;
-   notes.push(label+": inferred the explicit count/rate unit "+inferred+" from its label.");
-  }
- });
+function blueprintCountUnitFromLabel(label){
+ const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+ const perMatch=normalized.match(/\b(.+?)\s+per\s+(.+?)\b/);
+ if(perMatch){
+  const numerator=blueprintCountAtomFromText(perMatch[1]);
+  const denominator=blueprintCountAtomFromText(perMatch[2]);
+  if(numerator&&denominator)return numerator+"/"+denominator;
+ }
+ return blueprintCountAtomFromText(normalized);
+}
+function inferBlueprintCountFieldUnit(item,label,notes){
+ const inferred=blueprintCountUnitFromLabel(label),current=String(item.unit||"").trim();
+ const countPlaceholder=/^(?:items?|units?)$/i.test(current);
+ const ratePlaceholder=/^([A-Z]{3})\s*\/\s*(?:items?|units?)$/i.exec(current);
+ if(!current&&inferred){
+  item.unit=inferred;
+  notes.push(label+": inferred the explicit count/rate unit "+inferred+" from its label.");
+ }else if(countPlaceholder&&inferred){
+  item.unit=inferred;
+  notes.push(label+": replaced the generic "+current+" unit with "+inferred+" based on its label.");
+ }else if(ratePlaceholder&&inferred&&!inferred.includes("/")){
+  item.unit=ratePlaceholder[1]+"/"+inferred;
+  notes.push(label+": refined the generic per-item price unit to "+item.unit+" based on its label.");
+ }
+}
+function inferBlueprintCountInputUnits(inputs,groups,notes){
+ (Array.isArray(inputs)?inputs:[]).forEach(input=>inferBlueprintCountFieldUnit(input,String(input.label||input.key||""),notes));
+ (Array.isArray(groups)?groups:[]).forEach(group=>(Array.isArray(group.fields)?group.fields:[]).forEach(field=>
+  inferBlueprintCountFieldUnit(field,String(field.label||field.key||""),notes)
+ ));
 }
 function materializeCurrencyRateConstants(ast,result,currency,formulaUnits,groups,inputs,usedKeys){
  const pending=[],localKeys=new Set(usedKeys);
@@ -1316,7 +1367,7 @@ function repairMakerBlueprintSpec(sourceSpec){
  const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
  const groups=Array.isArray(spec.groups)?spec.groups:[];
  const results=Array.isArray(spec.results)?spec.results:[];
- inferBlueprintCountInputUnits(inputs,notes);
+ inferBlueprintCountInputUnits(inputs,groups,notes);
  const groupMap=groupMapForSpec(spec);
  const resultKeySet=new Set(results.map(item=>String(item?.key||"")).filter(Boolean));
  const knownFormulaFunctions=new Set(["min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan","if","gt","gte","lt","lte","eq","neq","and","or","not","pi","e"]);
@@ -1359,6 +1410,14 @@ function repairMakerBlueprintSpec(sourceSpec){
    // the final validator to explain rather than replacing it with a guess.
    if(result.key)availableKeys.add(result.key);
    return;
+  }
+  const simplified=simplifyFormulaConstants(ast);
+  const simplifiedText=formulaAstToText(simplified);
+  if(simplifiedText!==result.expression&&simplifiedText.length<=500){
+   result.expression=simplifiedText;
+   expression=simplifiedText;
+   ast=simplified;
+   notes.push(label+": simplified exact numeric identity operations without changing the formula's mathematical result.");
   }
   const denominatorMayBeZero=node=>{
    if(constantFormulaValue(node)!==null)return false;
