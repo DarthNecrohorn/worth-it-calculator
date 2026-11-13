@@ -1,5 +1,5 @@
--- Smoke tests for the fail-closed calculator schema-version gate.
--- Run after worth-it-ugc-version-gate.sql in a disposable PostgreSQL database.
+-- Smoke tests for the version-aware calculator persistence gate.
+-- Run after the V1 gate, V2 database validator and V2 persistence migration in disposable PostgreSQL.
 do $version_gate_smoke$
 declare
     v_legacy_v1 jsonb := '{
@@ -9,6 +9,13 @@ declare
       "results":[
         {"label":"Double amount","expression":"amount*2","format":"number"}
       ]
+    }'::jsonb;
+    v_valid_v2 jsonb := '{
+      "schemaVersion":2,"engineVersion":2,
+      "inputs":[{"key":"amount","label":"Amount","type":"number","min":0,"max":100,"default":10,"step":1,"unit":"","control":"number"}],
+      "groups":[],
+      "results":[{"key":"double_amount","label":"Double amount","expression":"amount*2","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Twice the amount."}],
+      "scenarios":[]
     }'::jsonb;
     v_invalid_specs jsonb[];
     v_candidate jsonb;
@@ -24,9 +31,13 @@ begin
         v_legacy_v1 || '{"version":1}'::jsonb
     );
 
-    -- A V2-shaped numeric definition is deliberately still rejected by storage.
+    -- A strict V2 definition is accepted only after the private V2 validator is installed.
+    perform private.worth_it_validate_ugc_spec(v_valid_v2);
+
+    -- V1-shaped data relabelled as V2 and malformed/mixed versions remain rejected.
     v_invalid_specs := array[
         v_legacy_v1 || '{"schemaVersion":2,"engineVersion":2}'::jsonb,
+        v_valid_v2 || '{"version":1}'::jsonb,
         v_legacy_v1 || '{"schemaVersion":1}'::jsonb,
         v_legacy_v1 || '{"schemaVersion":1,"engineVersion":2}'::jsonb,
         v_legacy_v1 || '{"schemaVersion":1.5,"engineVersion":1}'::jsonb,

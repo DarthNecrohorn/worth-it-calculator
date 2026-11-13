@@ -53,8 +53,10 @@ begin
   begin perform private.worth_it_validate_ugc_v2_spec(v_invalid);raise exception 'Accepted invalid formula: %',v_formula using errcode='P0001';
   exception when sqlstate '22023' then null;end;
  end loop;
- begin perform private.worth_it_validate_ugc_spec(v_valid);raise exception 'Persistence gate unexpectedly accepted V2.' using errcode='P0001';
- exception when sqlstate '22023' then null;end;
+ -- The version-aware persistence dispatcher now routes V2 to the independent
+ -- database validator. Actual save/publish/ownership checks run in the separate
+ -- ugc-v2-persistence-postgres-smoke.sql fixture.
+ perform private.worth_it_validate_ugc_spec(v_valid);
  if has_function_privilege('anon','private.worth_it_validate_ugc_v2_spec(jsonb)','EXECUTE')
   or has_function_privilege('authenticated','private.worth_it_validate_ugc_v2_spec(jsonb)','EXECUTE')
   or has_function_privilege('service_role','private.worth_it_validate_ugc_v2_spec(jsonb)','EXECUTE')
