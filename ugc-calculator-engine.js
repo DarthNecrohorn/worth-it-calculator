@@ -585,7 +585,7 @@ function validateMakerSpec(spec){
 }
 
 function hasOwn(object,key){return Object.prototype.hasOwnProperty.call(object,key);}
-function isRecord(value){return Boolean(value)&&typeof value==="object"&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);}
+function isRecord(value){return Boolean(value)&&typeof value==="object"&&!Array.isArray(value)&&Object.prototype.toString.call(value)==="[object Object]";}
 function validKey(value){return typeof value==="string"&&/^[a-z][a-z0-9_]{0,31}$/.test(value);}
 function isIsoDateOnly(value){
  if(typeof value!=="string"||!/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.test(value))return false;
