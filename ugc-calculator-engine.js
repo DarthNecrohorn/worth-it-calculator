@@ -845,6 +845,7 @@ function inferV2Expression(ast,symbols,groups){
    if(args[1].type!=="number")throw new Error(name+"() offset must be numeric.");
    const expected=unitDescriptor(name==="add_days"?"days":"months"),offsetUnit=args[1].unit;
    const literal=constantFormulaValue(expression.args[1])!==null;
+   if(literal&&!Number.isInteger(constantFormulaValue(expression.args[1])))throw new Error(name+"() offset constants must be whole numbers.");
    if(!literal&&!sameUnitDescriptor(offsetUnit,expected))throw new Error(name+"() offset must use "+(name==="add_days"?"days":"months")+" or be a numeric constant.");
    return {type:"date"};
   }
@@ -1053,13 +1054,54 @@ function validateV2FormulaResults(spec){
  const values=createDefaultTypedValues(spec).values;
  const groupDefaults=createDefaultTypedGroupValues(spec).groups;
  if(!Object.keys(values).length)errors.push("A v2 calculator needs at least one valid default input.");
- results.forEach((compiled,index)=>{
-  try{
-   const value=evaluateV2Expression(compiled.ast,values,groupDefaults);
-   if(typeof value!=="number"||!Number.isFinite(value))throw new Error("A result must produce one finite number.");
-  }catch(error){errors.push(String(spec.results[index]?.label||"Result "+(index+1))+": "+String(error?.message||"could not be evaluated with default values."));}
+ const evaluateSet=(baseValues,groupValues,label)=>{
+  const evaluatedValues={...baseValues};
+  results.forEach((compiled,index)=>{
+   try{
+    const value=evaluateV2Expression(compiled.ast,evaluatedValues,groupValues);
+    if(typeof value!=="number"||!Number.isFinite(value))throw new Error("A result must produce one finite number.");
+    const resultKey=spec.results[index]?.key;
+    if(resultKey)evaluatedValues[resultKey]=value;
+   }catch(error){errors.push((label?label+": ":"")+String(spec.results[index]?.label||"Result "+(index+1))+": "+String(error?.message||"could not be evaluated."));}
+  });
+ };
+ evaluateSet(values,groupDefaults,"Default values");
+ (spec.scenarios||[]).forEach(scenario=>{
+  if(isRecord(scenario?.values))evaluateSet({...values,...scenario.values},groupDefaults,"Scenario "+String(scenario.label||""));
  });
  return {errors:[...new Set(errors)],compiled:results};
+}
+
+
+function evaluateV2TypedResults(spec,rawValues,rawGroups){
+ const validation=validateV2TypedSpec(spec);
+ if(validation.errors.length)throw new Error(validation.errors[0]);
+ const defaults=createDefaultTypedValues(spec);
+ const values={...defaults.values};
+ const sourceValues=rawValues===undefined||rawValues===null?{}:rawValues;
+ if(!isRecord(sourceValues))throw new Error("Calculator input values must be an object.");
+ const definitions=new Map((spec.inputs||[]).map(input=>[input.key,input]));
+ Object.keys(sourceValues).forEach(key=>{if(!definitions.has(key))throw new Error("Unknown calculator input: "+key+".");});
+ Object.entries(sourceValues).forEach(([key,value])=>{
+  const definition=definitions.get(key);
+  if(definition.type==="number"&&typeof value!=="number")throw new Error(key+" must use a JSON number value.");
+  const normalized=normalizeTypedValue(definition,value);
+  if(!normalized.valid)throw new Error(String(definition.label||key)+": "+normalized.error);
+  values[key]=normalized.value;
+ });
+ const groupsResult=normalizeTypedGroupValues(spec,rawGroups===undefined?createDefaultTypedGroupValues(spec).groups:rawGroups);
+ if(!groupsResult.valid)throw new Error(groupsResult.errors[0]);
+ const compiled=validateV2FormulaResults(spec);
+ if(compiled.errors.length)throw new Error(compiled.errors[0]);
+ const evaluatedValues={...values},results=[];
+ compiled.compiled.forEach((entry,index)=>{
+  const value=evaluateV2Expression(entry.ast,evaluatedValues,groupsResult.groups);
+  if(typeof value!=="number"||!Number.isFinite(value))throw new Error("Result "+(index+1)+" must produce one finite number.");
+  const item=spec.results[index];
+  results.push({key:String(item.key||""),label:item.label,value,format:item.format||"number",unit:entry.inferred.unit});
+  if(item.key)evaluatedValues[item.key]=value;
+ });
+ return {results,values,groups:groupsResult.groups};
 }
 
 function validateV2TypedSpec(spec){
@@ -1312,7 +1354,7 @@ function normalizeTypedGroupValues(spec,rawGroups){
   unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
   validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
   resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
-  createDefaultTypedGroupValues,normalizeTypedGroupValues
+  createDefaultTypedGroupValues,normalizeTypedGroupValues,evaluateV2TypedResults
  });
 }
 root.WorthItCalculatorEngine=Object.freeze({apiVersion:1,create});
