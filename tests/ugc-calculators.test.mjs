@@ -22,6 +22,7 @@ const sql = read("supabase/worth-it-ugc-badges.sql");
 const makerQuotaSql = read("supabase/worth-it-ugc-maker-generation-refunds.sql");
 const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql");
 const composableBuilderSql = read("supabase/worth-it-ugc-composable-builder.sql");
+const v2DatabaseValidatorSql = read("supabase/worth-it-ugc-v2-database-validator.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
@@ -2536,6 +2537,17 @@ test("versioned calculator schema keeps legacy v1 definitions on the unchanged v
  const conflictingLegacyVersion={...explicitlyVersioned,version:2};
  assert.ok(engine.validateVersionedSpec(conflictingLegacyVersion).errors.some(error=>/legacy version field at 1/.test(error)));
  assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
+});
+
+test("private PostgreSQL V2 validator is separate from the still-blocked persistence version gate",()=>{
+ assert.match(v2DatabaseValidatorSql,/create or replace function private\.worth_it_validate_ugc_v2_spec/);
+ assert.match(v2DatabaseValidatorSql,/worth_it_v2_parse_expression/);
+ assert.match(v2DatabaseValidatorSql,/revoke all on function private\.worth_it_validate_ugc_v2_spec\(jsonb\) from public,anon,authenticated,service_role/i);
+ assert.match(v2DatabaseValidatorSql,/sum_if/);
+ assert.match(v2DatabaseValidatorSql,/count_if/);
+ assert.match(v2DatabaseValidatorSql,/calendar dates/i);
+ assert.match(read("supabase/worth-it-ugc-version-gate.sql"),/Only calculator schema 1 \/ engine 1 can currently be saved or published/);
+ assert.match(workflow,/ugc-v2-database-validator-postgres-smoke\.sql/);
 });
 
 test("server calculator adapter validates V1 unchanged and evaluates V2 defaults through the shared engine",()=>{

@@ -164,3 +164,14 @@ This is a validation foundation only. The current AI Creator still emits V1 defi
 The additive SQL version-gate migration preserves the previous V1 PL/pgSQL validator under a private internal name and routes the existing validator name through a strict version check. Legacy V1, explicit schema 1 / engine 1, and legacy `version: 1` definitions remain accepted by the old validator without changing its implementation. Partial, mixed, unknown and V2 version declarations fail closed. Direct execution of the renamed raw V1 implementation and the new internal wrapper is revoked from API roles.
 
 The SQL migration is added to disposable PostgreSQL CI and is run twice to check idempotence, followed by a smoke fixture that verifies V1 compatibility, V2/invalid-version rejection, and private-function privileges. It is a repository migration only: it has **not** been applied to Supabase Production. V2 persistence remains intentionally disabled until the independent V2 database validator and complete UI/Blueprint/save/publish/run adapters are ready.
+
+
+## 8. Independent PostgreSQL V2 validator
+
+A separate private PostgreSQL validator checks V2 definitions without trusting the browser or the JavaScript engine. It validates exact schema/engine versions, closed JSON object shapes, typed number/boolean/enum/date inputs, typed dynamic-group fields, scenarios, result metadata and formula references.
+
+The database formula parser accepts only the V2 declarative grammar. It enforces the operator/function allowlist, valid argument counts, bounded formula length/token count/nesting, declared input and prior-result references, typed arithmetic and boolean logic, enum choice matching, calendar date operations, same-group collection aggregates, numeric result types and basic dimensional-unit compatibility. Formula source is never executed as SQL, JavaScript or another language.
+
+The validator is installed under the private schema with execution revoked from public, anon, authenticated and service_role. It is exercised directly only in disposable PostgreSQL CI. The existing save/publish version gate continues to reject V2; the new validator does not activate V2 persistence or member-facing routes.
+
+The database validator intentionally uses conservative unit compatibility for V2. It recognizes the common currency, time, distance, area, volume, mass, energy, power, data, count and common rate units used by the existing calculator contract; unknown units are treated as opaque dimensions and must match exactly. This is stricter than the full browser unit registry in some edge cases and must be reconciled before persistence is enabled.
