@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 
 const helperSource=readFileSync(new URL("../ugc-blueprint-import.js",import.meta.url),"utf8");
 const builderSource=readFileSync(new URL("../ugc-calculators.js",import.meta.url),"utf8");
+const calculatorEngineSource=readFileSync(new URL("../ugc-calculator-engine.js",import.meta.url),"utf8");
 const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 
 function getImporter(){
@@ -13,11 +14,13 @@ function getImporter(){
  return sandbox.window.WorthItBlueprintImport;
 }
 function getManualEngine(){
- const start=builderSource.indexOf("function compileExpression(");
- const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- assert.ok(start>=0&&end>start,"The shared Manual Builder formula engine must be present.");
- const engineSource=builderSource.slice(start,end);
- return runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2],[\"USD\",\"US Dollar\",2],[\"RSD\",\"Serbian Dinar\",2]];"+engineSource+";return{validateMakerSpec,evaluateFormulaResults};})()");
+ const sandbox={};
+ runInNewContext(calculatorEngineSource,sandbox);
+ const currencyTableStart=builderSource.indexOf("const CURRENCIES=[");
+ const currencyTableEnd=builderSource.indexOf("function isSupportedCurrencyCode",currencyTableStart);
+ assert.ok(currencyTableStart>=0&&currencyTableEnd>currencyTableStart,"The shared engine currency configuration must be available.");
+ const currencyData=runInNewContext(builderSource.slice(currencyTableStart,currencyTableEnd)+"\n({currencies:CURRENCIES,historicalCurrencies:HISTORICAL_CURRENCIES})");
+ return sandbox.WorthItCalculatorEngine.create(currencyData);
 }
 function getManualValidator(){return getManualEngine().validateMakerSpec;}
 function plain(value){return JSON.parse(JSON.stringify(value));}
@@ -827,11 +830,7 @@ test("rejects multiple JSON objects rather than guessing which one to import",()
 });
 
 test("validates the household spending projection dimensions with the real Manual Builder validator",()=>{
- const start=builderSource.indexOf("function compileExpression(");
- const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- assert.ok(start>=0&&end>start,"The shared formula validator must be present.");
- const validatorSource=builderSource.slice(start,end);
- const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+  const validateMakerSpec=getManualValidator();
  const spec={
   inputs:[
    {key:"actual_spending",label:"Actual tracked spending",min:0,max:100000,default:1200,step:10,unit:"EUR"},
@@ -875,11 +874,7 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
 });
 
 test("if() evaluates only the selected branch so guarded division is safe at zero",()=>{
- const start=builderSource.indexOf("function evaluate(ast,values,groupValues");
- const end=builderSource.indexOf("\nfunction groupMapForSpec",start);
- assert.ok(start>=0&&end>start,"The shared formula evaluator must be present.");
- const evaluateSource=builderSource.slice(start,end);
- const evaluate=runInNewContext("("+evaluateSource+")");
+  const evaluate=getManualEngine().evaluate;
  const guarded={
   type:"call",name:"if",args:[
    {type:"call",name:"gt",args:[{type:"variable",name:"income"},{type:"number",value:0}]},
@@ -894,11 +889,7 @@ test("if() evaluates only the selected branch so guarded division is safe at zer
 
 test("does not mislabel a currency total when a duration is divided out and multiplied back in",()=>{
  const importer=getImporter();
- const start=builderSource.indexOf("function compileExpression(");
- const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- assert.ok(start>=0&&end>start,"The shared Manual Builder validator must be present.");
- const validatorSource=builderSource.slice(start,end);
- const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+  const validateMakerSpec=getManualValidator();
  const candidate={
   blueprintVersion:1,
   title:"Household Spending Projection",
@@ -933,10 +924,7 @@ test("does not mislabel a currency total when a duration is divided out and mult
 
 test("still repairs a genuine currency-per-duration result to its exact rate unit",()=>{
  const importer=getImporter();
- const start=builderSource.indexOf("function compileExpression(");
- const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- const validatorSource=builderSource.slice(start,end);
- const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+  const validateMakerSpec=getManualValidator();
  const candidate=blueprint({
   spec:{
    inputs:[
@@ -957,11 +945,7 @@ test("still repairs a genuine currency-per-duration result to its exact rate uni
 
 test("imports the complete Household Budget and Savings Planner blueprint through the real validator",()=>{
  const importer=getImporter();
- const start=builderSource.indexOf("function compileExpression(");
- const end=builderSource.indexOf("\nfunction makerCurrencyWarnings",start);
- assert.ok(start>=0&&end>start,"The shared Manual Builder validator must be present.");
- const validatorSource=builderSource.slice(start,end);
- const validateMakerSpec=runInNewContext("(function(){const CURRENCIES=[[\"EUR\",\"Euro\",2]];"+validatorSource+";return validateMakerSpec;})()");
+  const validateMakerSpec=getManualValidator();
  const input=(key,label,min,max,def,step,unit,control="number")=>({key,label,control,min,max,default:def,step,unit});
  const group=(key,label,itemLabel,fieldKey,fieldLabel,def)=>({
   key,label,itemLabel,minItems:1,maxItems:10,
