@@ -1488,3 +1488,73 @@ test("repairs a Gemini home Wi-Fi estimator with rate choices, per-device group 
  assert.ok(Math.abs(val(light,"total_monthly_data_gb")-92.3)<1e-9);
  assert.equal(val(heavy,"total_monthly_data_gb"),1257.5);
 });
+
+
+test("repairs the Smart Home LED lighting calculator with per-bulb power units, normalized tariff and weighted room dimming",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const candidate={
+  blueprintVersion:1,
+  title:"Smart Home LED Lighting Energy & Cost Calculator",
+  description:"Calculates daily power consumption, monthly electricity costs and annual savings when upgrading traditional bulbs to smart LEDs.",
+  category:"home",
+  subcategories:["lighting","energy","savings"],
+  assumptions:["All monetary calculations are denominated in EUR.","A standard billing month is assumed to consist of 30 days.","Electricity tariffs remain constant throughout the annual billing cycle."],
+  spec:{
+   inputs:[
+    {key:"active_bulbs",label:"Number of Smart Bulbs Installed",control:"number",min:1,max:50,default:10,step:1,unit:"items"},
+    {key:"daily_usage_hours",label:"Average Daily Usage per Bulb",control:"slider",min:1,max:12,default:4,step:0.5,unit:""},
+    {key:"led_wattage",label:"Smart LED Bulb Wattage",control:"number",min:3,max:25,default:9,step:1,unit:"W"},
+    {key:"replaced_wattage",label:"Replaced Traditional Bulb Wattage",control:"number",min:25,max:150,default:60,step:5,unit:"W"},
+    {key:"electricity_tariff",label:"Electricity Price per kWh",control:"number",min:0.05,max:0.5,default:0.2,step:0.01,unit:"EUR per kWh"},
+    {key:"include_smart_standby",label:"Include Smart Standby Power Draw",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"standby_wattage",label:"Standby Power per Bulb",control:"number",min:0.1,max:2,default:0.5,step:0.1,unit:"W"}
+   ],
+   groups:[{key:"room_zones",label:"Room Lighting Zones",itemLabel:"Zone",minItems:1,maxItems:5,fields:[
+    {key:"zone_bulbs",label:"Bulbs in Zone",min:1,max:10,default:2,step:1,unit:"items"},
+    {key:"dimming_factor",label:"Average Dimming Level (%)",min:20,max:100,default:80,step:10,unit:""}
+   ]}],
+   results:[
+    {key:"monthly_led_kwh",label:"Monthly Smart LED Energy Consumption",expression:"(((active_bulbs * led_wattage * daily_usage_hours * 30) / 1000))",format:"unit",unit:"kWh"},
+    {key:"monthly_traditional_kwh",label:"Monthly Traditional Lighting Energy (Baseline)",expression:"(active_bulbs * replaced_wattage * daily_usage_hours * 30) / 1000",format:"unit",unit:"kWh"},
+    {key:"monthly_standby_kwh",label:"Monthly Smart Standby Energy Draw",expression:"if(eq(include_smart_standby,1),(active_bulbs * standby_wattage * (24-daily_usage_hours) * 30) / 1000,0)",format:"unit",unit:"kWh"},
+    {key:"total_monthly_kwh",label:"Total Monthly Energy Bill Impact",expression:"monthly_led_kwh + monthly_standby_kwh",format:"unit",unit:"kWh"},
+    {key:"monthly_lighting_cost",label:"Monthly Lighting Cost",expression:"total_monthly_kwh * electricity_tariff",format:"currency",currency:"EUR"},
+    {key:"annual_monetary_savings",label:"Annual Monetary Savings vs Traditional",expression:"((monthly_traditional_kwh-total_monthly_kwh)*12)*electricity_tariff",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[
+    {label:"Small Apartment Setup",values:{active_bulbs:6,daily_usage_hours:3,led_wattage:9,replaced_wattage:60,electricity_tariff:0.18,include_smart_standby:1,standby_wattage:0.5}},
+    {label:"Large Family Home",values:{active_bulbs:25,daily_usage_hours:5,led_wattage:10,replaced_wattage:75,electricity_tariff:0.25,include_smart_standby:1,standby_wattage:0.5}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ const byKey=key=>definition.spec.inputs.find(input=>input.key===key);
+ assert.equal(byKey("active_bulbs").unit,"items");
+ assert.equal(byKey("daily_usage_hours").unit,"hours");
+ assert.equal(byKey("led_wattage").unit,"W/items");
+ assert.equal(byKey("replaced_wattage").unit,"W/items");
+ assert.equal(byKey("standby_wattage").unit,"W/items");
+ assert.equal(byKey("electricity_tariff").unit,"EUR/kWh");
+ const zone=definition.spec.groups[0];
+ assert.equal(zone.fields.find(field=>field.key==="zone_bulbs").unit,"items");
+ assert.ok(definition.spec.results[0].expression.includes("sum(room_zones.zone_bulbs * room_zones.dimming_factor)"));
+ assert.ok(definition.spec.assumptions.some(item=>item.includes("Room-zone dimming levels are weighted")));
+ const values=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
+ const groups={room_zones:[{zone_bulbs:2,dimming_factor:80}]};
+ const base=engine.evaluateFormulaResults(definition.spec,values,groups);
+ const get=(items,key)=>items.find(item=>item.key===key).value;
+ assert.ok(Math.abs(get(base,"monthly_led_kwh")-8.64)<1e-9);
+ assert.equal(get(base,"monthly_traditional_kwh"),72);
+ assert.equal(get(base,"monthly_standby_kwh"),3);
+ assert.ok(Math.abs(get(base,"total_monthly_kwh")-11.64)<1e-9);
+ assert.ok(Math.abs(get(base,"monthly_lighting_cost")-2.328)<1e-9);
+ assert.ok(Math.abs(get(base,"annual_monetary_savings")-144.864)<1e-9);
+ const scenarioValues=label=>({...values,...definition.spec.scenarios.find(item=>item.label===label).values});
+ const small=engine.evaluateFormulaResults(definition.spec,scenarioValues("Small Apartment Setup"),groups);
+ const large=engine.evaluateFormulaResults(definition.spec,scenarioValues("Large Family Home"),groups);
+ assert.ok(Math.abs(get(small,"monthly_lighting_cost")-1.04004)<1e-9);
+ assert.ok(Math.abs(get(small,"annual_monetary_savings")-57.50352)<1e-9);
+ assert.ok(Math.abs(get(large,"monthly_lighting_cost")-9.28125)<1e-9);
+ assert.ok(Math.abs(get(large,"annual_monetary_savings")-732.375)<1e-9);
+});
