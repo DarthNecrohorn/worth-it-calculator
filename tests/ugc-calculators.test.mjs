@@ -1769,10 +1769,10 @@ test("Manual Builder loads the extracted shared v1 engine before its UI adapter"
     const engineTag=html.indexOf('ugc-calculator-engine.js?v=shared-v1-extraction-20261113a');
     const builderTag=html.indexOf('ugc-calculators.js?v=');
     assert.ok(engineTag>=0&&builderTag>engineTag,"The shared engine must load before the Manual Builder UI.");
-    assert.match(maker,/window\\.WorthItCalculatorEngine\\?\\.create/);
-    assert.match(maker,/const \\{[\\s\\S]*validateMakerSpec[\\s\\S]*\\}=calculatorEngine/);
+    assert.match(maker,/window\.WorthItCalculatorEngine\?\.create/);
+    assert.match(maker,/const \{[\s\S]*validateMakerSpec[\s\S]*\}=calculatorEngine/);
     assert.match(calculatorEngineSource,/apiVersion:1/);
-    assert.doesNotMatch(calculatorEngineSource,/\\beval\\s*\\(|new\\s+Function\\s*\\(/);
+    assert.doesNotMatch(calculatorEngineSource,/\beval\s*\(|new\s+Function\s*\(/);
 });
 
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
