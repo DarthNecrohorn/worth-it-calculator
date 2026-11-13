@@ -679,7 +679,7 @@ function normalizeBlueprint(source,validateSpec,requestText){
    guidance.push("Dynamic groups must use minItems 1 or greater. For an optional list, keep one row whose field defaults to zero; minItems 0 is not supported.");
   }
   if(visibleErrors.some(message=>/units do not match the selected .* result currency/i.test(message))){
-   guidance.push("Check dimensional algebra: a month count used only as a multiplier must have an empty unit; dividing EUR by a real months input produces EUR/month, which must use format unit with unit EUR/month, not currency EUR.");
+   guidance.push("Check dimensional algebra: every numeric coefficient in a currency total must have an explicit currency-per-operation unit (for example USD/request or USD/read), and each usage quantity must carry the matching operation unit. Never relabel a different currency or invent an exchange rate; verify all upstream result units and dependencies.");
   }
   if(visibleErrors.some(message=>/dimensions do not match the selected result unit/i.test(message))){
    guidance.push("Use the exact derived unit for rate results, for example EUR/day for money divided by days or EUR/month for money divided by months.");
