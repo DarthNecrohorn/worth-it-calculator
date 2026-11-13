@@ -671,9 +671,11 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         if(!input||typeof input!=="object")continue;
         const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
         const unit=String(input.unit||"").trim().toUpperCase();
-        const moneyInput=MONETARY_CURRENCY_CODES.has(unit)||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
+        const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+        const hasCurrencyUnit=MONETARY_CURRENCY_CODES.has(unit)||MONETARY_CURRENCY_CODES.has(unitCurrencyPrefix);
+        const moneyInput=hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic);
         if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,candidate.inputs))continue;
-        if(!MONETARY_CURRENCY_CODES.has(unit))input.unit=fallback;
+        if(!hasCurrencyUnit)input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
         if(!Number.isFinite(step)||step<=0||!Number.isFinite(maximum))continue;
         input.min=0;
