@@ -817,7 +817,7 @@ function unitDescriptor(unit){
      else if(base.symbols?.[dimension])symbols[dimension]=base.symbols[dimension];
     });
    }
-   if(valid)return descriptor(raw,vector,opaque,symbols);
+   if(valid)return descriptor(raw,vector,Object.keys(vector).some(dimension=>dimension.startsWith("unit:")),symbols);
   }
  }
  if(["period","periods","occurrences","times"].includes(key))return descriptor(raw,{},false,{});
@@ -830,7 +830,7 @@ function combineUnitDescriptors(left,right,sign){
   if(Math.abs(vector[key])<1e-10){delete vector[key];delete symbols[key];}
   else if(!symbols[key]&&right.symbols?.[key])symbols[key]=right.symbols[key];
  });
- return{exact:"",vector,opaque:left.opaque||right.opaque,symbols};
+ return{exact:"",vector,opaque:Object.keys(vector).some(dimension=>dimension.startsWith("unit:")),symbols};
 }
 function sameUnitDescriptor(left,right){
  const sameDimensions=unitVectorKey(left)===unitVectorKey(right)&&left.opaque===right.opaque;

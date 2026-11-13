@@ -213,7 +213,6 @@ test("repairs a serverless scaling blueprint with read, write, request and API c
  };
  const fence=String.fromCharCode(96).repeat(3);
  const definition=importer.parseBlueprint(fence+"json\n"+JSON.stringify(candidate)+"\n"+fence,validate);
- console.log("SERVERLESS QUICK-FIX DEBUG",JSON.stringify({inputs:definition.spec.inputs.map(item=>[item.key,item.unit]),groupFields:definition.spec.groups[0].fields.map(item=>[item.key,item.unit]),results:definition.spec.results.map(item=>[item.key,item.format,item.unit,item.currency,item.expression]),errors:plain(validate(definition.spec).errors),notes:definition.importNotes},null,2));
  assert.deepEqual(plain(validate(definition.spec).errors),[]);
  const byKey=key=>definition.spec.inputs.find(item=>item.key===key);
  assert.equal(byKey("db_writes_per_session").unit,"write/session");
