@@ -317,7 +317,7 @@ function analyseFormulaUnit(ast,inputs,groups){
   const target=units[dimensionedIndex>=0?dimensionedIndex:0]||unitDescriptor("");
   const valid=units.every((item,index)=>sameUnitDescriptor(item,target)||
    (constantFormulaValue(nodes[index])!==null&&Object.keys(item.vector).length===0));
-  if(!valid)throw new Error(String(message||"Typed units are incompatible.")+" Details: "+JSON.stringify({left:left.map(unit=>({vector:unit.vector,exact:unit.exact,opaque:unit.opaque})),constants:nodes.map(node=>constantFormulaValue(node))}));
+  if(!valid)throw new Error(message);
   return target;
  };
  if(ast.type==="binary"){
@@ -753,7 +753,7 @@ function typedUnitCompatible(left,right,nodes,message){
  const target=left[dimensioned>=0?dimensioned:0]||unitDescriptor("");
  const valid=left.every((unit,index)=>sameUnitDescriptor(unit,target)||
   (constantFormulaValue(nodes[index])!==null&&Object.keys(unit.vector).length===0));
- if(!valid)throw new Error(message);
+ if(!valid)throw new Error(String(message||"Typed units are incompatible.")+" Details: "+JSON.stringify({left:left.map(unit=>({vector:unit.vector,exact:unit.exact,opaque:unit.opaque})),constants:nodes.map(node=>constantFormulaValue(node))}));
  return target;
 }
 function inferV2Expression(ast,symbols,groups){
