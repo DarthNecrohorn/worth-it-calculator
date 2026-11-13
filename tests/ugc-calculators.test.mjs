@@ -3169,17 +3169,14 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
    }]
   }
  };
- let providerCalls=0,settlements=0,reservations=0;
+ let providerCalls=0,reservations=0;
+ const quotaEvents={};
  await withFetch(async(url,options)=>{
   const path=String(url);
   if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"typed-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
   if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
    reservations++;
    return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
-  }
-  if(path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")){
-   settlements++;
-   return new Response(JSON.stringify({ok:true}),{status:200});
   }
   if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true}),{status:200});
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
@@ -3219,8 +3216,8 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
   assert.equal(spec.results.length,4);
   assert.equal(providerCalls,1);
   assert.equal(reservations,1);
-  assert.equal(settlements,1);
- },{});
+  assert.equal(quotaEvents.settlements,1);
+ },quotaEvents);
 });
 
 test("AI Creator refuses malformed V2 requests and keeps V2 refinement unavailable before reservation",async()=>{
