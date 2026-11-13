@@ -675,8 +675,8 @@ test("AI Maker test mode recalculates locally with the restricted formula engine
     assert.match(maker, /function renderMakerTestPanel\(preserveValues\)/);
     assert.match(maker, /function updateMakerTestResults\(panel\)/);
     assert.match(maker, /control\.addEventListener\("input",\(\)=>updateMakerTestResults\(panel\)\)/);
-    assert.match(maker, /evaluateFormulaResults\(spec/);
-    assert.match(maker, /evaluate\(ast,values,groupValues/);
+    assert.match(calculatorEngineSource, /function evaluateFormulaResults\(spec/);
+    assert.match(calculatorEngineSource, /function evaluate\(ast,values,groupValues/);
     assert.match(maker, /control\.dataset\.ugcMakerTestKey=String\(item\.key\)/);
     assert.match(maker, /control\.min=String\(item\.min\)/);
     assert.match(maker, /control\.max=String\(item\.max\)/);
