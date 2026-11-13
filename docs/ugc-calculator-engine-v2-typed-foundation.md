@@ -98,17 +98,55 @@ The shared engine exposes deterministic helpers for:
 - Building typed default input values and default dynamic-group rows.
 - Normalizing submitted typed dynamic-group rows.
 
-## 5. Formula boundary in this foundation
+## 5. V2 formula semantics implemented in this foundation
 
-This is deliberately a typed-schema foundation, not yet the complete typed formula engine.
+V2 has a separate restricted formula parser, static type checker and evaluator. The v1 parser and evaluator are unchanged.
 
-- Numeric inputs and numeric dynamic-group fields can be used by the existing numeric formula grammar and unit analyser.
-- Boolean, enum and date values are validated and preserved as typed data but are not yet formula operands.
-- A formula that attempts to use a boolean, enum or date as a number is rejected. No implicit boolean-to-0/1, enum-to-index, date-to-timestamp or timezone conversion is performed.
-- Date functions, enum comparisons, boolean type-aware conditionals, typed aggregates and typed result formatting require a later formula/type-checker phase.
-- The current Manual Builder UI, AI Creator output schema, Blueprint Import, save/publish routes and database persistence remain on v1. This branch does not expose v2 definitions to members or publish them.
+### Boolean logic and conditions
 
-This boundary prevents a partially typed model from being accepted by a numeric evaluator that does not yet understand its semantics.
+- `if(condition, whenTrue, whenFalse)` requires a boolean condition. Both branches must return the same supported type; numeric branches must also have compatible units.
+- `and(...)`, `or(...)` and `not(condition)` accept only boolean expressions and short-circuit during evaluation.
+- `eq(a,b)` and `neq(a,b)` support values of the same scalar type. Enum values may be compared with a quoted string literal only when that literal is one of the enum's declared choices.
+- `gt`, `gte`, `lt` and `lte` accept compatible numeric values or calendar dates. Numeric thresholds may use dimensionless numeric literals as constants, but incompatible dimensional inputs are rejected.
+
+Example:
+
+```
+if(and(include_tax, eq(plan, "pro")), base_cost * tax_rate / 100, 0)
+```
+
+### Calendar-date functions
+
+Dates are timezone-free calendar dates in `YYYY-MM-DD` form. Calendar operations do not interpret dates as timestamps or assume that a day is an elapsed 86,400-second duration.
+
+- `date_diff_days(startDate, endDate)` returns the signed calendar-day difference `endDate - startDate`.
+- `add_days(date, wholeDays)` adds a signed integer number of calendar days. A numeric input may declare unit `day` or `days`; a numeric literal is also allowed.
+- `add_months(date, wholeMonths)` adds a signed integer number of calendar months. Month-end rollover clamps to the final valid day of the target month (for example, 31 January + 1 month becomes 28 February, or 29 February in a leap year). A numeric input may declare unit `month` or `months`; a numeric literal is also allowed.
+- `days_in_month(date)` returns the number of calendar days in that date's month.
+- `calendar_year(date)` and `calendar_month(date)` return the calendar year and month number.
+- `weekday(date)` returns the ISO weekday number: Monday = 1 through Sunday = 7.
+
+Offsets must be whole numbers. Dates outside the supported year range 0001–9999 are rejected.
+
+### Typed dynamic-group expressions
+
+- `sum(group.numericField)` continues to aggregate one numeric field from one group.
+- `sum_if(numericExpression, booleanPredicate)` sums a numeric expression only for rows where the predicate is true.
+- `count_if(booleanPredicate)` counts rows where the predicate is true.
+- All field references used by one aggregate must belong to exactly one dynamic group. A `sum_if` value and its predicate must refer to the same group.
+- Group predicates may combine boolean fields, enum comparisons and date comparisons, but arbitrary row callbacks, formulas stored in rows and cross-group row joins are not supported.
+
+Example:
+
+```
+sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, "fixed")))
+```
+
+### Result boundary and rollout
+
+Result rows still produce finite numeric values and use the existing number, currency, percent or unit formats. Boolean, enum and date expressions can be used as intermediate values, comparisons and conditions, but direct boolean/date/enum result display is not part of this implementation.
+
+Manual Builder UI, AI Creator generation schema, Blueprint Import, save/publish routes and database persistence remain v1-only. This branch does not expose v2 definitions to members or publish them. Matching independent server/database validation and schema-aware persistence must be implemented before any V2 definition can be saved or published.
 
 ## 6. Security and rollout
 
