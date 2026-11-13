@@ -1,8 +1,17 @@
+import "../../ugc-calculator-currency-data.js";
+import "../../ugc-calculator-engine.js";
+
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.8-flash";
 const MAX_PROMPT_CHARS = 1000;
 const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v3";
+const serverCurrencyData=globalThis.WorthItCalculatorCurrencyData;
+const serverEngineApi=globalThis.WorthItCalculatorEngine;
+if(!serverCurrencyData?.currencies||!serverCurrencyData?.historicalCurrencies||serverEngineApi?.apiVersion!==1){
+    throw new Error("The shared Worth It calculator engine or currency metadata could not be loaded.");
+}
+const SERVER_CALCULATOR_ENGINE=serverEngineApi.create(serverCurrencyData);
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -73,7 +82,6 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
     }
 };
 
-const FUNCTIONS = new Set(["min","max","abs","round","floor","ceil","sqrt","pow"]);
 const COUNTRY_DEFAULTS = {
  US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
  CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
@@ -449,106 +457,7 @@ async function verifyUser(env,token){
     return user&&user.id?user:null;
 }
 
-/* A tiny expression parser: generated formulas are data, never executable JavaScript. */
-function compileExpression(source,keys){
-    const input=String(source||"");
-    let at=0;
-    const fail=()=>{throw new Error("The AI returned an unsupported or invalid formula.");};
-    const ws=()=>{while(/\s/.test(input[at]||"")&&at<input.length)at++;};
-    const take=(value)=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
-    const identifier=()=>{
-        ws();const match=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);
-        if(!match)return null;at+=match[0].length;return match[0];
-    };
-    function primary(){
-        ws();
-        if(take("(")){const node=add();if(!take(")"))fail();return node;}
-        const rest=input.slice(at);
-        const number=rest.match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i);
-        if(number){at+=number[0].length;const value=Number(number[0]);if(!Number.isFinite(value))fail();return {type:"number",value};}
-        const name=identifier();
-        if(!name)fail();
-        if(take("(")){
-            if(!FUNCTIONS.has(name))fail();
-            const args=[];
-            if(!take(")")){
-                do{args.push(add());}while(take(","));
-                if(!take(")"))fail();
-            }
-            const valid=(name==="min"||name==="max")?args.length>=1:
-                name==="pow"?args.length===2:
-                name==="round"?args.length>=1&&args.length<=2:args.length===1;
-            if(!valid)fail();
-            return {type:"call",name,args};
-        }
-        if(name==="pi")return {type:"number",value:Math.PI};
-        if(name==="e")return {type:"number",value:Math.E};
-        if(!keys.has(name))fail();
-        return {type:"variable",name};
-    }
-    function power(){
-        let left=primary();
-        if(take("^"))left={type:"binary",op:"^",left,right:unary()};
-        return left;
-    }
-    function unary(){
-        if(take("+"))return {type:"unary",op:"+",value:unary()};
-        if(take("-"))return {type:"unary",op:"-",value:unary()};
-        return power();
-    }
-    function multiply(){
-        let node=unary();
-        while(true){
-            if(take("*"))node={type:"binary",op:"*",left:node,right:unary()};
-            else if(take("/"))node={type:"binary",op:"/",left:node,right:unary()};
-            else return node;
-        }
-    }
-    function add(){
-        let node=multiply();
-        while(true){
-            if(take("+"))node={type:"binary",op:"+",left:node,right:multiply()};
-            else if(take("-"))node={type:"binary",op:"-",left:node,right:multiply()};
-            else return node;
-        }
-    }
-    const ast=add();ws();if(at!==input.length)fail();return ast;
-}
-function collectInputReferences(node,found=new Set()){
-    if(!node||typeof node!=="object")return found;
-    if(node.type==="variable")found.add(node.name);
-    else if(node.type==="unary")collectInputReferences(node.value,found);
-    else if(node.type==="binary"){
-        collectInputReferences(node.left,found);
-        collectInputReferences(node.right,found);
-    }else if(node.type==="call")node.args.forEach(argument=>collectInputReferences(argument,found));
-    return found;
-}
-function evaluate(node,values){
-    let result;
-    if(node.type==="number")return node.value;
-    if(node.type==="variable")return Number(values[node.name]);
-    if(node.type==="unary"){const value=evaluate(node.value,values);return node.op==="-"?-value:value;}
-    if(node.type==="binary"){
-        const a=evaluate(node.left,values),b=evaluate(node.right,values);
-        if(node.op==="+")result=a+b;
-        else if(node.op==="-")result=a-b;
-        else if(node.op==="*")result=a*b;
-        else if(node.op==="/"){if(b===0)throw new Error("A formula divides by zero for its default values.");result=a/b;}
-        else result=Math.pow(a,b);
-        return result;
-    }
-    const args=node.args.map(arg=>evaluate(arg,values));
-    if(node.name==="min")result=Math.min(...args);
-    else if(node.name==="max")result=Math.max(...args);
-    else if(node.name==="abs")result=Math.abs(args[0]);
-    else if(node.name==="round")result=args.length===1?Math.round(args[0]):Number(args[0].toFixed(Math.max(0,Math.min(8,Math.floor(args[1])))));
-    else if(node.name==="floor")result=Math.floor(args[0]);
-    else if(node.name==="ceil")result=Math.ceil(args[0]);
-    else if(node.name==="sqrt"){if(args[0]<0)throw new Error("Square root is invalid for the default values.");result=Math.sqrt(args[0]);}
-    else if(node.name==="pow")result=Math.pow(args[0],args[1]);
-    if(!Number.isFinite(result))throw new Error("A generated formula produces an invalid result.");return result;
-}
+/* Formula parsing, evaluation and unit validation are provided by the shared engine. */
 function extractRequestedResultItems(prompt){
  const match=String(prompt||"").match(/\bresults?\s*:\s*([\s\S]*?)(?=\r?\n\s*\r?\n|\r?\n\s*(?:use|formulas?|assumptions?|notes?|requirements?)\b|$)/i);
  if(!match)return [];
@@ -782,7 +691,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
     }
     return changed;
 }
-function normalizeDefinition(raw,defaultCurrency,options={}){
+export function normalizeDefinition(raw,defaultCurrency,options={}){
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
     const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
@@ -796,7 +705,7 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
     if(!Array.isArray(raw?.inputs)||raw.inputs.length<1||raw.inputs.length>12)throw new Error("A calculator must have between 1 and 12 inputs.");
     if(!Array.isArray(raw?.results)||raw.results.length<1||raw.results.length>6)throw new Error("A calculator must have between 1 and 6 results.");
     const seen=new Set();
-    const inputs=raw.inputs.map((item)=>{
+    const inputs=raw.inputs.map(item=>{
         const key=String(item?.key||"").trim().toLowerCase();
         const previousInput=Array.isArray(previousSpec?.inputs)?previousSpec.inputs.find(input=>String(input?.key||"")===key):null;
         const label=String(item?.label||"").trim().slice(0,60);
@@ -828,8 +737,6 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         seen.add(key);
         return {key,label,min,max,default:value,step,unit};
     });
-    const values=Object.fromEntries(inputs.map(item=>[item.key,item.default]));
-    const referencedInputKeys=new Set();
     const results=raw.results.map((item,index)=>{
         const label=String(item?.label||"").trim().slice(0,70);
         const expression=String(item?.expression||"").trim().slice(0,260);
@@ -837,37 +744,24 @@ function normalizeDefinition(raw,defaultCurrency,options={}){
         const previousCurrency=Array.isArray(previousSpec?.results)?previousSpec.results[index]?.currency:"";
         const currency=String(format==="currency"&&forceCurrency?forceCurrency:(item?.currency||previousCurrency||currencyFallback)).toUpperCase();
         if(!label||!expression||!/^([A-Z]{3})$/.test(currency))throw new Error("The AI generated an invalid result.");
-        const ast=compileExpression(expression,seen);
-        collectInputReferences(ast,referencedInputKeys);
-        return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),_ast:ast};
+        return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
     });
-    const scenarios=[{...values},Object.fromEntries(inputs.map(item=>[item.key,item.min])),Object.fromEntries(inputs.map(item=>[item.key,item.max]))];
-    inputs.forEach(item=>{const low={...values};low[item.key]=item.min;scenarios.push(low);const high={...values};high[item.key]=item.max;scenarios.push(high);});
-    for(let left=0;left<inputs.length;left++){
-        for(let right=left+1;right<inputs.length;right++){
-            for(const leftValue of [inputs[left].min,inputs[left].max]){
-                for(const rightValue of [inputs[right].min,inputs[right].max]){
-                    const pair={...values};
-                    pair[inputs[left].key]=leftValue;
-                    pair[inputs[right].key]=rightValue;
-                    scenarios.push(pair);
-                }
-            }
-        }
-    }
-    results.forEach(item=>{
-        scenarios.forEach((sample,index)=>{
-            try{evaluate(item._ast,sample);}
-            catch(error){throw new Error("The formula for "+item.label+" fails with a default, minimum or maximum input value (test "+(index+1)+"): "+String(error?.message||"invalid result"));}
-        });
-        delete item._ast;
-    });
+    const spec={version:1,subcategories,inputs,results};
+    const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
+    const validationErrors=Array.isArray(validation?.errors)?validation.errors:[];
+    if(validationErrors.length)throw new Error(validationErrors[0]);
     if(options?.requireAllInputsUsed===true){
-        const unusedInputs=inputs.filter(item=>!referencedInputKeys.has(item.key)).map(item=>item.label);
+        const keys=new Set(inputs.map(item=>item.key));
+        const referenced=new Set();
+        results.forEach(item=>{
+            const ast=SERVER_CALCULATOR_ENGINE.compileExpression(item.expression,keys,new Map());
+            SERVER_CALCULATOR_ENGINE.formulaInputReferences(ast,referenced);
+        });
+        const unusedInputs=inputs.filter(item=>!referenced.has(item.key)).map(item=>item.label);
         if(unusedInputs.length)throw new Error("The generated calculator contains unused input fields: "+unusedInputs.join(", ")+". Remove them or use them in a result formula.");
     }
     if(options?.requireDescription!==false&&description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
-    return {version:1,subcategories,inputs,results};
+    return spec;
 }
 export async function onRequestOptions(context){
     const origin=allowedOrigin(context.request);
