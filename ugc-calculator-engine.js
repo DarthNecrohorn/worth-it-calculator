@@ -668,6 +668,8 @@ function validateV2TypedSpec(spec){
    if(!isRecord(choice)||typeof choice.label!=="string"||choice.label.trim().length<1||choice.label.length>50){
     add(label+" choice "+(index+1)+" has an invalid label.");return;
    }
+   const unexpectedChoiceKeys=Object.keys(choice).filter(key=>key!=="label"&&key!=="value");
+   if(unexpectedChoiceKeys.length)add(label+" choice "+(index+1)+" contains unsupported properties.");
    const normalizedLabel=choice.label.trim().toLowerCase();
    if(labels.has(normalizedLabel))add(label+" choice labels must be unique.");
    labels.add(normalizedLabel);
@@ -783,11 +785,15 @@ function validateV2TypedSpec(spec){
   if(result.format==="currency"&&typeof result.currency!=="string")add(label+" must declare an ISO currency code.");
   if(result.explanation!==undefined&&(typeof result.explanation!=="string"||result.explanation.length>280))add(label+" explanation must be plain text of up to 280 characters.");
  });
+ const scenarioLabels=new Set();
  scenarios.forEach((scenario,index)=>{
   const label="Scenario "+(index+1);
   if(!isRecord(scenario)){add(label+" must be an object.");return;}
   allowed(scenario,new Set(["label","values"]),label);
   if(typeof scenario.label!=="string"||scenario.label.trim().length<2||scenario.label.length>50)add(label+" needs a name of 2–50 characters.");
+  const normalizedScenarioLabel=typeof scenario.label==="string"?scenario.label.trim().toLowerCase():"";
+  if(normalizedScenarioLabel&&scenarioLabels.has(normalizedScenarioLabel))add("Scenario names must be unique.");
+  scenarioLabels.add(normalizedScenarioLabel);
   if(!isRecord(scenario.values)||Object.keys(scenario.values).length===0){add(label+" needs at least one typed input override.");return;}
   const numericValues={};
   Object.entries(scenario.values).forEach(([key,value])=>{
@@ -839,6 +845,7 @@ function createDefaultTypedGroupValues(spec){
 function normalizeTypedGroupValues(spec,rawGroups){
  const source=isRecord(rawGroups)?rawGroups:{};
  const groups={},errors=[];
+ if(rawGroups!==undefined&&rawGroups!==null&&!isRecord(rawGroups))errors.push("Dynamic group values must be an object.");
  const definitions=Array.isArray(spec?.groups)?spec.groups:[];
  const known=new Set(definitions.map(group=>group.key));
  Object.keys(source).forEach(key=>{if(!known.has(key))errors.push("Unknown dynamic group: "+key+".");});
