@@ -650,28 +650,42 @@ function compileExpression(source,keys,groups){
  function add(){let node=multiply();while(true){if(take("+"))node={type:"binary",op:"+",left:node,right:multiply()};else if(take("-"))node={type:"binary",op:"-",left:node,right:multiply()};else return node;}}
  const ast=add();ws();if(at!==input.length)fail();return ast;
 }
-function evaluate(ast,values,groupValues){
+function formulaGroupFieldReferences(ast,output=[]){
+ if(!ast||typeof ast!=="object")return output;
+ if(ast.type==="groupField"){output.push({group:ast.group,field:ast.field});return output;}
+ if(ast.type==="binary"){formulaGroupFieldReferences(ast.left,output);formulaGroupFieldReferences(ast.right,output);}
+ else if(ast.type==="unary")formulaGroupFieldReferences(ast.value,output);
+ else if(ast.type==="call")(ast.args||[]).forEach(arg=>formulaGroupFieldReferences(arg,output));
+ return output;
+}
+function evaluate(ast,values,groupValues,rowContext=null){
  const groups=groupValues&&typeof groupValues==="object"?groupValues:{};
  let n;
  if(ast.type==="number")return ast.value;
  if(ast.type==="variable")return Number(values[ast.name]);
  if(ast.type==="group")return Array.isArray(groups[ast.name])?groups[ast.name]:[];
  if(ast.type==="groupField"){
+  if(rowContext&&rowContext.group===ast.group)return Number(rowContext.row?.[ast.field]??0);
   const rows=Array.isArray(groups[ast.group])?groups[ast.group]:[];
   return rows.map(row=>Number(row?.[ast.field]??0));
  }
- if(ast.type==="unary"){const v=evaluate(ast.value,values,groups);return ast.op==="-"?-v:v;}
+ if(ast.type==="unary"){const v=evaluate(ast.value,values,groups,rowContext);return ast.op==="-"?-v:v;}
  if(ast.type==="binary"){
-  const a=evaluate(ast.left,values,groups),b=evaluate(ast.right,values,groups);
+  const a=evaluate(ast.left,values,groups,rowContext),b=evaluate(ast.right,values,groups,rowContext);
   if(ast.op==="+")n=a+b;else if(ast.op==="-")n=a-b;else if(ast.op==="*")n=a*b;else if(ast.op==="/"){if(b===0)throw new Error("A formula divides by zero. Change your inputs.");n=a/b;}else n=Math.pow(a,b);
  }else if(ast.name==="if"){
-  const condition=evaluate(ast.args[0],values,groups);
-  n=evaluate(ast.args[condition!==0?1:2],values,groups);
+  const condition=evaluate(ast.args[0],values,groups,rowContext);
+  n=evaluate(ast.args[condition!==0?1:2],values,groups,rowContext);
  }else{
-  const a=ast.args.map(x=>evaluate(x,values,groups));
-  if(ast.name==="sum"){if(!Array.isArray(a[0]))throw new Error("sum() requires a dynamic group field, e.g. sum(expenses.amount).");n=a[0].reduce((total,value)=>total+value,0);}
-  else if(ast.name==="count"){if(!Array.isArray(a[0]))throw new Error("count() requires a dynamic group, e.g. count(expenses).");n=a[0].length;}
-  else if(ast.name==="min")n=a.length===1&&Array.isArray(a[0])?Math.min(...a[0]):Math.min(...a);
+  if(ast.name==="sum"){
+   const refs=formulaGroupFieldReferences(ast.args[0]),groupNames=[...new Set(refs.map(ref=>ref.group))];
+   if(!refs.length||groupNames.length!==1)throw new Error("sum() requires fields from one dynamic group, e.g. sum(expenses.amount).");
+   const rows=Array.isArray(groups[groupNames[0]])?groups[groupNames[0]]:[];
+   n=rows.reduce((total,row)=>total+evaluate(ast.args[0],values,groups,{group:groupNames[0],row}),0);
+  }else{
+   const a=ast.args.map(x=>evaluate(x,values,groups,rowContext));
+   if(ast.name==="count"){if(!Array.isArray(a[0]))throw new Error("count() requires a dynamic group, e.g. count(expenses).");n=a[0].length;}
+   else if(ast.name==="min")n=a.length===1&&Array.isArray(a[0])?Math.min(...a[0]):Math.min(...a);
   else if(ast.name==="max")n=a.length===1&&Array.isArray(a[0])?Math.max(...a[0]):Math.max(...a);
   else if(ast.name==="avg")n=a.length===1&&Array.isArray(a[0])?(a[0].length?a[0].reduce((sum,value)=>sum+value,0)/a[0].length:0):a.reduce((sum,value)=>sum+value,0)/a.length;
   else if(ast.name==="abs")n=Math.abs(a[0]);
@@ -702,7 +716,8 @@ function evaluate(ast,values,groupValues){
   else if(ast.name==="tan")n=Math.tan(a[0]);
   else if(ast.name==="asin")n=Math.asin(a[0]);
   else if(ast.name==="acos")n=Math.acos(a[0]);
-  else n=Math.atan(a[0]);
+   else n=Math.atan(a[0]);
+  }
  }
  if(!Number.isFinite(n))throw new Error("The calculator produced an invalid result for these input values.");
  return n;
@@ -927,8 +942,12 @@ function analyseFormulaUnit(ast,inputs,groups){
   if(ast.args[0]?.type!=="group")throw new Error("count() requires a dynamic group, e.g. count(expenses).");
   return unitDescriptor("");
  }
- if(ast.name==="sum"&&ast.args[0]?.type!=="groupField")throw new Error("sum() requires a dynamic group field, e.g. sum(expenses.amount).");
- if(["sum","min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
+ if(ast.name==="sum"){
+  const refs=formulaGroupFieldReferences(ast.args[0]),groupNames=[...new Set(refs.map(ref=>ref.group))];
+  if(!refs.length||groupNames.length!==1)throw new Error("sum() requires fields from one dynamic group, e.g. sum(expenses.amount).");
+  return analyseFormulaUnit(ast.args[0],inputs,groups);
+ }
+ if(["min","max","avg","hypot","mod","clamp"].includes(ast.name))return sameArgs();
  if(["abs","round","floor","ceil","trunc"].includes(ast.name))return args[0];
  if(ast.name==="sign")return unitDescriptor("");
  if(ast.name==="sqrt"){
