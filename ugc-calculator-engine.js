@@ -556,7 +556,7 @@ function validateMakerSpec(spec){
     availableKeys.add(resultKey);resultKeys.add(resultKey);
     formulaUnits.push({key:resultKey,unitDescriptor:outputUnit});
    }
-  }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.stack||error?.message||error||"could not be validated."));}
+  }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||"could not be validated."));}
  });
  scenarios.forEach(sample=>{
   try{evaluateFormulaResults(spec,sample,groupSamples);}
@@ -1049,7 +1049,7 @@ function validateV2FormulaResults(spec){
    validateFormulaResultUnit(result,inferred.unit);
    results.push({ast,inferred});
    if(result.key)symbols.set(result.key,{type:"number",unit:inferred.unit});
-  }catch(error){errors.push(label+" formula: "+String(error?.message||"could not be validated."));}
+  }catch(error){errors.push(label+" formula: "+String(error?.stack||error?.message||error||"could not be validated."));}
  });
  const values=createDefaultTypedValues(spec).values;
  const groupDefaults=createDefaultTypedGroupValues(spec).groups;
