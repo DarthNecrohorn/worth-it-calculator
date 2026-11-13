@@ -712,14 +712,14 @@ function jsonSyntaxFailure(error,source){
 }
 function extractSingleJsonPayload(source){
  // Repair escaped newline artifacts only when they are part of an outer Markdown fence.
- const escapedOpening=source.match(/^[ \\t]*\\x60{3}[ \\t]*([a-z0-9_-]*)\\\\n/i);
+ const escapedOpening=source.match(/^[ \t]*\x60{3}[ \t]*([a-z0-9_-]*)\\n/i);
  if(escapedOpening){
   const language=String(escapedOpening[1]||"").toLowerCase();
   if(language&&language!=="json")fail("The calculator blueprint code block must be labelled json or have no language label.");
-  source=source.replace(/\\\\n/,"\n");
-  source=source.replace(/\\\\n(?=[ \\t]*\\x60{3}[ \\t]*$)/,"\n");
+  source=source.replace(/\\n/,"\n");
+  source=source.replace(/\\n(?=[ \t]*\x60{3}[ \t]*$)/,"\n");
  }
- const lines=source.split(/\\r?\\n/);
+ const lines=source.split(/\r?\n/);
  const markers=[];
  lines.forEach((line,index)=>{
   const match=line.match(/^[ \t]*\x60{3}[ \t]*([a-z0-9_-]*)[ \t]*$/i);
