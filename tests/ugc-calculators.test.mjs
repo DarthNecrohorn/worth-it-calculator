@@ -838,7 +838,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.match(body.messages[0].content,/restricted arithmetic parser/);
         assert.match(body.messages[0].content,/dynamic groups/);
         assert.match(body.messages[0].content,/comparison scenario/);
-        assert.match(body.messages[0].content,/sum\\(group_key\\.field_key\\)/);
+        assert.match(body.messages[0].content,/sum\(group_key\.field_key\)/);
         assert.match(body.messages[0].content,/earlier result keys/);
         return new Response(JSON.stringify({
             model: "openai/gpt-oss-120b",
