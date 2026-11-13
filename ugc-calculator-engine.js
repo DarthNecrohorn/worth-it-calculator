@@ -763,7 +763,7 @@ function inferV2Expression(ast,symbols,groups){
  const infer=expression=>{
   if(expression.type==="number")return numberResult(unitDescriptor(""));
   if(expression.type==="boolean")return {type:"boolean"};
-  if(expression.type==="string")return {type:"string"};
+  if(expression.type==="string")return {type:"string",value:expression.value};
   if(expression.type==="variable"){
    const definition=symbols.get(expression.name);
    if(!definition)throw new Error("Unknown v2 variable: "+expression.name+".");
@@ -801,7 +801,7 @@ function inferV2Expression(ast,symbols,groups){
   const sameScalar=(left,right,context)=>{
    if(left.type==="string"&&right.type==="enum"||right.type==="string"&&left.type==="enum"){
     const enumType=left.type==="enum"?left:right,literal=left.type==="string"?left:right;
-    if(!enumType.choices.some(choice=>choice?.value===literal.value))throw new Error(context+" string "+JSON.stringify(literal.value)+" is not in enum choices "+JSON.stringify(enumType.choices.map(choice=>choice?.value))+".");
+    if(!enumType.choices.some(choice=>choice?.value===literal.value))throw new Error(context+" string "+JSON.stringify(literal.value)+" does not match a declared enum choice.");
     return;
    }
    if(left.type!==right.type||!scalarTypes.has(left.type))throw new Error(context+" requires values of the same supported type.");
