@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage, normalizeDefinition } from "../functions/api/ugc-maker.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -32,10 +32,11 @@ const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
 
-const currencyTableStart = maker.indexOf("const CURRENCIES=[");
-const currencyTableEnd = maker.indexOf("function isSupportedCurrencyCode(",currencyTableStart);
-if(currencyTableStart<0||currencyTableEnd<=currencyTableStart)throw new Error("The current currency metadata fixture could not be found.");
-const currencyData=runInNewContext(maker.slice(currencyTableStart,currencyTableEnd)+"\n({currencies:CURRENCIES,historicalCurrencies:HISTORICAL_CURRENCIES})");
+const calculatorCurrencyDataSource=read("ugc-calculator-currency-data.js");
+const currencySandbox={};
+runInNewContext(calculatorCurrencyDataSource,currencySandbox);
+const currencyData=currencySandbox.WorthItCalculatorCurrencyData;
+if(!Array.isArray(currencyData?.currencies)||!Array.isArray(currencyData?.historicalCurrencies))throw new Error("The shared calculator currency fixture could not be loaded.");
 function createCalculatorEngine(){
  const sandbox={};
  runInNewContext(calculatorEngineSource,sandbox);
@@ -2502,4 +2503,39 @@ test("AI usage diagnostics aggregate every provider attempt without inventing un
     assert.equal(unknown.totals.totalTokens,null);
     assert.equal(unknown.totals.uncachedInputTokens,null);
     assert.equal(unknown.totals.cacheHitRatePercent,null);
+});
+
+
+test("AI Creator server uses the shared v1 engine and accepts its expanded safe formula grammar",()=>{
+ const definition=normalizeDefinition({
+  title:"Capped Unit Cost",
+  description:"Calculate a capped unit cost using a safe editable formula and EUR units.",
+  category:"money",
+  subcategories:["budgeting"],
+  inputs:[{key:"unit_cost",label:"Unit cost",min:1,max:100,default:25,step:1,unit:"EUR"}],
+  results:[{label:"Capped unit cost",expression:"clamp(unit_cost * 2, 0, 100)",format:"currency",currency:"EUR"}]
+ },"EUR",{requireAllInputsUsed:true});
+ assert.equal(definition.results[0].expression,"clamp(unit_cost * 2, 0, 100)");
+});
+
+test("AI Creator server rejects unit mismatches through the shared engine validator",()=>{
+ assert.throws(()=>normalizeDefinition({
+  title:"Invalid Unit Formula",
+  description:"This definition intentionally combines incompatible units.",
+  category:"other",
+  subcategories:["general-comparison"],
+  inputs:[{key:"distance",label:"Distance",min:1,max:100,default:10,step:1,unit:"km"}],
+  results:[{label:"Cost",expression:"distance",format:"currency",currency:"EUR"}]
+ },"EUR"),/units do not match|unit|currency/i);
+});
+
+test("shared server currency metadata loads before the browser formula engine and calculator UI",()=>{
+ const currencyIndex=html.indexOf("/ugc-calculator-currency-data.js");
+ const engineIndex=html.indexOf("/ugc-calculator-engine.js");
+ const makerIndex=html.indexOf("/ugc-calculators.js");
+ assert.ok(currencyIndex>=0&&engineIndex>currencyIndex&&makerIndex>engineIndex);
+ assert.ok(makerApi.includes('import "../../ugc-calculator-engine.js";'));
+ assert.ok(makerApi.includes("SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec)"));
+ assert.doesNotMatch(makerApi,/function compileExpression\(/);
+ assert.doesNotMatch(makerApi,/function evaluate\(/);
 });
