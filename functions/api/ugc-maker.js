@@ -759,7 +759,10 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         const unit=String(input.unit||"").trim().toUpperCase();
         const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
         const hasCurrencyUnit=MONETARY_CURRENCY_CODES.has(unit)||MONETARY_CURRENCY_CODES.has(unitCurrencyPrefix);
-        const moneyInput=input.control!=="toggle"&&(hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic));
+        const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
+        const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin)\s+rates?\b|\bpercentage\b/.test(semantic);
+        const moneyInput=input.control!=="toggle"&&!percentageUnit&&!(percentageRate&&!hasCurrencyUnit)&&
+            (hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic));
         if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,allFields))continue;
         if(!hasCurrencyUnit)input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
@@ -829,7 +832,9 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
         let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
         const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
-        const monetaryInput=control!=="toggle"&&(
+        const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
+        const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin)\s+rates?\b|\bpercentage\b/.test(semantic);
+        const monetaryInput=control!=="toggle"&&!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
             /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
             ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
         const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
@@ -890,8 +895,11 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             let unit=String(Object.prototype.hasOwnProperty.call(field||{},"unit")?field.unit:(previousField?.unit||"")).trim().slice(0,16);
             const semantic=(fieldLabel+" "+fieldKey).toLowerCase();
             const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
-            const monetaryField=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
-                ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix);
+            const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
+            const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin)\s+rates?\b|\bpercentage\b/.test(semantic);
+            const monetaryField=!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
+                /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
+                ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
             const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
             const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
                 /^(?:m3|m³)$/i.test(rateBasis)?"m3":
