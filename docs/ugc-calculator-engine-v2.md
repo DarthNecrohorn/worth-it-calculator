@@ -1,6 +1,6 @@
 # Worth It UGC Calculator Engine v2 — Architecture and Implementation Specification
 
-**Status:** Draft specification; implementation has not started  
+**Status:** Architecture specification; implementation progress is tracked in dependent Draft PRs. Engine v1 extraction and server-side unification are implemented in the PR #194 stack; the typed-schema foundation is developed separately on `feat/ugc-calculator-engine-v2-typed-foundation-20261113`.  
 **Branch:** `feat/ugc-calculator-engine-v2-20261113`  
 **Starting point:** PR #198 head `8b05b496756f34dee2b3129829b1a42971317659`  
 **Depends on:** PR #198 (AI Blueprint Import), which itself is based on PR #194  
