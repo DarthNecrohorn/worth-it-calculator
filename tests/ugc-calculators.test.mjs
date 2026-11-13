@@ -2664,7 +2664,9 @@ test("v2 typed formulas evaluate boolean logic, enum comparisons, date operation
    {key:"include_tax",label:"Include tax",type:"boolean",default:true,control:"toggle"},
    {key:"tax_rate",label:"Tax rate",type:"number",min:0,max:100,default:20,step:1,unit:"%",control:"number"},
    {key:"plan",label:"Plan",type:"enum",default:"pro",control:"select",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
-   {key:"start_date",label:"Start date",type:"date",default:"2026-01-31",control:"date"}
+   {key:"start_date",label:"Start date",type:"date",default:"2026-01-31",control:"date"},
+   {key:"day_offset",label:"Day offset",type:"number",min:0,max:365,default:7,step:1,unit:"day",control:"number"},
+   {key:"month_offset",label:"Month offset",type:"number",min:0,max:24,default:1,step:1,unit:"months",control:"number"}
   ],
   groups:[{
    key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:6,
@@ -2681,6 +2683,8 @@ test("v2 typed formulas evaluate boolean logic, enum comparisons, date operation
    {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \"pro\")), base_cost * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Tax is applied only when enabled for the selected plan."},
    {key:"final_total",label:"Final total",expression:"base_cost + eligible_expenses + tax_amount",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus eligible expenses and tax."},
    {key:"days_to_next_month",label:"Days to next month",expression:"date_diff_days(start_date, add_months(start_date, 1))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Calendar days until the same day next month, clamped at month end."},
+   {key:"custom_day_span",label:"Custom day span",expression:"date_diff_days(start_date, add_days(start_date, day_offset))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Date difference using a typed whole-day offset."},
+   {key:"custom_month_span",label:"Custom month span",expression:"date_diff_days(start_date, add_months(start_date, month_offset))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Date difference using a typed whole-month offset."},
    {key:"next_month_days",label:"Days in next month",expression:"days_in_month(add_months(start_date, 1))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Calendar length of the next month."},
    {key:"next_date_year",label:"Next date year",expression:"calendar_year(add_days(start_date, 1))",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Calendar year after one day."},
    {key:"start_weekday",label:"Start weekday",expression:"weekday(start_date)",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"ISO weekday number, Monday 1 through Sunday 7."},
@@ -2705,6 +2709,8 @@ test("v2 typed formulas evaluate boolean logic, enum comparisons, date operation
  assert.equal(values.tax_amount,20);
  assert.equal(values.final_total,155);
  assert.equal(values.days_to_next_month,28);
+ assert.equal(values.custom_day_span,7);
+ assert.equal(values.custom_month_span,28);
  assert.equal(values.next_month_days,28);
  assert.equal(values.next_date_year,2026);
  assert.equal(values.start_weekday,6);
