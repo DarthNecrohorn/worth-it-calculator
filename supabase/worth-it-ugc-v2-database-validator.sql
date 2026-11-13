@@ -19,59 +19,233 @@ returns jsonb language sql immutable set search_path=pg_catalog as $$
  from (select distinct value #>> '{}' ref from jsonb_array_elements(coalesce(p_left,'[]'::jsonb)||coalesce(p_right,'[]'::jsonb)) where jsonb_typeof(value)='string') refs
 $$;
 
-create or replace function private.worth_it_v2_unit_vector(p_unit text)
+create or replace function private.worth_it_v2_normalize_energy(p_vector jsonb,p_symbols jsonb)
 returns jsonb language plpgsql immutable set search_path=pg_catalog as $$
-declare v_raw text:=btrim(coalesce(p_unit,'')); v_key text:=lower(regexp_replace(btrim(coalesce(p_unit,'')),'\s+',' ','g')); v_dimension text;
+declare
+ v_vector jsonb:=coalesce(p_vector,'{}'::jsonb);
+ v_symbols jsonb:=coalesce(p_symbols,'{}'::jsonb);
+ v_energy numeric;
+ v_power_symbol text;
+ v_time_symbol text;
 begin
- if v_raw='' or v_raw='1' or v_key='%' or v_key in ('period','periods','occurrences','times') then return '{}'::jsonb; end if;
- if v_raw ~ '^[A-Z]{3}$' then return jsonb_build_object('currency:'||lower(v_raw),1); end if;
- v_dimension:=case
-  when v_key in ('day','days','week','weeks','month','months','year','years','hour','hours','hr','hrs','h','minute','minutes','second','seconds','s') then 'time'
-  when v_key in ('km','kilometres','kilometers','mile','miles','m','cm','mm') then 'length'
-  when v_key in ('m²','m2','ft²') then 'area'
-  when v_key in ('l','litres','liters','m³','m3','ml') then 'volume'
-  when v_key in ('kg','kilograms','g','grams','tonnes') then 'mass'
-  when v_key in ('b','kb','mb','gb','tb','pb') then 'data'
-  when v_key in ('kwh','mwh','mj','wh') then 'energy'
-  when v_key in ('w','kw') then 'power'
-  when v_key in ('token','tokens') then 'token'
-  when v_key in ('item','items','unit','units','pack','packs','person','people','user','users','vehicle','vehicles','car','cars','request','requests','read','reads','write','writes','call','calls','device','devices') then 'count'
-  else null end;
- if v_dimension is not null then return jsonb_build_object(v_dimension,1); end if;
- if v_key in ('km/h','m/s','l/100 km','kwh/day','kwh/month','m²/pack') then
-  return case v_key when 'km/h' then '{"length":1,"time":-1}'::jsonb when 'm/s' then '{"length":1,"time":-1}'::jsonb
-   when 'l/100 km' then '{"volume":1,"length":-1}'::jsonb when 'kwh/day' then '{"energy":1,"time":-1}'::jsonb
-   when 'kwh/month' then '{"energy":1,"time":-1}'::jsonb else '{"area":1,"count":-1}'::jsonb end;
+ v_power_symbol:=v_symbols->>'power';
+ v_time_symbol:=v_symbols->>'time';
+ if coalesce((v_vector->>'power')::numeric,0)=1
+  and coalesce((v_vector->>'time')::numeric,0)=1
+  and v_time_symbol='hour'
+  and v_power_symbol in ('W','kW') then
+  v_energy:=coalesce((v_vector->>'energy')::numeric,0)+1;
+  v_vector:=v_vector-'power'-'time';
+  v_symbols:=v_symbols-'power'-'time';
+  v_vector:=jsonb_set(v_vector,'{energy}',to_jsonb(v_energy),true);
+  v_symbols:=jsonb_set(v_symbols,'{energy}',to_jsonb(case when v_power_symbol='kW' then 'kWh' else 'Wh' end),true);
  end if;
- if v_key in ('eur/kwh','usd/kwh','rsd/kwh','eur/l','usd/l','rsd/l','eur/kg','eur/m²','eur/m2','eur/m³','eur/m3','eur/hour','usd/hour','eur/month','eur/day','eur/person/day','usd/person/day','eur/unit','eur/item','eur/pack','usd/unit','usd/item','rsd/unit') then
-  return case v_key when 'eur/kwh' then '{"currency:eur":1,"energy":-1}'::jsonb when 'usd/kwh' then '{"currency:usd":1,"energy":-1}'::jsonb
-   when 'rsd/kwh' then '{"currency:rsd":1,"energy":-1}'::jsonb when 'eur/l' then '{"currency:eur":1,"volume":-1}'::jsonb
-   when 'usd/l' then '{"currency:usd":1,"volume":-1}'::jsonb when 'rsd/l' then '{"currency:rsd":1,"volume":-1}'::jsonb
-   when 'eur/kg' then '{"currency:eur":1,"mass":-1}'::jsonb when 'eur/m²' then '{"currency:eur":1,"area":-1}'::jsonb
-   when 'eur/m2' then '{"currency:eur":1,"area":-1}'::jsonb when 'eur/m³' then '{"currency:eur":1,"volume":-1}'::jsonb
-   when 'eur/m3' then '{"currency:eur":1,"volume":-1}'::jsonb when 'eur/hour' then '{"currency:eur":1,"time":-1}'::jsonb
-   when 'usd/hour' then '{"currency:usd":1,"time":-1}'::jsonb when 'eur/month' then '{"currency:eur":1,"time":-1}'::jsonb
-   when 'eur/day' then '{"currency:eur":1,"time":-1}'::jsonb when 'eur/person/day' then '{"currency:eur":1,"count":-1,"time":-1}'::jsonb
-   when 'usd/person/day' then '{"currency:usd":1,"count":-1,"time":-1}'::jsonb when 'eur/unit' then '{"currency:eur":1,"count":-1}'::jsonb
-   when 'eur/item' then '{"currency:eur":1,"count":-1}'::jsonb when 'eur/pack' then '{"currency:eur":1,"count":-1}'::jsonb
-   when 'usd/unit' then '{"currency:usd":1,"count":-1}'::jsonb else '{"currency:rsd":1,"count":-1}'::jsonb end;
- end if;
- return jsonb_build_object('unit:'||v_key,1);
+ return jsonb_build_object('vector',v_vector,'symbols',v_symbols,
+  'opaque',exists(select 1 from jsonb_object_keys(v_vector) as keys(key) where key like 'unit:%'));
 end;
 $$;
 
-create or replace function private.worth_it_v2_unit_combine(p_left jsonb,p_right jsonb,p_sign integer)
-returns jsonb language plpgsql immutable set search_path=pg_catalog as $$
-declare v_out jsonb:='{}'::jsonb; v_key text; v_value numeric; v_keys text[];
+create or replace function private.worth_it_v2_unit_descriptor(p_unit text)
+returns jsonb language plpgsql immutable set search_path=pg_catalog,private as $$
+declare
+ v_raw text:=btrim(coalesce(p_unit,''));
+ v_key text:=lower(regexp_replace(btrim(coalesce(p_unit,'')),'\s+',' ','g'));
+ v_vector jsonb;
+ v_symbols jsonb:='{}'::jsonb;
+ v_dimension text;
+ v_match text[];
+ v_denominator text;
+ v_rest text;
+ v_compact text;
+ v_pos integer;
+ v_token_length integer;
+ v_operation integer:=1;
+ v_power integer;
+ v_token text;
+ v_base jsonb;
+ v_entry record;
+ v_value numeric;
+ v_valid boolean:=true;
 begin
- select coalesce(array_agg(distinct key),'{}'::text[]) into v_keys from
- (select jsonb_object_keys(coalesce(p_left,'{}'::jsonb)) key union all select jsonb_object_keys(coalesce(p_right,'{}'::jsonb)) key) all_keys;
- foreach v_key in array v_keys loop
-  v_value:=coalesce((p_left->>v_key)::numeric,0)+p_sign*coalesce((p_right->>v_key)::numeric,0);
-  if abs(v_value)>0.0000000001 then v_out:=jsonb_set(v_out,array[v_key],to_jsonb(v_value),true); end if;
- end loop;
- return v_out;
+ if v_raw='' or v_raw='1' then
+  return jsonb_build_object('vector','{}'::jsonb,'symbols','{}'::jsonb,'opaque',false);
+ end if;
+ if v_raw ~ '^[A-Z]{3}$' then
+  return jsonb_build_object('vector',jsonb_build_object('currency:'||lower(v_raw),1),
+   'symbols',jsonb_build_object('currency:'||lower(v_raw),v_raw),'opaque',false);
+ end if;
+
+ -- Dynamic currency-per-unit aliases are defined by the shared browser engine.
+ v_match:=regexp_match(v_raw,'^([A-Z]{3})\s*/\s*(.+)$');
+ if v_match is not null then
+  v_denominator:=lower(btrim(v_match[2]));
+  v_dimension:=case
+   when v_denominator in ('kwh','mwh','mj') then 'energy'
+   when v_denominator in ('l','litre','liter') then 'volume'
+   when v_denominator in ('kg','g') then 'mass'
+   when v_denominator in ('m³','m3') then 'volume'
+   when v_denominator in ('m²','m2') then 'area'
+   when v_denominator in ('hour','hours','hr','hrs','h','day','days','week','weeks','month','months','year','years','minute','minutes','second','seconds') then 'time'
+   when v_denominator in ('unit','units','item','items','pack','packs','person','people','user','users','request','requests','read','reads','write','writes','call','calls') then 'count'
+   when v_denominator in ('token','tokens') then 'token'
+   when v_denominator in ('km','mile','miles','m') then 'length'
+   else null end;
+  if v_dimension is not null then
+   return jsonb_build_object('vector',jsonb_build_object('currency:'||lower(v_match[1]),1,v_dimension,-1),
+    'symbols',jsonb_build_object('currency:'||lower(v_match[1]),v_match[1],
+     v_dimension,case when v_dimension='token' then 'token' else btrim(v_match[2]) end),'opaque',false);
+  end if;
+ end if;
+
+ -- Explicit unit aliases from the shared Engine V1/V2 registry.
+ v_vector:=case
+  when v_key='%' then '{}'::jsonb
+  when v_key in ('%/year','%/month','%/day') then '{"time":-1}'::jsonb
+  when v_key in ('month','months','year','years','day','days','week','weeks','hour','hours','minute','minutes','second','seconds','hr','hrs','h','s') then '{"time":1}'::jsonb
+  when v_key in ('km','kilometres','kilometers','mile','miles','m','cm','mm') then '{"length":1}'::jsonb
+  when v_key in ('m²','m2','ft²') then '{"area":1}'::jsonb
+  when v_key in ('l','litres','liters','m³','m3','ml') then '{"volume":1}'::jsonb
+  when v_key in ('kg','kilograms','g','grams','tonnes') then '{"mass":1}'::jsonb
+  when v_key in ('b','kb','mb','gb','tb','pb') then '{"data":1}'::jsonb
+  when v_key in ('wh','kwh','mwh','mj') then '{"energy":1}'::jsonb
+  when v_key in ('w','kw') then '{"power":1}'::jsonb
+  when v_key='l/100 km' then '{"volume":1,"length":-1}'::jsonb
+  when v_key='km/h' then '{"length":1,"time":-1}'::jsonb
+  when v_key='m/s' then '{"length":1,"time":-1}'::jsonb
+  when v_key='m²/pack' then '{"area":1,"count":-1}'::jsonb
+  when v_key in ('kwh/day','kwh/month') then '{"energy":1,"time":-1}'::jsonb
+  else null end;
+ if v_vector is not null then
+  v_symbols:=case v_key
+   when 'month' then '{"time":"month"}'::jsonb when 'months' then '{"time":"month"}'::jsonb
+   when 'year' then '{"time":"year"}'::jsonb when 'years' then '{"time":"year"}'::jsonb
+   when 'day' then '{"time":"day"}'::jsonb when 'days' then '{"time":"day"}'::jsonb
+   when 'week' then '{"time":"week"}'::jsonb when 'weeks' then '{"time":"week"}'::jsonb
+   when 'hour' then '{"time":"hour"}'::jsonb when 'hours' then '{"time":"hour"}'::jsonb
+   when 'hr' then '{"time":"hour"}'::jsonb when 'hrs' then '{"time":"hour"}'::jsonb when 'h' then '{"time":"hour"}'::jsonb
+   when 'minute' then '{"time":"minute"}'::jsonb when 'minutes' then '{"time":"minute"}'::jsonb
+   when 'second' then '{"time":"second"}'::jsonb when 'seconds' then '{"time":"second"}'::jsonb when 's' then '{"time":"second"}'::jsonb
+   when 'km' then '{"length":"km"}'::jsonb when 'kilometres' then '{"length":"kilometres"}'::jsonb when 'kilometers' then '{"length":"kilometers"}'::jsonb
+   when 'mile' then '{"length":"mile"}'::jsonb when 'miles' then '{"length":"miles"}'::jsonb when 'm' then '{"length":"m"}'::jsonb when 'cm' then '{"length":"cm"}'::jsonb when 'mm' then '{"length":"mm"}'::jsonb
+   when 'm²' then '{"area":"m²"}'::jsonb when 'm2' then '{"area":"m2"}'::jsonb when 'ft²' then '{"area":"ft²"}'::jsonb
+   when 'l' then '{"volume":"L"}'::jsonb when 'litres' then '{"volume":"litres"}'::jsonb when 'liters' then '{"volume":"liters"}'::jsonb
+   when 'm³' then '{"volume":"m³"}'::jsonb when 'm3' then '{"volume":"m3"}'::jsonb when 'ml' then '{"volume":"mL"}'::jsonb
+   when 'kg' then '{"mass":"kg"}'::jsonb when 'kilograms' then '{"mass":"kilograms"}'::jsonb when 'g' then '{"mass":"g"}'::jsonb when 'grams' then '{"mass":"grams"}'::jsonb when 'tonnes' then '{"mass":"tonnes"}'::jsonb
+   when 'b' then '{"data":"B"}'::jsonb when 'kb' then '{"data":"KB"}'::jsonb when 'mb' then '{"data":"MB"}'::jsonb when 'gb' then '{"data":"GB"}'::jsonb when 'tb' then '{"data":"TB"}'::jsonb when 'pb' then '{"data":"PB"}'::jsonb
+   when 'wh' then '{"energy":"Wh"}'::jsonb when 'kwh' then '{"energy":"kWh"}'::jsonb when 'mwh' then '{"energy":"MWh"}'::jsonb when 'mj' then '{"energy":"MJ"}'::jsonb
+   when 'w' then '{"power":"W"}'::jsonb when 'kw' then '{"power":"kW"}'::jsonb
+   when 'l/100 km' then '{"volume":"L","length":"km"}'::jsonb
+   when 'km/h' then '{"length":"km","time":"hour"}'::jsonb
+   when 'm/s' then '{"length":"m","time":"second"}'::jsonb
+   when 'm²/pack' then '{"area":"m²","count":"pack"}'::jsonb
+   when 'kwh/day' then '{"energy":"kWh","time":"day"}'::jsonb
+   when 'kwh/month' then '{"energy":"kWh","time":"month"}'::jsonb
+   else '{}'::jsonb end;
+  for v_entry in select key from jsonb_object_keys(v_vector) as keys(key) loop
+   if not (v_symbols ? v_entry.key) then
+    v_symbols:=jsonb_set(v_symbols,array[v_entry.key],to_jsonb(case v_entry.key
+     when 'time' then 'days' when 'length' then 'km' when 'area' then 'm²'
+     when 'volume' then 'L' when 'mass' then 'kg' when 'energy' then 'kWh'
+     when 'power' then 'W' when 'count' then 'items' else v_entry.key end),true);
+   end if;
+  end loop;
+  return jsonb_build_object('vector',v_vector,'symbols',v_symbols,
+   'opaque',exists(select 1 from jsonb_object_keys(v_vector) as keys(key) where key like 'unit:%'));
+ end if;
+
+ if v_key in ('token','tokens') then
+  return jsonb_build_object('vector','{"token":1}'::jsonb,'symbols','{"token":"token"}'::jsonb,'opaque',false);
+ end if;
+ if v_key in ('item','items','unit','units','pack','packs','people','person','users','user','vehicles','vehicle','cars','car','requests','request','reads','read','writes','write','calls','call','devices','device') then
+  v_symbols:=jsonb_build_object('count',case v_key
+   when 'items' then 'items' when 'item' then 'item' when 'units' then 'units' when 'unit' then 'unit'
+   when 'people' then 'people' when 'person' then 'person' when 'packs' then 'packs' when 'pack' then 'pack'
+   when 'users' then 'user' when 'user' then 'user' when 'vehicles' then 'vehicles' when 'vehicle' then 'vehicle'
+   when 'cars' then 'cars' when 'car' then 'car' when 'requests' then 'request' when 'request' then 'request'
+   when 'reads' then 'read' when 'read' then 'read' when 'writes' then 'write' when 'write' then 'write'
+   when 'calls' then 'call' when 'call' then 'call' when 'devices' then 'device' else 'device' end);
+  return jsonb_build_object('vector','{"count":1}'::jsonb,'symbols',v_symbols,'opaque',false);
+ end if;
+ if v_key in ('period','periods','occurrences','times') then
+  return jsonb_build_object('vector','{}'::jsonb,'symbols','{}'::jsonb,'opaque',false);
+ end if;
+
+ -- Parse simple products and quotients recursively. Unknown atoms remain opaque.
+ if position('/' in v_raw)>0 or position('*' in v_raw)>0 then
+  v_compact:=regexp_replace(v_raw,'\s*([*/])\s*','\1','g');
+  v_pos:=1;v_operation:=1;v_vector:='{}'::jsonb;v_symbols:='{}'::jsonb;
+  while v_pos<=char_length(v_compact) loop
+   v_rest:=substr(v_compact,v_pos);
+   v_match:=regexp_match(v_rest,'^([A-Za-zµμ%°][A-Za-z0-9_µμ%°²³-]*|1)(\^(-?[1-4]))?');
+   if v_match is null then v_valid:=false;exit;end if;
+   v_token:=v_match[1];v_power:=coalesce(v_match[3],'1')::integer*v_operation;
+   v_base:=private.worth_it_v2_unit_descriptor(v_token);
+   for v_entry in select key from jsonb_object_keys(coalesce(v_base->'vector','{}'::jsonb)) as keys(key) loop
+    v_value:=coalesce((v_vector->>v_entry.key)::numeric,0)+coalesce((v_base->'vector'->>v_entry.key)::numeric,0)*v_power;
+    if abs(v_value)<0.0000000001 then
+     v_vector:=v_vector-v_entry.key;v_symbols:=v_symbols-v_entry.key;
+    else
+     v_vector:=jsonb_set(v_vector,array[v_entry.key],to_jsonb(v_value),true);
+     if (v_base->'symbols') ? v_entry.key then v_symbols:=jsonb_set(v_symbols,array[v_entry.key],v_base->'symbols'->v_entry.key,true);end if;
+    end if;
+   end loop;
+   v_token_length:=char_length(v_match[1])+coalesce(char_length(v_match[2]),0);
+   v_pos:=v_pos+v_token_length;
+   if v_pos<=char_length(v_compact) then
+    v_operation:=case substr(v_compact,v_pos,1) when '/' then -1 when '*' then 1 else 0 end;
+    if v_operation=0 then v_valid:=false;exit;end if;
+    v_pos:=v_pos+1;
+   end if;
+  end loop;
+  if v_valid and v_pos>char_length(v_compact) then
+   return private.worth_it_v2_normalize_energy(v_vector,v_symbols);
+  end if;
+ end if;
+
+ return jsonb_build_object('vector',jsonb_build_object('unit:'||v_key,1),
+  'symbols',jsonb_build_object('unit:'||v_key,v_raw),'opaque',true);
 end;
+$$;
+
+create or replace function private.worth_it_v2_unit_vector(p_unit text)
+returns jsonb language sql immutable set search_path=pg_catalog,private as $$
+ select coalesce(private.worth_it_v2_unit_descriptor(p_unit)->'vector','{}'::jsonb)
+$$;
+
+create or replace function private.worth_it_v2_unit_combine(p_left jsonb,p_right jsonb,p_sign integer)
+returns jsonb language plpgsql immutable set search_path=pg_catalog,private as $$
+declare
+ v_out jsonb:='{}'::jsonb;
+ v_symbols jsonb:=coalesce(p_left->'unit_symbols','{}'::jsonb);
+ v_key text;
+ v_value numeric;
+ v_keys text[];
+begin
+ select coalesce(array_agg(distinct key),'{}'::text[]) into v_keys
+ from (
+  select jsonb_object_keys(coalesce(p_left->'unit_vector','{}'::jsonb)) key
+  union all select jsonb_object_keys(coalesce(p_right->'unit_vector','{}'::jsonb)) key
+ ) all_keys;
+ foreach v_key in array v_keys loop
+  v_value:=coalesce((p_left->'unit_vector'->>v_key)::numeric,0)+p_sign*coalesce((p_right->'unit_vector'->>v_key)::numeric,0);
+  if abs(v_value)<0.0000000001 then v_out:=v_out-v_key;v_symbols:=v_symbols-v_key;
+  else
+   v_out:=jsonb_set(v_out,array[v_key],to_jsonb(v_value),true);
+   if not (p_left->'unit_vector' ? v_key) and (p_right->'unit_symbols' ? v_key) then
+    v_symbols:=jsonb_set(v_symbols,array[v_key],p_right->'unit_symbols'->v_key,true);
+   end if;
+  end if;
+ end loop;
+ return private.worth_it_v2_normalize_energy(v_out,v_symbols);
+end;
+$$;
+
+create or replace function private.worth_it_v2_compatible_symbols(p_nodes jsonb)
+returns jsonb language sql immutable set search_path=pg_catalog as $$
+ select coalesce(item.value->'unit_symbols','{}'::jsonb)
+ from jsonb_array_elements(coalesce(p_nodes,'[]'::jsonb)) as item(value)
+ where coalesce(item.value->'unit_vector','{}'::jsonb)<>'{}'::jsonb
+ limit 1
 $$;
 
 create or replace function private.worth_it_v2_is_iso_date(p_value text)
@@ -117,7 +291,7 @@ create or replace function private.worth_it_v2_infer_call(p_name text,p_args jso
 returns jsonb language plpgsql immutable set search_path=pg_catalog,private as $$
 declare
  v_count integer:=jsonb_array_length(coalesce(p_args,'[]'::jsonb)); v_a jsonb;v_b jsonb;v_c jsonb;
- v_refs jsonb:='[]'::jsonb;v_node jsonb;v_units jsonb:='[]'::jsonb;v_unit jsonb:='{}'::jsonb;
+ v_refs jsonb:='[]'::jsonb;v_node jsonb;v_units jsonb:='[]'::jsonb;v_unit jsonb:='{}'::jsonb;v_unit_symbols jsonb:='{}'::jsonb;
  v_exponent numeric;v_value text;
 begin
  v_a:=p_args->0;v_b:=p_args->1;v_c:=p_args->2;
@@ -140,12 +314,14 @@ begin
  if p_name='if' then
   if v_a->>'kind'<>'boolean' then raise exception 'if() condition must be boolean.' using errcode='22023'; end if;
   if v_b->>'kind'<>v_c->>'kind' or v_b->>'kind' not in ('number','boolean','enum','date') then raise exception 'if() branches must return the same supported value type.' using errcode='22023'; end if;
-  if v_b->>'kind'='number' then v_unit:=private.worth_it_v2_compatible_unit(jsonb_build_array(v_b,v_c));
+  if v_b->>'kind'='number' then
+   v_unit:=private.worth_it_v2_compatible_unit(jsonb_build_array(v_b,v_c));
+   v_unit_symbols:=private.worth_it_v2_compatible_symbols(jsonb_build_array(v_b,v_c));
   elsif v_b->>'kind'='enum' and private.worth_it_v2_enum_values(v_b->'choices')<>private.worth_it_v2_enum_values(v_c->'choices') then
    raise exception 'if() enum branches must use the same choices.' using errcode='22023';
   end if;
   return jsonb_build_object('kind',v_b->>'kind','unit',coalesce(v_b->>'unit',''),'unit_vector',coalesce(v_b->'unit_vector','{}'::jsonb),
-   'choices',coalesce(v_b->'choices','[]'::jsonb),'group_refs',v_refs,'is_constant',false);
+   'choices',coalesce(v_b->'choices','[]'::jsonb),'unit_symbols',v_unit_symbols,'group_refs',v_refs,'is_constant',false);
  end if;
 
  if p_name in ('eq','neq','gt','gte','lt','lte') then
@@ -183,7 +359,7 @@ begin
    or (v_b->>'kind'='string' and not private.worth_it_v2_is_iso_date(v_b->>'value')) then
    raise exception 'date_diff_days() requires two calendar dates.' using errcode='22023';
   end if;
-  return jsonb_build_object('kind','number','unit','days','unit_vector','{"time":1}'::jsonb,'group_refs',v_refs,'is_constant',false);
+  return jsonb_build_object('kind','number','unit','days','unit_vector','{"time":1}'::jsonb,'unit_symbols','{"time":"day"}'::jsonb,'group_refs',v_refs,'is_constant',false);
  end if;
  if p_name in ('add_days','add_months') then
   if v_a->>'kind'<>'date' or v_b->>'kind'<>'number' then raise exception '%() requires a date and a numeric whole-number offset.',p_name using errcode='22023'; end if;
@@ -221,33 +397,39 @@ begin
       or (v_a->'group_refs'->>0)<>(v_b->'group_refs'->>0)) then
    raise exception 'sum_if() value and predicate must refer to fields from the same dynamic group.' using errcode='22023';
   end if;
-  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
+  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_a->'unit_symbols','{}'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
  end if;
  if p_name in ('min','max','avg') and v_count=1 and jsonb_array_length(coalesce(v_a->'group_refs','[]'::jsonb))>0 then
   if v_a->>'kind'<>'number' or jsonb_array_length(v_a->'group_refs')<>1 then raise exception '%() must aggregate one numeric expression from one dynamic group.',p_name using errcode='22023'; end if;
-  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
+  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_a->'unit_symbols','{}'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
  end if;
 
  for v_node in select value from jsonb_array_elements(p_args) loop
   if v_node->>'kind'<>'number' then raise exception '%() accepts only numeric arguments.',p_name using errcode='22023'; end if;
   v_units:=v_units||jsonb_build_array(v_node);
  end loop;
- if p_name in ('min','max','avg','hypot','mod','clamp') then v_unit:=private.worth_it_v2_compatible_unit(v_units);
+ if p_name in ('min','max','avg','hypot','mod','clamp') then
+  v_unit:=private.worth_it_v2_compatible_unit(v_units);
+  v_unit_symbols:=private.worth_it_v2_compatible_symbols(v_units);
  elsif p_name in ('abs','round','floor','ceil','trunc') then
-  v_unit:=coalesce(v_a->'unit_vector','{}'::jsonb);
+  v_unit:=coalesce(v_a->'unit_vector','{}'::jsonb);v_unit_symbols:=coalesce(v_a->'unit_symbols','{}'::jsonb);
   if p_name='round' and v_count=2 and coalesce(v_b->'unit_vector','{}'::jsonb)<>'{}'::jsonb then raise exception 'round() precision must be dimensionless.' using errcode='22023'; end if;
  elsif p_name='sqrt' then
+  v_unit_symbols:=coalesce(v_a->'unit_symbols','{}'::jsonb);
   for v_value in select key from jsonb_object_keys(coalesce(v_a->'unit_vector','{}'::jsonb)) as keys(key) loop
    if mod((v_a->'unit_vector'->>v_value)::numeric,2)<>0 then raise exception 'sqrt() requires even unit powers.' using errcode='22023'; end if;
    v_unit:=jsonb_set(v_unit,array[v_value],to_jsonb(((v_a->'unit_vector'->>v_value)::numeric)/2),true);
   end loop;
  elsif p_name='pow' then
+  v_unit_symbols:=coalesce(v_a->'unit_symbols','{}'::jsonb);
   if coalesce((v_b->>'is_constant')::boolean,false) then v_exponent:=(v_b->>'value')::numeric;
-  elsif coalesce(v_a->'unit_vector','{}'::jsonb)<>'{}'::jsonb then raise exception 'A dimensional value must use a fixed numeric power.' using errcode='22023';
+  elsif coalesce(v_b->'unit_vector','{}'::jsonb)<>'{}'::jsonb then raise exception 'A variable power exponent must be dimensionless.' using errcode='22023';
+  elsif coalesce(v_a->'unit_vector','{}'::jsonb)<>'{}'::jsonb then raise exception 'A variable exponent requires a dimensionless base.' using errcode='22023';
   else v_exponent:=0; end if;
   if v_exponent<>0 then
    for v_value in select key from jsonb_object_keys(coalesce(v_a->'unit_vector','{}'::jsonb)) as keys(key) loop
-    v_unit:=jsonb_set(v_unit,array[v_value],to_jsonb(((v_a->'unit_vector'->>v_value)::numeric)*v_exponent),true);
+    if abs(((v_a->'unit_vector'->>v_value)::numeric)*v_exponent)<0.0000000001 then v_unit:=v_unit-v_value;
+    else v_unit:=jsonb_set(v_unit,array[v_value],to_jsonb(((v_a->'unit_vector'->>v_value)::numeric)*v_exponent),true);end if;
    end loop;
   end if;
  elsif p_name in ('log','ln','exp','sin','cos','tan','asin','acos','atan') then
@@ -257,7 +439,7 @@ begin
   v_unit:='{}'::jsonb;
  elsif p_name='sign' then v_unit:='{}'::jsonb;
  end if;
- return jsonb_build_object('kind','number','unit','','unit_vector',v_unit,'group_refs',v_refs,'is_constant',false);
+ return jsonb_build_object('kind','number','unit','','unit_vector',v_unit,'unit_symbols',v_unit_symbols,'group_refs',v_refs,'is_constant',false);
 end;
 $$;
 
@@ -269,7 +451,7 @@ declare
  v_pos integer:=greatest(1,p_position);v_start integer;v_rest text;v_match text[];v_ident text;v_field text;
  v_string_json text;v_string_value text;v_escape boolean;v_char text;v_look text;
  v_node jsonb;v_right jsonb;v_parsed jsonb;v_args jsonb:='[]'::jsonb;v_group jsonb;v_definition jsonb;
- v_unit jsonb;v_refs jsonb;v_operator text;v_precedence integer;v_right_min integer;v_value numeric;
+ v_unit jsonb;v_unit_symbols jsonb:='{}'::jsonb;v_unit_descriptor jsonb;v_refs jsonb;v_operator text;v_precedence integer;v_right_min integer;v_value numeric;
 begin
  if p_depth>32 then raise exception 'A v2 formula exceeds the 32-level nesting limit.' using errcode='22023'; end if;
  while v_pos<=char_length(p_source) and substr(p_source,v_pos,1)~'^[[:space:]]$' loop v_pos:=v_pos+1; end loop;
@@ -320,8 +502,9 @@ begin
    if v_group is null then raise exception 'Unknown dynamic group: %.',v_ident using errcode='22023';end if;
    select value into v_definition from jsonb_array_elements(v_group->'fields') as fields(value) where value->>'key'=v_field limit 1;
    if v_definition is null then raise exception 'Unknown dynamic group field: %.%.',v_ident,v_field using errcode='22023';end if;
+   v_unit_descriptor:=case when v_definition->>'type'='number' then private.worth_it_v2_unit_descriptor(v_definition->>'unit') else jsonb_build_object('vector','{}'::jsonb,'symbols','{}'::jsonb) end;
    v_node:=jsonb_build_object('kind',v_definition->>'type','unit',coalesce(v_definition->>'unit',''),
-    'unit_vector',case when v_definition->>'type'='number' then private.worth_it_v2_unit_vector(v_definition->>'unit') else '{}'::jsonb end,
+    'unit_vector',coalesce(v_unit_descriptor->'vector','{}'::jsonb),'unit_symbols',coalesce(v_unit_descriptor->'symbols','{}'::jsonb),
     'choices',coalesce(v_definition->'choices','[]'::jsonb),'group_refs',jsonb_build_array(v_ident),'is_constant',false);
   elsif v_look='(' then
    v_pos:=v_pos+1;v_args:='[]'::jsonb;
@@ -347,7 +530,8 @@ begin
   elsif p_symbols ? v_ident then
    v_definition:=p_symbols->v_ident;
    v_node:=jsonb_build_object('kind',v_definition->>'kind','unit',coalesce(v_definition->>'unit',''),
-    'unit_vector',coalesce(v_definition->'unit_vector','{}'::jsonb),'choices',coalesce(v_definition->'choices','[]'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
+    'unit_vector',coalesce(v_definition->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_definition->'unit_symbols','{}'::jsonb),
+    'choices',coalesce(v_definition->'choices','[]'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
   else raise exception 'Unknown v2 input or earlier result: %.',v_ident using errcode='22023';
   end if;
  else raise exception 'This v2 formula contains unsupported syntax.' using errcode='22023';
@@ -362,21 +546,26 @@ begin
   v_parsed:=private.worth_it_v2_parse_expression(p_source,v_pos+1,v_right_min,p_symbols,p_groups,p_depth+1);v_right:=v_parsed->'node';
   if v_node->>'kind'<>'number' or v_right->>'kind'<>'number' then raise exception 'Arithmetic operators require numeric values; boolean, enum and date values are not numbers.' using errcode='22023';end if;
   v_refs:=private.worth_it_v2_merge_refs(coalesce(v_node->'group_refs','[]'::jsonb),coalesce(v_right->'group_refs','[]'::jsonb));
-  if v_operator in ('+','-') then v_unit:=private.worth_it_v2_compatible_unit(jsonb_build_array(v_node,v_right));
-  elsif v_operator='*' then v_unit:=private.worth_it_v2_unit_combine(v_node->'unit_vector',v_right->'unit_vector',1);
-  elsif v_operator='/' then v_unit:=private.worth_it_v2_unit_combine(v_node->'unit_vector',v_right->'unit_vector',-1);
+  if v_operator in ('+','-') then
+   v_unit:=private.worth_it_v2_compatible_unit(jsonb_build_array(v_node,v_right));
+   v_unit_symbols:=private.worth_it_v2_compatible_symbols(jsonb_build_array(v_node,v_right));
+  elsif v_operator in ('*','/') then
+   v_unit_descriptor:=private.worth_it_v2_unit_combine(v_node,v_right,case when v_operator='*' then 1 else -1 end);
+   v_unit:=coalesce(v_unit_descriptor->'vector','{}'::jsonb);
+   v_unit_symbols:=coalesce(v_unit_descriptor->'symbols','{}'::jsonb);
   else
    if coalesce((v_right->>'is_constant')::boolean,false) then
-    v_value:=(v_right->>'value')::numeric;v_unit:='{}'::jsonb;
+    v_value:=(v_right->>'value')::numeric;v_unit:='{}'::jsonb;v_unit_symbols:=coalesce(v_node->'unit_symbols','{}'::jsonb);
     for v_field in select key from jsonb_object_keys(coalesce(v_node->'unit_vector','{}'::jsonb)) as keys(key) loop
-     v_unit:=jsonb_set(v_unit,array[v_field],to_jsonb(((v_node->'unit_vector'->>v_field)::numeric)*v_value),true);
+     if abs(((v_node->'unit_vector'->>v_field)::numeric)*v_value)<0.0000000001 then v_unit:=v_unit-v_field;
+     else v_unit:=jsonb_set(v_unit,array[v_field],to_jsonb(((v_node->'unit_vector'->>v_field)::numeric)*v_value),true);end if;
     end loop;
-   elsif coalesce(v_node->'unit_vector','{}'::jsonb)='{}'::jsonb then v_unit:='{}'::jsonb;
+   elsif coalesce(v_node->'unit_vector','{}'::jsonb)='{}'::jsonb then v_unit:='{}'::jsonb;v_unit_symbols:='{}'::jsonb;
    else raise exception 'A dimensional value must use a fixed numeric power.' using errcode='22023';
    end if;
   end if;
   v_node:=jsonb_build_object('kind','number','unit',case when v_operator in ('+','-') then coalesce(v_node->>'unit',v_right->>'unit','') else '' end,
-   'unit_vector',v_unit,'group_refs',v_refs,'is_constant',false);
+   'unit_vector',v_unit,'unit_symbols',v_unit_symbols,'group_refs',v_refs,'is_constant',false);
   v_pos:=(v_parsed->>'position')::integer;
  end loop;
  return jsonb_build_object('node',v_node,'position',v_pos);
@@ -388,7 +577,7 @@ returns void language plpgsql security invoker set search_path=pg_catalog,privat
 declare
  v_supported_currency_codes constant text[]:=array['AFN','EUR','ALL','DZD','USD','AOA','XCD','XAD','ARS','AMD','AWG','AUD','AZN','BSD','BHD','BDT','BBD','BYN','BZD','XOF','BMD','INR','BTN','BOB','BOV','BAM','BWP','NOK','BRL','BND','BIF','CVE','KHR','XAF','CAD','KYD','CLP','CLF','CNY','COP','COU','KMF','CDF','NZD','CRC','CUP','XCG','CZK','DKK','DJF','DOP','EGP','SVC','ERN','SZL','ETB','FKP','FJD','XPF','GMD','GEL','GHS','GIP','GTQ','GBP','GNF','GYD','HTG','HNL','HKD','HUF','ISK','IDR','XDR','IRR','IQD','ILS','JMD','JPY','JOD','KZT','KES','KPW','KRW','KWD','KGS','LAK','LBP','LSL','ZAR','LRD','LYD','CHF','MOP','MKD','MGA','MWK','MYR','MVR','MRU','MUR','XUA','MXN','MXV','MDL','MNT','MAD','MZN','MMK','NAD','NPR','NIO','NGN','OMR','PKR','PAB','PGK','PYG','PEN','PHP','PLN','QAR','RON','RUB','RWF','SHP','WST','STN','SAR','RSD','SCR','SLE','SGD','XSU','SBD','SOS','SSP','LKR','SDG','SRD','SEK','CHE','CHW','SYP','TWD','TJS','TZS','THB','TOP','TTD','TND','TRY','TMT','UGX','UAH','AED','USN','UYU','UYI','UYW','UZS','VUV','VES','VED','VND','YER','ZMW','ZWG','XBA','XBB','XBC','XBD','XTS','XXX','XAU','XPD','XPT','XAG','BGN']::text[];
  v_input jsonb;v_group jsonb;v_field jsonb;v_result jsonb;v_choice jsonb;v_scenario jsonb;v_override record;
- v_symbol jsonb;v_symbols jsonb:='{}'::jsonb;v_groups jsonb:='{}'::jsonb;v_key text;v_label text;v_type text;v_control text;v_format text;v_unit text;v_value text;v_currency text;
+ v_symbol jsonb;v_unit_descriptor jsonb;v_symbols jsonb:='{}'::jsonb;v_groups jsonb:='{}'::jsonb;v_key text;v_label text;v_type text;v_control text;v_format text;v_unit text;v_value text;v_currency text;
  v_min numeric;v_max numeric;v_default numeric;v_step numeric;v_choice_num numeric;v_labels text[];v_choice_values jsonb;v_expression text;v_parse jsonb;v_node jsonb;v_token_count integer;v_position integer;v_seen_default boolean;
  v_scenario_labels text[];v_all_keys text[]:=array[]::text[];
 begin
@@ -438,7 +627,9 @@ begin
     if not v_seen_default then raise exception 'Numeric select choices must include the default.' using errcode='22023';end if;
    elsif v_input ? 'choices' and v_input->'choices'<>'[]'::jsonb then raise exception 'Choices are only supported on select inputs.' using errcode='22023';
    end if;
-   v_symbol:=jsonb_build_object('kind','number','unit',v_unit,'unit_vector',private.worth_it_v2_unit_vector(v_unit),'choices','[]'::jsonb);
+   v_unit_descriptor:=private.worth_it_v2_unit_descriptor(v_unit);
+   v_symbol:=jsonb_build_object('kind','number','unit',v_unit,'unit_vector',coalesce(v_unit_descriptor->'vector','{}'::jsonb),
+    'unit_symbols',coalesce(v_unit_descriptor->'symbols','{}'::jsonb),'choices','[]'::jsonb);
   elsif v_type='boolean' then
    if coalesce(jsonb_typeof(v_input->'default'),'')<>'boolean' or v_control<>'toggle'
     or v_input ? 'min' or v_input ? 'max' or v_input ? 'step' or v_input ? 'choices' or v_input ? 'minDate' or v_input ? 'maxDate'
@@ -611,7 +802,7 @@ begin
   elsif v_format='unit' and private.worth_it_v2_unit_vector(v_result->>'unit')<>coalesce(v_node->'unit_vector','{}'::jsonb) then raise exception 'Formula dimensions do not match the selected result unit.' using errcode='22023';end if;
   if v_result ? 'key' then
    v_symbol:=jsonb_build_object('kind','number','unit',case when v_format='currency' then v_currency when v_format='unit' then v_result->>'unit' else '' end,
-    'unit_vector',coalesce(v_node->'unit_vector','{}'::jsonb),'choices','[]'::jsonb);
+    'unit_vector',coalesce(v_node->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_node->'unit_symbols','{}'::jsonb),'choices','[]'::jsonb);
    v_symbols:=jsonb_set(v_symbols,array[v_result->>'key'],v_symbol,true);
   end if;
  end loop;
@@ -620,7 +811,10 @@ $$;
 
 revoke all on function private.worth_it_v2_assert_keys(jsonb,text[],text) from public,anon,authenticated,service_role;
 revoke all on function private.worth_it_v2_merge_refs(jsonb,jsonb) from public,anon,authenticated,service_role;
+revoke all on function private.worth_it_v2_normalize_energy(jsonb,jsonb) from public,anon,authenticated,service_role;
+revoke all on function private.worth_it_v2_unit_descriptor(text) from public,anon,authenticated,service_role;
 revoke all on function private.worth_it_v2_unit_vector(text) from public,anon,authenticated,service_role;
+revoke all on function private.worth_it_v2_compatible_symbols(jsonb) from public,anon,authenticated,service_role;
 revoke all on function private.worth_it_v2_unit_combine(jsonb,jsonb,integer) from public,anon,authenticated,service_role;
 revoke all on function private.worth_it_v2_is_iso_date(text) from public,anon,authenticated,service_role;
 revoke all on function private.worth_it_v2_enum_values(jsonb) from public,anon,authenticated,service_role;
@@ -630,7 +824,10 @@ revoke all on function private.worth_it_v2_parse_expression(text,integer,integer
 revoke all on function private.worth_it_validate_ugc_v2_spec(jsonb) from public,anon,authenticated,service_role;
 grant execute on function private.worth_it_v2_assert_keys(jsonb,text[],text) to postgres;
 grant execute on function private.worth_it_v2_merge_refs(jsonb,jsonb) to postgres;
+grant execute on function private.worth_it_v2_normalize_energy(jsonb,jsonb) to postgres;
+grant execute on function private.worth_it_v2_unit_descriptor(text) to postgres;
 grant execute on function private.worth_it_v2_unit_vector(text) to postgres;
+grant execute on function private.worth_it_v2_compatible_symbols(jsonb) to postgres;
 grant execute on function private.worth_it_v2_unit_combine(jsonb,jsonb,integer) to postgres;
 grant execute on function private.worth_it_v2_is_iso_date(text) to postgres;
 grant execute on function private.worth_it_v2_enum_values(jsonb) to postgres;

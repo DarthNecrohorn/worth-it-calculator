@@ -65,3 +65,68 @@ begin
  end if;
 end
 $v2_database_validator_smoke$;
+
+-- Browser/SQL unit-registry parity cases. These are the vectors emitted by unitDescriptor().
+do $v2_unit_registry_smoke$
+declare
+ v_case record;
+ v_cases jsonb := '[
+  ["",{}],["1",{}],["%",{}],["EUR",{"currency:eur":1}],["USD",{"currency:usd":1}],["RSD",{"currency:rsd":1}],
+  ["%/year",{"time":-1}],["%/month",{"time":-1}],["%/day",{"time":-1}],
+  ["day",{"time":1}],["days",{"time":1}],["week",{"time":1}],["weeks",{"time":1}],["month",{"time":1}],["months",{"time":1}],
+  ["hour",{"time":1}],["hours",{"time":1}],["hr",{"time":1}],["hrs",{"time":1}],["h",{"time":1}],["minute",{"time":1}],["minutes",{"time":1}],["second",{"time":1}],["seconds",{"time":1}],["s",{"time":1}],
+  ["km",{"length":1}],["kilometres",{"length":1}],["kilometers",{"length":1}],["mile",{"length":1}],["miles",{"length":1}],["m",{"length":1}],["cm",{"length":1}],["mm",{"length":1}],
+  ["m²",{"area":1}],["m2",{"area":1}],["ft²",{"area":1}],["l",{"volume":1}],["litres",{"volume":1}],["liters",{"volume":1}],["m³",{"volume":1}],["m3",{"volume":1}],["ml",{"volume":1}],
+  ["kg",{"mass":1}],["kilograms",{"mass":1}],["g",{"mass":1}],["grams",{"mass":1}],["tonnes",{"mass":1}],
+  ["b",{"data":1}],["kb",{"data":1}],["mb",{"data":1}],["gb",{"data":1}],["tb",{"data":1}],["pb",{"data":1}],
+  ["Wh",{"energy":1}],["kWh",{"energy":1}],["MWh",{"energy":1}],["MJ",{"energy":1}],["W",{"power":1}],["kW",{"power":1}],
+  ["token",{"token":1}],["tokens",{"token":1}],["items",{"count":1}],["vehicles",{"count":1}],["period",{}],
+  ["l/100 km",{"volume":1,"length":-1}],["km/h",{"length":1,"time":-1}],["m/s",{"length":1,"time":-1}],
+  ["m²/pack",{"area":1,"count":-1}],["kWh/day",{"energy":1,"time":-1}],["kWh/month",{"energy":1,"time":-1}],
+  ["EUR/kWh",{"currency:eur":1,"energy":-1}],["USD/l",{"currency:usd":1,"volume":-1}],["RSD/kg",{"currency:rsd":1,"mass":-1}],
+  ["USD/hour",{"currency:usd":1,"time":-1}],["EUR/person/day",{"currency:eur":1,"count":-1,"time":-1}],["USD/token",{"currency:usd":1,"token":-1}],
+  ["GB/hour",{"data":1,"time":-1}],["widgets/hour",{"unit:widgets":1,"time":-1}],["widgets",{"unit:widgets":1}]
+ ]'::jsonb;
+ v_actual jsonb;
+ v_descriptor jsonb;
+begin
+ for v_case in select value from jsonb_array_elements(v_cases) loop
+  v_actual:=private.worth_it_v2_unit_vector(v_case.value->>0);
+  if v_actual<>v_case.value->1 then
+   raise exception 'Unit vector mismatch for %: expected %, got %.',v_case.value->>0,v_case.value->1,v_actual;
+  end if;
+ end loop;
+ v_descriptor:=private.worth_it_v2_unit_descriptor('kW*hour');
+ if v_descriptor->'vector'<>'{"energy":1}'::jsonb or v_descriptor->'symbols'->>'energy'<>'kWh' then
+  raise exception 'kW*hour did not normalize to kWh: %.',v_descriptor;
+ end if;
+ v_descriptor:=private.worth_it_v2_unit_descriptor('W*hours');
+ if v_descriptor->'vector'<>'{"energy":1}'::jsonb or v_descriptor->'symbols'->>'energy'<>'Wh' then
+  raise exception 'W*hours did not normalize to Wh: %.',v_descriptor;
+ end if;
+end
+$v2_unit_registry_smoke$;
+
+-- Derived unit algebra follows the same descriptor rules as the shared JS engine.
+do $v2_derived_unit_formula_smoke$
+declare
+ v_unit_spec jsonb := '{
+  "schemaVersion":2,"engineVersion":2,
+  "inputs":[
+   {"key":"power","label":"Power","type":"number","min":0,"max":20,"default":2,"step":1,"unit":"kW","control":"number"},
+   {"key":"duration","label":"Duration","type":"number","min":0,"max":20,"default":3,"step":1,"unit":"hours","control":"number"},
+   {"key":"storage","label":"Storage","type":"number","min":0,"max":100,"default":12,"step":1,"unit":"GB","control":"number"},
+   {"key":"elapsed","label":"Elapsed","type":"number","min":1,"max":20,"default":2,"step":1,"unit":"hour","control":"number"},
+   {"key":"distance","label":"Distance","type":"number","min":0,"max":100,"default":10,"step":1,"unit":"km","control":"number"},
+   {"key":"widgets","label":"Widgets","type":"number","min":1,"max":20,"default":4,"step":1,"unit":"widgets","control":"number"}
+  ],"groups":[],"results":[
+   {"key":"energy","label":"Energy","expression":"power * duration","format":"unit","currency":"EUR","unit":"kWh","prefix":"","suffix":"","explanation":"Power multiplied by hours."},
+   {"key":"storage_rate","label":"Storage rate","expression":"storage / elapsed","format":"unit","currency":"EUR","unit":"GB/hour","prefix":"","suffix":"","explanation":"Storage per elapsed hour."},
+   {"key":"velocity","label":"Velocity","expression":"distance / elapsed","format":"unit","currency":"EUR","unit":"km/hour","prefix":"","suffix":"","explanation":"Distance per elapsed hour."},
+   {"key":"widget_rate","label":"Widget rate","expression":"widgets / elapsed","format":"unit","currency":"EUR","unit":"widgets/hour","prefix":"","suffix":"","explanation":"Opaque widget unit per hour."}
+  ],"scenarios":[]
+ }'::jsonb;
+begin
+ perform private.worth_it_validate_ugc_v2_spec(v_unit_spec);
+end
+$v2_derived_unit_formula_smoke$;

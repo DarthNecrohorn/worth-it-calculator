@@ -175,3 +175,12 @@ The database formula parser accepts only the V2 declarative grammar. It enforces
 The validator is installed under the private schema with execution revoked from public, anon, authenticated and service_role. It is exercised directly only in disposable PostgreSQL CI. The existing save/publish version gate continues to reject V2; the new validator does not activate V2 persistence or member-facing routes.
 
 The database validator intentionally uses conservative unit compatibility for V2. It recognizes the common currency, time, distance, area, volume, mass, energy, power, data, count and common rate units used by the existing calculator contract; unknown units are treated as opaque dimensions and must match exactly. This is stricter than the full browser unit registry in some edge cases and must be reconciled before persistence is enabled.
+
+
+## 9. Shared unit registry parity
+
+The PostgreSQL V2 validator now uses the same explicit aliases and dimensional vectors as the shared JavaScript engine for currencies, percentages-per-time, time, distance, area, volume, mass, data, energy, power, token/count, common rates and compound products/quotients. Unknown atoms remain opaque dimensions rather than being guessed or silently converted.
+
+The SQL parser also carries unit display symbols through formula references and unit algebra. The special derived-energy rule is shared: `kW × hour = kWh` and `W × hour = Wh`. The browser registry now explicitly recognizes `Wh`, so an energy formula can be checked against an explicit Wh result unit consistently.
+
+Disposable PostgreSQL CI checks a shared list of expected vectors and validates formulas for derived energy, data-per-time, distance-per-time and opaque-unit-per-time. This still validates units only; it does not enable V2 persistence.

@@ -39,6 +39,60 @@ const currencySandbox={};
 runInNewContext(calculatorCurrencyDataSource,currencySandbox);
 const currencyData=currencySandbox.WorthItCalculatorCurrencyData;
 if(!Array.isArray(currencyData?.currencies)||!Array.isArray(currencyData?.historicalCurrencies))throw new Error("The shared calculator currency fixture could not be loaded.");
+test("shared unit registry keeps aliases, compound units and derived energy dimensions consistent",()=>{
+ const engine=createCalculatorEngine();
+ const vectors=[
+  ["",{}],["1",{}],["%",{}],["EUR",{"currency:EUR":1}],["USD",{"currency:USD":1}],["RSD",{"currency:RSD":1}],
+  ["%/year",{time:-1}],["%/month",{time:-1}],["%/day",{time:-1}],
+  ["day",{time:1}],["days",{time:1}],["week",{time:1}],["weeks",{time:1}],["month",{time:1}],["months",{time:1}],
+  ["hour",{time:1}],["hours",{time:1}],["hr",{time:1}],["hrs",{time:1}],["h",{time:1}],["minute",{time:1}],["minutes",{time:1}],["second",{time:1}],["seconds",{time:1}],["s",{time:1}],
+  ["km",{length:1}],["kilometres",{length:1}],["kilometers",{length:1}],["mile",{length:1}],["miles",{length:1}],["m",{length:1}],["cm",{length:1}],["mm",{length:1}],
+  ["m²",{area:1}],["m2",{area:1}],["ft²",{area:1}],["l",{volume:1}],["litres",{volume:1}],["liters",{volume:1}],["m³",{volume:1}],["m3",{volume:1}],["ml",{volume:1}],
+  ["kg",{mass:1}],["kilograms",{mass:1}],["g",{mass:1}],["grams",{mass:1}],["tonnes",{mass:1}],
+  ["b",{data:1}],["kb",{data:1}],["mb",{data:1}],["gb",{data:1}],["tb",{data:1}],["pb",{data:1}],
+  ["Wh",{energy:1}],["kWh",{energy:1}],["MWh",{energy:1}],["MJ",{energy:1}],["W",{power:1}],["kW",{power:1}],
+  ["token",{token:1}],["tokens",{token:1}],["items",{count:1}],["vehicles",{count:1}],["period",{}],
+  ["l/100 km",{volume:1,length:-1}],["km/h",{length:1,time:-1}],["m/s",{length:1,time:-1}],
+  ["m²/pack",{area:1,count:-1}],["kWh/day",{energy:1,time:-1}],["kWh/month",{energy:1,time:-1}],
+  ["EUR/kWh",{"currency:EUR":1,energy:-1}],["USD/l",{"currency:USD":1,volume:-1}],["RSD/kg",{"currency:RSD":1,mass:-1}],
+  ["USD/hour",{"currency:USD":1,time:-1}],["EUR/person/day",{"currency:EUR":1,count:-1,time:-1}],["USD/token",{"currency:USD":1,token:-1}],
+  ["GB/hour",{data:1,time:-1}],["widgets/hour",{"unit:widgets":1,time:-1}],["widgets",{"unit:widgets":1}]
+ ];
+ for(const [unit,expected] of vectors){
+  assert.deepEqual(JSON.parse(JSON.stringify(engine.unitDescriptor(unit).vector)),expected,"unit "+unit);
+ }
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.unitDescriptor("kW*hour").vector)),{energy:1});
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.unitDescriptor("W*hours").vector)),{energy:1});
+ assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("Wh"),engine.unitDescriptor("W*hour")),true);
+ assert.equal(engine.sameUnitDescriptor(engine.unitDescriptor("kWh"),engine.unitDescriptor("kW*hour")),true);
+});
+
+test("v2 formulas validate derived energy, compound rate and opaque unit expressions",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"power",label:"Power",type:"number",min:0,max:20,default:2,step:1,unit:"kW",control:"number"},
+   {key:"duration",label:"Duration",type:"number",min:0,max:20,default:3,step:1,unit:"hours",control:"number"},
+   {key:"storage",label:"Storage",type:"number",min:0,max:100,default:12,step:1,unit:"GB",control:"number"},
+   {key:"elapsed",label:"Elapsed",type:"number",min:1,max:20,default:2,step:1,unit:"hour",control:"number"},
+   {key:"distance",label:"Distance",type:"number",min:0,max:100,default:10,step:1,unit:"km",control:"number"},
+   {key:"widgets",label:"Widgets",type:"number",min:1,max:20,default:4,step:1,unit:"widgets",control:"number"}
+  ],
+  groups:[],
+  results:[
+   {key:"energy",label:"Energy",expression:"power * duration",format:"unit",currency:"EUR",unit:"kWh",prefix:"",suffix:"",explanation:"Power multiplied by hours."},
+   {key:"storage_rate",label:"Storage rate",expression:"storage / elapsed",format:"unit",currency:"EUR",unit:"GB/hour",prefix:"",suffix:"",explanation:"Storage per elapsed hour."},
+   {key:"velocity",label:"Velocity",expression:"distance / elapsed",format:"unit",currency:"EUR",unit:"km/hour",prefix:"",suffix:"",explanation:"Distance per elapsed hour."},
+   {key:"widget_rate",label:"Widget rate",expression:"widgets / elapsed",format:"unit",currency:"EUR",unit:"widgets/hour",prefix:"",suffix:"",explanation:"Opaque widget unit per hour."}
+  ],
+  scenarios:[]
+ };
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(spec).errors)),[]);
+ const result=engine.evaluateV2TypedResults(spec,{},{});
+ assert.deepEqual(result.results.map(item=>item.value),[6,6,5,2]);
+});
+
 function createCalculatorEngine(){
  const sandbox={};
  runInNewContext(calculatorEngineSource,sandbox);
@@ -2537,6 +2591,15 @@ test("versioned calculator schema keeps legacy v1 definitions on the unchanged v
  const conflictingLegacyVersion={...explicitlyVersioned,version:2};
  assert.ok(engine.validateVersionedSpec(conflictingLegacyVersion).errors.some(error=>/legacy version field at 1/.test(error)));
  assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
+});
+
+test("PostgreSQL V2 unit descriptor and migration mirror the shared engine unit registry",()=>{
+ assert.match(v2DatabaseValidatorSql,/worth_it_v2_unit_descriptor/);
+ assert.match(v2DatabaseValidatorSql,/worth_it_v2_normalize_energy/);
+ assert.match(v2DatabaseValidatorSql,/unit_symbols/);
+ assert.match(read("tests/fixtures/ugc-v2-database-validator-postgres-smoke.sql"),/v2_unit_registry_smoke/);
+ assert.match(read("tests/fixtures/ugc-v2-database-validator-postgres-smoke.sql"),/v2_derived_unit_formula_smoke/);
+ assert.match(v2DatabaseValidatorSql,/revoke all on function private\.worth_it_v2_unit_descriptor\(text\) from public,anon,authenticated,service_role/i);
 });
 
 test("private PostgreSQL V2 validator is separate from the still-blocked persistence version gate",()=>{
