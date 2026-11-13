@@ -73,6 +73,7 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-maker-edit-grid label:last-child{grid-column:1/-1}
 .ugc-maker-preview-list{padding-left:18px;color:var(--muted);font-size:11px;display:grid;gap:5px}
 .ugc-maker-schema-summary{color:var(--primary2);font-size:11px;margin:10px 0}
+.ugc-maker-quick-fix-note{padding:10px 12px;border-left:3px solid var(--primary2);border-radius:8px;background:color-mix(in srgb,var(--primary2) 8%,transparent);line-height:1.55}
 .worth-it-profile-badges,.worth-it-profile-favourites{padding:17px 18px;border:1px solid var(--border);border-radius:17px;background:var(--card);margin-top:14px}
 .worth-it-profile-badges h2,.worth-it-profile-favourites h2{font-size:17px;margin:0 0 12px}
 .worth-it-profile-badge-list{display:flex;flex-wrap:wrap;gap:8px}

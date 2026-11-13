@@ -221,7 +221,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -1470,10 +1470,19 @@ function refreshMakerValidationNote(){
  if(!host||!spec)return;
  host.querySelector("#ugcMakerValidationNote")?.remove();
  const validation=validateMakerSpec(spec),currencyWarnings=makerCurrencyWarnings(spec),notes=[];
- if(validation.errors.length)notes.push("Validation needs attention: "+validation.errors.slice(0,3).join(" "));
+ if(validation.errors.length){
+  const summary=validation.errors.slice(0,5).join(" ");
+  notes.push(state.blueprintImportActive
+   ?"Quick Fix draft: "+validation.errors.length+" check(s) still need attention. Edit the affected formulas, units or input ranges below; Save and Publish remain blocked until all checks pass. "+summary
+   :"Validation needs attention: "+summary);
+ }else if(state.blueprintImportActive){
+  notes.push("Quick Fix checks now pass. The calculator is still an editable draft; review assumptions and test values before saving or publishing.");
+ }else{
+  notes.push("Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
+ }
  if(currencyWarnings.length)notes.push("Currency consistency warning ("+currencyWarnings.join(", ")+"). Currency selectors only change display; they do not convert amounts. Add an explicit exchange-rate input and use it in the formula when conversion is intended.");
- if(!notes.length)notes.push("Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
- const note=text("p","ugc-maker-schema-summary",notes.join(" "));
+
+ const note=text("p",state.blueprintImportActive?"ugc-maker-schema-summary ugc-maker-quick-fix-note":"ugc-maker-schema-summary",notes.join(" "));
  note.id="ugcMakerValidationNote";note.setAttribute("role","status");
  const testToggle=host.querySelector(".ugc-maker-test-toggle");
  if(testToggle)testToggle.insertAdjacentElement("beforebegin",note);else host.appendChild(note);
@@ -2494,6 +2503,7 @@ function setMakerModeUI(){
  if(blueprintImportPanel)blueprintImportPanel.hidden=!manual||Boolean(state.editingId);
 }
 function loadManualTemplate(templateKey){
+ state.blueprintImportActive=false;
  state.creationSource="manual";state.aiOperationId="";state.aiDraft=createManualDraft(templateKey);
  state.manualMode=$("ugcManualMode")?.value||"quick";
  const templateSelect=$("ugcManualTemplate");if(templateSelect&&templateSelect.value!==templateKey)templateSelect.value=templateKey;
@@ -2524,36 +2534,58 @@ async function copyBlueprintPrompt(){
   if(statusNode)statusNode.textContent=error?.message||"Could not copy the instructions. You can select and copy them manually.";
  }
 }
-function importManualBlueprint(){
+async function importManualBlueprint(){
  const statusNode=$("ugcBlueprintImportStatus");
  const textarea=$("ugcBlueprintImportJson");
+ const importButton=$("ugcBlueprintImportButton");
  const raw=String(textarea?.value||"");
  if(state.editingId){makerStatus("Open a new Manual Builder draft to import a blueprint. Existing saved calculators are not replaced by import.","error");return;}
+ const originalButtonText=importButton?.textContent||"Import into Manual Builder";
+ if(importButton){importButton.disabled=true;importButton.textContent="Working on a quick fix…";}
+ if(statusNode)statusNode.textContent="Working on a quick fix…";
+ makerStatus("Working on a quick fix…","generating");
+ await new Promise(resolve=>setTimeout(resolve,40));
  try{
   const importer=window.WorthItBlueprintImport;
   if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
   const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
   const definition=importer.parseBlueprint(raw,spec=>validateMakerSpec(spec),originalRequest);
-  const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,5):[];
+  const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
+  const validationIssueCount=Number(definition.importValidationIssueCount)||0;
   delete definition.importNotes;
-  if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published."))return;
+  delete definition.importValidationIssues;
+  delete definition.importValidationIssueCount;
+  if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published.")){
+   if(statusNode)statusNode.textContent="Import cancelled. Your current draft was left unchanged.";
+   makerStatus("Blueprint import cancelled. Your current draft was left unchanged.");
+   return;
+  }
   state.creationSource="manual";
   state.aiOperationId="";
   state.manualMode="advanced";
   state.regionalDefaults=null;
   state.makerLocale="auto";
+  state.blueprintImportActive=true;
   state.aiDraft=definition;
   const mode=$("ugcManualMode");if(mode)mode.value="advanced";
   const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
   setMakerModeUI();
   renderMakerPreview(state.aiDraft);
-  const adjustmentText=importNotes.length?" Compatibility adjustments: "+importNotes.join(" "):"";
-  makerStatus("Blueprint imported and validated. Review the Advanced Formula Builder, then test it locally. Nothing was saved, published, sent to an AI service or charged."+adjustmentText);
-  if(statusNode)statusNode.textContent="Import successful. Your calculator is now an editable Manual Builder draft."+adjustmentText;
+  const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
+  if(validationIssueCount){
+   makerStatus("Quick Fix prepared an editable draft. "+validationIssueCount+" item(s) still need your review; edit the formulas, units or input ranges below. Save and Publish remain blocked until the shared checks pass."+adjustmentText);
+   if(statusNode)statusNode.textContent="Draft ready for editing. "+validationIssueCount+" validation item(s) need review before saving or publishing."+adjustmentText;
+  }else{
+   makerStatus("Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged."+adjustmentText);
+   if(statusNode)statusNode.textContent="Quick Fix complete. Your editable calculator draft is ready; nothing was saved or published."+adjustmentText;
+  }
   $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
  }catch(error){
-  if(statusNode)statusNode.textContent=error?.message||"The blueprint could not be imported.";
-  makerStatus("Blueprint import failed: "+String(error?.message||"The blueprint could not be validated.")+" Your current draft was left unchanged.","error");
+  const detail=error?.message||"The blueprint could not be imported.";
+  if(statusNode)statusNode.textContent=detail;
+  makerStatus("Import could not be prepared: "+String(detail)+" Your current draft was left unchanged.","error");
+ }finally{
+  if(importButton){importButton.disabled=false;importButton.textContent=originalButtonText;}
  }
 }
 function renderManualGroupEditor(host,definition){
@@ -2958,6 +2990,7 @@ function renderMakerPreview(definition){
 }
 async function generateWithAI(){
  if(!requireAccount()||!verifyConfirmed())return;
+ state.blueprintImportActive=false;
  state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
  const prompt=String($("ugcMakerPrompt")?.value||"").trim();
  if(prompt.length<10||prompt.length>1000){makerStatus("Describe the requested changes in 10 to 1000 characters.","error");return;}

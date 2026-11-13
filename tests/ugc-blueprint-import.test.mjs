@@ -197,25 +197,46 @@ test("rejects non-finite/non-numeric inputs and requires explicit currency",()=>
  assert.throws(()=>importer.parseBlueprint(JSON.stringify(missingCurrency),()=>({errors:[]})),/currency/);
 });
 
-test("rejects unsupported formulas when the shared Manual Builder validator reports an error",()=>{
+test("keeps safe but invalid formulas in an editable draft instead of rejecting the import",()=>{
  const importer=getImporter();
- assert.throws(
-  ()=>importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:["Result formula: This calculator contains an invalid formula."]})),
-  /did not pass calculator validation/
- );
+ const candidate=blueprint();
+ const originalExpression=candidate.spec.results[1].expression;
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),()=>({errors:["Final total formula: This calculator contains an invalid formula."]}));
+ assert.equal(definition.spec.results[1].expression,originalExpression);
+ assert.deepEqual(plain(definition.importValidationIssues),["Final total formula: This calculator contains an invalid formula."]);
+ assert.equal(definition.importValidationIssueCount,1);
+ assert.ok(definition.importNotes.some(note=>/editable draft/.test(note)));
 });
 
-test("adds model-readable correction hints for common group and unit validation failures",()=>{
+test("retries deterministic repairs and returns unresolved validation items for editor review",()=>{
  const importer=getImporter();
- assert.throws(
-  ()=>importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[
-   "Monthly debt payments: use 1–20 rows and a valid group and item label.",
-   "Emergency fund target formula: The formula's units do not match the selected EUR result currency. Check the input units and conversion assumptions."
-  ]})),
-  error=>/minItems 1 or greater/.test(error.message)
-   &&/USD\/request or USD\/read/.test(error.message)
-   &&!/dividing EUR/.test(error.message)
- );
+ let repairCalls=0,validationCalls=0;
+ const validator=spec=>{
+  validationCalls++;
+  return{errors:spec.assumptions.includes("Quick Fix completed a deterministic repair.")?[]:["Result formula: dimension review required."]};
+ };
+ validator.repairBlueprintSpec=spec=>{
+  repairCalls++;
+  return{spec:{...plain(spec),assumptions:[...spec.assumptions,"Quick Fix completed a deterministic repair."]},notes:["Quick Fix applied a deterministic structural repair."]};
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(blueprint()),validator);
+ assert.equal(repairCalls,1);
+ assert.equal(validationCalls,1);
+ assert.deepEqual(plain(definition.importValidationIssues||[]),[]);
+ assert.ok(definition.importNotes.some(note=>note.includes("deterministic structural repair")));
+});
+
+test("keeps unresolved currency and unit validation issues in a draft without rejecting the import",()=>{
+ const importer=getImporter();
+ const definition=importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[
+  "Monthly debt payments: use 1–20 rows and a valid group and item label.",
+  "Estimated Monthly Cost formula: The formula's units do not match the selected USD result currency.",
+  "Calculator result chain: The formula's units do not match the selected USD result currency."
+ ]}));
+ assert.equal(definition.importValidationIssueCount,3);
+ assert.equal(definition.importValidationIssues.length,3);
+ assert.ok(definition.importNotes.some(note=>/Save and Publish/.test(note)));
+ assert.ok(!definition.importNotes.some(note=>/dividing EUR|EUR\/month/.test(note)));
 });
 
 test("validates dropdown choice uniqueness and bounds",()=>{
@@ -506,11 +527,16 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(html,/id="ugcBlueprintImportPanel"[^>]*hidden/);
  assert.match(html,/id="ugcBlueprintImportJson"/);
  assert.match(html,/ugc-blueprint-import\.js/);
- const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\s\S]*?\n\}/)?.[0]||"";
+ const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\\s\\S]*?\\n\}/)?.[0]||"";
  assert.ok(importFunction.includes("parseBlueprint"));
+ assert.ok(importFunction.includes("Working on a quick fix"));
+ assert.ok(importFunction.includes("importValidationIssueCount"));
  assert.ok(importFunction.includes('state.creationSource="manual"'));
  assert.ok(importFunction.includes('state.aiOperationId=""'));
- assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
+ assert.doesNotMatch(importFunction,/fetch\\s*\\(|\\/api\\/ugc-maker|\\.rpc\\s*\\(/);
+ const saveFunction=builderSource.match(/async function saveMakerDraft\(publish\)\{[\\s\\S]*?\\n\}/)?.[0]||"";
+ assert.ok(saveFunction.includes("validateMakerSpec(specToSave)"));
+ assert.ok(saveFunction.includes("Please fix the calculator validation issues before saving"));
  assert.match(builderSource,/ugcBlueprintCopyPrompt/);
  assert.match(builderSource,/ugcBlueprintImportButton/);
  assert.match(builderSource,/ugcMakerAssumptions/);

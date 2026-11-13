@@ -661,36 +661,37 @@ function normalizeBlueprint(source,validateSpec,requestText){
  }
  let spec={subcategories,inputs,groups,results,scenarios,assumptions};
  if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
- if(typeof validateSpec.repairBlueprintSpec==="function"){
-  const repaired=validateSpec.repairBlueprintSpec(spec);
-  if(repaired&&isObject(repaired.spec))spec=repaired.spec;
-  if(Array.isArray(repaired?.notes))compatibilityNotes.push(...repaired.notes);
+ let validation={errors:[]};
+ // Run a bounded, deterministic quick-fix loop with the shared Manual Builder validator.
+ for(let attempt=0;attempt<3;attempt++){
+  const before=JSON.stringify(spec);
+  if(typeof validateSpec.repairBlueprintSpec==="function"){
+   const repaired=validateSpec.repairBlueprintSpec(spec);
+   if(repaired&&isObject(repaired.spec))spec=repaired.spec;
+   if(Array.isArray(repaired?.notes))repaired.notes.forEach(note=>{
+    if(typeof note==="string"&&note&&!compatibilityNotes.includes(note))compatibilityNotes.push(note);
+   });
+  }
+  try{
+   const checked=validateSpec(spec);
+   validation={errors:Array.isArray(checked?.errors)?checked.errors:[]};
+  }catch(error){
+   validation={errors:["The shared calculator validator could not complete: "+String(error?.message||"unknown validation error.")]};
+  }
+  if(!validation.errors.length||JSON.stringify(spec)===before)break;
  }
  const definition={title,description,category,spec};
  const coverageNote=promptCoverageNote(requestText,definition);
  if(coverageNote)compatibilityNotes.unshift(coverageNote);
- if(compatibilityNotes.length)definition.importNotes=compatibilityNotes.slice(0,20);
- const validation=validateSpec(spec);
- const errors=Array.isArray(validation?.errors)?validation.errors:[];
- if(errors.length){
-  const visibleErrors=errors.slice(0,5);
-  const guidance=[];
-  if(visibleErrors.some(message=>/use 1–20 rows and a valid group/i.test(message))){
-   guidance.push("Dynamic groups must use minItems 1 or greater. For an optional list, keep one row whose field defaults to zero; minItems 0 is not supported.");
-  }
-  if(visibleErrors.some(message=>/units do not match the selected .* result currency/i.test(message))){
-   guidance.push("Check dimensional algebra: every numeric coefficient in a currency total must have an explicit currency-per-operation unit (for example USD/request or USD/read), and each usage quantity must carry the matching operation unit. Never relabel a different currency or invent an exchange rate; verify all upstream result units and dependencies.");
-  }
-  if(visibleErrors.some(message=>/dimensions do not match the selected result unit/i.test(message))){
-   guidance.push("Use the exact derived unit for rate results, for example EUR/day for money divided by days or EUR/month for money divided by months.");
-  }
-  if(visibleErrors.some(message=>/divides by zero|remainder by zero/i.test(message))){
-   guidance.push("Guard every possibly-zero denominator with if(gt(denominator,0),numerator/denominator,0). if() evaluates only its selected result branch.");
-  }
-  fail("The blueprint did not pass calculator validation: "+visibleErrors.join(" ")+(guidance.length?" Correction guidance: "+guidance.join(" "):""));
+ if(validation.errors.length){
+  definition.importValidationIssues=validation.errors.slice(0,20);
+  definition.importValidationIssueCount=validation.errors.length;
+  compatibilityNotes.unshift("Quick Fix prepared an editable draft. "+validation.errors.length+" validation item(s) still need review before this calculator can be saved or published. Original formula text is preserved wherever no safe repair could be inferred.");
  }
+ if(compatibilityNotes.length)definition.importNotes=compatibilityNotes.slice(0,20);
  return definition;
 }
+
 function repairCopiedJsonArtifacts(source){
  return source
   .replace(/&#x20;|&#32;|&nbsp;/gi," ")
@@ -787,6 +788,7 @@ function buildPrompt(){
   "Do not invent compound-unit syntax and assume the validator can decompose it. A custom unit not recognised by the unit system is treated as an opaque standalone unit; do not combine it with other physical or currency dimensions. Prefer supported base units and calculate with them. Use consistent unit spelling and case, especially for currency codes and symbols.",
   "Multiplication multiplies dimensions and division divides dimensions. For example EUR / days produces EUR/day; EUR/month multiplied by months produces EUR. A unitless scalar multiplier or divisor must have an empty unit. If a value genuinely represents a duration, distance, mass, volume, energy or count, give it the corresponding supported unit and carry that dimension through the formula.",
   "For monetary usage pricing, never hide a currency-per-operation rate only inside a bare numeric formula constant. Add an editable numeric input for each rate, with an explicit compound unit such as USD/request or USD/read; give the corresponding usage totals matching request/read units so multiplication cancels to the selected currency. Preserve the supplied rate values as the input defaults.",
+  "If a required price/rate is genuinely unspecified, do not invent a market price or exchange rate: add an editable rate input with a neutral 0 default and explicitly mark it as not configured in its label and assumptions/explanation. If the prompt supplies a numeric price/rate, preserve its exact value as the input default.",
   "A result with format currency must evaluate to exactly the selected currency dimension, such as EUR or USD. A result with format percent must be dimensionless. A result with format unit must use a unit whose dimensions match the formula exactly. Never label EUR/day, EUR/month, EUR/km or EUR*month as format currency with currency EUR. Never mix currencies or invent exchange rates.",
   "Addition and subtraction require matching units; numeric constants may inherit the other operand's unit only in addition, subtraction and comparisons. Multiplication and division do not make constants inherit units. Comparisons require compatible units. if() requires a dimensionless condition and its result branches must have matching units.",
   "There is no automatic conversion between currencies or unit scales. Do not assume months, years, days, kilometres and miles are numerically interchangeable. Use matching units on both sides of a calculation wherever possible. When conversion is essential, include the correct explicit numerical conversion and explain the assumption.",

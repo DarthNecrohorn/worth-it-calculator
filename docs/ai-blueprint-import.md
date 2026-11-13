@@ -13,7 +13,7 @@ The feature is provider-neutral. Worth It does not call ChatGPT, Gemini, Claude,
 
 The calculator request can be about any supported subject or use case. It can be short, detailed, technical or written in ordinary language. The copied instructions define one canonical output format; they do not prescribe a calculator topic.
 
-This does not mean every arbitrary response or every natural-language request can be reconstructed perfectly. The importer can repair structural omissions and mathematically provable inconsistencies. It cannot infer an unstated business rule, invent a missing scientific equation, perform an unprovided currency conversion or turn executable code into a safe formula.
+This does not mean every arbitrary response or every natural-language request can be reconstructed perfectly. The importer can repair structural omissions and mathematically provable inconsistencies. If a safe blueprint still has formula, unit, dependency or boundary validation errors, it opens the editable draft and shows the issues instead of rejecting the import. It cannot infer an unstated business rule, invent a missing scientific equation, perform an unprovided currency conversion or turn executable code into a safe formula.
 
 ## Canonical blueprint version 1
 
@@ -43,8 +43,8 @@ Allowed root, spec, input, group, field, result and scenario properties are allo
 3. **Key repair** generates unique lowercase keys and rewrites unambiguous formula references when a key is renamed. Dynamic group-field references are updated as qualified group/field pairs.
 4. **Formula repair** normalises common mathematical symbols and function-name casing, reorders results when their dependencies form a clear acyclic chain, and adds a zero-denominator guard only when the denominator can actually reach zero based on its declared range or expression.
 5. **Unit repair** analyses the formula's dimensional result and corrects a mismatched result display to the matching unit or currency when the formula makes that result unambiguous.
-6. **Final validation** passes the prepared blueprint through the same Manual Builder formula, unit, dependency, boundary and scenario validator used for manually created calculators.
-7. **Draft import** populates the editable Advanced Formula Builder. The member must review and test the result; Save and Publish remain separate, explicit actions.
+6. **Quick Fix and validation** run a bounded sequence of deterministic repairs and re-run the same Manual Builder formula, unit, dependency, boundary and scenario validator used for manually created calculators.
+7. **Draft-first import** opens the editable Advanced Formula Builder even when safe-to-display formula, unit, dependency or boundary issues remain. The original formula text is preserved when the repair engine cannot infer a safe replacement. The editor displays live validation issues; Save and Publish remain blocked until the shared validator passes.
 
 ## Original request coverage check
 
@@ -69,16 +69,13 @@ If an entire result or formula is missing, the importer may create a clearly not
 
 ## What remains strict
 
-The importer must not invent formulas or business rules. It keeps rejecting:
-- Unknown or unsafe properties, prototype-sensitive keys and arbitrary scripts.
-- Duplicate dropdown values or labels where the intended choice cannot be determined.
-- A zero-row group whose non-zero default would make a placeholder change the calculation.
-- Invalid or unsupported formula syntax that cannot be normalised without changing its meaning.
-- Incompatible currencies, missing conversion rates, incompatible addition/subtraction and ambiguous dimensional calculations.
-- Dependency cycles or result references that cannot be resolved.
-- Values or payloads that exceed hard safety and size limits.
+The importer still rejects malformed or ambiguous JSON, unknown/unsafe properties, prototype-sensitive keys, executable code in unsupported fields, invalid schema shapes that cannot be represented safely, and payloads that exceed hard safety and size limits. Unsupported formulas are retained only as inert formula text; they are parsed by the restricted formula compiler and are never executed as JavaScript or another language.
 
-Any temporary placeholder or compatibility change is listed in import notes. A successful import means the blueprint passed the shared validator; it is not proof that a temporary placeholder or the original calculator design is suitable for publication.
+Formula, unit, dependency, boundary and scenario errors do not by themselves reject a safe import. Quick Fix opens an editable draft and shows those validation issues in the Manual Builder. The shared validator still blocks Save and Publish until the user or a later deterministic repair resolves them. The validator is not bypassed or weakened.
+
+Missing numeric assumptions use deterministic, bounded defaults only when a neutral fallback is safe; every material completion is listed in Quick Fix notes. The system does not generate random prices, market rates or exchange rates. If a required business assumption is genuinely unknown, it remains an editable input with a clearly marked neutral placeholder or a visible review item.
+
+A successful import means the blueprint was safely parsed and made editable; it does not mean the calculations have been validated or are suitable for publication.
 
 ## Units and formulas
 
@@ -96,11 +93,11 @@ The formula language remains a restricted data-only expression grammar. It does 
 - Prototype-sensitive properties are rejected before normalisation.
 - Unknown properties are rejected rather than silently discarded.
 - Imported text is parsed as data and rendered through existing safe UI paths.
-- Failed imports preserve the current unsaved draft.
-- Save/Publish continue to use the existing server-side validation and account rules.
+- Fatal parsing/schema-safety failures preserve the current unsaved draft. Validation-only issues open an editable local draft instead of discarding it.
+- Save/Publish continue to use the existing client- and server-side validation and account rules; Quick Fix does not bypass either validator.
 
 ## Verification strategy
 
-Tests cover provider response styles, structural omissions, common field aliases, key rewriting, range/step completion, optional group placeholders, scenario bounds, formula dependency ordering, zero-denominator guards, custom compound units, rate-result display repair, malformed or unsupported data, and preservation of existing draft/save/publish behaviour.
+Tests cover provider response styles, structural omissions, common field aliases, key rewriting, range/step completion, optional group placeholders, scenario bounds, formula dependency ordering, zero-denominator guards, custom compound units, rate-result display repair, draft-first import on unresolved validation errors, deterministic repair retries, malformed or unsafe data rejection, and the continued Save/Publish validation gate.
 
 PR #198 remains Draft until automated tests, Preview testing and manual verification with varied providers and calculator topics are complete. A successful test with one provider does not establish universal correctness for every AI response.
