@@ -551,7 +551,7 @@ test("repairs guarded per-passenger currency branches and self-checks a car-trip
  assert.equal(perPerson.format,"unit");
  assert.equal(perPerson.unit,"EUR/people");
  assert.match(perPerson.expression,/if\(gt\(number_of_passengers,0\)/);
- assert.match(perPerson.expression/,/0\)$/);
+ assert.ok(perPerson.expression.endsWith(",0)"));
  const groupValues={extra_expenses:[{expense_amount:10}]};
  const defaults=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
  const current=engine.evaluateFormulaResults(definition.spec,defaults,groupValues);
