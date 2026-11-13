@@ -381,6 +381,10 @@ test("repairs implicit USD-per-operation coefficients in a provider blueprint us
  assert.equal(byKey("cost_per_request").default,0.000015);
  assert.equal(byKey("cost_per_read").unit,"USD/read");
  assert.equal(byKey("cost_per_read").default,0.000001);
+ assert.equal(definition.spec.scenarios.find(item=>item.key==="small_project").values.cost_per_request,0.000015);
+ assert.equal(definition.spec.scenarios.find(item=>item.key==="small_project").values.cost_per_read,0.000001);
+ assert.equal(definition.spec.scenarios.find(item=>item.key==="scaling_platform").values.cost_per_request,0.000015);
+ assert.equal(definition.spec.scenarios.find(item=>item.key==="scaling_platform").values.cost_per_read,0.000001);
  assert.equal(definition.spec.results.find(item=>item.key==="total_sessions").unit,"session");
  assert.equal(definition.spec.results.find(item=>item.key==="total_db_reads").unit,"read");
  assert.equal(definition.spec.results.find(item=>item.key==="total_edge_requests").unit,"request");

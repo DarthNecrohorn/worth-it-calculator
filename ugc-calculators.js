@@ -1393,6 +1393,12 @@ function repairMakerBlueprintSpec(sourceSpec){
       formulaUnits.push(input);
       availableKeys.add(input.key);
       usedVariableKeys.add(input.key);
+      // Every what-if scenario must inherit the generated rate input's
+      // default unless it already defines an explicit value for that key.
+      (Array.isArray(spec.scenarios)?spec.scenarios:[]).forEach(scenario=>{
+       if(!scenario.values||typeof scenario.values!=="object"||Array.isArray(scenario.values))scenario.values={};
+       if(!Object.prototype.hasOwnProperty.call(scenario.values,input.key))scenario.values[input.key]=input.default;
+      });
       notes.push(label+": converted an implicit numeric cost coefficient into the editable input "+input.label+" ("+input.unit+").");
      });
      ast=materialized.ast;
