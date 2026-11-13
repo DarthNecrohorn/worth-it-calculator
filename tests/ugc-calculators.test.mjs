@@ -2570,7 +2570,7 @@ test("AI Creator normalizes dynamic groups, chained results, typed numeric contr
    {key:"base_cost",label:"Base cost",min:0,max:1000000,default:30,step:1,unit:"EUR",control:"number",choices:[]},
    {key:"include_tax",label:"Include tax",min:0,max:1,default:1,step:1,unit:"",control:"toggle",choices:[]},
    {key:"tax_rate",label:"Tax rate",min:0,max:100,default:20,step:1,unit:"%",control:"slider",choices:[]},
-   {key:"billing_cycle",label:"Billing cycle",min:1,max:12,default:1,step:1,unit:"",control:"select",choices:[{label:"Monthly",value:1},{label:"Annual",value:12}]}
+   {key:"billing_cycle",label:"Billing cycle",min:1,max:12,default:1,step:1,unit:"",control:"select",choices:[{label:"Standard cycle",value:1},{label:"Extended cycle",value:12}]}
   ],
   groups:[{
    key:"expenses",label:"Extra expenses",itemLabel:"Item",minItems:2,maxItems:10,
@@ -2639,7 +2639,7 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   throw new Error("Unexpected AI Creator API request: "+path);
  },async()=>{
   const response=await onRequestPost({
-   request:request({prompt:"Create a household expense calculator with a base cost of 30 EUR, extra expense rows, an optional tax toggle, a 20 percent tax rate, a monthly or annual billing choice and a lower-cost scenario."},{token:"valid-token"}),
+   request:request({prompt:"Create a household expense calculator with a base cost of 30 EUR, extra expense rows, an optional tax toggle, a 20 percent tax rate, a billing-cycle choice and a lower-cost scenario."},{token:"valid-token"}),
    env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
   });
   const responseBody=await response.clone().json();
