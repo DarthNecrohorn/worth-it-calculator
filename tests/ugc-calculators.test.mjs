@@ -524,9 +524,9 @@ test("AI Maker rejects omitted requested periods and required calculator inputs"
         inputs: [
             { key: "commuting_days_per_week", label: "Commuting days per week", min: 0, max: 7, default: 5, step: 1, unit: "" },
             { key: "daily_distance_km", label: "Daily round-trip distance", min: 0, max: 1000, default: 30, step: 0.1, unit: "km" },
-            { key: "fuel_consumption", label: "Fuel consumption", min: 0, max: 50, default: 7, step: 0.1, unit: "" },
-            { key: "fuel_price", label: "Fuel price", min: 0, max: 1000, default: 200, step: 0.1, unit: "" },
-            { key: "daily_parking_cost", label: "Daily parking cost", min: 0, max: 10000, default: 0, step: 0.1, unit: "" }
+            { key: "fuel_consumption", label: "Fuel consumption", min: 0, max: 50, default: 7, step: 0.1, unit: "L/100 km" },
+            { key: "fuel_price", label: "Fuel price", min: 0, max: 1000, default: 200, step: 0.1, unit: "EUR/L" },
+            { key: "daily_parking_cost", label: "Daily parking cost", min: 0, max: 10000, default: 0, step: 0.1, unit: "EUR" }
         ],
         results: [
             { label: "Weekly fuel cost", expression: "commuting_days_per_week*(daily_distance_km*fuel_consumption/100)*fuel_price", format: "currency", currency: "EUR" },
@@ -1317,10 +1317,12 @@ test("AI improvement preserves saved calculator identity and enforces owner and 
         spec: structuredClone(validDefinition)
     };
     existing.spec.inputs[0].unit = "CHF";
+    existing.spec.inputs[1].unit = "CHF";
     existing.spec.results[0].currency = "CHF";
     const refined = structuredClone(validDefinition);
     refined.description = existing.description;
     delete refined.inputs[0].unit;
+    delete refined.inputs[1].unit;
     delete refined.results[0].currency;
     refined.inputs[0].label = "Starting savings balance";
     refined.inputs[0].max = 2000000;
