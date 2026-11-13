@@ -1841,6 +1841,54 @@ test("UGC currency choices match the current ISO 4217 list and preserve historic
 });
 
 
+test("Manual Builder converts compatible V1 drafts to typed V2 and preserves safe local-only behavior",()=>{
+ const start=maker.indexOf("function cloneCalculatorData(value){");
+ const end=maker.indexOf("function changeManualSchemaVersion(definition,version){",start);
+ assert.ok(start>=0&&end>start,"The isolated V2 conversion helpers must be present.");
+ const sandbox={};
+ runInNewContext(maker.slice(start,end)+"\nglobalThis.convertManualDraftToV2=convertManualDraftToV2;",sandbox);
+ const converted=sandbox.convertManualDraftToV2({
+  title:"Typed migration test",
+  description:"A test definition converted from the current numeric manual schema.",
+  category:"money",
+  spec:{
+   inputs:[
+    {key:"amount",label:"Amount",min:0,max:1000,default:50,step:1,unit:"EUR",control:"number"},
+    {key:"enabled",label:"Enabled",min:0,max:1,default:1,step:1,unit:"",control:"toggle"},
+    {key:"tier",label:"Tier",min:1,max:3,default:2,step:1,unit:"",control:"select",choices:[{label:"Basic",value:1},{label:"Pro",value:2},{label:"Team",value:3}]}
+   ],
+   groups:[{key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:3,fields:[
+    {key:"cost",label:"Cost",min:0,max:1000,default:10,step:1,unit:"EUR"}
+   ]}],
+   results:[{key:"total",label:"Total",expression:"if(enabled, amount, 0)+sum(expenses.cost)",format:"currency",currency:"EUR",unit:""}],
+   scenarios:[{label:"Disabled",values:{amount:20,enabled:0,tier:1}}],
+   assumptions:["Test assumption"]
+  }
+ });
+ assert.equal(converted.spec.schemaVersion,2);
+ assert.equal(converted.spec.engineVersion,2);
+ assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.inputs.map(item=>item.type))),["number","boolean","number"]);
+ assert.equal(converted.spec.inputs[1].default,true);
+ assert.equal("min" in converted.spec.inputs[1],false);
+ assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.inputs[2].choices)),[{label:"Basic",value:1},{label:"Pro",value:2},{label:"Team",value:3}]);
+ assert.equal(converted.spec.groups[0].fields[0].type,"number");
+ assert.equal(converted.spec.scenarios[0].values.enabled,false);
+ const engine=createCalculatorEngine();
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(converted.spec).errors)),[]);
+ const evaluated=engine.evaluateV2TypedResults(converted.spec,{},{expenses:[{cost:15}]});
+ assert.equal(evaluated.results[0].value,65);
+ const saveStart=maker.indexOf("async function saveMakerDraft(publish){");
+ const saveGate=maker.indexOf('if(Number(state.aiDraft?.spec?.schemaVersion)===2)',saveStart);
+ const rpc=maker.indexOf('sb().rpc("save_worth_it_ugc_calculator"',saveStart);
+ assert.ok(saveGate>=0&&rpc>saveGate,"The V2 save gate must run before the persistence RPC.");
+ assert.match(maker,/function renderManualV2InputEditor/);
+ assert.match(maker,/function renderManualV2GroupEditor/);
+ assert.match(maker,/function renderManualV2ScenarioEditor/);
+ assert.match(maker,/function renderManualV2ResultEditor/);
+ assert.match(maker,/function updateMakerV2TestResults/);
+ assert.match(maker,/evaluateV2TypedResults\\(spec,values,normalizedGroups\\.groups\\)/);
+});
+
 test("Manual Builder loads the extracted shared v1 engine before its UI adapter",()=>{
     const engineTag=html.indexOf('ugc-calculator-engine.js?v=shared-v1-extraction-20261113a');
     const builderTag=html.indexOf('ugc-calculators.js?v=');

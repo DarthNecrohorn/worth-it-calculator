@@ -184,3 +184,19 @@ The PostgreSQL V2 validator now uses the same explicit aliases and dimensional v
 The SQL parser also carries unit display symbols through formula references and unit algebra. The special derived-energy rule is shared: `kW × hour = kWh` and `W × hour = Wh`. The browser registry now explicitly recognizes `Wh`, so an energy formula can be checked against an explicit Wh result unit consistently.
 
 Disposable PostgreSQL CI checks a shared list of expected vectors and validates formulas for derived energy, data-per-time, distance-per-time and opaque-unit-per-time. This still validates units only; it does not enable V2 persistence.
+
+
+## 10. Manual Builder typed V2 authoring (local-only)
+
+The Manual Builder now offers an explicit schema selector for new, unsaved manual drafts. V1 remains the default and continues to use the existing editor, validation, local test panel and save/publish path unchanged.
+
+Selecting **Version 2 · typed draft (experimental)** converts compatible V1 numeric inputs and groups into V2 definitions. Existing numeric dropdowns remain numeric choices; old on/off controls become strict boolean values. Formulas and scenario values are preserved for review, then validated by the shared V2 checker. A conversion that exposes a boolean/formula incompatibility remains editable but must be corrected before the local validation passes.
+
+The V2 editor supports:
+- Fixed inputs of type number, boolean, enum and date, including ranges, units, declared enum options and calendar-date bounds.
+- Dynamic groups containing typed number, boolean, enum and date fields.
+- Up to three what-if scenarios with typed overrides for fixed inputs.
+- Numeric result rows using the existing number, currency, percent and unit display formats.
+- The shared V2 type checker and evaluator for a local, interactive test panel, including typed dynamic rows and scenario comparisons.
+
+V2 testing is local to the browser. It sends no AI request, consumes no CALC, writes no data to Supabase and does not publish anything. Both Save and Publish are disabled in V2, and the save handler independently rejects a V2 draft before it can call the save RPC. Saved calculator editing remains V1-only. This authoring slice does not change the AI Creator output, Blueprint Import, server APIs, database schema, save/publish RPCs or public calculator runtime.
