@@ -3123,3 +3123,130 @@ test("AI Creator API supports a separate strict typed V2 provider schema and val
  assert.ok(makerApi.includes('outputSchemaVersion===2?{inputs:parsed?.spec?.inputs||[],results:parsed?.spec?.results||[]}:parsed'));
 });
 
+
+
+test("AI Creator generates and server-validates typed V2 blueprints without enabling persistence",async()=>{
+ const nullableTyped=(type,control,defaultValue,extras={})=>({
+  key:"",label:"",type,control,min:null,max:null,default:defaultValue,step:null,unit:null,
+  choices:[],minDate:null,maxDate:null,...extras
+ });
+ const candidate={
+  blueprintVersion:2,
+  title:"Typed Household Expense Calculator",
+  description:"Calculate household costs, optional tax and a date comparison using typed inputs and editable expense rows.",
+  category:"home",
+  subcategories:["household-budget"],
+  assumptions:["All monetary amounts use EUR.","Only explicitly supplied prices are non-zero by default."],
+  spec:{
+   schemaVersion:2,engineVersion:2,
+   inputs:[
+    {key:"base_cost",label:"Base cost",type:"number",control:"number",min:0,max:10000,default:30,step:1,unit:"EUR",choices:[],minDate:null,maxDate:null},
+    nullableTyped("boolean","toggle",true,{key:"include_tax",label:"Include tax"}),
+    nullableTyped("enum","select","pro",{key:"plan",label:"Plan",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]}),
+    nullableTyped("date","date","2026-01-31",{key:"start_date",label:"Start date"})
+   ],
+   groups:[{
+    key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:4,
+    fields:[
+     {key:"amount",label:"Expense amount",type:"number",min:0,max:1000,default:25,step:1,unit:"EUR",choices:[],minDate:null,maxDate:null},
+     {key:"taxable",label:"Taxable",type:"boolean",min:null,max:null,default:true,step:null,unit:null,choices:[],minDate:null,maxDate:null},
+     {key:"kind",label:"Kind",type:"enum",min:null,max:null,default:"fixed",step:null,unit:null,choices:[{label:"Fixed",value:"fixed"},{label:"Variable",value:"variable"}],minDate:null,maxDate:null}
+    ]
+   }],
+   results:[
+    {key:"taxable_fixed_total",label:"Taxable fixed total",expression:"sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, \\"fixed\\")))",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Taxable expenses marked as fixed."},
+    {key:"base_total",label:"Base total",expression:"base_cost + taxable_fixed_total",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Base cost plus taxable fixed expenses."},
+    {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \\"pro\\")), base_total * 0.2, 0)",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Illustrative tax amount when enabled for the Pro plan."},
+    {key:"date_indicator",label:"Start date is after 2026",expression:"if(gt(start_date, \\"2026-01-01\\"), 1, 0)",format:"number",currency:null,unit:null,prefix:"",suffix:"",explanation:"A date comparison indicator."}
+   ],
+   scenarios:[{
+    label:"Basic plan without tax",
+    overrides:[
+     {key:"include_tax",value:false},
+     {key:"plan",value:"basic"},
+     {key:"start_date",value:"2024-01-31"}
+    ]
+   }]
+  }
+ };
+ let providerCalls=0,settlements=0,reservations=0;
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"typed-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+  }
+  if(path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")){
+   settlements++;
+   return new Response(JSON.stringify({ok:true}),{status:200});
+  }
+  if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true}),{status:200});
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   providerCalls++;
+   const body=JSON.parse(options.body);
+   const responseSchema=body.response_format.json_schema;
+   assert.equal(responseSchema.name,"worth_it_typed_v2_calculator");
+   assert.equal(responseSchema.schema.properties.blueprintVersion.enum[0],2);
+   assert.match(body.messages[0].content,/canonical root blueprintVersion 2/i);
+   return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
+  }
+  throw new Error("Unexpected typed V2 AI Creator API request: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    prompt:"Create a household expense calculator with a base cost of 30 EUR, repeated expenses with taxable and fixed or variable choices, an optional tax toggle, a plan choice and a start date. Include the base total, tax amount and date indicator.",
+    schema_version:2
+   },{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(body.success,true);
+  assert.equal(body.mode,"create");
+  const spec=body.calculator.spec;
+  assert.equal(spec.schemaVersion,2);
+  assert.equal(spec.engineVersion,2);
+  assert.equal(spec.inputs.find(item=>item.key==="base_cost").default,30);
+  assert.equal(spec.inputs.find(item=>item.key==="include_tax").default,true);
+  assert.equal(spec.inputs.find(item=>item.key==="plan").default,"pro");
+  assert.equal(spec.inputs.find(item=>item.key==="start_date").default,"2026-01-31");
+  assert.equal(spec.groups[0].fields.find(item=>item.key==="amount").default,0);
+  assert.equal(spec.groups[0].fields.find(item=>item.key==="amount").unit,"EUR");
+  assert.equal(spec.groups[0].fields.find(item=>item.key==="taxable").type,"boolean");
+  assert.equal(spec.groups[0].fields.find(item=>item.key==="kind").type,"enum");
+  assert.deepEqual(spec.scenarios[0].values,{include_tax:false,plan:"basic",start_date:"2024-01-31"});
+  assert.equal(spec.results.length,4);
+  assert.equal(providerCalls,1);
+  assert.equal(reservations,1);
+  assert.equal(settlements,1);
+ },{});
+});
+
+test("AI Creator refuses malformed V2 requests and keeps V2 refinement unavailable before reservation",async()=>{
+ let reservations=0,providerCalls=0;
+ await withFetch(async(url)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"typed-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.includes("reserve_worth_it_ugc_ai_operation")){reservations++;return new Response(JSON.stringify({ok:true}),{status:200});}
+  if(path.includes("api.groq.com")){providerCalls++;throw new Error("Provider must not be called.");}
+  throw new Error("Unexpected request: "+path);
+ },async()=>{
+  const invalidSchema=await onRequestPost({
+   request:request({prompt:"Create a safe calculator for a household budget and savings plan.",schema_version:3},{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
+  });
+  const invalidBody=await invalidSchema.clone().json();
+  assert.equal(invalidSchema.status,400);
+  assert.equal(invalidBody.code,"UNSUPPORTED_CALCULATOR_SCHEMA");
+  const refine=await onRequestPost({
+   request:request({mode:"refine",calculator_id:"123e4567-e89b-42d3-a456-426614174000",prompt:"Improve the existing calculator formulas safely.",schema_version:2},{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
+  });
+  const refineBody=await refine.clone().json();
+  assert.equal(refine.status,400);
+  assert.equal(refineBody.code,"V2_REFINEMENT_UNAVAILABLE");
+  assert.equal(reservations,0);
+  assert.equal(providerCalls,0);
+ },{});
+});
