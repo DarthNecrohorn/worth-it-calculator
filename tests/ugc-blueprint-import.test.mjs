@@ -121,7 +121,8 @@ test("imports a strict typed V2 blueprint and evaluates typed formulas, scenario
  assert.equal(definition.spec.groups[0].fields[3].type,"date");
  assert.equal(definition.spec.scenarios[0].values.include_tax,false);
  assert.equal(definition.spec.scenarios[0].values.start_date,"2024-01-31");
- assert.ok(definition.importNotes.some(note=>note.includes("Typed V2 Quick Check passed")));
+ assert.ok(Array.isArray(definition.importNotes)&&definition.importNotes.length>0);
+ assert.deepEqual(plain(definition.importValidationIssues||[]),[]);
  assert.equal(definition.importValidationIssueCount||0,0);
  const engineSpec=plain(definition.spec);delete engineSpec.assumptions;delete engineSpec.subcategories;
  const defaults=engine.createDefaultTypedValues(engineSpec),groups=engine.createDefaultTypedGroupValues(engineSpec);
@@ -135,7 +136,7 @@ test("imports a strict typed V2 blueprint and evaluates typed formulas, scenario
 
 test("keeps structurally valid V2 blueprints with formula issues editable without rewriting typed values",()=>{
  const importer=getImporter(),engine=getManualEngine(),candidate=typedV2Blueprint();
- candidate.spec.results[1].expression="if(include_tax, base_cost + 1, 0)";
+ candidate.spec.results[1].expression="if(base_cost, base_cost + 1, 0)";
  const original=candidate.spec.results[1].expression;
  const definition=importer.parseBlueprint(JSON.stringify(candidate),makeTypedV2Validator(engine));
  assert.equal(definition.spec.schemaVersion,2);
@@ -987,10 +988,11 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(html,/ugc-blueprint-import\.js/);
  const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\s\S]*?\n\}/)?.[0]||"";
  assert.ok(importFunction.includes("parseBlueprint"));
- assert.ok(importFunction.includes("parseBlueprint(raw,validateMakerSpec,originalRequest)"));
+ assert.ok(importFunction.includes("parseBlueprint(raw,validateManualDraftSpec,originalRequest)"));
  assert.doesNotMatch(importFunction,/parseBlueprint\(raw,\s*spec\s*=>/);
  assert.ok(importFunction.includes("Working on a quick fix"));
  assert.ok(importFunction.includes("importValidationIssueCount"));
+ assert.ok(importFunction.includes("typedV2"));
  assert.ok(importFunction.includes('state.creationSource="manual"'));
  assert.ok(importFunction.includes('state.aiOperationId=""'));
  assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
