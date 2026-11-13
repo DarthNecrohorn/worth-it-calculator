@@ -235,7 +235,7 @@ test("keeps unresolved currency and unit validation issues in a draft without re
  ]}));
  assert.equal(definition.importValidationIssueCount,3);
  assert.equal(definition.importValidationIssues.length,3);
- assert.ok(definition.importNotes.some(note=>/Save and Publish/.test(note)));
+ assert.ok(definition.importNotes.some(note=>/saved or published/.test(note)));
  assert.ok(!definition.importNotes.some(note=>/dividing EUR|EUR\/month/.test(note)));
 });
 
@@ -429,12 +429,16 @@ test("imports the exact USD cost-estimator blueprint even with escaped line cont
  assert.deepEqual(plain(validate(definition.spec).errors),[]);
 });
 
-test("shows currency- and operation-neutral guidance for unresolved cost dimensions",()=>{
+test("keeps unresolved currency dimension errors in the editable draft",()=>{
  const importer=getImporter();
- assert.throws(()=>importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[
+ const definition=importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[
   "Estimated Monthly Cost: The formula's units do not match the selected USD result currency.",
   "Calculator result chain: The formula's units do not match the selected USD result currency."
- ]})),error=>/USD\/request or USD\/read/.test(error.message)&&!/dividing EUR/.test(error.message));
+ ]}));
+ assert.equal(definition.importValidationIssueCount,2);
+ assert.ok(definition.importValidationIssues.some(issue=>/USD result currency/.test(issue)));
+ assert.ok(definition.importNotes.some(note=>/editable draft/.test(note)));
+ assert.ok(!definition.importNotes.some(note=>/dividing EUR/.test(note)));
 });
 
 test("generates a provider-neutral prompt for arbitrary calculator requests",()=>{
