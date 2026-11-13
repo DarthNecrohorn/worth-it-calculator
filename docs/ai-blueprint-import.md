@@ -85,6 +85,12 @@ Missing numeric assumptions use deterministic, bounded defaults only when a neut
 
 A successful import means the blueprint was safely parsed and made editable; it does not mean the calculations have been validated or are suitable for publication.
 
+### Count-rate dimensions and range normalization
+
+The local repair engine can infer common count-based rates from clear labels, including prompts per user, tokens per prompt and monetary cost per token. It preserves the distinction between tokens and generic items, so a formula chain such as users × prompts/user × tokens/prompt has a coherent token-volume dimension and token-volume × currency/token produces a currency result. Result units are also checked against the semantic quantity named by the result label when the dimensional category allows an unambiguous match.
+
+When a numeric range has a positive but incompatible step, Quick Fix prefers a familiar 1/2/5 × 10^n common step no larger than the original step. It preserves the supplied minimum, maximum and default wherever a valid increment can be found, instead of replacing a meaningful step with an unexpectedly coarse greatest common divisor. Scenario values are then checked against the normalized input step.
+
 ## Units and formulas
 
 The Manual Builder uses dimensional algebra. Common units and rates are recognised, including currency-per-time and physical compound units. Simple explicit products and quotients such as `GB/hour`, `EUR/month` or `kWh/day` can be analysed.

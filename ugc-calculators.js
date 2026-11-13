@@ -743,9 +743,9 @@ function unitDescriptor(unit){
    unit:"count",units:"count",item:"count",items:"count",pack:"count",packs:"count",
    person:"count",people:"count",user:"count",users:"count",
    request:"count",requests:"count",read:"count",reads:"count",write:"count",writes:"count",
-   call:"count",calls:"count",km:"length",mile:"length",miles:"length",m:"length"
+   call:"count",calls:"count",token:"token",tokens:"token",km:"length",mile:"length",miles:"length",m:"length"
   })[denominator];
-  if(dimension)return descriptor(raw,{["currency:"+rateMatch[1]]:1,[dimension]:-1},false,{["currency:"+rateMatch[1]]:rateMatch[1],[dimension]:rateMatch[2].trim()});
+  if(dimension)return descriptor(raw,{["currency:"+rateMatch[1]]:1,[dimension]:-1},false,{["currency:"+rateMatch[1]]:rateMatch[1],[dimension]:dimension==="token"?"token":rateMatch[2].trim()});
  }
  const known={
   "%":{},"%/year":{time:-1},"%/month":{time:-1},"%/day":{time:-1},
@@ -790,6 +790,7 @@ function unitDescriptor(unit){
   });
   return descriptor(raw,vector,false,symbols);
  }
+ if(key==="token"||key==="tokens")return descriptor(raw,{token:1},false,{token:"token"});
  const countSymbols={items:"items",item:"item",units:"units",unit:"unit",people:"people",person:"person",packs:"packs",pack:"pack",
   users:"user",user:"user",vehicles:"vehicles",vehicle:"vehicle",cars:"cars",car:"car",
   requests:"request",request:"request",reads:"read",read:"read",writes:"write",write:"write",calls:"call",call:"call"};
@@ -1311,6 +1312,8 @@ function blueprintCountAtomFromText(value){
  if(/\b(?:database|db)\s+writes?\b|\bwrites?\b/.test(text))return "write";
  if(/\b(?:database|db)\s+reads?\b|\breads?\b/.test(text))return "read";
  if(/\b(?:edge(?:\s+function)?\s+requests?|function requests?|requests?)\b/.test(text))return "request";
+ if(/\b(?:prompts?|invocations?)\b/.test(text))return "request";
+ if(/\btokens?\b/.test(text))return "token";
  if(/\b(?:api\s+)?calls?\b/.test(text))return "call";
  if(/\bsessions?\b/.test(text))return "session";
  if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
@@ -1319,12 +1322,16 @@ function blueprintCountAtomFromText(value){
  if(/\b(?:units?|items?|products?|pieces?|skus?)\b|\b(?:jedinic\p{L}*|proizvod\p{L}*|artikl\p{L}*|komad\p{L}*|stavk\p{L}*)\b/u.test(text))return "items";
  return "";
 }
+function blueprintStripRatePeriod(value){
+ return String(value||"").replace(/\s+per\s+(?:month|months|year|years|week|weeks|day|days|hour|hours|minute|minutes|second|seconds)$/i,"").trim()
+  .replace(/^\d+(?:\.\d+)?\s*(?:k|m|thousand|million)?\s+/i,"").trim();
+}
 function blueprintPerCountDenominator(label){
  const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
  const english=normalized.match(/\bper\s+(?:each\s+)?(.+)$/);
  const serbian=normalized.match(/\bpo\s+(.+)$/u);
  const match=english||serbian;
- if(match)return blueprintCountAtomFromText(match[1]);
+ if(match)return blueprintCountAtomFromText(blueprintStripRatePeriod(match[1]));
  if(/\b(?:unit|item|product|piece)\s+(?:price|cost|rate)\b/.test(normalized))return "items";
  return "";
 }
@@ -1336,18 +1343,18 @@ function blueprintIsPerCountPriceLabel(label){
 }
 function blueprintCountUnitFromLabel(label){
  const normalized=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
- // Do not misclassify a price-per-item input as a quantity input.
+ // Do not misclassify a price-per-count input as a quantity rate.
  if(blueprintIsPerCountPriceLabel(normalized))return "";
- const perMatch=normalized.match(/\b(.+?)\s+per\s+(.+?)\b/);
- if(perMatch){
-  const numerator=blueprintCountAtomFromText(perMatch[1]);
-  const denominator=blueprintCountAtomFromText(perMatch[2]);
+ const english=normalized.match(/^(.+?)\s+per\s+(.+)$/);
+ if(english){
+  const numerator=blueprintCountAtomFromText(english[1]);
+  const denominator=blueprintPerCountDenominator(normalized);
   if(numerator&&denominator)return numerator+"/"+denominator;
   if(denominator)return denominator;
  }
  const serbianPerMatch=normalized.match(/\bpo\s+(.+)$/u);
  if(serbianPerMatch){
-  const denominator=blueprintCountAtomFromText(serbianPerMatch[1]);
+  const denominator=blueprintCountAtomFromText(blueprintStripRatePeriod(serbianPerMatch[1]));
   if(denominator)return denominator;
  }
  return blueprintCountAtomFromText(normalized);
@@ -1641,7 +1648,11 @@ function repairMakerBlueprintSpec(sourceSpec){
    return;
   }
   const vector=Object.entries(outputUnit.vector||{});
-  const unitLabel=unitLabelFromDescriptor(outputUnit);
+  let unitLabel=unitLabelFromDescriptor(outputUnit);
+  if(vector.length===1&&vector[0][0]==="count"&&Math.abs(Number(vector[0][1])-1)<1e-9){
+   const semanticCountUnit=blueprintCountUnitFromLabel(label);
+   if(semanticCountUnit&&!semanticCountUnit.includes("/")&&sameUnitDescriptor(outputUnit,unitDescriptor(semanticCountUnit)))unitLabel=semanticCountUnit;
+  }
   const singleCurrency=vector.length===1&&vector[0][0].startsWith("currency:")&&Math.abs(Number(vector[0][1])-1)<1e-9;
   const outputCurrency=singleCurrency?vector[0][0].slice(9):"";
   const dimensionless=vector.length===0;

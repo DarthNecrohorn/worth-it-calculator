@@ -1219,6 +1219,96 @@ test("repairs Serbian small-business dimensions and verifies separated expenses,
  assert.equal(editedExpenses.total_costs,10600);
  assert.equal(editedExpenses.break_even_units,154);
 });
+test("repairs a multi-input AI infrastructure blueprint with request/token rates and preserves sensible input steps",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const candidate={
+  blueprintVersion:1,
+  title:"Cloud Computing & AI Model Inference Cost Estimator",
+  description:"Estimates monthly operational expenses for hosting custom large language models and serverless AI applications across inference tokens, GPU hours, and API endpoints.",
+  category:"technology",
+  subcategories:["ai","cloud","inference","serverless"],
+  assumptions:["All financial metrics are calculated in USD.","Token pricing is based on a blended ratio of input and output tokens.","GPU hosting costs assume continuous on-demand instance pricing."],
+  spec:{
+   inputs:[
+    {key:"monthly_active_users",label:"Monthly Active Users",control:"number",min:100,max:1000000,default:10000,step:500,unit:"people"},
+    {key:"requests_per_user_monthly",label:"Prompts per User per Month",control:"slider",min:5,max:200,default:30,step:5,unit:""},
+    {key:"avg_tokens_per_request",label:"Average Tokens per Prompt",control:"number",min:100,max:8000,default:1500,step:100,unit:"items"},
+    {key:"hosting_model_type",label:"AI Inference Architecture",control:"select",min:1,max:3,default:2,step:1,unit:"",choices:[
+     {label:"Managed API Provider (OpenAI/Anthropic)",value:1},
+     {label:"Serverless GPU Endpoint (Baseten/Replicate)",value:2},
+     {label:"Dedicated GPU Cluster (AWS/Lambda)",value:3}
+    ]},
+    {key:"blended_cost_per_thousand_tokens",label:"Blended Cost per 1K Tokens",control:"number",min:0.001,max:0.1,default:0.005,step:0.001,unit:"USD/item"},
+    {key:"include_vector_db",label:"Include Vector Database RAG Storage",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"vector_db_monthly_fee",label:"Vector Database Hosting Fee",control:"number",min:0,max:500,default:70,step:10,unit:"USD"}
+   ],
+   groups:[{key:"auxiliary_ai_services",label:"Additional AI Pipelines & Middleware",itemLabel:"Service",minItems:1,maxItems:4,fields:[
+    {key:"service_monthly_cost",label:"Monthly Service Cost",min:0,max:1000,default:50,step:25,unit:"USD"},
+    {key:"scaling_factor",label:"Priority Weight",min:1,max:5,default:1,step:1,unit:""}
+   ]}],
+   results:[
+    {key:"total_monthly_requests",label:"Total Monthly Prompt Invocations",expression:"monthly_active_users * requests_per_user_monthly",format:"unit",unit:"people",explanation:"Aggregated number of AI model prompt generations requested per month."},
+    {key:"total_monthly_tokens",label:"Total Monthly Token Volume",expression:"total_monthly_requests * avg_tokens_per_request",format:"number",explanation:"Total sum of input and output tokens processed across all user prompts."},
+    {key:"token_inference_cost",label:"Token Inference Operational Cost",expression:"(total_monthly_tokens / 1000) * blended_cost_per_thousand_tokens",format:"currency",currency:"USD",explanation:"Monthly cost incurred directly from LLM token consumption and generation."},
+    {key:"auxiliary_services_total",label:"Middleware & Auxiliary Services Total",expression:"sum(auxiliary_ai_services.service_monthly_cost)",format:"currency",currency:"USD",explanation:"Combined monthly subscription costs for embeddings, moderation, and guardrail APIs."},
+    {key:"total_monthly_ai_expense",label:"Total Monthly AI Infrastructure Expense",expression:"token_inference_cost + if(eq(include_vector_db, 1), vector_db_monthly_fee, 0) + auxiliary_services_total",format:"currency",currency:"USD",explanation:"Grand total monthly spend covering model inference, vector databases, and middleware."},
+    {key:"cost_per_active_user",label:"Average AI Cost per Active User",expression:"if(gt(monthly_active_users, 0), total_monthly_ai_expense / monthly_active_users, 0)",format:"currency",currency:"USD",explanation:"Average monthly infrastructure expenditure per active platform user."}
+   ],
+   scenarios:[
+    {label:"Early Beta Prototype",values:{monthly_active_users:1000,requests_per_user_monthly:20,avg_tokens_per_request:1000,hosting_model_type:1,blended_cost_per_thousand_tokens:0.008,include_vector_db:1,vector_db_monthly_fee:30}},
+    {label:"Scaling Production App",values:{monthly_active_users:50000,requests_per_user_monthly:40,avg_tokens_per_request:2000,hosting_model_type:2,blended_cost_per_thousand_tokens:0.003,include_vector_db:1,vector_db_monthly_fee:150}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ const inputs=Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item]));
+ assert.equal(inputs.monthly_active_users.step,100);
+ assert.equal(inputs.monthly_active_users.min,100);
+ assert.equal(inputs.monthly_active_users.max,1000000);
+ assert.equal(inputs.monthly_active_users.default,10000);
+ assert.equal(inputs.requests_per_user_monthly.unit,"request/user");
+ assert.equal(inputs.avg_tokens_per_request.unit,"token/request");
+ assert.equal(inputs.blended_cost_per_thousand_tokens.unit,"USD/token");
+ assert.equal(definition.spec.scenarios[0].values.monthly_active_users,1000);
+ assert.equal(definition.spec.scenarios[1].values.monthly_active_users,50000);
+ const results=Object.fromEntries(definition.spec.results.map(item=>[item.key,item]));
+ assert.equal(results.total_monthly_requests.format,"unit");
+ assert.equal(results.total_monthly_requests.unit,"request");
+ assert.equal(results.total_monthly_tokens.format,"unit");
+ assert.equal(results.total_monthly_tokens.unit,"token");
+ assert.equal(results.token_inference_cost.format,"currency");
+ assert.equal(results.total_monthly_ai_expense.format,"currency");
+ assert.equal(results.cost_per_active_user.format,"unit");
+ assert.equal(results.cost_per_active_user.unit,"USD/people");
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ assert.ok(definition.importNotes.some(note=>note.includes("reduced the step to 100")));
+ assert.ok(definition.importNotes.some(note=>note.includes("Quick Fix self-test passed")));
+ const groupValues={auxiliary_ai_services:[{service_monthly_cost:50,scaling_factor:1}]};
+ const calculate=(overrides={})=>{
+  const values={...Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item.default])),...overrides};
+  return Object.fromEntries(engine.evaluateFormulaResults(definition.spec,values,groupValues).map(item=>[item.key,item.value]));
+ };
+ const base=calculate();
+ assert.equal(base.total_monthly_requests,300000);
+ assert.equal(base.total_monthly_tokens,450000000);
+ assert.equal(base.token_inference_cost,2250);
+ assert.equal(base.auxiliary_services_total,50);
+ assert.equal(base.total_monthly_ai_expense,2370);
+ assert.ok(Math.abs(base.cost_per_active_user-0.237)<1e-12);
+ const beta=calculate(definition.spec.scenarios[0].values);
+ assert.equal(beta.total_monthly_requests,20000);
+ assert.equal(beta.total_monthly_tokens,20000000);
+ assert.equal(beta.token_inference_cost,160);
+ assert.equal(beta.total_monthly_ai_expense,240);
+ assert.equal(beta.cost_per_active_user,0.24);
+ const production=calculate(definition.spec.scenarios[1].values);
+ assert.equal(production.total_monthly_requests,2000000);
+ assert.equal(production.total_monthly_tokens,4000000000);
+ assert.equal(production.token_inference_cost,12000);
+ assert.equal(production.total_monthly_ai_expense,12200);
+ assert.equal(production.cost_per_active_user,0.244);
+});
+
 test("checks prompt keyword coverage locally without storing or transmitting the original request",()=>{
  const importer=getImporter();
  const candidate=blueprint({

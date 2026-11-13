@@ -89,12 +89,30 @@ function normalizeBlueprintRange(raw,label,notes){
   step=defaultStep;
   notes.push(label+": supplied a sensible default step because none was provided.");
  }
- if(step<=0||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step)){
-  const scale=Math.pow(10,precision);
-  const divisor=blueprintGcd(Math.round((value-min)*scale),Math.round((max-min)*scale));
-  step=divisor>0?divisor/scale:defaultStep;
-  if(!(step>0)||!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step))step=defaultStep;
-  notes.push(label+": adjusted the step so the default and maximum align with the minimum.");
+ if(!(step>0)){
+  step=defaultStep;
+  notes.push(label+": supplied a positive default step.");
+ }
+ if(!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step)){
+  const scale=Math.pow(10,Math.max(precision,blueprintDecimalPlaces(step)));
+  const valueOffset=Math.round((value-min)*scale),maximumOffset=Math.round((max-min)*scale);
+  const divisor=blueprintGcd(valueOffset,maximumOffset);
+  const originalStepUnits=Math.max(1,Math.round(step*scale));
+  let preferredStepUnits=0;
+  // Prefer familiar 1/2/5 × 10^n increments no larger than the user's
+  // requested step, while preserving the stated minimum, maximum and default.
+  for(let magnitude=1;magnitude<=originalStepUnits&&magnitude<=Number.MAX_SAFE_INTEGER;magnitude*=10){
+   for(const multiplier of [1,2,5]){
+    const candidate=multiplier*magnitude;
+    if(candidate<=originalStepUnits&&divisor>0&&divisor%candidate===0){
+     preferredStepUnits=Math.max(preferredStepUnits,candidate);
+    }
+   }
+  }
+  const commonStep=preferredStepUnits?preferredStepUnits/scale:divisor>0?divisor/scale:defaultStep;
+  if(commonStep>0)step=commonStep;
+  if(!blueprintAligned(value,min,step)||!blueprintAligned(max,min,step))step=defaultStep;
+  notes.push(label+": adjusted the step to "+step+" so the existing minimum, default and maximum stay unchanged and align cleanly.");
  }
  return{min,max,default:value,step};
 }
