@@ -634,8 +634,8 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /Number format/);
     assert.match(maker, /validateMakerSpec/);
     assert.match(maker, /Formula dependencies, unit compatibility and input boundaries were checked/);
-    assert.match(maker, /for\(let left=0;left<inputs.length;left\+\+\)/);
-    assert.match(maker, /maxStepPosition/);
+    assert.match(calculatorEngineSource, /for\(let left=0;left<inputs.length;left\+\+\)/);
+    assert.match(calculatorEngineSource, /maxStepPosition/);
     assert.match(maker, /ugc-maker-test-locale/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
