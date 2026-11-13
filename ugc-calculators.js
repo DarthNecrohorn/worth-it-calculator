@@ -1442,6 +1442,107 @@ function inferBlueprintCountInputUnits(inputs,groups,notes){
   inferBlueprintCountFieldUnit(field,String(field.label||field.key||""),notes)
  ));
 }
+function inferBlueprintSelectRateUnits(inputs,scenarios,notes){
+ (Array.isArray(inputs)?inputs:[]).forEach(input=>{
+  if(input.control!=="select"||!Array.isArray(input.choices)||input.choices.length<2)return;
+  const parsed=input.choices.map(choice=>{
+   const match=String(choice.label||"").match(/\b(\d+(?:\.\d+)?)\s*(GB|TB|MB)\s*\/\s*(hours?|hrs?)\b/i);
+   return match?{oldValue:choice.value,newValue:Number(match[1]),unit:match[2].toUpperCase()+"/hour"}:null;
+  });
+  if(parsed.some(item=>!item)||new Set(parsed.map(item=>item.unit)).size!==1
+   ||new Set(parsed.map(item=>item.newValue)).size!==parsed.length
+   ||parsed.every(item=>item.oldValue===item.newValue))return;
+  const remap=new Map(parsed.map(item=>[item.oldValue,item.newValue]));
+  const oldDefault=input.default;
+  input.choices=input.choices.map((choice,index)=>({...choice,value:parsed[index].newValue}));
+  const values=parsed.map(item=>item.newValue);
+  input.min=Math.min(...values);
+  input.max=Math.max(...values);
+  input.default=remap.has(oldDefault)?remap.get(oldDefault):values[0];
+  const precision=Math.max(...values.map(value=>{
+   const text=String(value);return(text.split(".")[1]||"").length;
+  }));
+  input.step=Math.pow(10,-Math.min(8,precision));
+  input.unit=parsed[0].unit;
+  (Array.isArray(scenarios)?scenarios:[]).forEach(scenario=>{
+   if(!scenario?.values||!Object.prototype.hasOwnProperty.call(scenario.values,input.key))return;
+   const oldValue=scenario.values[input.key];
+   if(remap.has(oldValue))scenario.values[input.key]=remap.get(oldValue);
+  });
+  notes.push(input.label+": used the explicit data rates in the dropdown labels ("+parsed.map(item=>item.newValue+" "+item.unit).join(", ")+") instead of the ordinal choice values.");
+ });
+}
+function unitRatioLabel(numerator,denominator){
+ const ratio=combineUnitDescriptors(numerator,denominator,-1),positive=[],negative=[];
+ for(const [dimension,exponent] of Object.entries(ratio.vector||{})){
+  if(!Number.isInteger(exponent)||Math.abs(exponent)>2)return "";
+  const symbol=ratio.symbols?.[dimension]||({data:"GB",time:"hour",count:"items",length:"km",mass:"kg",volume:"L",energy:"kWh",power:"W"})[dimension]||"";
+  if(!symbol)return "";
+  const target=exponent>0?positive:negative;
+  for(let i=0;i<Math.abs(exponent);i++)target.push(symbol);
+ }
+ if(!positive.length||!negative.length)return "";
+ return positive.join("*")+"/"+negative.join("*");
+}
+function materializeDimensionalRateConstants(ast,result,formulaUnits,groups,inputs,usedKeys){
+ if(result?.format!=="unit"||!result.unit||inputs.length>=24)return{ast,inputs:[],changed:false};
+ const expected=unitDescriptor(result.unit),candidates=[];
+ const visit=node=>{
+  if(!node||typeof node!=="object")return;
+  if(node.type==="binary"&&node.op==="*"){
+   const leftConstant=constantFormulaValue(node.left),rightConstant=constantFormulaValue(node.right);
+   if((leftConstant!==null)!==(rightConstant!==null)){
+    const rate=leftConstant!==null?leftConstant:rightConstant;
+    const quantity=leftConstant!==null?node.right:node.left;
+    if(rate>0&&!Number.isInteger(rate)){
+     try{
+      const quantityUnit=analyseFormulaUnit(quantity,formulaUnits,groups);
+      const rateUnit=unitRatioLabel(expected,quantityUnit);
+      if(rateUnit&&sameUnitDescriptor(unitDescriptor(rateUnit),combineUnitDescriptors(expected,quantityUnit,-1))){
+       candidates.push({node,constantNode:leftConstant!==null?node.left:node.right,quantity,rate,rateUnit});
+      }
+     }catch(_){}
+    }
+   }
+   visit(node.left);visit(node.right);
+  }else if(node.type==="unary")visit(node.value);
+  else if(node.type==="call")(node.args||[]).forEach(visit);
+ };
+ visit(ast);
+ // Only materialize when exactly one decimal coefficient can account for the
+ // result's missing physical dimension. Ambiguous formulas stay editable for review.
+ if(candidates.length!==1)return{ast,inputs:[],changed:false};
+ const candidate=candidates[0],localKeys=new Set(usedKeys);
+ const slug=candidate.rateUnit.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+ const baseKey=("estimated_"+slug).slice(0,32);
+ let key=baseKey,index=2;
+ while(localKeys.has(key)){
+  const suffix="_"+index++;
+  key=baseKey.slice(0,32-suffix.length)+suffix;
+ }
+ const textValue=String(candidate.rate),precision=Math.min(8,(textValue.split(".")[1]||"").length);
+ const step=Math.pow(10,-precision);
+ const max=Number((Math.max(candidate.rate*10,candidate.rate+step)).toPrecision(12));
+ const rateInput={key,label:"Estimated "+candidate.rateUnit.replace("/"," per ").replace(/_/g," "),control:"number",min:0,max,default:candidate.rate,step,unit:candidate.rateUnit};
+ const replacement={type:"variable",name:key};
+ const replace=node=>{
+  if(node===candidate.constantNode)return replacement;
+  if(!node||typeof node!=="object")return node;
+  if(node.type==="binary")return{...node,left:replace(node.left),right:replace(node.right)};
+  if(node.type==="unary")return{...node,value:replace(node.value)};
+  if(node.type==="call")return{...node,args:node.args.map(replace)};
+  return node;
+ };
+ const repaired=replace(ast),allInputs=[...inputs,rateInput];
+ try{
+  const actual=analyseFormulaUnit(repaired,[...formulaUnits,rateInput],groups);
+  if(!sameUnitDescriptor(actual,expected))return{ast,inputs:[],changed:false};
+ }catch(_){return{ast,inputs:[],changed:false};}
+ const expression=formulaAstToText(repaired);
+ if(expression.length>500)return{ast,inputs:[],changed:false};
+ return{ast:repaired,inputs:[rateInput],changed:true,expression};
+}
+
 function materializeCurrencyRateConstants(ast,result,currency,formulaUnits,groups,inputs,usedKeys){
  const pending=[],localKeys=new Set(usedKeys);
  const makeRateInput=(quantityNode,rate)=>{
@@ -1584,6 +1685,7 @@ function repairMakerBlueprintSpec(sourceSpec){
  const groups=Array.isArray(spec.groups)?spec.groups:[];
  const results=Array.isArray(spec.results)?spec.results:[];
  inferBlueprintCountInputUnits(inputs,groups,notes);
+ inferBlueprintSelectRateUnits(inputs,Array.isArray(spec.scenarios)?spec.scenarios:[],notes);
  normalizeMortgageTermExponentUnits(inputs,results,groups,notes);
  const groupMap=groupMapForSpec(spec);
  const resultKeySet=new Set(results.map(item=>String(item?.key||"")).filter(Boolean));
@@ -1688,6 +1790,25 @@ function repairMakerBlueprintSpec(sourceSpec){
      expression=materialized.expression;
      result.expression=expression;
     }
+   }
+  }
+  if(result.format==="unit"){
+   const materialized=materializeDimensionalRateConstants(ast,result,formulaUnits,groups,inputs,usedVariableKeys);
+   if(materialized.changed){
+    materialized.inputs.forEach(input=>{
+     inputs.push(input);
+     formulaUnits.push(input);
+     availableKeys.add(input.key);
+     usedVariableKeys.add(input.key);
+     (Array.isArray(spec.scenarios)?spec.scenarios:[]).forEach(scenario=>{
+      if(!scenario.values||typeof scenario.values!=="object"||Array.isArray(scenario.values))scenario.values={};
+      if(!Object.prototype.hasOwnProperty.call(scenario.values,input.key))scenario.values[input.key]=input.default;
+     });
+     notes.push(label+": converted an implicit physical-rate coefficient into the editable input "+input.label+" ("+input.unit+").");
+    });
+    ast=materialized.ast;
+    expression=materialized.expression;
+    result.expression=expression;
    }
   }
   let outputUnit;
