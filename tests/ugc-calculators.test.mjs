@@ -2117,7 +2117,7 @@ test("Public UGC cards keep only the calculator CTA; reactions stay inside the d
 
 test("UGC Maker offers multi-currency result formatting and selectable measurement units", () => {
     assert.match(maker, /const CURRENCIES=currencyMetadata\.currencies/);
-    assert.match(calculatorCurrencyDataSource, /const CURRENCIES=\[/);\n    assert.match(calculatorCurrencyDataSource, /\["RSD","Serbian Dinar",2\]/);
+    assert.match(calculatorCurrencyDataSource, /const CURRENCIES=\[/);
     assert.match(calculatorCurrencyDataSource, /\["RSD","Serbian Dinar",2\]/);
     assert.match(maker, /const UNIT_OPTIONS=\[/);
     assert.match(maker, /UNIT_OPTIONS\.forEach/);
