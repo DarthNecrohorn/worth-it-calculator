@@ -1678,8 +1678,14 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div id="ugcMakerAiPromptWrap">
           <label for="ugcMakerPrompt">What should your calculator calculate?</label>
           <textarea id="ugcMakerPrompt" name="prompt" maxlength="1000" rows="5" placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance."></textarea>
-          <p class="ugc-maker-status">AI generation and AI improvement use CALC and have separate daily limits. Testing remains free and runs locally in your browser.</p>
-          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note">AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed requests are refunded.</p>
+          <label id="ugcMakerTargetSchemaVersionWrap" for="ugcMakerTargetSchemaVersion">Calculator schema
+            <select id="ugcMakerTargetSchemaVersion">
+              <option value="1" selected>Version 1 · current</option>
+              <option value="2">Version 2 · typed (experimental)</option>
+            </select>
+          </label>
+          <p class="ugc-maker-status">AI generation and AI improvement use CALC and have separate daily limits. Testing remains free and runs locally in your browser. Typed V2 generation also uses the normal AI charge, but its draft is only editable and locally testable; saving and publishing are disabled.</p>
+          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note">AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed requests are refunded. The experimental typed V2 format has the same AI cost; only local editing and testing are available after generation.</p>
           <div class="ugc-maker-actions">
             <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
           </div>

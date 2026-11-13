@@ -3098,3 +3098,28 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   assert.equal(quotaEvents.settlements,1);
  },quotaEvents);
 });
+
+
+test("AI Creator exposes a separate experimental typed V2 schema choice and routes V2 drafts to the local typed editor",()=>{
+ assert.match(html,/id="ugcMakerTargetSchemaVersion"/);
+ assert.match(html,/Version 2 · typed \(experimental\)/);
+ assert.match(maker,/schema_version:targetSchemaVersion/);
+ assert.match(maker,/returnedSchemaVersion!==targetSchemaVersion/);
+ assert.match(maker,/if\(typedV2\)\{renderManualV2Preview\(host,definition\);return;\}/);
+ assert.match(maker,/Typed V2 AI generation passed server schema, formula, unit and default-value validation/);
+ assert.match(maker,/if\(Number\(state\.aiDraft\?\.spec\?\.schemaVersion\)===2\)/);
+ assert.match(maker,/Typed V2 drafts can be edited and tested locally, but cannot be saved or published/);
+});
+
+test("AI Creator API supports a separate strict typed V2 provider schema and validates through the shared Blueprint importer",()=>{
+ assert.ok(makerApi.includes('import "../../ugc-blueprint-import.js";'));
+ assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
+ assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
+ assert.ok(makerApi.includes("normalizeTypedV2Definition"));
+ assert.ok(makerApi.includes("importer.parseBlueprint(JSON.stringify(raw)"));
+ assert.ok(makerApi.includes("validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec)"));
+ assert.ok(makerApi.includes('body?.schema_version===undefined?1:body.schema_version'));
+ assert.ok(makerApi.includes("V2_REFINEMENT_UNAVAILABLE"));
+ assert.ok(makerApi.includes('outputSchemaVersion===2?{inputs:parsed?.spec?.inputs||[],results:parsed?.spec?.results||[]}:parsed'));
+});
+

@@ -2304,6 +2304,10 @@ function createManualDraft(templateKey){
 function setMakerModeUI(){
  const manual=state.creationSource==="manual";
  const manualControls=$("ugcManualControls"),aiWrap=$("ugcMakerAiPromptWrap"),aiButton=$("ugcMakerGenerate");
+ const aiSchemaWrap=$("ugcMakerTargetSchemaVersionWrap"),aiSchemaSelect=$("ugcMakerTargetSchemaVersion");
+ if(aiSchemaWrap)aiSchemaWrap.hidden=manual||Boolean(state.editingId);
+ if(aiSchemaSelect){aiSchemaSelect.disabled=Boolean(state.editingId);if(state.editingId)aiSchemaSelect.value="1";}
+
  if(manualControls)manualControls.hidden=!manual;
  if(aiWrap)aiWrap.hidden=manual;
  if(aiButton)aiButton.textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
@@ -3181,7 +3185,8 @@ function renderMakerPreview(definition){
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
   :"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
- if(manual){
+ const typedV2=Number(definition.spec?.schemaVersion)===2;
+ if(manual||typedV2){
   const assumptionsLabel=document.createElement("label");assumptionsLabel.textContent="Assumptions (optional, up to 5,000 characters)";
   const assumptionsInput=document.createElement("textarea");assumptionsInput.id="ugcMakerAssumptions";assumptionsInput.maxLength=5000;assumptionsInput.rows=5;
   assumptionsInput.value=(Array.isArray(definition.spec?.assumptions)?definition.spec.assumptions:[]).join("\n");
@@ -3206,12 +3211,12 @@ function renderMakerPreview(definition){
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
- const summary=text("p","ugc-maker-schema-summary",manual
-  ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · dimensional unit checks and a restricted formula language"
+ const summary=text("p","ugc-maker-schema-summary",manual||typedV2
+  ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · typed value, formula and dimensional checks"
   :(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · restricted formula language");
  host.appendChild(summary);
  if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
- if(manual&&Number(definition.spec?.schemaVersion)===2){renderManualV2Preview(host,definition);return;}
+ if(typedV2){renderManualV2Preview(host,definition);return;}
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
  (definition.spec?.inputs||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";
@@ -3425,19 +3430,24 @@ async function generateWithAI(){
  makerStatus(state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…","generating");
  $("ugcMakerPreview").hidden=true;
  try{
-  const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt};
+  const targetSchemaVersion=state.editingId?1:Number($("ugcMakerTargetSchemaVersion")?.value||1);
+  const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt,schema_version:targetSchemaVersion};
   const response=await fetch("/api/ugc-maker",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+state.session.access_token,"Accept":"application/json"},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>null);
   if(!response.ok||!data?.success)throw new Error(data?.error||"The AI calculator maker is unavailable.");
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(data.operation_id||""))){
    throw new Error("The AI operation could not be verified. No calculator draft was accepted.");
   }
+  const returnedSchemaVersion=Number(data.calculator?.spec?.schemaVersion||1);
+  if(returnedSchemaVersion!==targetSchemaVersion)throw new Error("The AI returned a calculator schema that does not match the selected version. No draft was accepted.");
   state.aiOperationId=String(data.operation_id);
   state.aiDraft=data.calculator;
   state.regionalDefaults=data.regionalDefaults||null;
   state.makerLocale=state.regionalDefaults?.locale||"auto";
   renderMakerPreview(state.aiDraft);
-  makerStatus(state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
+  makerStatus(targetSchemaVersion===2
+   ?"Typed V2 AI generation passed server schema, formula, unit and default-value validation. The AI operation used the normal CALC charge and daily allowance. Review assumptions and test locally; V2 Save and Publish remain disabled."
+   :state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
  }catch(error){makerStatus(error?.message||"Could not generate a calculator.","error");}
  finally{
   button.disabled=false;

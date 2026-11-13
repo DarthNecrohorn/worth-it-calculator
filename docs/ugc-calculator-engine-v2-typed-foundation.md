@@ -211,3 +211,14 @@ The V2 importer is intentionally strict and does not apply V1 numeric repairs. I
 A formula or dimensional validation issue does not coerce or rewrite V2 values. The importer keeps a structurally valid V2 definition as an editable typed draft and reports the remaining checks in the editor, where the shared V2 validator runs again. The V1 path retains its existing adaptive fallback behaviour for unresolved imports.
 
 The Blueprint Import panel now lets the user choose which prompt contract to copy: Version 1 or the experimental typed Version 2 contract. Import remains local-only. A V2 import cannot save or publish and does not call an AI service or Supabase.
+
+
+## 12. AI Creator typed V2 generation
+
+AI Creator now has an explicit schema selector for new calculator generation. Version 1 remains the default and uses the existing provider schema, V1 normalizer, repair path and saved-calculator compatibility. Existing saved-calculator AI refinement remains V1-only; requesting schema V2 during refinement is rejected before any AI reservation or provider call.
+
+Version 2 generation uses the canonical Blueprint V2 envelope, a separate strict Groq JSON schema and the V2 contract prompt shared with Blueprint Import. Provider-specific scenario overrides are normalized into the canonical typed values map without converting numbers, booleans, enum strings or dates. Null placeholders used only by the strict provider schema are removed before strict import validation.
+
+The server passes the V2 draft through the same Blueprint Import V2 normalizer and shared calculator engine server validator, including typed formula, unit and default-value evaluation. Invalid types, dates, choices, categories, formulas or units cause the AI operation to fail and follow the existing CALC/quota refund path. Successful V2 AI generation is charged using the normal AI generation price and daily allowance; editing and local testing do not make additional AI requests or CALC charges.
+
+AI Creator displays the generated typed definition in the V2 editor and local test panel. The server returns schemaVersion 2 / engineVersion 2 only after validation succeeds. The existing client-side V2 gate continues to disable Save and Publish, and the save handler rejects V2 before any persistence RPC. AI refinement of saved calculators, V1 creation, Blueprint Import V1 and Manual Builder V1 remain unchanged. No Production Supabase schema or persistence capability is enabled.
