@@ -1406,7 +1406,7 @@ function inferBlueprintCountFieldUnit(item,label,notes){
   return;
  }
  const timeMatch=normalizedLabel.match(/\b(hours?|hrs?|minutes?|seconds?|days?|weeks?|months?|years?)\b/);
- if(!current&&timeMatch){
+ if(!current&&timeMatch&&!denominator){
   const timeUnit=({hrs:"hours",hr:"hours",hour:"hours",hours:"hours",minute:"minutes",minutes:"minutes",second:"seconds",seconds:"seconds",day:"days",days:"days",week:"weeks",weeks:"weeks",month:"months",months:"months",year:"years",years:"years"})[timeMatch[1]]||timeMatch[1];
   item.unit=timeUnit;
   notes.push(label+": inferred the explicit time unit "+timeUnit+" from its label.");
