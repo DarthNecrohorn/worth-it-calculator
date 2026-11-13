@@ -390,7 +390,7 @@ declare
  v_input jsonb;v_group jsonb;v_field jsonb;v_result jsonb;v_choice jsonb;v_scenario jsonb;v_override record;
  v_symbol jsonb;v_symbols jsonb:='{}'::jsonb;v_groups jsonb:='{}'::jsonb;v_key text;v_label text;v_type text;v_control text;v_format text;v_unit text;v_value text;v_currency text;
  v_min numeric;v_max numeric;v_default numeric;v_step numeric;v_choice_num numeric;v_labels text[];v_choice_values jsonb;v_expression text;v_parse jsonb;v_node jsonb;v_token_count integer;v_position integer;v_seen_default boolean;
- v_scenario_labels text[];
+ v_scenario_labels text[];v_all_keys text[]:=array[]::text[];
 begin
  if coalesce(jsonb_typeof(p_spec),'')<>'object' then raise exception 'V2 calculator definition must be an object.' using errcode='22023';end if;
  perform private.worth_it_v2_assert_keys(p_spec,array['schemaVersion','engineVersion','inputs','groups','results','scenarios'],'V2 calculator definition');
