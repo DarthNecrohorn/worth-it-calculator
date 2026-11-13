@@ -44,7 +44,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,blueprintImportActive:false,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -64,6 +64,46 @@ async function getSession(){
  state.session=result?.data?.session||null;
  state.userId=state.session?.user?.id||"";
  return state.session;
+}
+function updateV2PersistenceControls(){
+ if(Number(state.aiDraft?.spec?.schemaVersion)!==2)return;
+ const enabled=state.v2PersistenceAvailable===true;
+ const save=$("ugcMakerSave"),publish=$("ugcMakerPublish");
+ if(save)save.disabled=!enabled;
+ if(publish)publish.disabled=!enabled;
+ const note=$("ugcMakerV2PersistenceNote");
+ if(note)note.textContent=enabled
+  ?"V2 save and publish are enabled in this database. The PostgreSQL validator checks every save and publish operation."
+  :"V2 remains local-only in this database. Save and Publish stay disabled until the V2 persistence migration is installed.";
+}
+async function refreshUGCSchemaCapabilities(){
+ const request=++state.v2CapabilitiesRequest;
+ state.v2PersistenceAvailable=false;
+ state.v2CapabilitiesChecked=false;
+ if(!state.userId||!sb()){
+  state.v2CapabilitiesChecked=true;
+  updateV2PersistenceControls();
+  return false;
+ }
+ try{
+  const response=await sb().rpc("get_worth_it_ugc_schema_capabilities");
+  if(response.error)throw response.error;
+  if(request!==state.v2CapabilitiesRequest)return state.v2PersistenceAvailable;
+  const payload=normalizeObject(response.data);
+  const versions=Array.isArray(payload?.supported_schema_versions)?payload.supported_schema_versions:[];
+  state.v2PersistenceAvailable=payload?.v2_persistence===true&&versions.includes(2);
+ }catch(error){
+  if(request===state.v2CapabilitiesRequest){
+   state.v2PersistenceAvailable=false;
+   console.info("Typed V2 persistence is not available in this database yet.",error?.message||error);
+  }
+ }finally{
+  if(request===state.v2CapabilitiesRequest){
+   state.v2CapabilitiesChecked=true;
+   updateV2PersistenceControls();
+  }
+ }
+ return state.v2PersistenceAvailable;
 }
 function requireAccount(){
  if(state.userId)return true;
@@ -507,6 +547,73 @@ function appendDynamicGroupControls(host,group,initialRows){
  });
  section.append(rowsHost,add);refreshButtons();host.appendChild(section);
  return section;
+}
+function appendV2RuntimeGroupControls(host,group){
+ const section=document.createElement("fieldset");section.className="ugc-dynamic-group";section.dataset.ugcGroupKey=group.key;
+ section.appendChild(text("legend","",group.label||group.key));
+ section.appendChild(text("p","ugc-dynamic-group-note","Add or remove "+String(group.itemLabel||"item").toLowerCase()+" rows. Each row is included in the group formulas."));
+ const rowsHost=document.createElement("div");rowsHost.className="ugc-dynamic-group-rows";
+ const min=Math.max(1,Number(group.minItems)||1),max=Math.max(min,Math.min(20,Number(group.maxItems)||20));
+ const notify=()=>rowsHost.dispatchEvent(new Event("input",{bubbles:true}));
+ let add=null;
+ const refresh=()=>{
+  Array.from(rowsHost.children).forEach(row=>{
+   const remove=row.querySelector("button");if(remove)remove.disabled=rowsHost.children.length<=min;
+  });
+  if(add)add.disabled=rowsHost.children.length>=max;
+ };
+ const addRow=(values={})=>{
+  if(rowsHost.children.length>=max)return;
+  const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcGroupRow="";
+  const fields=document.createElement("div");fields.className="ugc-dynamic-group-fields";
+  (group.fields||[]).forEach(field=>{
+   const label=document.createElement("label");label.textContent=field.label||field.key;
+   const value=Object.prototype.hasOwnProperty.call(values,field.key)?values[field.key]:typedDefaultForField(field);
+   const control=createTypedEditorControl(field,value);control.name=field.key;control.required=true;control.dataset.ugcGroupField=field.key;
+   control.addEventListener("input",notify);control.addEventListener("change",notify);
+   label.appendChild(control);if(field.unit)label.appendChild(text("small","",field.unit));
+   fields.appendChild(label);
+  });
+  const remove=button("Remove "+String(group.itemLabel||"item").toLowerCase(),"ugc-manual-remove",()=>{
+   if(rowsHost.children.length<=min)return;
+   row.remove();refresh();notify();
+  });
+  row.append(fields,remove);rowsHost.appendChild(row);refresh();
+ };
+ for(let i=0;i<min;i++)addRow({});
+ add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>addRow({}));
+ section.append(rowsHost,add);refresh();host.appendChild(section);return section;
+}
+function collectV2RuntimeValues(root,spec){
+ const values={},rawGroups={};
+ (spec.inputs||[]).forEach(field=>{
+  const control=root?.querySelector?.('[name="'+CSS.escape(field.key)+'"]');
+  if(!control)throw new Error("The "+String(field.label||field.key)+" input is unavailable.");
+  const normalized=normalizeTypedValue(field,typedEditorValue(field,control));
+  control.setAttribute("aria-invalid",String(normalized.valid!==true));
+  if(!normalized.valid)throw new Error(String(field.label||field.key)+": "+normalized.error);
+  values[field.key]=normalized.value;
+ });
+ (spec.groups||[]).forEach(group=>{
+  const section=root?.querySelector?.('[data-ugc-group-key="'+CSS.escape(group.key)+'"]');
+  rawGroups[group.key]=Array.from(section?.querySelectorAll("[data-ugc-group-row]")||[]).map(row=>{
+   const raw={};
+   (group.fields||[]).forEach(field=>{
+    const control=row.querySelector('[data-ugc-group-field="'+CSS.escape(field.key)+'"]');
+    if(!control)throw new Error("The "+String(field.label||field.key)+" field is unavailable.");
+    raw[field.key]=typedEditorValue(field,control);
+   });
+   return raw;
+  });
+ });
+ const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ if(normalizedGroups.valid!==true)throw new Error((normalizedGroups.errors||[]).slice(0,3).join(" "));
+ return {values,groups:normalizedGroups.groups};
+}
+function executableV2Spec(spec){
+ const executable={...spec};
+ delete executable.assumptions;delete executable.subcategories;
+ return executable;
 }
 function unitLabelFromDescriptor(unit){
  const defaults={time:"days",length:"km",area:"m²",volume:"L",mass:"kg",energy:"kWh",power:"W",count:"items"};
@@ -1309,6 +1416,24 @@ function renderCalculatorForm(calculator){
  host.replaceChildren();
  const spec=calculator.spec||{};
  if(!Array.isArray(spec.inputs)||!Array.isArray(spec.results)){detailStatus("This calculator definition is unavailable.",true);return;}
+ if(Number(spec.schemaVersion)===2){
+  if(Array.isArray(spec.assumptions)&&spec.assumptions.length){
+   const assumptions=text("p","ugc-maker-schema-summary","Assumptions: "+spec.assumptions.join(" "));
+   assumptions.classList.add("ugc-v2-detail-assumptions");host.appendChild(assumptions);
+  }
+  spec.inputs.forEach(input=>{
+   const wrap=text("label","ugc-input-field",input.label||input.key);
+   const control=createTypedEditorControl(input,typedDefaultForField(input));
+   control.name=input.key;control.required=true;
+   wrap.appendChild(control);
+   if(input.unit)wrap.appendChild(text("small","",input.unit));
+   host.appendChild(wrap);
+  });
+  (Array.isArray(spec.groups)?spec.groups:[]).forEach(group=>appendV2RuntimeGroupControls(host,group));
+  const priceLabel=formatCalcPrice(Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100)));
+  host.appendChild(button("Calculate · "+priceLabel+" CALC","ugc-action-primary ugc-calculate-button",()=>runCalculation(calculator)));
+  return;
+ }
  spec.inputs.forEach(input=>{
   const wrap=text("label","ugc-input-field",input.label||input.key);
   const controlType=input.control||"number";
@@ -1340,18 +1465,25 @@ function renderCalculatorForm(calculator){
 async function runCalculation(calculator){
  if(!requireAccount())return;
  const form=$("ugcDetailCalculatorForm");if(!form)return;
- const inputs=calculator.spec.inputs||[],values={};
- for(const item of inputs){
-  const control=form.querySelector('[name="'+CSS.escape(item.key)+'"]');
-  const value=control?.type==="checkbox"?(control.checked?1:0):Number(control?.value);
-  if(!Number.isFinite(value)||value<Number(item.min)||value>Number(item.max)){
-   detailStatus("Enter a valid value for "+item.label+".",true);control?.focus();return;
-  }
-  values[item.key]=value;
- }
+ const spec=calculator.spec||{},typedV2=Number(spec.schemaVersion)===2;
+ const inputs=spec.inputs||[],values={};
  let groupValues;
- try{groupValues=collectDynamicGroupValues(form,calculator.spec);}
- catch(error){detailStatus(error?.message||"Check the repeated input rows.",true);return;}
+ try{
+  if(typedV2){
+   const collected=collectV2RuntimeValues(form,spec);
+   Object.assign(values,collected.values);groupValues=collected.groups;
+  }else{
+   for(const item of inputs){
+    const control=form.querySelector('[name="'+CSS.escape(item.key)+'"]');
+    const value=control?.type==="checkbox"?(control.checked?1:0):Number(control?.value);
+    if(!Number.isFinite(value)||value<Number(item.min)||value>Number(item.max)){
+     detailStatus("Enter a valid value for "+item.label+".",true);control?.focus();return;
+    }
+    values[item.key]=value;
+   }
+   groupValues=collectDynamicGroupValues(form,spec);
+  }
+ }catch(error){detailStatus(error?.message||"Check the calculator inputs and repeated rows.",true);return;}
  const button=form.querySelector(".ugc-calculate-button");if(button)button.disabled=true;
  detailStatus("Calculating…");
  const requestId=crypto.randomUUID();
@@ -1369,10 +1501,14 @@ async function runCalculation(calculator){
   }
   priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
-  const results=evaluateFormulaResults(calculator.spec,values,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
-  const scenarioComparisons=(Array.isArray(calculator.spec.scenarios)?calculator.spec.scenarios:[]).map(scenario=>{
+  const evaluationSpec=typedV2?executableV2Spec(spec):spec;
+  const evaluateResults=(scenarioValues)=>typedV2
+   ?evaluateV2TypedResults(evaluationSpec,scenarioValues,groupValues).results
+   :evaluateFormulaResults(evaluationSpec,scenarioValues,groupValues);
+  const results=evaluateResults(values).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+  const scenarioComparisons=(Array.isArray(spec.scenarios)?spec.scenarios:[]).map(scenario=>{
    const scenarioValues={...values,...(scenario.values||{})};
-   const scenarioResults=evaluateFormulaResults(calculator.spec,scenarioValues,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+   const scenarioResults=evaluateResults(scenarioValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
    return{label:String(scenario.label||"Alternative"),results:scenarioResults};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
@@ -1734,6 +1870,7 @@ async function editCalculator(id){
  if(result.error){status("Could not load this calculator for editing.",true);return;}
  const calculator=normalizeObject(result.data);
  if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
+ if(Number(calculator.spec?.schemaVersion)===2){await editCalculatorManually(id);return;}
  state.creationSource="ai";state.aiOperationId="";
  state.editingId=id;state.editingVisibility=calculator.visibility||"private";state.editingStatus=calculator.status||"draft";
  openMaker();
@@ -3143,7 +3280,11 @@ function updateMakerV2TestResults(panel){
 function renderManualV2Preview(host,definition){
  const spec=definition.spec;
  host.appendChild(text("h3","ugc-maker-schema-heading","Typed V2 definition"));
- host.appendChild(text("p","ugc-maker-schema-summary","V2 is an experimental authoring and local-testing mode. It supports number, boolean, enum and date values, typed repeated groups, conditional formulas and what-if scenarios. Nothing is saved or published."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Typed V2 supports number, boolean, enum and date values, typed repeated groups, conditional formulas and what-if scenarios. The connected database is checked separately before V2 Save or Publish can be enabled."));
+ const persistenceNote=text("p","ugc-maker-schema-summary",state.v2PersistenceAvailable
+  ?"V2 save and publish are enabled in this database. The independent PostgreSQL validator checks every save and publish operation."
+  :"V2 remains local-only in this database. Save and Publish stay disabled until the V2 persistence migration is installed.");
+ persistenceNote.id="ugcMakerV2PersistenceNote";host.appendChild(persistenceNote);
  renderManualV2InputEditor(host,definition);
  renderManualV2GroupEditor(host,definition);
  renderManualV2ScenarioEditor(host,definition);
@@ -3156,8 +3297,7 @@ function renderManualV2Preview(host,definition){
  toggle.setAttribute("aria-expanded","false");host.append(toggle,testPanel);
  host.appendChild(text("p","ugc-maker-schema-summary","Allowed V2 formulas include strict boolean logic, typed enum/date comparisons, date-only arithmetic, same-group sum_if/count_if aggregation and bounded numeric functions. Arbitrary JavaScript is never executed."));
  refreshMakerValidationNote();
- const save=$("ugcMakerSave"),publish=$("ugcMakerPublish");
- if(save)save.disabled=true;if(publish)publish.disabled=true;
+ updateV2PersistenceControls();
 }
 
 function renderMakerPreview(definition){
@@ -3446,7 +3586,7 @@ async function generateWithAI(){
   state.makerLocale=state.regionalDefaults?.locale||"auto";
   renderMakerPreview(state.aiDraft);
   makerStatus(targetSchemaVersion===2
-   ?"Typed V2 AI generation passed server schema, formula, unit and default-value validation. The AI operation used the normal CALC charge and daily allowance. Review assumptions and test locally; V2 Save and Publish remain disabled."
+   ?"Typed V2 AI generation passed server schema, formula, unit and default-value validation. The AI operation used the normal CALC charge and daily allowance. Review assumptions and test locally; "+(state.v2PersistenceAvailable?"V2 saving and publishing are enabled by this database.":"V2 Save and Publish remain disabled until the connected database advertises V2 persistence.")
    :state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
  }catch(error){makerStatus(error?.message||"Could not generate a calculator.","error");}
  finally{
@@ -3465,8 +3605,14 @@ function describeResultFormula(item,inputs){
  return (source+"Formula: "+expression+".").slice(0,280);
 }
 async function saveMakerDraft(publish){
- if(Number(state.aiDraft?.spec?.schemaVersion)===2){makerStatus("Typed V2 drafts can be edited and tested locally, but cannot be saved or published until the V2 server, database and member run paths are complete.","error");return;}
+ const typedV2=Number(state.aiDraft?.spec?.schemaVersion)===2;
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
+ if(typedV2&&state.v2PersistenceAvailable!==true){
+  if(!await refreshUGCSchemaCapabilities()){
+   makerStatus("Typed V2 is still local-only in the connected database. Its V2 persistence migration has not been detected, so nothing was saved or published.","error");
+   return;
+  }
+ }
  const title=String($("ugcMakerTitle")?.value||"").trim();
  const description=state.editingId&&state.creationSource!=="manual"?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
  const category=String(state.aiDraft.category||"other");
@@ -3490,7 +3636,7 @@ async function saveMakerDraft(publish){
   if(normalized.format==="currency")ensureResultCurrency(normalized,state.regionalDefaults?.currency||"EUR");
   return normalized;
  });
- const validation=validateMakerSpec(specToSave);
+ const validation=typedV2?validateManualDraftSpec(specToSave):validateMakerSpec(specToSave);
  if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  if(!Array.isArray(specToSave.subcategories)&&Array.isArray(state.aiDraft.subcategories)){
   specToSave.subcategories=[...state.aiDraft.subcategories];
@@ -3754,10 +3900,14 @@ async function init(){
   const navActions=$("ugcNavigationActions");
   if(navActions)navActions.hidden=!state.userId;
   state.catalogRequest++;
-  if(state.userId){void loadCatalog();void loadCreatorLeaderboards();}
-  else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");state.creatorRequest++;state.creatorData=null;renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
+  if(state.userId){void loadCatalog();void loadCreatorLeaderboards();void refreshUGCSchemaCapabilities();}
+  else{
+   state.v2PersistenceAvailable=false;state.v2CapabilitiesChecked=true;state.v2CapabilitiesRequest++;
+   updateV2PersistenceControls();
+   state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");state.creatorRequest++;state.creatorData=null;renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");
+  }
  });
- if(state.userId)await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);else{status("Sign in to browse, create and use community calculators.");renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
+ if(state.userId)await Promise.all([loadCatalog(),loadCreatorLeaderboards(),refreshUGCSchemaCapabilities()]);else{status("Sign in to browse, create and use community calculators.");renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
 }
 window.loadWorthItUGCCatalog=loadCatalog;
 window.recordWorthItUgcView=async id=>{
