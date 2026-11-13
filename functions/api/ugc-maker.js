@@ -1,5 +1,6 @@
 import "../../ugc-calculator-currency-data.js";
 import "../../ugc-calculator-engine.js";
+import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js";
 
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -973,7 +974,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
     if(scenarios.length>3)throw new Error("A calculator can contain up to 3 comparison scenarios.");
 
     const spec={version:1,subcategories,inputs,groups,results,scenarios};
-    const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
+    const validation=validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec);
     const validationErrors=Array.isArray(validation?.errors)?validation.errors:[];
     if(validationErrors.length){
         const firstError=String(validationErrors[0]||"");

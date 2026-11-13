@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
 import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage, normalizeDefinition } from "../functions/api/ugc-maker.js";
+import { validateCalculatorForServer } from "../functions/lib/ugc-calculator-validation.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -2537,6 +2538,51 @@ test("versioned calculator schema keeps legacy v1 definitions on the unchanged v
  assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
 });
 
+test("server calculator adapter validates V1 unchanged and evaluates V2 defaults through the shared engine",()=>{
+ const engine=createCalculatorEngine();
+ const v1={
+  version:1,
+  inputs:[{key:"amount",label:"Amount",min:0,max:100,default:10,step:1,unit:"",control:"number"}],
+  groups:[],
+  results:[{key:"double",label:"Double amount",expression:"amount*2",format:"number"}],
+  scenarios:[]
+ };
+ const v1Result=validateCalculatorForServer(engine,v1);
+ assert.equal(v1Result.valid,true);
+ assert.deepEqual(JSON.parse(JSON.stringify(v1Result.versions)),{schemaVersion:1,engineVersion:1,legacy:true});
+ assert.equal(v1Result.defaultEvaluation,null);
+
+ const v2={
+  schemaVersion:2,
+  engineVersion:2,
+  inputs:[
+   {key:"quantity",label:"Quantity",type:"number",min:0,max:20,default:2,step:1,unit:"",control:"number"},
+   {key:"include",label:"Include",type:"boolean",default:true,control:"toggle"}
+  ],
+  groups:[],
+  results:[{key:"total",label:"Total",expression:"if(include, quantity*3, 0)",format:"number"}],
+  scenarios:[]
+ };
+ const v2Result=validateCalculatorForServer(engine,v2);
+ assert.equal(v2Result.valid,true,JSON.stringify(v2Result.errors));
+ assert.equal(v2Result.defaultEvaluation.results[0].value,6);
+
+ const overflowingDate={
+  schemaVersion:2,
+  engineVersion:2,
+  inputs:[
+   {key:"start_date",label:"Start date",type:"date",default:"9999-12-31",control:"date"},
+   {key:"offset",label:"Offset",type:"number",min:0,max:2,default:1,step:1,unit:"day",control:"number"}
+  ],
+  groups:[],
+  results:[{label:"Calendar year",expression:"calendar_year(add_days(start_date, offset))",format:"number"}],
+  scenarios:[]
+ };
+ const rejected=validateCalculatorForServer(engine,overflowingDate);
+ assert.equal(rejected.valid,false);
+ assert.ok(rejected.errors.some(error=>/outside the supported calendar range/i.test(error)));
+});
+
 test("v2 typed schema validates boolean, enum and date inputs and typed dynamic group fields",()=>{
  const engine=createCalculatorEngine();
  const spec={
@@ -2817,7 +2863,8 @@ test("shared server currency metadata loads before the browser formula engine an
  const makerIndex=html.indexOf("/ugc-calculators.js");
  assert.ok(currencyIndex>=0&&engineIndex>currencyIndex&&makerIndex>engineIndex);
  assert.ok(makerApi.includes('import "../../ugc-calculator-engine.js";'));
- assert.ok(makerApi.includes("SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec)"));
+ assert.ok(makerApi.includes("validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec)"));
+    assert.match(makerApi, /validateCalculatorForServer/);
  assert.doesNotMatch(makerApi,/function compileExpression\(/);
  assert.doesNotMatch(makerApi,/function evaluate\(/);
 });

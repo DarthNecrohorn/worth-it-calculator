@@ -153,3 +153,14 @@ Manual Builder UI, AI Creator generation schema, Blueprint Import, save/publish 
 V2 validation rejects unsupported version pairs, unexpected object properties, invalid keys, duplicate keys, malformed typed values, unsafe field shapes and invalid numeric formulas. No executable expressions, callbacks, scripts, URLs, HTML, external lookups or user code are introduced.
 
 The new helpers are tested in the shared JavaScript engine. Before v2 can be used for persisted/community calculators, follow-up work must add matching independent server and database validation, wire schema-aware save/publish/run paths, and add disposable PostgreSQL migration tests. None of those Production actions is part of this branch.
+
+
+## 7. Server validation and persistence boundary
+
+The server now has a version-aware adapter around the shared engine. V1 definitions continue to use the exact shared V1 validator. V2 definitions additionally normalize typed input/group defaults and run the deterministic V2 evaluator once against those defaults, so default-value runtime failures (including calendar overflow) are caught server-side.
+
+This is a validation foundation only. The current AI Creator still emits V1 definitions, and the Manual Builder, Blueprint Import and public calculator execution routes are not V2-aware. The Supabase save/publish RPCs still persist V1 only.
+
+The additive SQL version-gate migration preserves the previous V1 PL/pgSQL validator under a private internal name and routes the existing validator name through a strict version check. Legacy V1, explicit schema 1 / engine 1, and legacy `version: 1` definitions remain accepted by the old validator without changing its implementation. Partial, mixed, unknown and V2 version declarations fail closed. Direct execution of the renamed raw V1 implementation and the new internal wrapper is revoked from API roles.
+
+The SQL migration is added to disposable PostgreSQL CI and is run twice to check idempotence, followed by a smoke fixture that verifies V1 compatibility, V2/invalid-version rejection, and private-function privileges. It is a repository migration only: it has **not** been applied to Supabase Production. V2 persistence remains intentionally disabled until the independent V2 database validator and complete UI/Blueprint/save/publish/run adapters are ready.
