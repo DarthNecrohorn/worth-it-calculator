@@ -1890,7 +1890,7 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
  assert.match(maker,/function renderManualV2ScenarioEditor/);
  assert.match(maker,/function renderManualV2ResultEditor/);
  assert.match(maker,/function updateMakerV2TestResults/);
- assert.match(maker,/evaluateV2TypedResults\\(spec,values,normalizedGroups\\.groups\\)/);
+ assert.match(maker,/evaluateV2TypedResults\(spec,values,normalizedGroups\.groups\)/);
 });
 
 test("Manual Builder loads the extracted shared v1 engine before its UI adapter",()=>{
