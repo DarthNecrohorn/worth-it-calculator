@@ -598,7 +598,7 @@ test("generates a provider-neutral prompt for arbitrary calculator requests",()=
  assert.match(prompt,/PROVIDER-NEUTRAL REQUIREMENT/i);
  assert.match(prompt,/the user's actual calculator request/);
  assert.match(prompt,/any subject/);
- assert.ok(prompt.endsWith("\n\nUSER'S ACTUAL CALCULATOR REQUEST:\n\n"));
+ assert.ok(prompt.endsWith("\n\nUSER'S ACTUAL CALCULATOR REQUEST:\n(If user does not enter the prompt, then AI must give a random calculator prompt that follows the rules above)\n\n"));
  assert.match(prompt,/NEVER use minItems 0/);
  assert.doesNotMatch(prompt,/Household Budget|emergency_target_months|budget_month_days|tracking_days|fixed_costs|debt_payments/);
  assert.doesNotMatch(helperSource,/fetch\s*\(/i);
