@@ -2601,6 +2601,13 @@ test("v2 typed schema rejects invalid dates, enum values, mismatched versions an
  const unsafeChoice=structuredClone(spec);
  unsafeChoice.inputs[2].choices[0].formula="amount * 2";
  assert.ok(engine.validateVersionedSpec(unsafeChoice).errors.some(error=>/choice 1 contains unsupported properties/.test(error)));
+ const numericStringScenario=structuredClone(spec);
+ numericStringScenario.scenarios=[{label:"String number",values:{amount:"20"}}];
+ assert.ok(engine.validateVersionedSpec(numericStringScenario).errors.some(error=>/must use a JSON number/.test(error)));
+ const outOfRangeChoice=structuredClone(spec);
+ outOfRangeChoice.inputs[0].control="select";
+ outOfRangeChoice.inputs[0].choices=[{label:"Allowed",value:10},{label:"Outside",value:200}];
+ assert.ok(engine.validateVersionedSpec(outOfRangeChoice).errors.some(error=>/outside the numeric input range/.test(error)));
  const coerced=structuredClone(spec);
  coerced.results[0].expression="amount + (enabled * 1)";
  assert.ok(engine.validateVersionedSpec(coerced).errors.length>0,"boolean values must not be silently coerced into numeric formula operands");
