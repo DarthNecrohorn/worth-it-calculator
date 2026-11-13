@@ -25,7 +25,7 @@ declare
    {"key":"tax_amount","label":"Tax amount","expression":"if(and(include_tax,eq(plan,\"pro\")),base_cost*0.2,0)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Tax is conditional."},
    {"key":"final_total","label":"Final total","expression":"base_cost+eligible_expenses+tax_amount","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Base, eligible expenses and tax."},
    {"key":"days_to_next_month","label":"Days to next month","expression":"date_diff_days(start_date,add_months(start_date,1))","format":"unit","currency":"EUR","unit":"days","prefix":"","suffix":"","explanation":"Calendar month span."},
-   {"key":"days_ahead","label":"Days ahead","expression":"date_diff_days(start_date,add_days(start_date,days_ahead))","format":"unit","currency":"EUR","unit":"days","prefix":"","suffix":"","explanation":"Typed date offset."},
+   {"key":"days_ahead_span","label":"Days ahead span","expression":"date_diff_days(start_date,add_days(start_date,days_ahead))","format":"unit","currency":"EUR","unit":"days","prefix":"","suffix":"","explanation":"Typed date offset."},
    {"key":"pro_selected","label":"Pro selected","expression":"if(eq(plan,\"pro\"),1,0)","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Enum equality."},
    {"key":"date_gate","label":"Due after date","expression":"count_if(gt(expenses.due_date,\"2026-02-15\"))","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Calendar-date predicate."}
   ],
