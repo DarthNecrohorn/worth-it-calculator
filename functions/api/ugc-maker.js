@@ -1,5 +1,6 @@
 import "../../ugc-calculator-currency-data.js";
 import "../../ugc-calculator-engine.js";
+import "../../ugc-blueprint-import.js";
 import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js";
 
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
@@ -169,6 +170,92 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
         additionalProperties: false
     }
 };
+const V2_VALUE_SCHEMA={
+    anyOf:[{type:"number"},{type:"boolean"},{type:"string"}]
+};
+const V2_CHOICE_SCHEMA={
+    type:"object",
+    properties:{label:{type:"string"},value:{anyOf:[{type:"number"},{type:"string"}]}},
+    required:["label","value"],
+    additionalProperties:false
+};
+const V2_TYPED_DEFINITION_SCHEMA={
+    type:"object",
+    properties:{
+        key:{type:"string"},label:{type:"string"},
+        type:{type:"string",enum:["number","boolean","enum","date"]},
+        control:{type:["string","null"],enum:["number","slider","select","toggle","date",null]},
+        min:{type:["number","null"]},max:{type:["number","null"]},default:V2_VALUE_SCHEMA,
+        step:{type:["number","null"]},unit:{type:["string","null"]},
+        choices:{type:"array",maxItems:12,items:V2_CHOICE_SCHEMA},
+        minDate:{type:["string","null"]},maxDate:{type:["string","null"]}
+    },
+    required:["key","label","type","control","min","max","default","step","unit","choices","minDate","maxDate"],
+    additionalProperties:false
+};
+const V2_TYPED_FIELD_SCHEMA={
+    type:"object",
+    properties:{
+        key:{type:"string"},label:{type:"string"},
+        type:{type:"string",enum:["number","boolean","enum","date"]},
+        min:{type:["number","null"]},max:{type:["number","null"]},default:V2_VALUE_SCHEMA,
+        step:{type:["number","null"]},unit:{type:["string","null"]},
+        choices:{type:"array",maxItems:12,items:V2_CHOICE_SCHEMA},
+        minDate:{type:["string","null"]},maxDate:{type:["string","null"]}
+    },
+    required:["key","label","type","min","max","default","step","unit","choices","minDate","maxDate"],
+    additionalProperties:false
+};
+const GROQ_TYPED_V2_BLUEPRINT_SCHEMA={
+    name:"worth_it_typed_v2_calculator",strict:true,
+    schema:{
+        type:"object",
+        properties:{
+            blueprintVersion:{type:"integer",enum:[2]},title:{type:"string"},description:{type:"string"},
+            category:{type:"string",enum:[...ALLOWED_CATEGORIES]},
+            subcategories:{type:"array",minItems:1,maxItems:3,items:{type:"string",enum:[...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]}},
+            assumptions:{type:"array",maxItems:50,items:{type:"string"}},
+            spec:{
+                type:"object",
+                properties:{
+                    schemaVersion:{type:"integer",enum:[2]},engineVersion:{type:"integer",enum:[2]},
+                    inputs:{type:"array",minItems:1,maxItems:24,items:V2_TYPED_DEFINITION_SCHEMA},
+                    groups:{type:"array",maxItems:4,items:{
+                        type:"object",
+                        properties:{
+                            key:{type:"string"},label:{type:"string"},itemLabel:{type:"string"},
+                            minItems:{type:"integer"},maxItems:{type:"integer"},
+                            fields:{type:"array",minItems:1,maxItems:6,items:V2_TYPED_FIELD_SCHEMA}
+                        },
+                        required:["key","label","itemLabel","minItems","maxItems","fields"],additionalProperties:false
+                    }},
+                    results:{type:"array",minItems:1,maxItems:20,items:{
+                        type:"object",
+                        properties:{
+                            key:{type:"string"},label:{type:"string"},expression:{type:"string"},
+                            format:{type:"string",enum:["number","currency","percent","unit"]},
+                            currency:{type:["string","null"]},unit:{type:["string","null"]},
+                            prefix:{type:"string"},suffix:{type:"string"},explanation:{type:"string"}
+                        },
+                        required:["key","label","expression","format","currency","unit","prefix","suffix","explanation"],
+                        additionalProperties:false
+                    }},
+                    scenarios:{type:"array",maxItems:3,items:{
+                        type:"object",
+                        properties:{label:{type:"string"},overrides:{type:"array",minItems:1,maxItems:24,items:{
+                            type:"object",properties:{key:{type:"string"},value:V2_VALUE_SCHEMA},
+                            required:["key","value"],additionalProperties:false
+                        }}},
+                        required:["label","overrides"],additionalProperties:false
+                    }}
+                },
+                required:["schemaVersion","engineVersion","inputs","groups","results","scenarios"],additionalProperties:false
+            }
+        },
+        required:["blueprintVersion","title","description","category","subcategories","assumptions","spec"],additionalProperties:false
+    }
+};
+
 const COUNTRY_DEFAULTS = {
  US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
  CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
@@ -456,7 +543,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
         throw error;
     }
 }
-async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation"){
+async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
     const record=(success)=>{
@@ -479,7 +566,17 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
         recorded=true;
     };
     try{
-        const groqSystem=[
+        const typedV2=Number(schemaVersion)===2;
+        const groqSystem=typedV2?[
+            system,
+            "For this provider use the canonical Blueprint V2 root: blueprintVersion, title, description, category, subcategories, assumptions, spec. Never use classification or the V1 numeric schema.",
+            "spec must contain schemaVersion 2, engineVersion 2, inputs, groups, results and scenarios.",
+            "Every typed input includes key, label, type, control, min, max, default, step, unit, choices, minDate and maxDate. Set irrelevant optional values to null and unused choice arrays to []. Use strict number, boolean, enum and date types. Numeric controls are number, slider or select; boolean uses toggle; enum uses select; date uses date.",
+            "Every dynamic group field uses the typed field shape without a control property. Number fields require finite bounds/default/step and a unit string. Boolean defaults are JSON booleans, enum values are strings and dates are YYYY-MM-DD.",
+            "Provider-specific scenario shape: scenarios contain label and overrides arrays of {key,value}. The server converts these into canonical spec.scenarios[].values. Preserve primitive types exactly.",
+            "For monetary numeric values without an explicit prompt amount, use number controls and zero defaults. Never put monetary amounts in enum or boolean values.",
+            "All values must obey the full V2 contract in the system instructions. Null is only a placeholder for irrelevant optional schema properties, never a calculator value."
+        ].join(" "):[
             system,
             "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
             "Put the primary category and its subcategories together inside the root field named classification.",
@@ -495,7 +592,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 temperature:0.15,
                 max_tokens:8192,
                 reasoning_effort:"high",
-                response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
+                response_format:{type:"json_schema",json_schema:typedV2?GROQ_TYPED_V2_BLUEPRINT_SCHEMA:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
         });
@@ -746,13 +843,15 @@ function explicitAmountMatchesInput(input,amounts,allInputs){
     });
 }
 function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
-    if(!candidate||(!Array.isArray(candidate.inputs)&&!Array.isArray(candidate.groups)))return false;
+    const typedV2=Number(candidate?.blueprintVersion)===2&&candidate?.spec&&typeof candidate.spec==="object";
+    const root=typedV2?candidate.spec:candidate;
+    if(!root||(!Array.isArray(root.inputs)&&!Array.isArray(root.groups)))return false;
     const explicitAmounts=extractExplicitMonetaryAmounts(prompt);
     let changed=false;
     const fallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
     const allFields=[
-        ...(Array.isArray(candidate.inputs)?candidate.inputs:[]),
-        ...(Array.isArray(candidate.groups)?candidate.groups.flatMap(group=>Array.isArray(group?.fields)?group.fields:[]):[])
+        ...(Array.isArray(root.inputs)?root.inputs:[]),
+        ...(Array.isArray(root.groups)?root.groups.flatMap(group=>Array.isArray(group?.fields)?group.fields:[]):[])
     ];
     for(const input of allFields){
         if(!input||typeof input!=="object")continue;
@@ -762,7 +861,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         const hasCurrencyUnit=MONETARY_CURRENCY_CODES.has(unit)||MONETARY_CURRENCY_CODES.has(unitCurrencyPrefix);
         const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
         const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin)\s+rates?\b|\bpercentage\b/.test(semantic);
-        const moneyInput=input.control!=="toggle"&&!percentageUnit&&!(percentageRate&&!hasCurrencyUnit)&&
+        const moneyInput=(!typedV2||input.type==="number")&&input.control!=="toggle"&&!percentageUnit&&!(percentageRate&&!hasCurrencyUnit)&&
             (hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic));
         if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,allFields))continue;
         if(!hasCurrencyUnit)input.unit=fallback;
@@ -787,7 +886,104 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
     }
     return changed;
 }
+function stripNullTypedBlueprintProperties(item,keys){
+    if(!item||typeof item!=="object")return;
+    keys.forEach(key=>{if(item[key]===null)delete item[key];});
+}
+function prepareTypedV2ProviderCandidate(raw,defaultCurrency){
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))throw new Error("The AI did not return a V2 blueprint object.");
+    const candidate=JSON.parse(JSON.stringify(raw));
+    if(candidate.blueprintVersion!==2||candidate.spec?.schemaVersion!==2||candidate.spec?.engineVersion!==2){
+        throw new Error("The AI response must use blueprintVersion 2, schemaVersion 2 and engineVersion 2.");
+    }
+    const spec=candidate.spec;
+    if(!Array.isArray(spec.inputs)||!Array.isArray(spec.groups)||!Array.isArray(spec.results)||!Array.isArray(spec.scenarios)){
+        throw new Error("The AI returned an incomplete typed V2 structure.");
+    }
+    const normalizeTypedDefinition=(item,isInput)=>{
+        if(!item||typeof item!=="object"||Array.isArray(item))return;
+        stripNullTypedBlueprintProperties(item,["min","max","step","unit","control","minDate","maxDate"]);
+        if(item.type==="number"){
+            if(item.unit===undefined)item.unit="";
+            if(item.control!=="select"&&Array.isArray(item.choices)&&item.choices.length===0)delete item.choices;
+            delete item.minDate;delete item.maxDate;
+        }else if(item.type==="boolean"){
+            ["min","max","step","choices","minDate","maxDate"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }else if(item.type==="enum"){
+            ["min","max","step","minDate","maxDate"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }else if(item.type==="date"){
+            ["min","max","step","choices"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }
+    };
+    spec.inputs.forEach(item=>normalizeTypedDefinition(item,true));
+    spec.groups.forEach(group=>(Array.isArray(group?.fields)?group.fields:[]).forEach(item=>normalizeTypedDefinition(item,false)));
+    spec.results.forEach(item=>{
+        if(!item||typeof item!=="object"||Array.isArray(item))return;
+        stripNullTypedBlueprintProperties(item,["currency","unit"]);
+        if(item.format==="currency"){
+            if(typeof item.currency!=="string"||!item.currency.trim())item.currency=String(defaultCurrency||"EUR").toUpperCase();
+            delete item.unit;
+        }else if(item.format==="unit"){
+            delete item.currency;
+        }else{
+            delete item.currency;delete item.unit;
+        }
+    });
+    spec.scenarios=spec.scenarios.map((scenario,index)=>{
+        if(!scenario||typeof scenario!=="object"||Array.isArray(scenario))return scenario;
+        if(Array.isArray(scenario.overrides)){
+            const values={};
+            scenario.overrides.forEach(override=>{
+                if(!override||typeof override!=="object"||Array.isArray(override)||typeof override.key!=="string")throw new Error("Scenario "+(index+1)+" contains an invalid typed override.");
+                if(Object.prototype.hasOwnProperty.call(values,override.key))throw new Error("Scenario "+(index+1)+" repeats an input override.");
+                values[override.key]=override.value;
+            });
+            scenario.values=values;delete scenario.overrides;
+        }
+        return scenario;
+    });
+    return candidate;
+}
+function normalizeTypedV2Definition(raw,defaultCurrency){
+    const importer=globalThis.WorthItBlueprintImport;
+    if(typeof importer?.parseBlueprint!=="function")throw new Error("The shared strict Blueprint V2 importer is unavailable.");
+    const category=String(raw?.category||"");
+    const subcategories=Array.isArray(raw?.subcategories)?raw.subcategories:[];
+    const allowed=ALLOWED_SUBCATEGORIES[category];
+    if(!allowed||subcategories.length<1||subcategories.length>3||new Set(subcategories).size!==subcategories.length||
+       subcategories.some(value=>typeof value!=="string"||!allowed.has(value))){
+        throw new Error("The AI-selected V2 categories are invalid or do not belong to the selected primary category.");
+    }
+    const normalized=importer.parseBlueprint(JSON.stringify(raw),spec=>{
+        const result=validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec);
+        return {errors:Array.isArray(result?.errors)?result.errors.map(String):["The server V2 validator returned an invalid response."]};
+    });
+    const remaining=Number(normalized?.importValidationIssueCount)||0;
+    if(remaining>0){
+        const issues=Array.isArray(normalized.importValidationIssues)?normalized.importValidationIssues.slice(0,4).join(" "):"";
+        throw new Error("The AI-generated V2 calculator did not pass server formula, unit or default-value validation. "+issues);
+    }
+    if(!normalized?.spec||normalized.spec.schemaVersion!==2||normalized.spec.engineVersion!==2){
+        throw new Error("The AI-generated calculator did not preserve the typed V2 schema.");
+    }
+    normalized.spec.subcategories=[...subcategories];
+    normalized.spec.assumptions=Array.isArray(raw.assumptions)?[...raw.assumptions]:[];
+    normalized.spec.results.forEach(item=>{
+        if(item.format==="currency"&&!SERVER_SUPPORTED_CURRENCY_CODES.has(String(item.currency||"").toUpperCase())){
+            throw new Error("A currency result uses an unsupported ISO currency code.");
+        }
+    });
+    return normalized.spec;
+}
+
 export function normalizeDefinition(raw,defaultCurrency,options={}){
+    if(Number(raw?.blueprintVersion)===2)return normalizeTypedV2Definition(raw,defaultCurrency);
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
     const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
@@ -1084,6 +1280,10 @@ export async function onRequestPost(context){
         let body;
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
         const mode=body?.mode==="refine"?"refine":"create";
+        const requestedSchemaVersion=body?.schema_version===undefined?1:body.schema_version;
+        if(requestedSchemaVersion!==1&&requestedSchemaVersion!==2)return json({success:false,code:"UNSUPPORTED_CALCULATOR_SCHEMA",error:"Choose calculator schema version 1 or 2."},400,origin);
+        if(mode==="refine"&&requestedSchemaVersion!==1)return json({success:false,code:"V2_REFINEMENT_UNAVAILABLE",error:"AI improvement of saved calculators remains on Version 1 until typed V2 persistence is supported."},400,origin);
+        const outputSchemaVersion=mode==="create"?requestedSchemaVersion:1;
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
         const regionalDefaults=resolveRegionalDefaults(request,prompt);
         if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 1000 characters."},400,origin);
@@ -1266,6 +1466,21 @@ export async function onRequestPost(context){
                 prompt,
                 "Return the improved full calculator definition including inputs, groups, results and scenarios. Keep title, description, category, subcategories, all fixed input keys, all group and field keys, result keys and result labels exactly unchanged."
             ].join("\n");
+        }else if(outputSchemaVersion===2){
+            const blueprintContract=globalThis.WorthItBlueprintImport?.buildPrompt?.(2);
+            if(!blueprintContract)throw new Error("The typed V2 blueprint contract is unavailable.");
+            system=[
+                blueprintContract,
+                "You are Worth It's AI Calculator Creator. The user's request may describe any subject; design a correct and useful calculator around that exact request.",
+                "Choose 1–3 subcategories from the exact allowed list for the primary category: cars: car-ownership, ev-ownership, fuel-costs, vehicle-financing, car-insurance, car-maintenance, depreciation-resale, vehicle-comparison; money: budgeting, saving, investing, loans-debt, mortgages, taxes, income-salary, retirement; technology: smartphones, computers, gaming, software-subscriptions, internet-connectivity, consumer-electronics, tech-comparison; home: utilities-energy, rent-housing, home-buying, renovation-repairs, home-appliances, home-maintenance, household-budget; other: travel, education-career, health-fitness, food-groceries, business, lifestyle, general-comparison.",
+                "Return the canonical root blueprintVersion 2 format defined above. Do not return a V1 root, classification object, numeric-only schema or saved-calculator object.",
+                "Keep the calculator compact but complete. Use a small set of meaningful inputs and typed dynamic groups for repeated rows. Every input and group field must be used by at least one result formula. Include every output explicitly requested by the user.",
+                "Use exact monetary values only when a concrete amount can be matched unambiguously to that input in the prompt. Every other monetary number input or group field must have minimum 0 and default 0. Monetary numeric inputs that need zero defaults must use number controls, not select controls. State clearly that unspecified prices and rates must be entered before relying on totals.",
+                "Never invent current tariffs, fuel prices, taxes, interest rates, exchange rates, product prices, fixed fees, market data, population averages or personal costs. Regional currency and locale are presentation suggestions only. Use an explicitly requested currency where applicable; otherwise use the regional currency suggestion. Currency values are never automatically converted.",
+                "Model comparisons symmetrically on the same time and usage basis. Avoid double-counting, mixing monthly and annual amounts, or claiming a complete cost when important components are not represented.",
+                "Use clear labels in the same language as the user's request. Descriptions must explain what is measured, the main drivers, the output meaning and any material exclusions without unsupported claims.",
+                "Audit all types, choices, dates, units, keys, scenarios and formulas. Ensure dependency order, formula type safety, dimensional consistency, finite default results and no division-by-zero paths. Reject a request that cannot be represented safely instead of silently omitting requirements."
+            ].join("\n\n");
         }else{
             system=[
                 "You design new calculator definitions for the Worth It website.",
@@ -1295,7 +1510,7 @@ export async function onRequestPost(context){
         }
         if(!content&&groqKey){
             try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"provider-fallback");
+                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"provider-fallback",outputSchemaVersion);
                 if(content)contentProvider="groq";
             }catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
@@ -1308,7 +1523,8 @@ export async function onRequestPost(context){
         let definition;
         let validationError=null;
         const parseAndValidate=generatedContent=>{
-            const candidate=JSON.parse(generatedContent);
+            let candidate=JSON.parse(generatedContent);
+            if(outputSchemaVersion===2)candidate=prepareTypedV2ProviderCandidate(candidate,defaultCurrency);
             if(mode==="create")applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency);
             const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency,requireAllInputsUsed:mode==="create"});
             return {candidate,normalized};
@@ -1327,7 +1543,7 @@ export async function onRequestPost(context){
         if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
             console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
             try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback");
+                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback",outputSchemaVersion);
                 contentProvider="groq";
                 const validated=parseAndValidate(content);
                 parsed=validated.candidate;
@@ -1394,10 +1610,11 @@ export async function onRequestPost(context){
             }},200,origin,aiUsageCollector);
         }
 
-        let missingCoverage=findMissingRequestedCoverage(prompt,parsed);
+        const coverageDefinition=outputSchemaVersion===2?{inputs:parsed?.spec?.inputs||[],results:parsed?.spec?.results||[]}:parsed;
+        let missingCoverage=findMissingRequestedCoverage(prompt,coverageDefinition);
         const coverageAttempts=[{
             provider:contentProvider,
-            resultLabels:(Array.isArray(parsed?.results)?parsed.results:[]).map(item=>String(item?.label||"")),
+            resultLabels:(Array.isArray(coverageDefinition?.results)?coverageDefinition.results:[]).map(item=>String(item?.label||"")),
             missingCoverage:[...missingCoverage]
         }];
         // A first Groq response may itself be the Gemini fallback. If it is valid but
@@ -1429,12 +1646,13 @@ export async function onRequestPost(context){
                     "Use the original inputs and their keys. Do not invent new inputs unless absolutely required by the requested calculation.",
                     "Keep all original requested assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
                 ].join("\n");
-                const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt,aiUsageCollector,"coverage-repair");
+                const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt,aiUsageCollector,"coverage-repair",outputSchemaVersion);
                 const repaired= parseAndValidate(repairedContent);
-                const repairedMissing=findMissingRequestedCoverage(prompt,repaired.candidate);
+                const repairedCoverageDefinition=outputSchemaVersion===2?{inputs:repaired.candidate?.spec?.inputs||[],results:repaired.candidate?.spec?.results||[]}:repaired.candidate;
+                const repairedMissing=findMissingRequestedCoverage(prompt,repairedCoverageDefinition);
                 coverageAttempts.push({
                     provider:"groq-repair",
-                    resultLabels:(Array.isArray(repaired.candidate?.results)?repaired.candidate.results:[]).map(item=>String(item?.label||"")),
+                    resultLabels:(Array.isArray(repairedCoverageDefinition?.results)?repairedCoverageDefinition.results:[]).map(item=>String(item?.label||"")),
                     missingCoverage:[...repairedMissing]
                 });
                 if(repairedMissing.length){
