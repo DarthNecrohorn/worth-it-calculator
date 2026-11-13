@@ -856,7 +856,8 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
             request: request({ prompt: "Create a calculator for monthly savings growth." }, { token: "valid-token" }),
             env: { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" }
         });
-        assert.equal(response.status, 200);
+        const responseData=await response.clone().json();
+        assert.equal(response.status,200,JSON.stringify(responseData));
         const result = await response.json();
         assert.equal(result.success, true);
         assert.equal(result.calculator.title, validDefinition.title);
@@ -1071,7 +1072,7 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
             const body=JSON.parse(options.body);
             assert.equal(body.response_format.type,"json_schema");
             assert.equal(body.response_format.json_schema.strict,true);
-            assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs and results/);
+            assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios/);
             const classificationSchema=body.response_format.json_schema.schema.properties.classification;
             assert.deepEqual(classificationSchema.properties.category.enum,["cars","money","technology","home","other"]);
             const subcategoryEnum=classificationSchema.properties.subcategories.items.enum;
@@ -2587,7 +2588,7 @@ test("AI Creator normalizes dynamic groups, chained results, typed numeric contr
  assert.equal(definition.groups[0].fields[0].unit,"EUR");
  assert.equal(definition.inputs.find(item=>item.key==="include_tax").control,"toggle");
  assert.equal(definition.inputs.find(item=>item.key==="billing_cycle").choices.length,2);
- assert.deepEqual(definition.results.map(item=>item.key),["extra_total","subtotal","final_total"]);
+ assert.deepEqual(definition.results.map(item=>item.key),["extra_total","subtotal","final_total","annualized_total"]);
  assert.equal(definition.results[2].expression,"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)");
  assert.deepEqual(definition.scenarios[0].values,{base_cost:20,include_tax:0});
 });
