@@ -708,6 +708,11 @@ function validateV2TypedSpec(spec){
    if(kind==="input"&&definition.control==="select"){
     validateChoices(definition,"number",label);
     if(!Array.isArray(definition.choices)||!definition.choices.some(choice=>choice?.value===value))add(label+" numeric choices must include the default.");
+    if(Array.isArray(definition.choices)&&[min,max,step].every(Number.isFinite))definition.choices.forEach((choice,choiceIndex)=>{
+     const choiceValue=choice?.value;
+     if(typeof choiceValue==="number"&&(choiceValue<min||choiceValue>max))add(label+" choice "+(choiceIndex+1)+" is outside the numeric input range.");
+     if(typeof choiceValue==="number"&&step>0){const position=(choiceValue-min)/step;if(Math.abs(position-Math.round(position))>1e-7)add(label+" choice "+(choiceIndex+1)+" does not match the numeric step.");}
+    });
    }else if(Array.isArray(definition.choices)&&definition.choices.length)add(label+" choices are only allowed for a numeric select control.");
    if(kind==="field"&&definition.choices!==undefined&&(!Array.isArray(definition.choices)||definition.choices.length))add(label+" choices are not supported on dynamic numeric fields.");
    if(kind==="field"&&definition.unit===undefined)add(label+" must declare its unit (use an empty string when dimensionless).");
@@ -799,6 +804,7 @@ function validateV2TypedSpec(spec){
   Object.entries(scenario.values).forEach(([key,value])=>{
    const definition=inputs.find(item=>item?.key===key);
    if(!definition){add(label+" references an unknown input: "+key+".");return;}
+   if(definition.type==="number"&&typeof value!=="number"){add(label+" "+key+" must use a JSON number value.");return;}
    const normalized=normalizeTypedValue(definition,value);
    if(!normalized.valid){add(label+" "+key+": "+normalized.error);return;}
    if(definition.type==="number")numericValues[key]=normalized.value;
