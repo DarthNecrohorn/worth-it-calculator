@@ -438,7 +438,9 @@ if(!calculatorEngine)throw new Error("The shared Worth It calculator engine coul
 const {
  compileExpression,formulaGroupFieldReferences,evaluate,groupMapForSpec,defaultGroupValues,
  unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
- validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors
+ validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
+ resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
+ createDefaultTypedGroupValues,normalizeTypedGroupValues,evaluateV2TypedResults
 }=calculatorEngine;
 
 function collectDynamicGroupValues(root,spec){
@@ -1208,7 +1210,7 @@ function refreshMakerValidationNote(){
  const host=$("ugcMakerPreview"),spec=state.aiDraft?.spec;
  if(!host||!spec)return;
  host.querySelector("#ugcMakerValidationNote")?.remove();
- const validation=validateMakerSpec(spec),currencyWarnings=makerCurrencyWarnings(spec),notes=[];
+ const validation=validateManualDraftSpec(spec),currencyWarnings=Number(spec.schemaVersion)===2?[]:makerCurrencyWarnings(spec),notes=[];
  if(validation.errors.length){
   const summary=validation.errors.slice(0,5).join(" ");
   notes.push(state.blueprintImportActive
@@ -1217,7 +1219,9 @@ function refreshMakerValidationNote(){
  }else if(state.blueprintImportActive){
   notes.push("Quick Fix checks now pass. The calculator is still an editable draft; review assumptions and test values before saving or publishing.");
  }else{
-  notes.push("Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
+  notes.push(Number(spec.schemaVersion)===2
+   ?"Typed V2 schema and default formulas pass the local validator. This experimental draft cannot be saved or published yet."
+   :"Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
  }
  if(currencyWarnings.length)notes.push("Currency consistency warning ("+currencyWarnings.join(", ")+"). Currency selectors only change display; they do not convert amounts. Add an explicit exchange-rate input and use it in the formula when conversion is intended.");
 
@@ -1821,6 +1825,7 @@ function numericControlValue(control){
  return Number.isFinite(value)?value:NaN;
 }
 function renderMakerTestPanel(preserveValues){
+ if(Number(state.aiDraft?.spec?.schemaVersion)===2){renderMakerV2TestPanel(preserveValues);return;}
  const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
  if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
  const previous=new Map();
@@ -1888,6 +1893,7 @@ function renderMakerTestPanel(preserveValues){
  updateMakerTestResults(panel);
 }
 function updateMakerTestResults(panel){
+ if(Number(state.aiDraft?.spec?.schemaVersion)===2){updateMakerV2TestResults(panel);return;}
  const spec=state.aiDraft?.spec;
  if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
  const controls=Array.from(panel.querySelectorAll("[data-ugc-maker-test-key]")),values={};
@@ -2619,6 +2625,525 @@ function renderManualScenarioEditor(host,definition){
  });
  add.disabled=spec.scenarios.length>=3;section.appendChild(add);host.appendChild(section);
 }
+
+function cloneCalculatorData(value){
+ return JSON.parse(JSON.stringify(value??{}));
+}
+function convertManualDraftToV2(definition){
+ const next=cloneCalculatorData(definition);
+ const spec=next.spec||{};
+ spec.schemaVersion=2;spec.engineVersion=2;
+ spec.inputs=(Array.isArray(spec.inputs)?spec.inputs:[]).map(item=>{
+  const control=String(item.control||"number");
+  if(control==="toggle"){
+   const converted={key:item.key,label:item.label,type:"boolean",default:Number(item.default)>=0.5,control:"toggle"};
+   return converted;
+  }
+  return{
+   key:item.key,label:item.label,type:"number",
+   min:Number(item.min),max:Number(item.max),default:Number(item.default),step:Number(item.step)||1,
+   unit:String(item.unit||""),control:["number","slider","select"].includes(control)?control:"number",
+   ...(control==="select"&&Array.isArray(item.choices)?{choices:cloneCalculatorData(item.choices)}:{})
+  };
+ });
+ spec.groups=(Array.isArray(spec.groups)?spec.groups:[]).map(group=>({
+  key:group.key,label:group.label,itemLabel:group.itemLabel||"Item",
+  minItems:Number(group.minItems)||1,maxItems:Number(group.maxItems)||10,
+  fields:(Array.isArray(group.fields)?group.fields:[]).map(field=>({
+   key:field.key,label:field.label,type:"number",
+   min:Number(field.min),max:Number(field.max),default:Number(field.default),step:Number(field.step)||1,
+   unit:String(field.unit||"")
+  }))
+ }));
+ spec.scenarios=(Array.isArray(spec.scenarios)?spec.scenarios:[]).map(scenario=>{
+  const values={};
+  spec.inputs.forEach(input=>{
+   const previous=scenario.values?.[input.key];
+   values[input.key]=input.type==="boolean"?Boolean(previous):Number(previous??input.default);
+  });
+  return{label:scenario.label,values};
+ });
+ next.spec=spec;
+ return next;
+}
+function changeManualSchemaVersion(definition,version){
+ if(!definition?.spec)return;
+ if(Number(version)===2){
+  if(Number(definition.spec.schemaVersion)===2)return;
+  if(state.editingId){makerStatus("Saved calculators remain on V1 until the V2 save and publish paths are complete.","error");return;}
+  state.aiDraft=convertManualDraftToV2(definition);
+  makerStatus("Typed V2 draft created. Boolean controls were converted to strict true/false values; review the formulas and test the draft locally. Saving and publishing are not enabled.","generating");
+  renderMakerPreview(state.aiDraft);
+  return;
+ }
+ if(Number(definition.spec.schemaVersion)===2){
+  makerStatus("A typed V2 draft cannot be downgraded automatically because enum and date values would be lost. Start a separate V1 draft to use the current save flow.","error");
+  renderMakerPreview(definition);
+ }
+}
+function validateManualDraftSpec(spec){
+ if(Number(spec?.schemaVersion)!==2)return validateMakerSpec(spec);
+ const errors=[];
+ let validation;
+ try{validation=validateVersionedSpec(spec);}catch(error){return{errors:[String(error?.message||"V2 validation failed.")]};}
+ if(!Array.isArray(validation?.errors))return{errors:["The V2 validator returned an invalid response."]};
+ errors.push(...validation.errors.map(String));
+ if(errors.length)return{errors};
+ try{
+  const inputs=createDefaultTypedValues(spec),groups=createDefaultTypedGroupValues(spec);
+  if(inputs?.valid!==true)errors.push(...(Array.isArray(inputs?.errors)?inputs.errors.map(String):["V2 input defaults are invalid."]));
+  if(groups?.valid!==true)errors.push(...(Array.isArray(groups?.errors)?groups.errors.map(String):["V2 dynamic-group defaults are invalid."]));
+  if(!errors.length)evaluateV2TypedResults(spec,inputs.values,groups.groups);
+ }catch(error){errors.push(String(error?.message||"The V2 default-value test failed."));}
+ return{errors};
+}
+function renderManualSchemaVersionControl(host,definition){
+ const label=document.createElement("label");label.className="ugc-maker-schema-version-field";
+ label.appendChild(text("span","","Calculator schema"));
+ const select=document.createElement("select");select.id="ugcManualSchemaVersion";
+ [["1","Version 1 · current"],["2","Version 2 · typed draft (experimental)"]].forEach(([value,title])=>{
+  const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);
+ });
+ const current=Number(definition.spec?.schemaVersion)===2?2:1;
+ select.value=String(current);select.disabled=Boolean(state.editingId);
+ select.addEventListener("change",()=>changeManualSchemaVersion(definition,select.value));
+ label.appendChild(select);host.appendChild(label);
+ if(current===2)host.appendChild(text("p","ugc-maker-schema-summary","Typed V2 supports number, boolean, enum and date values. Preview and testing run locally; saving and publishing remain disabled until all server and database paths support V2."));
+}
+function createTypedEditorControl(field,value){
+ let control;
+ if(field.type==="boolean"){
+  control=document.createElement("input");control.type="checkbox";control.checked=Boolean(value);
+ }else if(field.type==="enum"){
+  control=document.createElement("select");
+  (Array.isArray(field.choices)?field.choices:[]).forEach(choice=>{
+   const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);
+  });
+  control.value=String(value??field.default??"");
+ }else if(field.type==="date"){
+  control=document.createElement("input");control.type="date";control.value=String(value??field.default??"");
+  if(field.minDate)control.min=String(field.minDate);
+  if(field.maxDate)control.max=String(field.maxDate);
+ }else if(field.control==="select"&&Array.isArray(field.choices)&&field.choices.length>=2){
+  control=document.createElement("select");
+  field.choices.forEach(choice=>{
+   const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);
+  });
+  control.value=String(value??field.default??"");
+ }else{
+  control=document.createElement("input");control.type=field.control==="slider"?"range":"number";
+  if(field.min!==undefined)control.min=String(field.min);
+  if(field.max!==undefined)control.max=String(field.max);
+  control.step=String(field.step||"any");control.value=String(value??field.default??"");
+ }
+ return control;
+}
+function typedEditorValue(field,control){
+ if(field.type==="boolean")return control.checked===true;
+ if(field.type==="enum"||field.type==="date")return String(control.value||"");
+ const value=Number(control.value);
+ return Number.isFinite(value)?value:NaN;
+}
+function typedDefaultForField(field){
+ if(field.type==="boolean")return Boolean(field.default);
+ if(field.type==="enum"||field.type==="date")return String(field.default??"");
+ return Number(field.default);
+}
+function parseTypedChoices(raw,type){
+ const lines=String(raw||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+ const choices=[];
+ for(const line of lines){
+  const at=line.lastIndexOf("=");
+  if(at<1)return{valid:false,choices:[],error:"Use one choice per line in the format Label = value."};
+  const label=line.slice(0,at).trim(),valueText=line.slice(at+1).trim();
+  if(!label||label.length>50)return{valid:false,choices:[],error:"Choice labels must contain 1–50 characters."};
+  const value=type==="enum"?valueText:Number(valueText);
+  if(type==="enum"&&(!valueText||valueText.length>64))return{valid:false,choices:[],error:"Enum values must contain 1–64 characters."};
+  if(type==="number"&&(!valueText||!Number.isFinite(value)||Math.abs(value)>1000000000000))return{valid:false,choices:[],error:"Numeric choices must contain finite numeric values."};
+  choices.push({label,value});
+ }
+ if(choices.length<2||choices.length>12)return{valid:false,choices:[],error:"Add between 2 and 12 choices."};
+ if(new Set(choices.map(choice=>choice.label.toLowerCase())).size!==choices.length)return{valid:false,choices:[],error:"Choice labels must be unique."};
+ if(new Set(choices.map(choice=>String(choice.value))).size!==choices.length)return{valid:false,choices:[],error:"Choice values must be unique."};
+ return{valid:true,choices,error:""};
+}
+function updateV2IdentifierReferences(spec,oldKey,newKey,scope){
+ if(oldKey===newKey)return;
+ const expressionPattern=new RegExp("\\b"+oldKey+"\\b","g");
+ (Array.isArray(spec.results)?spec.results:[]).forEach(result=>{result.expression=String(result.expression||"").replace(expressionPattern,newKey);});
+ if(scope==="input"){
+  (Array.isArray(spec.scenarios)?spec.scenarios:[]).forEach(scenario=>{
+   if(Object.prototype.hasOwnProperty.call(scenario.values||{},oldKey)){scenario.values[newKey]=scenario.values[oldKey];delete scenario.values[oldKey];}
+  });
+ }
+}
+function renderManualV2InputEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");
+ section.className="ugc-maker-v2-input-editor";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed calculator inputs"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Choose a strict value type for every input. Boolean values are true/false, enum values must match a declared option, and dates use calendar dates without time zones. Up to 24 fixed inputs."));
+ spec.inputs.forEach((item,index)=>{
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group";
+  card.appendChild(text("legend","","Input "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=60)=>{
+   const label=document.createElement("label");label.textContent=name;
+   const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   label.appendChild(input);grid.appendChild(label);return input;
+  };
+  const oldKey=String(item.key||"");
+  const keyInput=addText("Variable key",oldKey,()=>{},32);keyInput.pattern="[a-z][a-z0-9_]{0,31}";
+  keyInput.addEventListener("change",()=>{
+   const next=String(keyInput.value||"").trim();
+   const collision=spec.inputs.some((other,i)=>i!==index&&other.key===next)
+    ||spec.results.some(result=>result.key===next)
+    ||spec.groups.some(group=>group.key===next||(group.fields||[]).some(field=>field.key===next));
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){keyInput.value=item.key;makerStatus("Input keys must be unique lowercase identifiers.","error");return;}
+   updateV2IdentifierReferences(spec,oldKey,next,"input");item.key=next;renderMakerPreview(definition);
+  });
+  addText("Input label",item.label,value=>{item.label=String(value).slice(0,60);});
+  const typeLabel=document.createElement("label");typeLabel.appendChild(text("span","","Value type"));
+  const typeSelect=document.createElement("select");
+  [["number","Number"],["boolean","Boolean (on/off)"],["enum","Enum (fixed options)"],["date","Date"]].forEach(([value,label])=>{
+   const option=document.createElement("option");option.value=value;option.textContent=label;typeSelect.appendChild(option);
+  });
+  typeSelect.value=item.type||"number";
+  typeSelect.addEventListener("change",()=>{
+   const nextType=typeSelect.value,key=item.key,label=item.label;
+   let replacement;
+   if(nextType==="boolean")replacement={key,label,type:"boolean",default:false,control:"toggle"};
+   else if(nextType==="enum")replacement={key,label,type:"enum",default:"option_1",control:"select",choices:[{label:"Option 1",value:"option_1"},{label:"Option 2",value:"option_2"}]};
+   else if(nextType==="date")replacement={key,label,type:"date",default:"2026-01-01",control:"date"};
+   else replacement={key,label,type:"number",min:0,max:100,default:0,step:1,unit:"",control:"number"};
+   Object.keys(item).forEach(property=>delete item[property]);Object.assign(item,replacement);
+   renderMakerPreview(definition);
+  });
+  typeLabel.appendChild(typeSelect);grid.appendChild(typeLabel);
+  if(item.type==="number"){
+   const addNumber=(name,value,onChange,step="any")=>{
+    const label=document.createElement("label");label.textContent=name;
+    const input=document.createElement("input");input.type="number";input.step=step;input.value=String(value??"");
+    input.addEventListener("input",()=>{if(input.value!==""&&Number.isFinite(Number(input.value)))onChange(Number(input.value));refreshMakerTestIfOpen();refreshMakerValidationNote();});
+    label.appendChild(input);grid.appendChild(label);
+   };
+   addNumber("Default",item.default,value=>{item.default=value;});
+   addNumber("Minimum",item.min,value=>{item.min=value;});
+   addNumber("Maximum",item.max,value=>{item.max=value;});
+   addNumber("Step",item.step,value=>{item.step=value;});
+   addText("Unit",item.unit||"",value=>{item.unit=String(value).slice(0,16);},16);
+   const controlLabel=document.createElement("label");controlLabel.appendChild(text("span","","Control"));
+   const control=document.createElement("select");
+   [["number","Number field"],["slider","Slider"],["select","Numeric dropdown"]].forEach(([value,label])=>{
+    const option=document.createElement("option");option.value=value;option.textContent=label;control.appendChild(option);
+   });
+   control.value=["number","slider","select"].includes(item.control)?item.control:"number";
+   control.addEventListener("change",()=>{item.control=control.value;if(control.value!=="select")delete item.choices;else if(!Array.isArray(item.choices)||item.choices.length<2)item.choices=[{label:"Lower",value:Number(item.min)},{label:"Upper",value:Number(item.max)}];renderMakerPreview(definition);});
+   controlLabel.appendChild(control);grid.appendChild(controlLabel);
+   if(item.control==="select"){
+    const choices=document.createElement("label");choices.className="ugc-maker-choice-editor";choices.appendChild(text("span","","Numeric options · Label = number"));
+    const textarea=document.createElement("textarea");textarea.rows=4;textarea.value=(item.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+    textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"number");if(!parsed.valid){makerStatus(parsed.error,"error");return;}
+     item.choices=parsed.choices;const values=parsed.choices.map(choice=>choice.value);item.min=Math.min(...values);item.max=Math.max(...values);
+     if(!values.includes(Number(item.default)))item.default=values[0];renderMakerPreview(definition);
+    });
+    choices.appendChild(textarea);grid.appendChild(choices);
+   }
+  }else if(item.type==="boolean"){
+   const label=document.createElement("label");label.className="ugc-maker-v2-boolean-default";
+   const input=document.createElement("input");input.type="checkbox";input.checked=item.default===true;
+   input.addEventListener("change",()=>{item.default=input.checked;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   label.append(input,text("span","","Default enabled"));grid.appendChild(label);
+  }else if(item.type==="enum"){
+   const choices=document.createElement("label");choices.className="ugc-maker-choice-editor";choices.appendChild(text("span","","Enum options · Label = value"));
+   const textarea=document.createElement("textarea");textarea.rows=4;textarea.value=(item.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+   textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"enum");if(!parsed.valid){makerStatus(parsed.error,"error");return;}
+    item.choices=parsed.choices;if(!parsed.choices.some(choice=>choice.value===item.default))item.default=parsed.choices[0].value;renderMakerPreview(definition);
+   });
+   choices.appendChild(textarea);grid.appendChild(choices);
+   addText("Default enum value",item.default,value=>{item.default=value;});
+  }else{
+   const date=document.createElement("label");date.textContent="Default date";
+   const input=document.createElement("input");input.type="date";input.value=String(item.default||"2026-01-01");
+   input.addEventListener("change",()=>{item.default=input.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   date.appendChild(input);grid.appendChild(date);
+   const minDate=document.createElement("label");minDate.textContent="Minimum date (optional)";
+   const min=document.createElement("input");min.type="date";min.value=String(item.minDate||"");
+   min.addEventListener("change",()=>{if(min.value)item.minDate=min.value;else delete item.minDate;refreshMakerValidationNote();});
+   minDate.appendChild(min);grid.appendChild(minDate);
+   const maxDate=document.createElement("label");maxDate.textContent="Maximum date (optional)";
+   const max=document.createElement("input");max.type="date";max.value=String(item.maxDate||"");
+   max.addEventListener("change",()=>{if(max.value)item.maxDate=max.value;else delete item.maxDate;refreshMakerValidationNote();});
+   maxDate.appendChild(max);grid.appendChild(maxDate);
+  }
+  const remove=button("Remove input","ugc-manual-remove",()=>{if(spec.inputs.length<=1)return;
+   const key=item.key;spec.inputs.splice(index,1);(spec.scenarios||[]).forEach(scenario=>{if(scenario.values)delete scenario.values[key];});renderMakerPreview(definition);
+  });
+  remove.disabled=spec.inputs.length<=1;grid.appendChild(remove);
+  card.appendChild(grid);section.appendChild(card);
+ });
+ const add=button("＋ Add typed input","ugc-action-secondary",()=>{
+  if(spec.inputs.length>=24)return;
+  let n=1,key="input_"+n;while(spec.inputs.some(item=>item.key===key)||spec.results.some(result=>result.key===key))key="input_"+(++n);
+  const item={key,label:"New input",type:"number",min:0,max:100,default:0,step:1,unit:"",control:"number"};
+  spec.inputs.push(item);(spec.scenarios||[]).forEach(scenario=>{scenario.values= scenario.values||{};scenario.values[key]=item.default;});renderMakerPreview(definition);
+ });
+ add.disabled=spec.inputs.length>=24;section.appendChild(add);host.appendChild(section);
+}
+function renderManualV2GroupEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-groups";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed dynamic groups"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Repeated rows may contain number, boolean, enum or date fields. Formulas can aggregate numeric fields and use typed row values in sum_if/count_if conditions. Up to 4 groups, 20 rows and 6 fields per group."));
+ spec.groups.forEach((group,index)=>{
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group ugc-maker-dynamic-group-editor";
+  card.appendChild(text("legend","","Group "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=60)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});label.appendChild(input);grid.appendChild(label);return input;};
+  const oldKey=group.key;const key=addText("Group key",group.key,()=>{},32);key.pattern="[a-z][a-z0-9_]{0,31}";
+  key.addEventListener("change",()=>{const next=key.value.trim();
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||spec.groups.some((other,i)=>i!==index&&other.key===next)||spec.inputs.some(item=>item.key===next)||spec.results.some(item=>item.key===next)){key.value=group.key;makerStatus("Group keys must be unique lowercase identifiers.","error");return;}
+   if(next!==oldKey){spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(new RegExp("\\b"+oldKey+"\\.","g"),next+".");});group.key=next;renderMakerPreview(definition);}
+  });
+  addText("Group label",group.label,value=>{group.label=value.slice(0,60);});
+  addText("Row label",group.itemLabel||"Item",value=>{group.itemLabel=value.slice(0,40);},40);
+  [["Minimum rows","minItems",1],["Maximum rows","maxItems",20]].forEach(([label,key,maximum])=>{
+   const wrapper=document.createElement("label");wrapper.textContent=label;const input=document.createElement("input");input.type="number";input.min=key==="minItems"?"1":String(group.minItems||1);input.max="20";input.step="1";input.value=String(group[key]??(key==="minItems"?1:10));
+   input.addEventListener("input",()=>{if(Number.isInteger(Number(input.value)))group[key]=Number(input.value);refreshMakerValidationNote();});wrapper.appendChild(input);grid.appendChild(wrapper);
+  });
+  card.appendChild(grid);
+  group.fields.forEach((field,fieldIndex)=>{
+   const fieldCard=document.createElement("fieldset");fieldCard.className="ugc-maker-dynamic-field-editor";
+   fieldCard.appendChild(text("legend","","Field "+(fieldIndex+1)));
+   const fieldGrid=document.createElement("div");fieldGrid.className="ugc-maker-input-grid";
+   const addFieldText=(name,value,onChange,max=60)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});label.appendChild(input);fieldGrid.appendChild(label);return input;};
+   const oldFieldKey=field.key;const fieldKey=addFieldText("Field key",field.key,()=>{},32);fieldKey.pattern="[a-z][a-z0-9_]{0,31}";
+   fieldKey.addEventListener("change",()=>{const next=fieldKey.value.trim();
+    const collision=group.fields.some((other,i)=>i!==fieldIndex&&other.key===next)||spec.inputs.some(item=>item.key===next)||spec.results.some(item=>item.key===next)||spec.groups.some((other,i)=>i!==index&&other.key===next);
+    if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){fieldKey.value=field.key;makerStatus("Dynamic field keys must be unique lowercase identifiers.","error");return;}
+    if(next!==oldFieldKey){const pattern=new RegExp("\\b"+group.key+"\\."+oldFieldKey+"\\b","g");spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(pattern,group.key+"."+next);});field.key=next;renderMakerPreview(definition);}
+   });
+   addFieldText("Field label",field.label,value=>{field.label=value.slice(0,60);});
+   const typeLabel=document.createElement("label");typeLabel.appendChild(text("span","","Field type"));const type=document.createElement("select");
+   [["number","Number"],["boolean","Boolean"],["enum","Enum"],["date","Date"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;type.appendChild(option);});
+   type.value=field.type||"number";
+   type.addEventListener("change",()=>{const key=field.key,label=field.label,next=type.value;let replacement;
+    if(next==="boolean")replacement={key,label,type:"boolean",default:false};
+    else if(next==="enum")replacement={key,label,type:"enum",default:"option_1",choices:[{label:"Option 1",value:"option_1"},{label:"Option 2",value:"option_2"}]};
+    else if(next==="date")replacement={key,label,type:"date",default:"2026-01-01"};
+    else replacement={key,label,type:"number",min:0,max:100,default:0,step:1,unit:""};
+    Object.keys(field).forEach(property=>delete field[property]);Object.assign(field,replacement);renderMakerPreview(definition);
+   });
+   typeLabel.appendChild(type);fieldGrid.appendChild(typeLabel);
+   if(field.type==="number"){
+    [["Default","default"],["Minimum","min"],["Maximum","max"],["Step","step"]].forEach(([label,key])=>{const wrapper=document.createElement("label");wrapper.textContent=label;const input=document.createElement("input");input.type="number";input.step="any";input.value=String(field[key]??0);input.addEventListener("input",()=>{if(input.value!==""&&Number.isFinite(Number(input.value)))field[key]=Number(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});wrapper.appendChild(input);fieldGrid.appendChild(wrapper);});
+    addFieldText("Unit",field.unit||"",value=>{field.unit=value.slice(0,16);},16);
+   }else if(field.type==="boolean"){
+    const wrapper=document.createElement("label"),input=document.createElement("input");input.type="checkbox";input.checked=field.default===true;input.addEventListener("change",()=>{field.default=input.checked;refreshMakerValidationNote();});wrapper.append(input,text("span","","Default enabled"));fieldGrid.appendChild(wrapper);
+   }else if(field.type==="enum"){
+    const wrapper=document.createElement("label");wrapper.appendChild(text("span","","Enum options · Label = value"));const textarea=document.createElement("textarea");textarea.rows=3;textarea.value=(field.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+    textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"enum");if(!parsed.valid){makerStatus(parsed.error,"error");return;}field.choices=parsed.choices;if(!parsed.choices.some(choice=>choice.value===field.default))field.default=parsed.choices[0].value;renderMakerPreview(definition);});
+    wrapper.appendChild(textarea);fieldGrid.appendChild(wrapper);addFieldText("Default enum value",field.default,value=>{field.default=value;});
+   }else{
+    const wrapper=document.createElement("label");wrapper.textContent="Default date";const input=document.createElement("input");input.type="date";input.value=field.default||"2026-01-01";input.addEventListener("change",()=>{field.default=input.value;refreshMakerValidationNote();refreshMakerTestIfOpen();});wrapper.appendChild(input);fieldGrid.appendChild(wrapper);
+    [["Minimum date","minDate"],["Maximum date","maxDate"]].forEach(([label,key])=>{const w=document.createElement("label");w.textContent=label;const d=document.createElement("input");d.type="date";d.value=field[key]||"";d.addEventListener("change",()=>{if(d.value)field[key]=d.value;else delete field[key];refreshMakerValidationNote();});w.appendChild(d);fieldGrid.appendChild(w);});
+   }
+   const remove=button("Remove field","ugc-manual-remove",()=>{if(group.fields.length<=1)return;group.fields.splice(fieldIndex,1);renderMakerPreview(definition);});remove.disabled=group.fields.length<=1;fieldGrid.appendChild(remove);
+   fieldCard.appendChild(fieldGrid);card.appendChild(fieldCard);
+  });
+  const addField=button("＋ Add field","ugc-action-secondary",()=>{if(group.fields.length>=6)return;let n=1,key="field_"+n;while(group.fields.some(field=>field.key===key))key="field_"+(++n);group.fields.push({key,label:"New field",type:"number",min:0,max:100,default:0,step:1,unit:""});renderMakerPreview(definition);});
+  addField.disabled=group.fields.length>=6;card.appendChild(addField);
+  card.appendChild(button("Remove group","ugc-manual-remove",()=>{spec.groups.splice(index,1);renderMakerPreview(definition);}));
+  section.appendChild(card);
+ });
+ const addGroup=button("＋ Add typed group","ugc-action-secondary",()=>{if(spec.groups.length>=4)return;let n=1,key="items_"+n;while(spec.groups.some(group=>group.key===key))key="items_"+(++n);spec.groups.push({key,label:"Items",itemLabel:"Item",minItems:1,maxItems:10,fields:[{key:"amount",label:"Amount",type:"number",min:0,max:100,default:0,step:1,unit:""}]});renderMakerPreview(definition);});
+ addGroup.disabled=spec.groups.length>=4;section.appendChild(addGroup);host.appendChild(section);
+}
+function renderManualV2ScenarioEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-scenarios";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed what-if scenarios"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Scenarios override fixed typed inputs and recompute every numeric result. Up to three alternatives."));
+ spec.scenarios.forEach((scenario,index)=>{
+  if(!scenario.values||typeof scenario.values!=="object")scenario.values={};
+  const card=document.createElement("fieldset");card.className="ugc-maker-scenario-editor";card.appendChild(text("legend","","Scenario "+(index+1)));
+  const name=document.createElement("input");name.type="text";name.maxLength=50;name.value=String(scenario.label||"Alternative "+(index+1));
+  const nameLabel=document.createElement("label");nameLabel.textContent="Scenario name";name.addEventListener("input",()=>{scenario.label=name.value.slice(0,50);refreshMakerValidationNote();});nameLabel.appendChild(name);card.appendChild(nameLabel);
+  const grid=document.createElement("div");grid.className="ugc-maker-scenario-grid";
+  spec.inputs.forEach(input=>{
+   if(!Object.prototype.hasOwnProperty.call(scenario.values,input.key))scenario.values[input.key]=typedDefaultForField(input);
+   const label=document.createElement("label");label.appendChild(text("span","",input.label||input.key));
+   const control=createTypedEditorControl(input,scenario.values[input.key]);control.addEventListener("change",()=>{scenario.values[input.key]=typedEditorValue(input,control);refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   control.addEventListener("input",()=>{scenario.values[input.key]=typedEditorValue(input,control);refreshMakerTestIfOpen();});
+   label.appendChild(control);grid.appendChild(label);
+  });
+  card.appendChild(grid);card.appendChild(button("Remove scenario","ugc-manual-remove",()=>{spec.scenarios.splice(index,1);renderMakerPreview(definition);}));
+  section.appendChild(card);
+ });
+ const add=button("＋ Add scenario","ugc-action-secondary",()=>{
+  if(spec.scenarios.length>=3)return;
+  spec.scenarios.push({label:"Alternative "+(spec.scenarios.length+1),values:Object.fromEntries(spec.inputs.map(input=>[input.key,typedDefaultForField(input)]))});
+  renderMakerPreview(definition);
+ });
+ add.disabled=spec.scenarios.length>=3;section.appendChild(add);host.appendChild(section);
+}
+function renderManualV2ResultEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-results";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Numeric calculator results"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Final results must be finite numbers. Boolean, enum and date values can be used in conditions and intermediate formulas, but are not direct result display types."));
+ spec.results.forEach((item,index)=>{
+  if(!item.key)item.key="result_"+(index+1);
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group";card.appendChild(text("legend","","Result "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=280)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});label.appendChild(input);grid.appendChild(label);return input;};
+  const oldKey=item.key,key=addText("Result variable key",oldKey,()=>{},32);key.pattern="[a-z][a-z0-9_]{0,31}";
+  key.addEventListener("change",()=>{const next=key.value.trim(),collision=spec.inputs.some(input=>input.key===next)||spec.groups.some(group=>group.key===next||(group.fields||[]).some(field=>field.key===next))||spec.results.some((other,i)=>i!==index&&other.key===next);
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){key.value=item.key;makerStatus("Result keys must be unique lowercase identifiers.","error");return;}
+   if(next!==oldKey){const pattern=new RegExp("\\b"+oldKey+"\\b","g");spec.results.forEach((result,i)=>{if(i>index)result.expression=String(result.expression||"").replace(pattern,next);});item.key=next;renderMakerPreview(definition);}
+  });
+  addText("Result label",item.label,value=>{item.label=value.slice(0,70);},70);
+  const formula=document.createElement("label");formula.appendChild(text("span","","Typed formula"));
+  const expression=document.createElement("textarea");expression.rows=3;expression.maxLength=500;expression.value=String(item.expression||"");expression.placeholder='Example: if(and(include_tax, eq(plan, "pro")), base_cost * 0.2, 0)';
+  expression.addEventListener("input",()=>{item.expression=expression.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+  formula.appendChild(expression);grid.appendChild(formula);
+  const explanation=document.createElement("label");explanation.appendChild(text("span","","What does this result mean?"));
+  const detail=document.createElement("textarea");detail.rows=2;detail.maxLength=280;detail.value=String(item.explanation||"");detail.addEventListener("input",()=>{item.explanation=detail.value;});
+  explanation.appendChild(detail);grid.appendChild(explanation);
+  const formatLabel=document.createElement("label");formatLabel.textContent="Display format";const format=document.createElement("select");
+  [["number","Number"],["currency","Currency"],["percent","Percent"],["unit","Number with unit"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;format.appendChild(option);});
+  format.value=item.format||"number";format.addEventListener("change",()=>{item.format=format.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});formatLabel.appendChild(format);grid.appendChild(formatLabel);
+  addText("Currency",item.currency||"EUR",value=>{item.currency=value.toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);},3);
+  addText("Result unit",item.unit||"",value=>{item.unit=value.slice(0,20);},20);
+  addText("Prefix",item.prefix||"",value=>{item.prefix=value.slice(0,12);},12);
+  addText("Suffix",item.suffix||"",value=>{item.suffix=value.slice(0,16);},16);
+  const actions=document.createElement("div");actions.className="ugc-maker-result-actions";
+  actions.appendChild(button("Move up","ugc-manual-remove",()=>{if(index>0){[spec.results[index-1],spec.results[index]]=[spec.results[index],spec.results[index-1]];renderMakerPreview(definition);}}));
+  actions.appendChild(button("Move down","ugc-manual-remove",()=>{if(index<spec.results.length-1){[spec.results[index+1],spec.results[index]]=[spec.results[index],spec.results[index+1]];renderMakerPreview(definition);}}));
+  const remove=button("Remove result","ugc-manual-remove",()=>{if(spec.results.length<=1)return;spec.results.splice(index,1);renderMakerPreview(definition);});remove.disabled=spec.results.length<=1;actions.appendChild(remove);
+  grid.appendChild(actions);card.appendChild(grid);section.appendChild(card);
+ });
+ const add=button("＋ Add result","ugc-action-secondary",()=>{if(spec.results.length>=20)return;let n=spec.results.length+1,key="result_"+n;while(spec.results.some(item=>item.key===key))key="result_"+(++n);spec.results.push({key,label:"New result",expression:String(spec.inputs[0]?.key||"1"),format:"number",explanation:""});renderMakerPreview(definition);});
+ add.disabled=spec.results.length>=20;section.appendChild(add);host.appendChild(section);
+}
+function appendV2TestGroup(panel,group){
+ const section=document.createElement("fieldset");section.className="ugc-dynamic-group";section.dataset.ugcV2GroupKey=group.key;section.appendChild(text("legend","",group.label||group.key));
+ const rows=document.createElement("div");rows.className="ugc-dynamic-group-rows";
+ const min=Math.max(1,Number(group.minItems)||1),max=Math.max(min,Math.min(20,Number(group.maxItems)||20));
+ const notify=()=>updateMakerV2TestResults(panel);
+ const refresh=()=>{Array.from(rows.children).forEach(row=>{const remove=row.querySelector("button");if(remove)remove.disabled=rows.children.length<=min;});add.disabled=rows.children.length>=max;};
+ const addRow=(values={})=>{
+  if(rows.children.length>=max)return;
+  const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcV2GroupRow="";
+  const fields=document.createElement("div");fields.className="ugc-dynamic-group-fields";
+  group.fields.forEach(field=>{
+   const label=document.createElement("label");label.textContent=field.label||field.key;
+   const control=createTypedEditorControl(field,values[field.key]??typedDefaultForField(field));
+   control.dataset.ugcV2GroupField=field.key;
+   control.addEventListener("input",notify);control.addEventListener("change",notify);
+   label.appendChild(control);fields.appendChild(label);
+  });
+  const remove=button("Remove "+String(group.itemLabel||"item").toLowerCase(),"ugc-manual-remove",()=>{if(rows.children.length<=min)return;row.remove();refresh();notify();});
+  row.append(fields,remove);rows.appendChild(row);refresh();
+ };
+ for(let i=0;i<min;i++)addRow({});
+ const add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{if(rows.children.length<max)addRow({});});
+ section.append(rows,add);refresh();panel.appendChild(section);return section;
+}
+function renderMakerV2TestPanel(preserveValues){
+ const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
+ if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
+ const previous=new Map();
+ if(preserveValues)panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{previous.set(control.dataset.ugcMakerTestKey,typedEditorValue(spec.inputs.find(item=>item.key===control.dataset.ugcMakerTestKey)||{},control));});
+ panel.replaceChildren();
+ const heading=document.createElement("div");heading.className="ugc-maker-test-head";
+ const intro=document.createElement("div");intro.append(text("h4","","Try typed V2 calculator"),text("p","","Change number, boolean, enum and date inputs. Formulas run locally in this browser; no request or CALC charge is made."));
+ const reset=button("Reset values","ugc-maker-test-reset",()=>renderMakerV2TestPanel(false));heading.append(intro,reset);panel.appendChild(heading);
+ const inputGrid=document.createElement("div");inputGrid.className="ugc-maker-test-inputs";
+ spec.inputs.forEach(item=>{
+  const label=document.createElement("label");label.className="ugc-maker-test-input";label.appendChild(text("span","",item.label||item.key));
+  const control=createTypedEditorControl(item,previous.has(item.key)?previous.get(item.key):typedDefaultForField(item));
+  control.dataset.ugcMakerTestKey=item.key;control.addEventListener("input",()=>updateMakerV2TestResults(panel));control.addEventListener("change",()=>updateMakerV2TestResults(panel));
+  label.appendChild(control);if(item.unit)label.appendChild(text("small","",item.unit));inputGrid.appendChild(label);
+ });
+ panel.appendChild(inputGrid);
+ (spec.groups||[]).forEach(group=>appendV2TestGroup(panel,group));
+ panel.appendChild(text("h4","ugc-maker-test-results-heading","Live results"));
+ const results=document.createElement("div");results.className="ugc-maker-test-results-grid";results.setAttribute("aria-live","polite");panel.appendChild(results);
+ const status=text("p","ugc-maker-test-status","");status.setAttribute("role","status");status.setAttribute("aria-live","polite");panel.appendChild(status);
+ panel.appendChild(text("p","ugc-maker-test-note","Free local test · No CALC is charged, no AI request is sent, and nothing is saved. V2 save/publish remains disabled."));
+ updateMakerV2TestResults(panel);
+}
+function updateMakerV2TestResults(panel){
+ const spec=state.aiDraft?.spec;if(!panel||Number(spec?.schemaVersion)!==2)return;
+ const rawValues={};let invalidControl=null;
+ panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{
+  const field=spec.inputs.find(item=>item.key===control.dataset.ugcMakerTestKey);
+  if(!field)return;
+  const value=typedEditorValue(field,control),normalized=normalizeTypedValue(field,value);
+  if(!normalized.valid){control.setAttribute("aria-invalid","true");if(!invalidControl)invalidControl=control;}
+  else{control.setAttribute("aria-invalid","false");rawValues[field.key]=normalized.value;}
+ });
+ const output=panel.querySelector(".ugc-maker-test-results-grid"),status=panel.querySelector(".ugc-maker-test-status");
+ if(!output||!status)return;output.replaceChildren();
+ if(invalidControl){status.textContent="Enter valid typed values within the allowed bounds and choices.";return;}
+ const rawGroups={};
+ (spec.groups||[]).forEach(group=>{
+  const section=panel.querySelector('[data-ugc-v2-group-key="'+CSS.escape(group.key)+'"]');
+  rawGroups[group.key]=Array.from(section?.querySelectorAll("[data-ugc-v2-group-row]")||[]).map(row=>{
+   const value={};
+   group.fields.forEach(field=>{
+    const control=row.querySelector('[data-ugc-v2-group-field="'+CSS.escape(field.key)+'"]');
+    value[field.key]=control?typedEditorValue(field,control):typedDefaultForField(field);
+   });
+   return value;
+  });
+ });
+ const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ if(normalizedGroups.valid!==true){status.textContent=normalizedGroups.errors.slice(0,3).join(" ");return;}
+ let formulaErrors=0;
+ const render=(host,values,compact)=>{
+  host.replaceChildren();
+  try{
+   evaluateV2TypedResults(spec,values,normalizedGroups.groups).results.forEach(result=>{
+    const card=document.createElement(compact?"div":"article");card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
+    card.append(text("span","",result.label||"Result"),text(compact?"b":"strong","",formatResult(result.item||{},result.value,state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||""))));
+    if(!compact&&result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));host.appendChild(card);
+   });
+  }catch(error){formulaErrors++;const card=text(compact?"div":"article",compact?"ugc-maker-scenario-result is-error":"ugc-maker-test-result is-error","");card.append(text("span","","Calculation error"),text(compact?"b":"strong","","Cannot calculate"),text("small","",error?.message||"Check the formula."));host.appendChild(card);}
+ };
+ render(output,rawValues,false);
+ panel.querySelector(".ugc-maker-scenario-comparisons")?.remove();
+ if(spec.scenarios?.length){
+  const section=document.createElement("section");section.className="ugc-maker-scenario-comparisons";section.appendChild(text("h4","ugc-maker-test-results-heading","Compare scenarios"));
+  [{label:"Current test values",values:rawValues},...spec.scenarios.map(item=>({label:item.label,values:{...rawValues,...item.values}}))].forEach(scenario=>{
+   const group=document.createElement("article");group.className="ugc-maker-scenario-result-group";group.appendChild(text("strong","",scenario.label||"Alternative"));
+   const grid=document.createElement("div");grid.className="ugc-maker-scenario-result-grid";render(grid,scenario.values,true);group.appendChild(grid);section.appendChild(group);
+  });
+  panel.insertBefore(section,status);
+ }
+ const validation=validateManualDraftSpec(spec);
+ status.textContent=formulaErrors?"One or more formulas could not be evaluated. Check the highlighted results."
+  :validation.errors.length?"Local calculation ran, but validation needs attention: "+validation.errors.slice(0,2).join(" ")
+  :"Typed values, formulas, unit compatibility and default boundaries passed local checks.";
+}
+function renderManualV2Preview(host,definition){
+ const spec=definition.spec;
+ host.appendChild(text("h3","ugc-maker-schema-heading","Typed V2 definition"));
+ host.appendChild(text("p","ugc-maker-schema-summary","V2 is an experimental authoring and local-testing mode. It supports number, boolean, enum and date values, typed repeated groups, conditional formulas and what-if scenarios. Nothing is saved or published."));
+ renderManualV2InputEditor(host,definition);
+ renderManualV2GroupEditor(host,definition);
+ renderManualV2ScenarioEditor(host,definition);
+ renderManualV2ResultEditor(host,definition);
+ const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
+ const toggle=button("▶ Test typed V2 calculator","ugc-maker-test-toggle",()=>{
+  testPanel.hidden=!testPanel.hidden;toggle.setAttribute("aria-expanded",String(!testPanel.hidden));toggle.textContent=testPanel.hidden?"▶ Test typed V2 calculator":"▾ Hide test";
+  if(!testPanel.hidden)renderMakerV2TestPanel(false);
+ });
+ toggle.setAttribute("aria-expanded","false");host.append(toggle,testPanel);
+ host.appendChild(text("p","ugc-maker-schema-summary","Allowed V2 formulas include strict boolean logic, typed enum/date comparisons, date-only arithmetic, same-group sum_if/count_if aggregation and bounded numeric functions. Arbitrary JavaScript is never executed."));
+ refreshMakerValidationNote();
+ const save=$("ugcMakerSave"),publish=$("ugcMakerPublish");
+ if(save)save.disabled=true;if(publish)publish.disabled=true;
+}
+
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();if(!definition){host.hidden=true;return;}host.hidden=false;
@@ -2662,6 +3187,7 @@ function renderMakerPreview(definition){
   categorySelect.addEventListener("change",()=>{definition.category=categorySelect.value;definition.spec.subcategories=[];});
   categoryLabel.appendChild(categorySelect);host.appendChild(categoryLabel);
   host.appendChild(text("p","ugc-maker-schema-summary","Manual Builder does not use AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved manual calculator uses the separate 1/2/3 daily save allowance."));
+  renderManualSchemaVersionControl(host,definition);
  }else{
   const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
   selected.appendChild(text("strong","","AI-selected categories"));
@@ -2673,6 +3199,7 @@ function renderMakerPreview(definition){
   :(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · restricted formula language");
  host.appendChild(summary);
  if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
+ if(manual&&Number(definition.spec?.schemaVersion)===2){renderManualV2Preview(host,definition);return;}
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
  (definition.spec?.inputs||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";
@@ -2916,6 +3443,7 @@ function describeResultFormula(item,inputs){
  return (source+"Formula: "+expression+".").slice(0,280);
 }
 async function saveMakerDraft(publish){
+ if(Number(state.aiDraft?.spec?.schemaVersion)===2){makerStatus("Typed V2 drafts can be edited and tested locally, but cannot be saved or published until the V2 server, database and member run paths are complete.","error");return;}
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
  const title=String($("ugcMakerTitle")?.value||"").trim();
  const description=state.editingId&&state.creationSource!=="manual"?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
