@@ -480,11 +480,11 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
     try{
         const groqSystem=[
             system,
-            "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs and results. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
+            "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
             "Put the primary category and its subcategories together inside the root field named classification.",
             "The classification object must contain exactly category and subcategories. category must be one of cars, money, technology, home or other. subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only.",
             "Never use an empty subcategories array, never mix subcategories from different categories, and never put category or subcategory fields at the root level.",
-            "Keep title, description, inputs and results as root fields. The server converts classification into the calculator's saved category fields."
+            "Keep title, description, inputs, groups, results and scenarios as root fields. Use empty arrays when no dynamic groups or comparison scenarios are needed. The server converts classification into the calculator's saved category fields."
         ].join(" ");
         const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
             method:"POST",
