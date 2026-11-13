@@ -745,18 +745,22 @@ function explicitAmountMatchesInput(input,amounts,allInputs){
     });
 }
 function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
-    if(!candidate||!Array.isArray(candidate.inputs))return false;
+    if(!candidate||(!Array.isArray(candidate.inputs)&&!Array.isArray(candidate.groups)))return false;
     const explicitAmounts=extractExplicitMonetaryAmounts(prompt);
     let changed=false;
     const fallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
-    for(const input of candidate.inputs){
+    const allFields=[
+        ...(Array.isArray(candidate.inputs)?candidate.inputs:[]),
+        ...(Array.isArray(candidate.groups)?candidate.groups.flatMap(group=>Array.isArray(group?.fields)?group.fields:[]):[])
+    ];
+    for(const input of allFields){
         if(!input||typeof input!=="object")continue;
         const semantic=(String(input.label||"")+" "+String(input.key||"")).toLowerCase();
         const unit=String(input.unit||"").trim().toUpperCase();
         const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
         const hasCurrencyUnit=MONETARY_CURRENCY_CODES.has(unit)||MONETARY_CURRENCY_CODES.has(unitCurrencyPrefix);
         const moneyInput=hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic);
-        if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,candidate.inputs))continue;
+        if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,allFields))continue;
         if(!hasCurrencyUnit)input.unit=fallback;
         const step=Number(input.step??1),maximum=Number(input.max);
         if(!Number.isFinite(step)||step<=0||!Number.isFinite(maximum))continue;
