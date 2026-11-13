@@ -1819,6 +1819,10 @@ function repairMakerBlueprintSpec(sourceSpec){
   }
   const vector=Object.entries(outputUnit.vector||{});
   let unitLabel=unitLabelFromDescriptor(outputUnit);
+  if(vector.length===1&&vector[0][0]==="data"&&Math.abs(Number(vector[0][1])-1)<1e-9){
+   if(/\\b(?:terabytes?|tb)\\b/i.test(label))unitLabel="TB";
+   else if(/\\b(?:gigabytes?|gb)\\b/i.test(label))unitLabel="GB";
+  }
   if(vector.length===1&&vector[0][0]==="count"&&Math.abs(Number(vector[0][1])-1)<1e-9){
    const semanticCountUnit=blueprintCountUnitFromLabel(label);
    if(semanticCountUnit&&!semanticCountUnit.includes("/")&&sameUnitDescriptor(outputUnit,unitDescriptor(semanticCountUnit)))unitLabel=semanticCountUnit;
