@@ -790,8 +790,9 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
     const subcategories=Array.isArray(raw?.subcategories)?Array.from(new Set(raw.subcategories.map(value=>String(value||"").trim().toLowerCase()))):[];
     const allowedSubcategories=ALLOWED_SUBCATEGORIES[category];
     if(subcategories.length<1||subcategories.length>3||subcategories.some(value=>!allowedSubcategories.has(value)))throw new Error("The AI-selected community categories are invalid.");
-    if(!Array.isArray(raw?.inputs)||raw.inputs.length<1||raw.inputs.length>12)throw new Error("A calculator must have between 1 and 12 inputs.");
-    if(!Array.isArray(raw?.results)||raw.results.length<1||raw.results.length>6)throw new Error("A calculator must have between 1 and 6 results.");
+    if(!Array.isArray(raw?.inputs)||raw.inputs.length<1||raw.inputs.length>24)throw new Error("A calculator must have between 1 and 24 fixed inputs.");
+    if(!Array.isArray(raw?.results)||raw.results.length<1||raw.results.length>20)throw new Error("A calculator must have between 1 and 20 results.");
+
     const seen=new Set();
     const inputs=raw.inputs.map(item=>{
         const key=String(item?.key||"").trim().toLowerCase();
@@ -800,6 +801,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         let min=Number(item?.min),max=Number(item?.max),value=Number(item?.default);
         let step=Number(item?.step??1);
         const semantic=(label+" "+key).toLowerCase();
+        const control=["number","slider","select","toggle"].includes(item?.control)?item.control:"number";
         const wholeDays=/\b(?:commut(?:e|ing)|work|working|business)\s+days?\b|\bdays?_per_week\b/.test(semantic);
         const mustBePositive=/\b(?:distance|mileage|fuel consumption|consumption|litres? per 100|liters? per 100|hours per week|number of passengers|number of employees)\b/.test(semantic);
         if(!/^[a-z][a-z0-9_]{0,31}$/.test(key)||seen.has(key)||!label||
@@ -813,6 +815,9 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             min=Math.min(value,step);
         }
         if(min>value||value>max)throw new Error("The AI generated an invalid range for "+label+".");
+        if(control==="toggle"&&(min!==0||max!==1||!Number.isInteger(value)||![0,1].includes(value)||step!==1)){
+            throw new Error(label+": a toggle must use minimum 0, maximum 1, default 0 or 1, and step 1.");
+        }
         const stepPosition=(value-min)/step;
         if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)throw new Error("The default value for "+label+" does not match its input step.");
         const maxStepPosition=(max-min)/step;
@@ -836,24 +841,105 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
         }else if(!unit&&!previousInput&&monetaryInput)unit=currencyFallback;
         if(monetaryInput&&normalizedRateBasis&&/^[A-Z]{3}$/.test(unit))unit=unit+"/"+normalizedRateBasis;
+
+        let choices=[];
+        if(control==="select"){
+            choices=(Array.isArray(item?.choices)?item.choices:[]).map(choice=>({
+                label:String(choice?.label||"").trim().slice(0,50),
+                value:Number(choice?.value)
+            }));
+            if(choices.length<2||choices.length>12||choices.some(choice=>!choice.label||!Number.isFinite(choice.value)||Math.abs(choice.value)>1e12)){
+                throw new Error(label+": a dropdown needs 2 to 12 choices with valid labels and numeric values.");
+            }
+            const choiceValues=new Set(choices.map(choice=>choice.value));
+            const choiceLabels=new Set(choices.map(choice=>choice.label.toLowerCase()));
+            if(choiceValues.size!==choices.length||choiceLabels.size!==choices.length||!choiceValues.has(value)){
+                throw new Error(label+": dropdown choices must have unique labels and values and include the default.");
+            }
+        }
         seen.add(key);
-        return {key,label,min,max,default:value,step,unit};
+        return control==="select"
+            ?{key,label,min,max,default:value,step,unit,control,choices}
+            :{key,label,min,max,default:value,step,unit,control};
     });
+
+    const groups=Array.isArray(raw?.groups)?raw.groups.map((group,index)=>{
+        const key=String(group?.key||"").trim().toLowerCase();
+        const label=String(group?.label||"").trim().slice(0,60);
+        const itemLabel=String(group?.itemLabel||"Item").trim().slice(0,40);
+        const minItems=Number(group?.minItems??1),maxItems=Number(group?.maxItems??10);
+        if(!/^[a-z][a-z0-9_]{0,31}$/.test(key)||seen.has(key)||!label||!itemLabel||
+            !Number.isInteger(minItems)||!Number.isInteger(maxItems)||minItems<1||maxItems<minItems||maxItems>20){
+            throw new Error("The AI generated an invalid dynamic group definition.");
+        }
+        if(!Array.isArray(group?.fields)||group.fields.length<1||group.fields.length>6){
+            throw new Error(label+": a dynamic group needs 1 to 6 numeric fields.");
+        }
+        seen.add(key);
+        const fields=group.fields.map(field=>{
+            const fieldKey=String(field?.key||"").trim().toLowerCase();
+            const fieldLabel=String(field?.label||"").trim().slice(0,60);
+            const min=Number(field?.min),max=Number(field?.max),value=Number(field?.default),step=Number(field?.step);
+            const unit=String(field?.unit||"").trim().slice(0,16);
+            if(!/^[a-z][a-z0-9_]{0,31}$/.test(fieldKey)||seen.has(fieldKey)||!fieldLabel||
+                ![min,max,value,step].every(Number.isFinite)||min>value||value>max||max-min>1e12||
+                step<=0||!Number.isFinite((value-min)/step)||Math.abs((value-min)/step-Math.round((value-min)/step))>1e-7||
+                (max>min&&Math.abs((max-min)/step-Math.round((max-min)/step))>1e-7)){
+                throw new Error(label+": the dynamic group contains an invalid field definition.");
+            }
+            seen.add(fieldKey);
+            return {key:fieldKey,label:fieldLabel,min,max,default:value,step,unit};
+        });
+        return {key,label,itemLabel,minItems,maxItems,fields};
+    }):[];
+    if(groups.length>4)throw new Error("A calculator can contain up to 4 dynamic input groups.");
+
+    const resultKeys=new Set();
+    const makeResultKey=(label,index)=>{
+        const normalized=String(label||"result").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+        const base=normalized.replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,24)||"result";
+        let key=base;
+        let suffix=2;
+        while(seen.has(key)||resultKeys.has(key)){
+            const tail="_"+suffix++;
+            key=base.slice(0,32-tail.length)+tail;
+        }
+        return key;
+    };
     const results=raw.results.map((item,index)=>{
         const label=String(item?.label||"").trim().slice(0,70);
-        const expression=String(item?.expression||"").trim().slice(0,260);
+        const expression=String(item?.expression||"").trim().slice(0,500);
         const format=["number","currency","percent","unit"].includes(item?.format)?item.format:"number";
-        const previousCurrency=Array.isArray(previousSpec?.results)?previousSpec.results[index]?.currency:"";
+        const previousResult=Array.isArray(previousSpec?.results)?previousSpec.results[index]:null;
+        const suppliedKey=String(item?.key||previousResult?.key||"").trim().toLowerCase();
+        const key=suppliedKey||makeResultKey(label,index);
+        const previousCurrency=previousResult?.currency||"";
         const currency=String(format==="currency"&&forceCurrency?forceCurrency:(item?.currency||previousCurrency||currencyFallback)).toUpperCase();
-        let unit=String(item?.unit||"").trim().slice(0,20);
+        let unit=String(item?.unit||previousResult?.unit||"").trim().slice(0,20);
         const resultCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
         if(format==="unit"&&forceCurrency&&SERVER_SUPPORTED_CURRENCY_CODES.has(resultCurrencyPrefix)){
             unit=forceCurrency+unit.slice(3);
         }
-        if(!label||!expression||!/^([A-Z]{3})$/.test(currency)||(format==="unit"&&!unit))throw new Error("The AI generated an invalid result.");
-        return {label,expression,format,currency,unit,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
+        const explanation=String(item?.explanation||previousResult?.explanation||"").trim().slice(0,280);
+        if(!label||!expression||!/^([A-Z]{3})$/.test(currency)||(format==="unit"&&!unit)||
+            !/^[a-z][a-z0-9_]{0,31}$/.test(key)||resultKeys.has(key)||seen.has(key)){
+            throw new Error("The AI generated an invalid result.");
+        }
+        seen.add(key);resultKeys.add(key);
+        return {key,label,expression,format,currency,unit,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16),explanation};
     });
-    const spec={version:1,subcategories,inputs,results};
+
+    const scenarios=Array.isArray(raw?.scenarios)?raw.scenarios.map((scenario,index)=>{
+        const label=String(scenario?.label||"").trim().slice(0,50);
+        const values=scenario?.values&&typeof scenario.values==="object"&&!Array.isArray(scenario.values)
+            ?{...scenario.values}
+            :Object.fromEntries((Array.isArray(scenario?.overrides)?scenario.overrides:[]).map(item=>[String(item?.key||""),item?.value]));
+        if(!label||!Object.keys(values).length)throw new Error("A comparison scenario needs a name and at least one input override.");
+        return {label,values};
+    }):[];
+    if(scenarios.length>3)throw new Error("A calculator can contain up to 3 comparison scenarios.");
+
+    const spec={version:1,subcategories,inputs,groups,results,scenarios};
     const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
     const validationErrors=Array.isArray(validation?.errors)?validation.errors:[];
     if(validationErrors.length){
@@ -864,14 +950,23 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         throw new Error(firstError);
     }
     if(options?.requireAllInputsUsed===true){
-        const keys=new Set(inputs.map(item=>item.key));
-        const referenced=new Set();
+        const availableKeys=new Set(inputs.map(item=>item.key));
+        const referencedInputs=new Set();
+        const groupMap=SERVER_CALCULATOR_ENGINE.groupMapForSpec(spec);
+        const referencedGroupFields=new Map(groups.map(group=>[group.key,new Set()]));
         results.forEach(item=>{
-            const ast=SERVER_CALCULATOR_ENGINE.compileExpression(item.expression,keys,new Map());
-            SERVER_CALCULATOR_ENGINE.formulaInputReferences(ast,referenced);
+            const ast=SERVER_CALCULATOR_ENGINE.compileExpression(item.expression,availableKeys,groupMap);
+            SERVER_CALCULATOR_ENGINE.formulaInputReferences(ast,referencedInputs);
+            SERVER_CALCULATOR_ENGINE.formulaGroupFieldReferences(ast).forEach(reference=>{
+                if(referencedGroupFields.has(reference.group))referencedGroupFields.get(reference.group).add(reference.field);
+            });
+            if(item.key)availableKeys.add(item.key);
         });
-        const unusedInputs=inputs.filter(item=>!referenced.has(item.key)).map(item=>item.label);
-        if(unusedInputs.length)throw new Error("The generated calculator contains unused input fields: "+unusedInputs.join(", ")+". Remove them or use them in a result formula.");
+        const unusedInputs=inputs.filter(item=>!referencedInputs.has(item.key)).map(item=>item.label);
+        const unusedGroupFields=groups.flatMap(group=>group.fields.filter(field=>!referencedGroupFields.get(group.key)?.has(field.key)).map(field=>group.label+": "+field.label));
+        if(unusedInputs.length||unusedGroupFields.length){
+            throw new Error("The generated calculator contains unused input fields: "+[...unusedInputs,...unusedGroupFields].join(", ")+". Remove them or use them in a result formula.");
+        }
     }
     if(options?.requireDescription!==false&&description.length<24)throw new Error("The calculator description is too short. Add a clear explanation of what it calculates and its main assumptions (at least 24 characters).");
     return spec;
