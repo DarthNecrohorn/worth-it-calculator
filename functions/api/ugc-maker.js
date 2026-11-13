@@ -67,12 +67,13 @@ const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
                     properties: {
                         label: { type: "string" },
                         expression: { type: "string" },
-                        format: { type: "string", enum: ["number","currency","percent"] },
+                        format: { type: "string", enum: ["number","currency","percent","unit"] },
                         currency: { type: "string" },
+                        unit: { type: "string" },
                         prefix: { type: "string" },
                         suffix: { type: "string" }
                     },
-                    required: ["label","expression","format","currency","prefix","suffix"],
+                    required: ["label","expression","format","currency","unit","prefix","suffix"],
                     additionalProperties: false
                 }
             }
@@ -732,19 +733,32 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
         let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
         const monetaryInput=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
-        if(forceCurrency&&monetaryInput)unit=forceCurrency;
-        else if(!unit&&!previousInput&&monetaryInput)unit=currencyFallback;
+        const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+        const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
+            /^(?:m3|m³)$/i.test(rateBasis)?"m3":
+            /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
+            /^(?:kilometres?|kilometers?|km)$/i.test(rateBasis)?"km":
+            /^(?:kg)$/i.test(rateBasis)?"kg":
+            /^(?:g)$/i.test(rateBasis)?"g":
+            /^(?:hours?)$/i.test(rateBasis)?"hour":
+            /^(?:days?)$/i.test(rateBasis)?"day":"";
+        if(forceCurrency&&monetaryInput){
+            const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
+            unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
+        }else if(!unit&&!previousInput&&monetaryInput)unit=currencyFallback;
+        if(monetaryInput&&normalizedRateBasis&&/^[A-Z]{3}$/.test(unit))unit=unit+"/"+normalizedRateBasis;
         seen.add(key);
         return {key,label,min,max,default:value,step,unit};
     });
     const results=raw.results.map((item,index)=>{
         const label=String(item?.label||"").trim().slice(0,70);
         const expression=String(item?.expression||"").trim().slice(0,260);
-        const format=["number","currency","percent"].includes(item?.format)?item.format:"number";
+        const format=["number","currency","percent","unit"].includes(item?.format)?item.format:"number";
         const previousCurrency=Array.isArray(previousSpec?.results)?previousSpec.results[index]?.currency:"";
         const currency=String(format==="currency"&&forceCurrency?forceCurrency:(item?.currency||previousCurrency||currencyFallback)).toUpperCase();
-        if(!label||!expression||!/^([A-Z]{3})$/.test(currency))throw new Error("The AI generated an invalid result.");
-        return {label,expression,format,currency,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
+        const unit=String(item?.unit||"").trim().slice(0,20);
+        if(!label||!expression||!/^([A-Z]{3})$/.test(currency)||(format==="unit"&&!unit))throw new Error("The AI generated an invalid result.");
+        return {label,expression,format,currency,unit,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
     });
     const spec={version:1,subcategories,inputs,results};
     const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
@@ -953,6 +967,9 @@ export async function onRequestPost(context){
             "Think through the user's actual question before designing the schema: identify the main quantity or decision, the variables that materially affect it, the comparison baseline, and the time period. Build the calculator around that question rather than a generic collection of fields.",
             "Every input must have a clear purpose and must be used by at least one result formula. Do not add redundant fields, duplicate the same cost under different names, or create inputs that do not affect any result.",
             "Maintain dimensional and unit consistency in every formula. Make input labels state the relevant unit or rate basis (for example, kWh per month, RSD per kWh, m3 per month, litres per 100 km, or currency per month). A price per unit must be multiplied by the matching quantity; do not multiply or compare incompatible units.",
+            "Set rate input units explicitly: a rate in currency per physical unit must use a compound unit such as RSD/kWh, RSD/m3, EUR/L or EUR/km, so multiplying it by the matching quantity produces a currency amount. Do not label such a rate with the bare currency code.",
+            "Choose result formatting from the formula's actual dimensions. Use format currency only for currency amounts, format unit for dimensioned rates such as EUR/km or RSD/kWh (and include result.unit), format percent for dimensionless ratios, and number for other dimensionless values. Do not label a currency-per-distance result as a plain currency amount.",
+            "A period count used only as a multiplier (for example, number of months, years, weeks, trips or billing cycles) is a count: use an empty unit string for that input, keep the period in its label, and multiply by the count in the formula. Use a time unit only when the formula genuinely needs a dimensional duration or rate conversion."
             "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
             "For comparisons, model both options symmetrically and on the same usage level, service level and time period. Show the important result for each option and a direct difference or savings result when useful. Make the direction of any difference clear in its label so users know which option is cheaper or better.",
             "For vehicle energy comparisons, use the same distance and period for both options; calculate fuel use from distance times litres per 100 km divided by 100, and electricity use from distance times kWh per 100 km divided by 100. Multiply each by its own editable per-unit price. Do not claim to calculate full vehicle ownership unless insurance, maintenance, depreciation, financing and other relevant costs are actually modeled.",
