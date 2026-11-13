@@ -1883,9 +1883,9 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
  const evaluated=engine.evaluateV2TypedResults(executionSpec,{},{expenses:[{cost:15}]});
  assert.equal(evaluated.results[0].value,65);
  const saveStart=maker.indexOf("async function saveMakerDraft(publish){");
- const saveGate=maker.indexOf('if(Number(state.aiDraft?.spec?.schemaVersion)===2)',saveStart);
+ const saveGate=maker.indexOf("if(typedV2&&state.v2PersistenceAvailable!==true)",saveStart);
  const rpc=maker.indexOf('sb().rpc("save_worth_it_ugc_calculator"',saveStart);
- assert.ok(saveGate>=0&&rpc>saveGate,"The V2 save gate must run before the persistence RPC.");
+ assert.ok(saveGate>=0&&rpc>saveGate,"The database capability gate must run before the V2 persistence RPC.");
  assert.match(maker,/function renderManualV2InputEditor/);
  assert.match(maker,/function renderManualV2GroupEditor/);
  assert.match(maker,/function renderManualV2ScenarioEditor/);
