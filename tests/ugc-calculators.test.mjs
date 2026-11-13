@@ -2524,6 +2524,114 @@ test("AI usage diagnostics aggregate every provider attempt without inventing un
 });
 
 
+
+test("versioned calculator schema keeps legacy v1 definitions on the unchanged validator",()=>{
+ const engine=createCalculatorEngine();
+ assert.deepEqual(engine.resolveCalculatorVersions(validDefinition),{schemaVersion:1,engineVersion:1,legacy:true});
+ assert.deepEqual(engine.validateVersionedSpec(validDefinition),engine.validateMakerSpec(validDefinition));
+ const explicitlyVersioned={...structuredClone(validDefinition),schemaVersion:1,engineVersion:1};
+ assert.deepEqual(engine.resolveCalculatorVersions(explicitlyVersioned),{schemaVersion:1,engineVersion:1,legacy:false});
+ assert.deepEqual(engine.validateVersionedSpec(explicitlyVersioned),engine.validateMakerSpec(explicitlyVersioned));
+ assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
+});
+
+test("v2 typed schema validates boolean, enum and date inputs and typed dynamic group fields",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,
+  engineVersion:2,
+  inputs:[
+   {key:"base_cost",label:"Base cost",type:"number",min:0,max:1000,default:20,step:1,unit:"EUR",control:"number"},
+   {key:"include_tax",label:"Include tax",type:"boolean",default:true,control:"toggle"},
+   {key:"billing_cycle",label:"Billing cycle",type:"enum",default:"monthly",control:"select",choices:[{label:"Monthly",value:"monthly"},{label:"Annual",value:"annual"}]},
+   {key:"start_date",label:"Start date",type:"date",default:"2026-11-13",control:"date",minDate:"2026-01-01",maxDate:"2027-12-31"}
+  ],
+  groups:[{
+   key:"expenses",label:"Extra expenses",itemLabel:"Expense",minItems:1,maxItems:4,
+   fields:[
+    {key:"amount",label:"Amount",type:"number",min:0,max:1000,default:0,step:1,unit:"EUR"},
+    {key:"taxable",label:"Taxable",type:"boolean",default:true},
+    {key:"expense_type",label:"Expense type",type:"enum",default:"fixed",choices:[{label:"Fixed",value:"fixed"},{label:"Variable",value:"variable"}]},
+    {key:"due_date",label:"Due date",type:"date",default:"2026-11-30"}
+   ]
+  }],
+  results:[{key:"total_cost",label:"Total cost",expression:"base_cost + sum(expenses.amount)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus numeric expense rows."}],
+  scenarios:[{label:"Reduced cost",values:{base_cost:15,include_tax:false,billing_cycle:"annual",start_date:"2026-12-01"}}]
+ };
+ assert.deepEqual(engine.validateVersionedSpec(spec).errors,[]);
+ assert.deepEqual(engine.createDefaultTypedValues(spec),{
+  valid:true,
+  values:{base_cost:20,include_tax:true,billing_cycle:"monthly",start_date:"2026-11-13"},
+  errors:[]
+ });
+ const defaults=engine.createDefaultTypedGroupValues(spec);
+ assert.equal(defaults.valid,true);
+ assert.deepEqual(defaults.groups.expenses,[{amount:0,taxable:true,expense_type:"fixed",due_date:"2026-11-30"}]);
+ const rows=engine.normalizeTypedGroupValues(spec,{expenses:[{amount:42,taxable:false,expense_type:"variable",due_date:"2026-12-15"}]});
+ assert.equal(rows.valid,true);
+ assert.deepEqual(rows.groups.expenses,[{amount:42,taxable:false,expense_type:"variable",due_date:"2026-12-15"}]);
+});
+
+test("v2 typed schema rejects invalid dates, enum values, mismatched versions and typed formula coercion",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"amount",label:"Amount",type:"number",min:0,max:100,default:10,step:1,unit:"EUR",control:"number"},
+   {key:"enabled",label:"Enabled",type:"boolean",default:true,control:"toggle"},
+   {key:"plan",label:"Plan",type:"enum",default:"basic",control:"select",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+   {key:"start_date",label:"Start date",type:"date",default:"2026-11-13",control:"date"}
+  ],
+  groups:[],
+  results:[{key:"total",label:"Total",expression:"amount",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Numeric amount."}],
+  scenarios:[]
+ };
+ const invalidDate=structuredClone(spec);
+ invalidDate.inputs[3].default="2026-02-30";
+ assert.ok(engine.validateVersionedSpec(invalidDate).errors.some(error=>/real YYYY-MM-DD/.test(error)));
+ const invalidEnum=structuredClone(spec);
+ invalidEnum.inputs[2].default="enterprise";
+ assert.ok(engine.validateVersionedSpec(invalidEnum).errors.some(error=>/enum choices must include the default/.test(error)));
+ const mismatch=structuredClone(spec);
+ mismatch.engineVersion=1;
+ assert.ok(engine.validateVersionedSpec(mismatch).errors.some(error=>/version combination is not supported/.test(error)));
+ const coerced=structuredClone(spec);
+ coerced.results[0].expression="amount + (enabled * 1)";
+ assert.ok(engine.validateVersionedSpec(coerced).errors.length>0,"boolean values must not be silently coerced into numeric formula operands");
+ assert.equal(engine.normalizeTypedValue(spec.inputs[1],"true").valid,false);
+ assert.equal(engine.normalizeTypedValue(spec.inputs[2],"enterprise").valid,false);
+ assert.equal(engine.normalizeTypedValue(spec.inputs[3],"2026-02-30").valid,false);
+ assert.equal(engine.normalizeTypedValue(spec.inputs[3],"2026-12-01").valid,true);
+});
+
+test("v2 typed dynamic rows reject unknown fields, wrong primitive types and invalid row counts",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[{key:"count",label:"Count",type:"number",min:1,max:10,default:1,step:1,unit:"",control:"number"}],
+  groups:[{key:"tasks",label:"Tasks",itemLabel:"Task",minItems:1,maxItems:2,fields:[
+   {key:"complete",label:"Complete",type:"boolean",default:false},
+   {key:"due_date",label:"Due date",type:"date",default:"2026-12-01"}
+  ]}],
+  results:[{label:"Task count",expression:"count",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Number of tasks."}],
+  scenarios:[]
+ };
+ assert.deepEqual(engine.validateVersionedSpec(spec).errors,[]);
+ const wrongType=engine.normalizeTypedGroupValues(spec,{tasks:[{complete:1,due_date:"2026-12-01"}]});
+ assert.equal(wrongType.valid,false);
+ assert.ok(wrongType.errors.some(error=>/Choose true or false/.test(error)));
+ const unknown=engine.normalizeTypedGroupValues(spec,{tasks:[{complete:false,due_date:"2026-12-01",script:"alert(1)"}]});
+ assert.equal(unknown.valid,false);
+ assert.ok(unknown.errors.some(error=>/unknown field: script/.test(error)));
+ const tooMany=engine.normalizeTypedGroupValues(spec,{tasks:[
+  {complete:false,due_date:"2026-12-01"},
+  {complete:true,due_date:"2026-12-02"},
+  {complete:false,due_date:"2026-12-03"}
+ ]});
+ assert.equal(tooMany.valid,false);
+ assert.ok(tooMany.errors.some(error=>/1–2 rows/.test(error)));
+});
+
 test("AI Creator server uses the shared v1 engine and accepts its expanded safe formula grammar",()=>{
  const definition=normalizeDefinition({
   title:"Capped Unit Cost",
