@@ -2711,7 +2711,7 @@ test("v2 typed formulas evaluate boolean logic, enum comparisons, date operation
  assert.equal(values.plan_gate,1);
  assert.equal(values.due_after_cutoff,3);
  assert.equal(values.date_gate,1);
- const leap=evaluateV2TypedResults(spec,{start_date:"2024-01-31",include_tax:false,plan:"basic"},{expenses:[
+ const leap=engine.evaluateV2TypedResults(spec,{start_date:"2024-01-31",include_tax:false,plan:"basic"},{expenses:[
   {amount:20,taxable:true,kind:"fixed",due_date:"2024-03-01"}
  ]});
  const leapValues=Object.fromEntries(leap.results.map(item=>[item.key,item.value]));
