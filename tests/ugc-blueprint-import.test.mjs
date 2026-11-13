@@ -25,7 +25,7 @@ function getManualEngine(){
  const repairEnd=builderSource.indexOf("function makerCurrencyWarnings(spec){",repairStart);
  assert.ok(repairStart>=0&&repairEnd>repairStart,"The local Blueprint Quick Fix repair helpers must exist.");
  const repairSandbox={...engine,CURRENCIES:currencyData.currencies,HISTORICAL_CURRENCIES:currencyData.historicalCurrencies};
- runInNewContext(builderSource.slice(repairStart,repairEnd)+"\\nvalidateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;",repairSandbox);
+ runInNewContext(builderSource.slice(repairStart,repairEnd)+"\nvalidateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;",repairSandbox);
  engine.validateMakerSpec.repairBlueprintSpec=repairSandbox.validateMakerSpec.repairBlueprintSpec;
  return engine;
 }
