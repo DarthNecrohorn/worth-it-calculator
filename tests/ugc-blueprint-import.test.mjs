@@ -1415,3 +1415,76 @@ test("repairs Gemini coffee tracker per-cup rates and validates all daily and mo
  assert.equal(value("homemade_monthly_spending"),30);
  assert.equal(value("potential_monthly_savings"),255);
 });
+
+
+test("repairs a Gemini home Wi-Fi estimator with rate choices, per-device group math and editable data rates",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const candidate={
+  blueprintVersion:1,
+  title:"Home Wi-Fi Data Usage & Streaming Estimator",
+  description:"Estimates monthly internet data consumption across video streaming, online gaming, remote work calls and smart home devices.",
+  category:"technology",
+  assumptions:["Data consumption is calculated in gigabytes (GB) per month assuming 30 days."],
+  spec:{
+   inputs:[
+    {key:"daily_streaming_hours",label:"Daily Video Streaming Hours",control:"number",min:0,max:16,default:3,step:0.5,unit:"hours"},
+    {key:"video_quality_tier",label:"Primary Video Quality",control:"select",min:1,max:3,default:2,step:1,unit:"",choices:[
+     {label:"Standard Definition (1 GB/hour)",value:1},
+     {label:"High Definition 1080p (3 GB/hour)",value:2},
+     {label:"4K Ultra HD (7 GB/hour)",value:3}
+    ]},
+    {key:"remote_work_hours",label:"Weekly Video Calls / Remote Work",control:"number",min:0,max:50,default:10,step:1,unit:"hours"},
+    {key:"online_gaming_hours",label:"Daily Online Gaming Hours",control:"slider",min:0,max:8,default:2,step:0.5,unit:""},
+    {key:"include_cloud_backups",label:"Include Large Cloud Backups & Downloads",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"monthly_backup_gb",label:"Estimated Monthly Backup Data",control:"number",min:0,max:500,default:50,step:10,unit:"GB"}
+   ],
+   groups:[{key:"smart_devices",label:"Smart Home & Security Cameras",itemLabel:"Device Group",minItems:1,maxItems:4,fields:[
+    {key:"device_monthly_gb",label:"Monthly Data per Device",min:0,max:100,default:15,step:5,unit:"GB"},
+    {key:"device_count",label:"Number of Active Devices",min:1,max:10,default:2,step:1,unit:"items"}
+   ]}],
+   results:[
+    {key:"streaming_monthly_gb",label:"Monthly Video Streaming Data",expression:"daily_streaming_hours * video_quality_tier * 30",format:"unit",unit:"GB"},
+    {key:"remote_work_monthly_gb",label:"Monthly Remote Work Video Data",expression:"remote_work_hours * 4 * 0.8",format:"unit",unit:"GB"},
+    {key:"gaming_monthly_gb",label:"Monthly Online Gaming Data",expression:"online_gaming_hours * 0.15 * 30",format:"unit",unit:"GB"},
+    {key:"smart_home_total_gb",label:"Smart Devices & Cameras Data",expression:"sum(smart_devices.device_monthly_gb * smart_devices.device_count)",format:"unit",unit:"GB"},
+    {key:"total_monthly_data_gb",label:"Total Monthly Internet Consumption",expression:"streaming_monthly_gb + remote_work_monthly_gb + gaming_monthly_gb + smart_home_total_gb + if(eq(include_cloud_backups, 1), monthly_backup_gb, 0)",format:"unit",unit:"GB"},
+    {key:"total_monthly_data_tb",label:"Total Consumption in Terabytes",expression:"total_monthly_data_gb / 1000",format:"number"}
+   ],
+   scenarios:[
+    {label:"Light Household User",values:{daily_streaming_hours:1.5,video_quality_tier:1,remote_work_hours:4,online_gaming_hours:1,include_cloud_backups:0,monthly_backup_gb:0}},
+    {label:"Heavy Streaming & Family Usage",values:{daily_streaming_hours:5,video_quality_tier:3,remote_work_hours:20,online_gaming_hours:3,include_cloud_backups:1,monthly_backup_gb:100}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ const byKey=key=>definition.spec.inputs.find(input=>input.key===key);
+ assert.equal(byKey("video_quality_tier").unit,"GB/hour");
+ assert.deepEqual(plain(byKey("video_quality_tier").choices.map(choice=>choice.value)),[1,3,7]);
+ assert.equal(definition.spec.scenarios[1].values.video_quality_tier,7);
+ assert.equal(byKey("online_gaming_hours").unit,"hours");
+ assert.equal(definition.spec.groups[0].fields.find(field=>field.key==="device_monthly_gb").unit,"GB/device");
+ assert.equal(definition.spec.groups[0].fields.find(field=>field.key==="device_count").unit,"device");
+ const rates=definition.spec.inputs.filter(input=>input.key.startsWith("estimated_gb_per_hour"));
+ assert.equal(rates.length,2);
+ assert.deepEqual(rates.map(input=>input.default).sort((a,b)=>a-b),[0.15,0.8]);
+ assert.ok(rates.every(input=>input.unit==="GB/hour"));
+ assert.equal(definition.spec.results.find(item=>item.key==="total_monthly_data_tb").format,"unit");
+ assert.equal(definition.spec.results.find(item=>item.key==="total_monthly_data_tb").unit,"TB");
+ const values=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
+ const groups={smart_devices:[{device_monthly_gb:15,device_count:2}]};
+ const resultItems=engine.evaluateFormulaResults(definition.spec,values,groups);
+ const get=key=>resultItems.find(item=>item.key===key).value;
+ assert.equal(get("streaming_monthly_gb"),270);
+ assert.equal(get("remote_work_monthly_gb"),32);
+ assert.equal(get("gaming_monthly_gb"),9);
+ assert.equal(get("smart_home_total_gb"),30);
+ assert.equal(get("total_monthly_data_gb"),391);
+ assert.equal(get("total_monthly_data_tb"),0.391);
+ const scenarioValues=label=>({...values,...definition.spec.scenarios.find(item=>item.label===label).values});
+ const light=engine.evaluateFormulaResults(definition.spec,scenarioValues("Light Household User"),groups);
+ const heavy=engine.evaluateFormulaResults(definition.spec,scenarioValues("Heavy Streaming & Family Usage"),groups);
+ const val=(items,key)=>items.find(item=>item.key===key).value;
+ assert.ok(Math.abs(val(light,"total_monthly_data_gb")-92.3)<1e-9);
+ assert.equal(val(heavy,"total_monthly_data_gb"),1257.5);
+});
