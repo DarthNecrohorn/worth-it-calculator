@@ -2577,7 +2577,8 @@ test("AI Creator normalizes dynamic groups, chained results, typed numeric contr
   results:[
    {key:"extra_total",label:"Extra expenses total",expression:"sum(expenses.amount)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Total of all added expense rows."},
    {key:"subtotal",label:"Subtotal",expression:"base_cost + extra_total",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus additional expenses."},
-   {key:"final_total",label:"Final total",expression:"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Subtotal plus optional tax."}
+   {key:"final_total",label:"Final total",expression:"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Subtotal plus optional tax."},
+   {key:"annualized_total",label:"Annualized total",expression:"final_total * billing_cycle",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Final total multiplied by the selected billing periods."}
   ],
   scenarios:[{label:"Lower cost",overrides:[{key:"base_cost",value:20},{key:"include_tax",value:0}]}]
  },"EUR",{requireAllInputsUsed:true});
