@@ -6,6 +6,7 @@ import { runInNewContext } from "node:vm";
 const helperSource=readFileSync(new URL("../ugc-blueprint-import.js",import.meta.url),"utf8");
 const builderSource=readFileSync(new URL("../ugc-calculators.js",import.meta.url),"utf8");
 const calculatorEngineSource=readFileSync(new URL("../ugc-calculator-engine.js",import.meta.url),"utf8");
+const calculatorCurrencyDataSource=readFileSync(new URL("../ugc-calculator-currency-data.js",import.meta.url),"utf8");
 const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 
 function getImporter(){
@@ -16,16 +17,16 @@ function getImporter(){
 function getManualEngine(){
  const sandbox={};
  runInNewContext(calculatorEngineSource,sandbox);
- const currencyTableStart=builderSource.indexOf("const CURRENCIES=[");
- const currencyTableEnd=builderSource.indexOf("function isSupportedCurrencyCode",currencyTableStart);
- assert.ok(currencyTableStart>=0&&currencyTableEnd>currencyTableStart,"The shared engine currency configuration must be available.");
- const currencyData=runInNewContext(builderSource.slice(currencyTableStart,currencyTableEnd)+"\n({currencies:CURRENCIES,historicalCurrencies:HISTORICAL_CURRENCIES})");
+ const currencySandbox={};
+ runInNewContext(calculatorCurrencyDataSource,currencySandbox);
+ const currencyData=currencySandbox.WorthItCalculatorCurrencyData;
+ assert.ok(Array.isArray(currencyData?.currencies)&&Array.isArray(currencyData?.historicalCurrencies),"The shared engine currency configuration must be available.");
  const engine=sandbox.WorthItCalculatorEngine.create(currencyData);
  const repairStart=builderSource.indexOf("function unitLabelFromDescriptor(unit){");
  const repairEnd=builderSource.indexOf("function makerCurrencyWarnings(spec){",repairStart);
  assert.ok(repairStart>=0&&repairEnd>repairStart,"The local Blueprint Quick Fix repair helpers must exist.");
  const repairSandbox={...engine,CURRENCIES:currencyData.currencies,HISTORICAL_CURRENCIES:currencyData.historicalCurrencies};
- runInNewContext(builderSource.slice(repairStart,repairEnd)+"\nvalidateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;",repairSandbox);
+ runInNewContext(builderSource.slice(repairStart,repairEnd)+"\\nvalidateMakerSpec.repairBlueprintSpec=repairMakerBlueprintSpec;",repairSandbox);
  engine.validateMakerSpec.repairBlueprintSpec=repairSandbox.validateMakerSpec.repairBlueprintSpec;
  return engine;
 }
