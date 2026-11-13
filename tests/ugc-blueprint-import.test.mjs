@@ -1361,3 +1361,57 @@ test("rejects an oversized original request before importing a blueprint",()=>{
   /original calculator request can contain up to 5,000 characters/
  );
 });
+
+
+test("repairs Gemini coffee tracker per-cup rates and validates all daily and monthly result chains",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
+ const candidate={
+  blueprintVersion:1,
+  title:"Coffee Shop Daily Caffeine & Expense Tracker",
+  description:"Calculates total daily caffeine intake, monthly coffee spending and savings from brewing coffee at home.",
+  category:"money",
+  assumptions:["All monetary amounts are calculated in EUR.","A standard month is assumed to have 30 days."],
+  spec:{
+   inputs:[
+    {key:"coffees_per_day",label:"Coffee Cups per Day",control:"number",min:1,max:10,default:2,step:1,unit:"items"},
+    {key:"average_price_per_cup",label:"Average Price per Cup",control:"number",min:0.5,max:10,default:3,step:0.5,unit:"EUR"},
+    {key:"caffeine_per_cup_mg",label:"Caffeine Content per Cup",control:"slider",min:30,max:300,default:95,step:5,unit:""},
+    {key:"home_brew_cost",label:"Cost per Homemade Cup",control:"number",min:0.1,max:3,default:0.5,step:0.1,unit:"EUR"},
+    {key:"include_pastry_add_on",label:"Include Pastry or Snack with Coffee",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"pastry_cost",label:"Average Pastry Price",control:"number",min:0,max:10,default:2.5,step:0.5,unit:"EUR"}
+   ],
+   groups:[{key:"specialty_syrups",label:"Additional Syrups & Extras",itemLabel:"Extra Item",minItems:1,maxItems:4,fields:[
+    {key:"extra_cost",label:"Extra Cost per Cup",min:0,max:3,default:0.5,step:0.1,unit:"EUR"}
+   ]}],
+   results:[
+    {key:"daily_caffeine_mg",label:"Total Daily Caffeine Intake",expression:"coffees_per_day * caffeine_per_cup_mg",format:"number",explanation:"Total milligrams of caffeine consumed daily from all cups."},
+    {key:"daily_spending",label:"Total Daily Coffee Expense",expression:"(coffees_per_day * average_price_per_cup) + if(eq(include_pastry_add_on, 1), pastry_cost, 0) + (coffees_per_day * sum(specialty_syrups.extra_cost))",format:"currency",currency:"EUR"},
+    {key:"monthly_spending",label:"Total Monthly Coffee Expense",expression:"daily_spending * 30",format:"currency",currency:"EUR"},
+    {key:"homemade_monthly_spending",label:"Monthly Homemade Alternative Cost",expression:"coffees_per_day * home_brew_cost * 30",format:"currency",currency:"EUR"},
+    {key:"potential_monthly_savings",label:"Potential Monthly Savings",expression:"monthly_spending - homemade_monthly_spending",format:"currency",currency:"EUR"}
+   ],
+   scenarios:[
+    {label:"Casual Coffee Drinker",values:{coffees_per_day:1,average_price_per_cup:2.5,caffeine_per_cup_mg:80,home_brew_cost:0.4,include_pastry_add_on:0,pastry_cost:0}},
+    {label:"Daily Cafe Habit",values:{coffees_per_day:3,average_price_per_cup:3.5,caffeine_per_cup_mg:120,home_brew_cost:0.6,include_pastry_add_on:1,pastry_cost:3}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),validate);
+ assert.deepEqual(plain(validate(definition.spec).errors),[]);
+ const byKey=key=>definition.spec.inputs.find(input=>input.key===key);
+ assert.equal(byKey("average_price_per_cup").unit,"EUR/items");
+ assert.equal(byKey("home_brew_cost").unit,"EUR/items");
+ assert.equal(byKey("caffeine_per_cup_mg").unit,"mg/items");
+ assert.equal(definition.spec.groups[0].fields[0].unit,"EUR/items");
+ assert.equal(definition.spec.results[0].format,"unit");
+ assert.equal(definition.spec.results[0].unit,"mg");
+ const values=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
+ const groupValues={specialty_syrups:[{extra_cost:0.5}]};
+ const results=engine.evaluateFormulaResults(definition.spec,values,groupValues);
+ const value=key=>results.find(result=>result.key===key).value;
+ assert.equal(value("daily_caffeine_mg"),190);
+ assert.equal(value("daily_spending"),9.5);
+ assert.equal(value("monthly_spending"),285);
+ assert.equal(value("homemade_monthly_spending"),30);
+ assert.equal(value("potential_monthly_savings"),255);
+});
