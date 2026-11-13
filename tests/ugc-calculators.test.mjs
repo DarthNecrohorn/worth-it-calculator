@@ -2532,6 +2532,8 @@ test("versioned calculator schema keeps legacy v1 definitions on the unchanged v
  const explicitlyVersioned={...structuredClone(validDefinition),schemaVersion:1,engineVersion:1};
  assert.deepEqual(JSON.parse(JSON.stringify(engine.resolveCalculatorVersions(explicitlyVersioned))),{schemaVersion:1,engineVersion:1,legacy:false});
  assert.deepEqual(engine.validateVersionedSpec(explicitlyVersioned),engine.validateMakerSpec(explicitlyVersioned));
+ const conflictingLegacyVersion={...explicitlyVersioned,version:2};
+ assert.ok(engine.validateVersionedSpec(conflictingLegacyVersion).errors.some(error=>/legacy version field at 1/.test(error)));
  assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
 });
 
@@ -2592,6 +2594,10 @@ test("v2 typed schema rejects invalid dates, enum values, mismatched versions an
  const invalidEnum=structuredClone(spec);
  invalidEnum.inputs[2].default="enterprise";
  assert.ok(engine.validateVersionedSpec(invalidEnum).errors.some(error=>/enum choices must include the default/.test(error)));
+ const blankEnum=structuredClone(spec);
+ blankEnum.inputs[2].choices[0].value="   ";
+ blankEnum.inputs[2].default="   ";
+ assert.ok(engine.validateVersionedSpec(blankEnum).errors.some(error=>/non-empty string value/.test(error)));
  const mismatch=structuredClone(spec);
  mismatch.engineVersion=1;
  assert.ok(engine.validateVersionedSpec(mismatch).errors.some(error=>/version combination is not supported/.test(error)));
