@@ -2753,7 +2753,8 @@ test("v2 typed formula checker rejects invalid boolean logic, enum literals, dat
  assert.ok(invalid("if(eq(plan, \"enterprise\"), 1, 0)").some(error=>/not one of the enum's declared choices/.test(error)));
  assert.ok(invalid("add_days(start_date, 1.5)").some(error=>/offset constants must be whole numbers/.test(error)));
  assert.ok(invalid("date_diff_days(start_date, 12)").some(error=>/requires two calendar dates/.test(error)));
- assert.ok(invalid("sum_if(items.amount, eq(other_items.amount, 1))").some(error=>/same dynamic group/.test(error)));
+ const crossGroupErrors=invalid("sum_if(items.amount, eq(other_items.amount, 1))");
+ assert.ok(crossGroupErrors.some(error=>/same dynamic group/.test(error)),JSON.stringify(crossGroupErrors));
  assert.ok(invalid("eq(amount, start_date)").some(error=>/same supported type/.test(error)));
  assert.ok(invalid("eq(amount, 10)").length===0,"numeric comparison with a unitless literal should inherit the compared value's unit");
 });
