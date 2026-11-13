@@ -1365,7 +1365,7 @@ function inferBlueprintCountFieldUnit(item,label,notes){
  const denominator=blueprintPerCountDenominator(normalizedLabel);
  // A caffeine field keyed in milligrams and explicitly measured per cup is a
  // mass-per-serving rate, not a dimensionless number or a cup count.
- if(!current&&/\bcaffeine\b/.test(normalizedLabel)&&/\bmg$/.test(String(item.key||""))&&denominator){
+ if(!current&&/\bcaffeine\b/.test(normalizedLabel)&&/_mg$/i.test(String(item.key||""))&&denominator){
   item.unit="mg/"+denominator;
   notes.push(label+": inferred mg/"+denominator+" from its caffeine key and per-cup label.");
   return;
