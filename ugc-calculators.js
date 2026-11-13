@@ -3100,6 +3100,35 @@ async function copyBlueprintPrompt(){
   if(statusNode)statusNode.textContent=error?.message||"Could not copy the instructions. You can select and copy them manually.";
  }
 }
+function applyAdaptiveManualFallback(originalRequest,sourceDefinition,reason,statusNode){
+ const intentKey=inferManualTemplateKey(originalRequest,sourceDefinition||{});
+ const randomIntent=intentKey==="random";
+ const selectedTemplateKey=randomIntent?pickRandomManualTemplateKey():intentKey;
+ const mode=randomIntent?"random":selectedTemplateKey==="simple-cost"?"quick":"template";
+ state.creationSource="manual";
+ state.aiOperationId="";
+ state.manualMode=mode;
+ state.manualTemplateKey=selectedTemplateKey;
+ state.regionalDefaults=null;
+ state.makerLocale="auto";
+ state.blueprintImportActive=false;
+ state.aiDraft=createManualDraft(selectedTemplateKey);
+ const modeSelect=$("ugcManualMode");
+ if(modeSelect)modeSelect.value=mode;
+ const templateSelect=$("ugcManualTemplate");
+ if(templateSelect)templateSelect.value=selectedTemplateKey;
+ setMakerModeUI();
+ renderMakerPreview(state.aiDraft);
+ const topic=state.aiDraft.title;
+ const detail=randomIntent
+  ?"The request was random, so Creator selected the Random calculator mode and picked a tested calculator template."
+  :"The imported blueprint could not pass the shared checks, so Creator selected the closest supported Manual Builder template for the request.";
+ const message=detail+" Selected: "+topic+". The draft is editable and locally testable; nothing was saved, published, sent to an AI service or charged.";
+ makerStatus(message);
+ if(statusNode)statusNode.textContent="Adaptive fallback complete. "+message+(reason?" Original blueprint issue: "+String(reason).slice(0,260):"");
+ $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
+ return {mode,selectedTemplateKey,randomIntent,title:topic};
+}
 async function importManualBlueprint(){
  const statusNode=$("ugcBlueprintImportStatus");
  const textarea=$("ugcBlueprintImportJson");
@@ -3112,44 +3141,62 @@ async function importManualBlueprint(){
  makerStatus("Working on a quick fix…","generating");
  await new Promise(resolve=>setTimeout(resolve,40));
  try{
-  const importer=window.WorthItBlueprintImport;
-  if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
   const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
-  const definition=importer.parseBlueprint(raw,validateMakerSpec,originalRequest);
-  const importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
-  const validationIssueCount=Number(definition.importValidationIssueCount)||0;
-  delete definition.importNotes;
-  delete definition.importValidationIssues;
-  delete definition.importValidationIssueCount;
-  if(state.aiDraft&&!window.confirm("Import this blueprint and replace the current unsaved calculator draft? The current local draft will be replaced, but nothing will be saved or published.")){
+  const importer=window.WorthItBlueprintImport;
+  let definition=null,importError=null;
+  try{
+   if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
+   definition=importer.parseBlueprint(raw,validateMakerSpec,originalRequest);
+  }catch(error){importError=error;}
+  let importNotes=[];
+  let validationIssueCount=0;
+  let validationSummary="";
+  if(definition){
+   importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
+   validationIssueCount=Number(definition.importValidationIssueCount)||0;
+   const sharedValidation=validateMakerSpec(definition.spec);
+   const sharedErrors=Array.isArray(sharedValidation?.errors)?sharedValidation.errors:[];
+   validationIssueCount=Math.max(validationIssueCount,sharedErrors.length);
+   validationSummary=sharedErrors.slice(0,4).join(" ");
+   delete definition.importNotes;
+   delete definition.importValidationIssues;
+   delete definition.importValidationIssueCount;
+  }
+  if(state.aiDraft&&!window.confirm("Continue with this import? It will replace the current unsaved Manual Builder draft, but nothing will be saved or published.")){
    if(statusNode)statusNode.textContent="Import cancelled. Your current draft was left unchanged.";
    makerStatus("Blueprint import cancelled. Your current draft was left unchanged.");
    return;
   }
-  state.creationSource="manual";
-  state.aiOperationId="";
-  state.manualMode="advanced";
   state.regionalDefaults=null;
   state.makerLocale="auto";
-  state.blueprintImportActive=true;
-  state.aiDraft=definition;
-  const mode=$("ugcManualMode");if(mode)mode.value="advanced";
-  const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
-  setMakerModeUI();
-  renderMakerPreview(state.aiDraft);
-  const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
-  if(validationIssueCount){
-   makerStatus("Quick Fix prepared an editable draft. "+validationIssueCount+" item(s) still need your review; edit the formulas, units or input ranges below. Save and Publish remain blocked until the shared checks pass."+adjustmentText);
-   if(statusNode)statusNode.textContent="Draft ready for editing. "+validationIssueCount+" validation item(s) need review before saving or publishing."+adjustmentText;
+  if(!definition||validationIssueCount>0){
+   const reason=importError?.message||(validationSummary||validationIssueCount+" validation item(s) remained after Quick Fix.");
+   const fallback=applyAdaptiveManualFallback(originalRequest,definition,reason,statusNode);
+   const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
+   const summary=reason?" Original blueprint review: "+String(reason).slice(0,300):"";
+   const finalMessage="Quick Fix used the adaptive fallback. "+(fallback.randomIntent?"Random calculator mode is selected. ":"The closest supported Manual Builder template is selected. ")+fallback.title+" is ready to edit and test. Nothing was saved or published."+adjustmentText+summary;
+   makerStatus(finalMessage);
+   if(statusNode)statusNode.textContent=finalMessage;
   }else{
+   state.creationSource="manual";
+   state.aiOperationId="";
+   state.manualMode="advanced";
+   state.manualTemplateKey="";
+   state.blueprintImportActive=true;
+   state.aiDraft=definition;
+   const mode=$("ugcManualMode");if(mode)mode.value="advanced";
+   const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
+   setMakerModeUI();
+   renderMakerPreview(state.aiDraft);
+   const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
    makerStatus("Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged."+adjustmentText);
    if(statusNode)statusNode.textContent="Quick Fix complete. Your editable calculator draft is ready; nothing was saved or published."+adjustmentText;
+   $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
   }
-  $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
  }catch(error){
-  const detail=error?.message||"The blueprint could not be imported.";
+  const detail=error?.message||"The adaptive calculator could not be prepared.";
   if(statusNode)statusNode.textContent=detail;
-  makerStatus("Import could not be prepared: "+String(detail)+" Your current draft was left unchanged.","error");
+  makerStatus("Creator could not complete the adaptive fallback: "+String(detail)+". Your existing local draft was left unchanged.","error");
  }finally{
   if(importButton){importButton.disabled=false;importButton.textContent=originalButtonText;}
  }
