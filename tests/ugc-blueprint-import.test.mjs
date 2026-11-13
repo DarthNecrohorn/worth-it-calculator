@@ -1569,6 +1569,8 @@ test("Manual Builder exposes random mode and adaptive recovery selects a topic-m
  assert.equal(helpers.isRandomCalculatorRequest("daj neki random calculator"),true);
  assert.equal(helpers.isRandomCalculatorRequest("Create an electricity cost calculator"),false);
  assert.equal(helpers.inferManualTemplateKey("daj neki random calculator",{}),"random");
+ assert.equal(helpers.inferManualTemplateKey("",{}),"random");
+ assert.equal(helpers.inferManualTemplateKey("Create a niche calculator for an unfamiliar technical process.",{title:"Custom Process Performance Estimator"}),"advanced");
  assert.equal(helpers.inferManualTemplateKey("smart home LED lighting energy and cost calculator",{}),"smart-led-lighting");
  assert.equal(helpers.inferManualTemplateKey("",{title:"Smart Home LED Lighting Energy & Cost Calculator",description:"Compares electricity use, kWh and lighting costs."}),"smart-led-lighting");
  const chosen=helpers.pickRandomManualTemplateKey();
