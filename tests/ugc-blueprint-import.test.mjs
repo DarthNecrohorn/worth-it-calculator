@@ -1281,7 +1281,7 @@ test("repairs a multi-input AI infrastructure blueprint with request/token rates
  assert.equal(results.cost_per_active_user.format,"unit");
  assert.equal(results.cost_per_active_user.unit,"USD/people");
  assert.deepEqual(plain(validate(definition.spec).errors),[]);
- assert.ok(definition.importNotes.some(note=>note.includes("reduced the step to 100")));
+ assert.ok(definition.importNotes.some(note=>note.includes("adjusted the step to 100")));
  assert.ok(definition.importNotes.some(note=>note.includes("Quick Fix self-test passed")));
  const groupValues={auxiliary_ai_services:[{service_monthly_cost:50,scaling_factor:1}]};
  const calculate=(overrides={})=>{
