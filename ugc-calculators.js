@@ -1355,9 +1355,12 @@ function blueprintCountUnitFromLabel(label){
 function inferBlueprintCountFieldUnit(item,label,notes){
  const current=String(item.unit||"").trim();
  const currencyMatch=/^([A-Z]{3})$/.exec(current);
+ const ratePlaceholder=/^([A-Z]{3})\s*\/\s*(?:items?|units?)$/i.exec(current);
+ const currencyCode=currencyMatch?.[1]||ratePlaceholder?.[1]||"";
  const rateDenominator=blueprintPerCountDenominator(label);
- if(currencyMatch&&rateDenominator&&blueprintIsPerCountPriceLabel(label)&&isSupportedCurrencyCode(currencyMatch[1])){
-  const inferredRate=currencyMatch[1]+"/"+rateDenominator;
+ const supportedCurrency=CURRENCIES.some(([code])=>code===currencyCode);
+ if(currencyCode&&supportedCurrency&&rateDenominator&&blueprintIsPerCountPriceLabel(label)){
+  const inferredRate=currencyCode+"/"+rateDenominator;
   if(current!==inferredRate){
    item.unit=inferredRate;
    notes.push(label+": inferred "+inferredRate+" because this monetary input is explicitly a price or cost per "+rateDenominator+".");
@@ -1366,7 +1369,6 @@ function inferBlueprintCountFieldUnit(item,label,notes){
  }
  const inferred=blueprintCountUnitFromLabel(label);
  const countPlaceholder=/^(?:items?|units?)$/i.test(current);
- const ratePlaceholder=/^([A-Z]{3})\s*\/\s*(?:items?|units?)$/i.exec(current);
  if(!current&&inferred){
   item.unit=inferred;
   notes.push(label+": inferred the explicit count/rate unit "+inferred+" from its label.");
