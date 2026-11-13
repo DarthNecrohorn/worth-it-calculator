@@ -821,10 +821,25 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.ok(!Object.hasOwn(classificationSchema,"anyOf"),"Groq schema must not use ambiguous anyOf branches");
         assert.deepEqual(classificationSchema.required,["category","subcategories"]);
         assert.equal(classificationSchema.additionalProperties,false);
-        assert.ok(body.response_format.json_schema.schema.required.includes("classification"));
-        assert.equal(body.response_format.json_schema.schema.additionalProperties,false);
+        const rootSchema=body.response_format.json_schema.schema;
+        assert.ok(rootSchema.required.includes("classification"));
+        assert.ok(rootSchema.required.includes("groups"));
+        assert.ok(rootSchema.required.includes("scenarios"));
+        assert.equal(rootSchema.properties.inputs.maxItems,24);
+        const inputSchema=rootSchema.properties.inputs.items;
+        assert.deepEqual(inputSchema.properties.control.enum,["number","slider","select","toggle"]);
+        assert.ok(inputSchema.required.includes("choices"));
+        assert.equal(rootSchema.properties.groups.maxItems,4);
+        assert.equal(rootSchema.properties.results.maxItems,20);
+        assert.ok(rootSchema.properties.results.items.required.includes("key"));
+        assert.equal(rootSchema.properties.scenarios.maxItems,3);
+        assert.equal(rootSchema.additionalProperties,false);
         assert.match(body.messages[0].content,/classification object/);
-        assert.match(body.messages[0].content, /restricted arithmetic parser/);
+        assert.match(body.messages[0].content,/restricted arithmetic parser/);
+        assert.match(body.messages[0].content,/dynamic groups/);
+        assert.match(body.messages[0].content,/comparison scenario/);
+        assert.match(body.messages[0].content,/sum\\(group_key\\.field_key\\)/);
+        assert.match(body.messages[0].content,/earlier result keys/);
         return new Response(JSON.stringify({
             model: "openai/gpt-oss-120b",
             choices: [{ message: { content: JSON.stringify(validDefinition), finish_reason: "stop" } }],
@@ -2539,4 +2554,38 @@ test("shared server currency metadata loads before the browser formula engine an
  assert.ok(makerApi.includes("SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec)"));
  assert.doesNotMatch(makerApi,/function compileExpression\(/);
  assert.doesNotMatch(makerApi,/function evaluate\(/);
+});
+
+
+
+test("AI Creator normalizes dynamic groups, chained results, typed numeric controls and comparison scenarios with the shared engine",()=>{
+ const definition=normalizeDefinition({
+  title:"Household Expense Calculator",
+  description:"Calculate a household purchase total and analyse additional expenses across a simple comparison scenario.",
+  category:"home",
+  subcategories:["household-budget"],
+  inputs:[
+   {key:"base_cost",label:"Base cost",min:0,max:1000000,default:30,step:1,unit:"EUR",control:"number",choices:[]},
+   {key:"include_tax",label:"Include tax",min:0,max:1,default:1,step:1,unit:"",control:"toggle",choices:[]},
+   {key:"tax_rate",label:"Tax rate",min:0,max:100,default:20,step:1,unit:"%",control:"slider",choices:[]},
+   {key:"billing_cycle",label:"Billing cycle",min:1,max:12,default:1,step:1,unit:"",control:"select",choices:[{label:"Monthly",value:1},{label:"Annual",value:12}]}
+  ],
+  groups:[{
+   key:"expenses",label:"Extra expenses",itemLabel:"Item",minItems:2,maxItems:10,
+   fields:[{key:"amount",label:"Amount",min:0,max:1000000,default:0,step:1,unit:"EUR"}]
+  }],
+  results:[
+   {key:"extra_total",label:"Extra expenses total",expression:"sum(expenses.amount)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Total of all added expense rows."},
+   {key:"subtotal",label:"Subtotal",expression:"base_cost + extra_total",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus additional expenses."},
+   {key:"final_total",label:"Final total",expression:"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Subtotal plus optional tax."}
+  ],
+  scenarios:[{label:"Lower cost",overrides:[{key:"base_cost",value:20},{key:"include_tax",value:0}]}]
+ },"EUR",{requireAllInputsUsed:true});
+ assert.equal(definition.groups[0].key,"expenses");
+ assert.equal(definition.groups[0].fields[0].unit,"EUR");
+ assert.equal(definition.inputs.find(item=>item.key==="include_tax").control,"toggle");
+ assert.equal(definition.inputs.find(item=>item.key==="billing_cycle").choices.length,2);
+ assert.deepEqual(definition.results.map(item=>item.key),["extra_total","subtotal","final_total"]);
+ assert.equal(definition.results[2].expression,"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)");
+ assert.deepEqual(definition.scenarios[0].values,{base_cost:20,include_tax:0});
 });
