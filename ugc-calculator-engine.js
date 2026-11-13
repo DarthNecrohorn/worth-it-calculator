@@ -846,7 +846,8 @@ function inferV2Expression(ast,symbols,groups){
    const expected=unitDescriptor(name==="add_days"?"days":"months"),offsetUnit=args[1].unit;
    const literal=constantFormulaValue(expression.args[1])!==null;
    if(literal&&!Number.isInteger(constantFormulaValue(expression.args[1])))throw new Error(name+"() offset constants must be whole numbers.");
-   if(!literal&&!sameUnitDescriptor(offsetUnit,expected))throw new Error(name+"() offset must use "+(name==="add_days"?"days":"months")+" or be a numeric constant.");
+   const acceptedOffsetUnits=name==="add_days"?["day","days"]:["month","months"];
+   if(!literal&&!acceptedOffsetUnits.includes(String(offsetUnit.exact||"")))throw new Error(name+"() offset must use "+(name==="add_days"?"day/days":"month/months")+" or be a numeric constant.");
    return {type:"date"};
   }
   if(name==="days_in_month"){
