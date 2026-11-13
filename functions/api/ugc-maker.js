@@ -1349,6 +1349,8 @@ export async function onRequestPost(context){
             const refinedGroups=groupStructure(definition);
             const originalResultKeys=existingCalculator.spec.results.map(item=>String(item.key||""));
             const refinedResultKeys=definition.results.map(item=>String(item.key||""));
+            const resultKeysPreserved=originalResultKeys.length===refinedResultKeys.length&&
+                originalResultKeys.every((key,index)=>!key||key===refinedResultKeys[index]);
             const originalLabels=existingCalculator.spec.results.map(item=>String(item.label));
             const refinedLabels=definition.results.map(item=>String(item.label));
             const originalScenarios=(existingCalculator.spec.scenarios||[]).map(item=>String(item.label||""));
@@ -1361,7 +1363,7 @@ export async function onRequestPost(context){
                 sameArray(definition.subcategories,originalSubcategories)&&
                 sameArray(refinedKeys,originalKeys)&&sameArray(refinedGroups.map(group=>group.key),originalGroups.map(group=>group.key))&&
                 sameArray(refinedGroups.map(group=>group.fields.join("|")),originalGroups.map(group=>group.fields.join("|")))&&
-                sameArray(refinedResultKeys,originalResultKeys)&&sameArray(refinedLabels,originalLabels)&&
+                resultKeysPreserved&&sameArray(refinedLabels,originalLabels)&&
                 sameArray(refinedScenarios,originalScenarios);
             if(!identityIsPreserved){
                 await refundAiOperation();
