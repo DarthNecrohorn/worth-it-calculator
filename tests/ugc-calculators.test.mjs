@@ -2527,10 +2527,10 @@ test("AI usage diagnostics aggregate every provider attempt without inventing un
 
 test("versioned calculator schema keeps legacy v1 definitions on the unchanged validator",()=>{
  const engine=createCalculatorEngine();
- assert.deepEqual(engine.resolveCalculatorVersions(validDefinition),{schemaVersion:1,engineVersion:1,legacy:true});
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.resolveCalculatorVersions(validDefinition))),{schemaVersion:1,engineVersion:1,legacy:true});
  assert.deepEqual(engine.validateVersionedSpec(validDefinition),engine.validateMakerSpec(validDefinition));
  const explicitlyVersioned={...structuredClone(validDefinition),schemaVersion:1,engineVersion:1};
- assert.deepEqual(engine.resolveCalculatorVersions(explicitlyVersioned),{schemaVersion:1,engineVersion:1,legacy:false});
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.resolveCalculatorVersions(explicitlyVersioned))),{schemaVersion:1,engineVersion:1,legacy:false});
  assert.deepEqual(engine.validateVersionedSpec(explicitlyVersioned),engine.validateMakerSpec(explicitlyVersioned));
  assert.ok(engine.resolveCalculatorVersions(validDefinition).legacy);
 });
@@ -2558,18 +2558,18 @@ test("v2 typed schema validates boolean, enum and date inputs and typed dynamic 
   results:[{key:"total_cost",label:"Total cost",expression:"base_cost + sum(expenses.amount)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus numeric expense rows."}],
   scenarios:[{label:"Reduced cost",values:{base_cost:15,include_tax:false,billing_cycle:"annual",start_date:"2026-12-01"}}]
  };
- assert.deepEqual(engine.validateVersionedSpec(spec).errors,[]);
- assert.deepEqual(engine.createDefaultTypedValues(spec),{
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(spec).errors)),[]);
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.createDefaultTypedValues(spec))),{
   valid:true,
   values:{base_cost:20,include_tax:true,billing_cycle:"monthly",start_date:"2026-11-13"},
   errors:[]
  });
  const defaults=engine.createDefaultTypedGroupValues(spec);
  assert.equal(defaults.valid,true);
- assert.deepEqual(defaults.groups.expenses,[{amount:0,taxable:true,expense_type:"fixed",due_date:"2026-11-30"}]);
+ assert.deepEqual(JSON.parse(JSON.stringify(defaults.groups.expenses)),[{amount:0,taxable:true,expense_type:"fixed",due_date:"2026-11-30"}]);
  const rows=engine.normalizeTypedGroupValues(spec,{expenses:[{amount:42,taxable:false,expense_type:"variable",due_date:"2026-12-15"}]});
  assert.equal(rows.valid,true);
- assert.deepEqual(rows.groups.expenses,[{amount:42,taxable:false,expense_type:"variable",due_date:"2026-12-15"}]);
+ assert.deepEqual(JSON.parse(JSON.stringify(rows.groups.expenses)),[{amount:42,taxable:false,expense_type:"variable",due_date:"2026-12-15"}]);
 });
 
 test("v2 typed schema rejects invalid dates, enum values, mismatched versions and typed formula coercion",()=>{
@@ -2616,7 +2616,7 @@ test("v2 typed dynamic rows reject unknown fields, wrong primitive types and inv
   results:[{label:"Task count",expression:"count",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Number of tasks."}],
   scenarios:[]
  };
- assert.deepEqual(engine.validateVersionedSpec(spec).errors,[]);
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(spec).errors)),[]);
  const wrongType=engine.normalizeTypedGroupValues(spec,{tasks:[{complete:1,due_date:"2026-12-01"}]});
  assert.equal(wrongType.valid,false);
  assert.ok(wrongType.errors.some(error=>/Choose true or false/.test(error)));
