@@ -1337,6 +1337,7 @@ function blueprintCountAtomFromText(value){
  if(/\btokens?\b/.test(text))return "token";
  if(/\b(?:api\s+)?calls?\b/.test(text))return "call";
  if(/\bdevices?\b/.test(text))return "device";
+ if(/\b(?:bulbs?|lamps?)\b/.test(text))return "items";
  if(/\bsessions?\b/.test(text))return "session";
  if(/\b(?:monthly\s+active\s+)?users?\b|\bpeople\b|\bpersons?\b/.test(text))return "user";
  // Generic sellable/countable quantities are dimensional values too.
@@ -1381,8 +1382,24 @@ function blueprintCountUnitFromLabel(label){
  }
  return blueprintCountAtomFromText(normalized);
 }
+function canonicalBlueprintUnitLabel(value){
+ let unit=String(value||"").trim();
+ unit=unit.replace(/\\s+per\\s+/gi,"/").replace(/\\s*\\/\\s*/g,"/");
+ const aliases=[
+  [/^watts?$/i,"W"],[/^kilowatts?$/i,"kW"],[/^watt[- ]hours?$/i,"Wh"],
+  [/^kilowatt[- ]hours?$/i,"kWh"],[/^megawatt[- ]hours?$/i,"MWh"],
+  [/^hours?$/i,"hours"],[/^days?$/i,"days"],[/^weeks?$/i,"weeks"],[/^months?$/i,"months"],[/^years?$/i,"years"]
+ ];
+ for(const [pattern,replacement] of aliases){if(pattern.test(unit)){unit=replacement;break;}}
+ return unit;
+}
 function inferBlueprintCountFieldUnit(item,label,notes){
- const current=String(item.unit||"").trim();
+ const rawCurrent=String(item.unit||"").trim();
+ const current=canonicalBlueprintUnitLabel(rawCurrent);
+ if(current!==rawCurrent){
+  item.unit=current;
+  notes.push(label+": normalized the unit label to "+current+" so its dimensions can be checked.");
+ }
  const normalizedLabel=String(label||"").toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
  const denominator=blueprintPerCountDenominator(normalizedLabel);
  // A caffeine field keyed in milligrams and explicitly measured per cup is a
@@ -1406,10 +1423,16 @@ function inferBlueprintCountFieldUnit(item,label,notes){
   return;
  }
  const timeMatch=normalizedLabel.match(/\b(hours?|hrs?|minutes?|seconds?|days?|weeks?|months?|years?)\b/);
- if(!current&&timeMatch&&!denominator){
-  const timeUnit=({hrs:"hours",hr:"hours",hour:"hours",hours:"hours",minute:"minutes",minutes:"minutes",second:"seconds",seconds:"seconds",day:"days",days:"days",week:"weeks",weeks:"weeks",month:"months",months:"months",year:"years",years:"years"})[timeMatch[1]]||timeMatch[1];
+ const dailyUsePerItem=/\\b(?:daily|per day)\\b/.test(normalizedLabel)&&/\\b(?:usage|use|operation)\\b/.test(normalizedLabel)&&/\\b(?:bulb|lamp|device|item)\\b/.test(normalizedLabel);
+ if(!current&&(timeMatch&&!denominator||dailyUsePerItem)){
+  const timeUnit=(!timeMatch?"hours":({hrs:"hours",hr:"hours",hour:"hours",hours:"hours",minute:"minutes",minutes:"minutes",second:"seconds",seconds:"seconds",day:"days",days:"days",week:"weeks",weeks:"weeks",month:"months",months:"months",year:"years",years:"years"})[timeMatch[1]]||timeMatch[1]);
   item.unit=timeUnit;
   notes.push(label+": inferred the explicit time unit "+timeUnit+" from its label.");
+  return;
+ }
+ if(current==="W"&&!current.includes("/")&&/\\b(?:bulb|lamp)\\b/.test(normalizedLabel)&&/\\b(?:wattage|power)\\b/.test(normalizedLabel)){
+  item.unit="W/items";
+  notes.push(label+": inferred W/items because the wattage is specified per bulb.");
   return;
  }
  if(current&&denominator&&!currencyCode&&!current.includes("/")){
