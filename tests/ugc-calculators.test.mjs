@@ -10,6 +10,7 @@ const style = read("style.css");
 const routing = read("routing.js");
 const guest = read("guest-mode.js");
 const maker = read("ugc-calculators.js");
+const calculatorEngineSource = read("ugc-calculator-engine.js");
 const makerApi = read("functions/api/ugc-maker.js");
 const profile = read("profile-ui.js");
 const chat = read("chat-ui.js");
@@ -30,6 +31,17 @@ const paginationCss = read("ugc-calculators.css");
 const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
+
+const currencyTableStart = maker.indexOf("const CURRENCIES=[");
+const currencyTableEnd = maker.indexOf("function isSupportedCurrencyCode(",currencyTableStart);
+if(currencyTableStart<0||currencyTableEnd<=currencyTableStart)throw new Error("The current currency metadata fixture could not be found.");
+const currencyData=runInNewContext(maker.slice(currencyTableStart,currencyTableEnd)+"\n({currencies:CURRENCIES,historicalCurrencies:HISTORICAL_CURRENCIES})");
+function createCalculatorEngine(){
+ const sandbox={};
+ runInNewContext(calculatorEngineSource,sandbox);
+ return sandbox.WorthItCalculatorEngine.create(currencyData);
+}
+
 const profileCardsSql = read("supabase/worth-it-ugc-profile-cards.sql");
 const reactionPolicySql = read("supabase/worth-it-ugc-reaction-policy.sql");
 const reactionPolicyPrivacySql = read("supabase/worth-it-ugc-reaction-policy-owner-privacy.sql");
@@ -641,11 +653,7 @@ test("AI Maker can be closed only with its X button; backdrop clicks never dismi
 });
 
 test("AI Maker test mode recalculates locally with the restricted formula engine and never charges CALC", () => {
-    const engineStart = maker.indexOf("function compileExpression");
-    const engineEnd = maker.indexOf("async function refreshAiEditQuota", engineStart);
-    assert.ok(engineStart >= 0 && engineEnd > engineStart, "the restricted formula engine is present");
-    const engineSource = maker.slice(engineStart, engineEnd);
-    const engine = runInNewContext(engineSource + "\n({ compileExpression, evaluate, formatResult })");
+    const engine = createCalculatorEngine();
     const keys = new Set(["current_monthly_cost", "new_monthly_cost", "switching_fee", "period_months"]);
     const values = { current_monthly_cost: 30, new_monthly_cost: 10, switching_fee: 0, period_months: 12 };
     const expressions = [
@@ -1554,13 +1562,7 @@ test("UGC calculator cards show verified original creation source", () => {
 });
 
 test("UGC formula engine supports extended math and checks physical and currency dimensions", () => {
-    const engineStart=maker.indexOf("function compileExpression");
-    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
-    assert.ok(engineStart>=0&&engineEnd>engineStart,"The safe formula and dimensional-analysis engine must exist.");
-    const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateFormulaResultUnit,validateMakerSpec})",
-        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["JPY","Japanese yen"],["BHD","Bahraini dinar"]]}
-    );
+    const engine=createCalculatorEngine();
     const keys=new Set(["energy","price","distance","hours","volume"]);
     assert.equal(engine.evaluate(engine.compileExpression("clamp(18, 0, 10)",keys),{}),10);
     assert.equal(engine.evaluate(engine.compileExpression("avg(10, 20, 30)",keys),{}),20);
@@ -1599,15 +1601,10 @@ test("UGC formula engine supports extended math and checks physical and currency
 });
 
 test("all built-in Manual Builder templates pass formula, unit and boundary validation", () => {
-    const engineStart=maker.indexOf("function compileExpression");
-    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
     const templateStart=maker.indexOf("const MANUAL_TEMPLATES={");
     const templateEnd=maker.indexOf("function createManualDraft",templateStart);
-    assert.ok(engineStart>=0&&engineEnd>engineStart&&templateStart>=0&&templateEnd>templateStart);
-    const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({compileExpression,analyseFormulaUnit,unitVectorKey,validateMakerSpec})",
-        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"],["GBP","Pound sterling"]]}
-    );
+    assert.ok(templateStart>=0&&templateEnd>templateStart);
+    const engine=createCalculatorEngine();
     const templates=runInNewContext(maker.slice(templateStart,templateEnd)+"\nMANUAL_TEMPLATES");
     const hourly=templates["hourly-pay"];
     const hourlyKeys=new Set(hourly.inputs.map(input=>input.key));
@@ -1626,12 +1623,7 @@ test("all built-in Manual Builder templates pass formula, unit and boundary vali
 });
 
 test("Manual Builder what-if scenarios validate overrides and remain optional for older calculators", () => {
-    const engineStart=maker.indexOf("function compileExpression");
-    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
-    const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({validateMakerSpec})",
-        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
-    );
+    const engine=createCalculatorEngine();
     const base={
         inputs:[
             {key:"quantity",label:"Quantity",min:1,max:100,default:10,step:1,unit:"units"},
@@ -1652,12 +1644,7 @@ test("Manual Builder what-if scenarios validate overrides and remain optional fo
 
 
 test("Composable Manual Builder supports chained results and bounded dynamic groups", () => {
-    const engineStart=maker.indexOf("function compileExpression");
-    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
-    const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({compileExpression,evaluate,analyseFormulaUnit,validateMakerSpec,evaluateFormulaResults,groupMapForSpec})",
-        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"]]}
-    );
+    const engine=createCalculatorEngine();
     const spec={
         inputs:[{key:"months",label:"Number of periods",min:1,max:60,default:12,step:1,unit:""}],
         groups:[{key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:10,
@@ -1689,12 +1676,7 @@ test("Composable Manual Builder supports chained results and bounded dynamic gro
 });
 
 test("Composable Manual Builder validates and evaluates all six dynamic expense aggregates with default currency normalization", () => {
-    const engineStart=maker.indexOf("function compileExpression");
-    const engineEnd=maker.indexOf("async function refreshAiEditQuota",engineStart);
-    const engine=runInNewContext(
-        maker.slice(engineStart,engineEnd)+"\n({compileExpression,validateMakerSpec,evaluateFormulaResults,ensureResultCurrency})",
-        {CURRENCIES:[["EUR","Euro"],["USD","US dollar"],["RSD","Serbian dinar"]]}
-    );
+    const engine=createCalculatorEngine();
     const spec={
         inputs:[{key:"base_cost",label:"Base cost",min:0,max:1000000,default:30,step:0.01,unit:"EUR"}],
         groups:[{key:"expenses",label:"Extra expenses",itemLabel:"Expense",minItems:1,maxItems:20,
@@ -1748,9 +1730,9 @@ test("UGC calculator scenarios and advanced input types are validated on the ser
     assert.match(composableBuilderSql,/sum.*count/);
     assert.match(paginationFixture,/Composable Manual Builder/);
     assert.match(maker,/Number with unit/);
-    assert.match(maker,/function analyseFormulaUnit/);
-    assert.match(maker,/Addition and subtraction require matching units/);
-    assert.match(maker,/choose a supported ISO 4217 currency code/);
+    assert.match(calculatorEngineSource,/function analyseFormulaUnit/);
+    assert.match(calculatorEngineSource,/Addition and subtraction require matching units/);
+    assert.match(calculatorEngineSource,/choose a supported ISO 4217 currency code/);
     assert.match(sql,/jsonb_array_length\(p_spec->'scenarios'\) > 3/);
     assert.match(sql,/comparison scenario value is outside its input range/i);
     assert.match(sql,/comparison scenario value must match one of its dropdown choices/i);
@@ -1782,9 +1764,20 @@ test("UGC currency choices match the current ISO 4217 list and preserve historic
     assert.match(sql,/'BGN'/);
 });
 
+
+test("Manual Builder loads the extracted shared v1 engine before its UI adapter",()=>{
+    const engineTag=html.indexOf('ugc-calculator-engine.js?v=shared-v1-extraction-20261113a');
+    const builderTag=html.indexOf('ugc-calculators.js?v=');
+    assert.ok(engineTag>=0&&builderTag>engineTag,"The shared engine must load before the Manual Builder UI.");
+    assert.match(maker,/window\\.WorthItCalculatorEngine\\?\\.create/);
+    assert.match(maker,/const \\{[\\s\\S]*validateMakerSpec[\\s\\S]*\\}=calculatorEngine/);
+    assert.match(calculatorEngineSource,/apiVersion:1/);
+    assert.doesNotMatch(calculatorEngineSource,/\\beval\\s*\\(|new\\s+Function\\s*\\(/);
+});
+
 test("calculator formulas are declarative and never executed as arbitrary JavaScript", () => {
-    assert.match(maker, /function compileExpression/);
-    assert.match(maker, /function evaluate/);
+    assert.match(calculatorEngineSource, /function compileExpression/);
+    assert.match(calculatorEngineSource, /function evaluate/);
     assert.match(maker, /calc_wallet_reserve/);
     assert.match(maker, /calc_wallet_settle/);
     assert.match(maker, /calc_wallet_refund/);
