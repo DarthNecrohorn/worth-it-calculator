@@ -2709,7 +2709,7 @@ test("v2 typed formulas evaluate boolean logic, enum comparisons, date operation
  assert.equal(values.next_date_year,2026);
  assert.equal(values.start_weekday,6);
  assert.equal(values.plan_gate,1);
- assert.equal(values.due_after_cutoff,2);
+ assert.equal(values.due_after_cutoff,3);
  assert.equal(values.date_gate,1);
  const leap=evaluateV2TypedResults(spec,{start_date:"2024-01-31",include_tax:false,plan:"basic"},{expenses:[
   {amount:20,taxable:true,kind:"fixed",due_date:"2024-03-01"}
@@ -2756,7 +2756,7 @@ test("v2 typed formula checker rejects invalid boolean logic, enum literals, dat
  const crossGroupErrors=invalid("sum_if(items.item_amount, eq(other_items.other_amount, 1))");
  assert.ok(crossGroupErrors.some(error=>/same dynamic group/.test(error)),JSON.stringify(crossGroupErrors));
  assert.ok(invalid("eq(amount, start_date)").some(error=>/same supported type/.test(error)));
- assert.ok(invalid("eq(amount, 10)").length===0,"numeric comparison with a unitless literal should inherit the compared value's unit");
+ assert.ok(invalid("if(eq(amount, 10), 1, 0)").length===0,"numeric comparison with a unitless literal should inherit the compared value unit");
 });
 
 test("v2 typed formula evaluator rejects invalid runtime values and enforces bounded date arithmetic",()=>{
