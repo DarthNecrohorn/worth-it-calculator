@@ -1112,18 +1112,18 @@ test("adds safe guards to divisions with a variable denominator and validates ze
 });
 
 
-test("repairs Serbian small-business unit-price dimensions before opening the editable test calculator",()=>{
+test("repairs Serbian small-business dimensions and verifies separated expenses, positive-profit tax, and whole-unit break-even",()=>{
  const importer=getImporter(),engine=getManualEngine(),validate=engine.validateMakerSpec;
  const candidate={
   blueprintVersion:1,
   title:"Kalkulator profitabilnosti i tačke pokrića malog biznisa",
-  description:"Izračunajte mesečni prihod, fiksne i promenljive troškove, neto dobit, profitnu maržu i tačku pokrića za mali biznis.",
+  description:"Izračunajte mesečni prihod, direktne promenljive troškove, fiksne i dodatne mesečne troškove, dobit pre i nakon poreza, profitnu maržu i minimalnu celobrojnu prodaju za pokriće troškova.",
   category:"money",
   subcategories:["business","profit","breakeven"],
   assumptions:[
    "Svi finansijski iznosi su izraženi u EUR.",
-   "Fiksni troškovi ostaju stabilni bez obzira na obim prodaje u posmatranom periodu.",
-   "Promenljivi troškovi i dodatni troškovi se obračunavaju na mesečnom nivou."
+   "Osnovni fiksni troškovi i dodatni mesečni troškovi ne zavise od broja prodatih jedinica. Troškovi koji rastu sa svakom jedinicom treba da budu uključeni u promenljivi trošak po jedinici.",
+   "Poreski obračun je pojednostavljen: uneta poreska stopa primenjuje se samo na pozitivnu dobit pre poreza. Ne obračunava se PDV, poreski kredit, prenos poreskog gubitka niti posebna poreska pravila države."
   ],
   spec:{
    inputs:[
@@ -1137,15 +1137,16 @@ test("repairs Serbian small-business unit-price dimensions before opening the ed
     {key:"expense_amount",label:"Iznos troška",min:0,max:5000,default:100,step:50,unit:"EUR"}
    ]}],
    results:[
-    {key:"gross_revenue",label:"Ukupan mesečni prihod",expression:"average_price_per_unit * monthly_units_sold",format:"currency",currency:"EUR",explanation:"Ukupan prihod od prodaje bez odbitka troškova."},
-    {key:"total_variable_costs",label:"Ukupni promenljivi troškovi",expression:"(variable_cost_per_unit * monthly_units_sold) + sum(additional_expenses.expense_amount)",format:"currency",currency:"EUR",explanation:"Direktni promenljivi i dodatni mesečni troškovi."},
-    {key:"total_fixed_expenses",label:"Ukupni fiksni troškovi",expression:"monthly_fixed_costs",format:"currency",currency:"EUR",explanation:"Fiksni mesečni troškovi poslovanja."},
-    {key:"total_costs",label:"Ukupni troškovi poslovanja",expression:"total_variable_costs + total_fixed_expenses",format:"currency",currency:"EUR",explanation:"Zbir fiksnih i promenljivih troškova."},
-    {key:"net_profit_before_tax",label:"Neto dobit pre oporezivanja",expression:"gross_revenue - total_costs",format:"currency",currency:"EUR",explanation:"Dobit pre poreza."},
-    {key:"net_profit_after_tax",label:"Neto dobit nakon oporezivanja",expression:"net_profit_before_tax * (1 - tax_rate_pct / 100)",format:"currency",currency:"EUR",explanation:"Dobit nakon primene unete poreske stope."},
-    {key:"profit_margin_pct",label:"Neto profitna marža",expression:"if(gt(gross_revenue, 0), (net_profit_after_tax / gross_revenue) * 100, 0)",format:"percent",explanation:"Udeo neto dobiti u ukupnom prihodu."},
-    {key:"contribution_margin_per_unit",label:"Marža pokrića po jedinici",expression:"average_price_per_unit - variable_cost_per_unit",format:"currency",currency:"EUR",explanation:"Prodajna cena umanjena za promenljivi trošak po jedinici."},
-    {key:"break_even_units",label:"Tačka pokrića (Break-even u jedinicama)",expression:"if(gt(contribution_margin_per_unit, 0), (monthly_fixed_costs + sum(additional_expenses.expense_amount)) / contribution_margin_per_unit, 0)",format:"number",explanation:"Broj jedinica potreban za pokriće troškova."}
+    {key:"gross_revenue",label:"Ukupan mesečni prihod",expression:"average_price_per_unit * monthly_units_sold",format:"currency",currency:"EUR",explanation:"Ukupan prihod od prodaje proizvoda ili usluga bez odbitka troškova."},
+    {key:"total_variable_costs",label:"Ukupni promenljivi troškovi",expression:"variable_cost_per_unit * monthly_units_sold",format:"currency",currency:"EUR",explanation:"Direktni promenljivi troškovi koji nastaju po svakoj prodatoj jedinici."},
+    {key:"total_fixed_expenses",label:"Ukupni fiksni troškovi",expression:"monthly_fixed_costs",format:"currency",currency:"EUR",explanation:"Osnovni fiksni mesečni troškovi poslovanja."},
+    {key:"additional_monthly_expenses",label:"Dodatni mesečni troškovi",expression:"sum(additional_expenses.expense_amount)",format:"currency",currency:"EUR",explanation:"Zbir dodatnih mesečnih troškova. U ovom modelu tretiraju se kao troškovi koji ne zavise od broja prodatih jedinica; troškove po jedinici unesite u promenljivi trošak po jedinici."},
+    {key:"total_costs",label:"Ukupni troškovi poslovanja",expression:"total_variable_costs + total_fixed_expenses + additional_monthly_expenses",format:"currency",currency:"EUR",explanation:"Zbir direktnih promenljivih, osnovnih fiksnih i dodatnih mesečnih troškova."},
+    {key:"net_profit_before_tax",label:"Neto dobit pre oporezivanja",expression:"gross_revenue - total_costs",format:"currency",currency:"EUR",explanation:"Prihod umanjen za sve troškove, pre pojednostavljenog obračuna poreza."},
+    {key:"net_profit_after_tax",label:"Neto dobit nakon oporezivanja",expression:"if(gt(net_profit_before_tax, 0), net_profit_before_tax * (1 - tax_rate_pct / 100), net_profit_before_tax)",format:"currency",currency:"EUR",explanation:"Poreska stopa se u ovom pojednostavljenom modelu primenjuje samo na pozitivnu dobit. Gubitak ostaje nepromenjen."},
+    {key:"profit_margin_pct",label:"Neto profitna marža",expression:"if(gt(gross_revenue, 0), (net_profit_after_tax / gross_revenue) * 100, 0)",format:"percent",explanation:"Udeo neto dobiti nakon pojednostavljenog obračuna poreza u ukupnom prihodu."},
+    {key:"contribution_margin_per_unit",label:"Marža pokrića po jedinici",expression:"average_price_per_unit - variable_cost_per_unit",format:"currency",currency:"EUR",explanation:"Prodajna cena umanjena za direktni promenljivi trošak jedne jedinice."},
+    {key:"break_even_units",label:"Tačka pokrića (minimalan broj jedinica)",expression:"if(gt(contribution_margin_per_unit, 0), ceil((monthly_fixed_costs + additional_monthly_expenses) / contribution_margin_per_unit), 0)",format:"number",explanation:"Minimalan ceo broj jedinica koji treba prodati da bi se pokrili osnovni fiksni i dodatni mesečni troškovi. Ako marža pokrića nije pozitivna, tačka pokrića ne postoji i prikazuje se 0."}
    ],
    scenarios:[
     {label:"Osnovni scenario poslovanja",values:{average_price_per_unit:50,monthly_units_sold:300,variable_cost_per_unit:20,monthly_fixed_costs:4000,tax_rate_pct:15}},
@@ -1158,8 +1159,10 @@ test("repairs Serbian small-business unit-price dimensions before opening the ed
  assert.equal(definition.spec.inputs.find(item=>item.key==="average_price_per_unit").unit,"EUR/items");
  assert.equal(definition.spec.inputs.find(item=>item.key==="variable_cost_per_unit").unit,"EUR/items");
  assert.equal(definition.spec.inputs.find(item=>item.key==="monthly_units_sold").unit,"items");
- assert.equal(definition.spec.results.find(item=>item.key==="gross_revenue").format,"currency");
- assert.equal(definition.spec.results.find(item=>item.key==="total_variable_costs").format,"currency");
+ assert.equal(definition.spec.results.length,10);
+ for(const key of ["gross_revenue","total_variable_costs","total_fixed_expenses","additional_monthly_expenses","total_costs","net_profit_before_tax","net_profit_after_tax"]){
+  assert.equal(definition.spec.results.find(item=>item.key===key).format,"currency");
+ }
  assert.equal(definition.spec.results.find(item=>item.key==="contribution_margin_per_unit").format,"unit");
  assert.equal(definition.spec.results.find(item=>item.key==="contribution_margin_per_unit").unit,"EUR/items");
  assert.equal(definition.spec.results.find(item=>item.key==="break_even_units").format,"unit");
@@ -1167,44 +1170,55 @@ test("repairs Serbian small-business unit-price dimensions before opening the ed
  assert.deepEqual(plain(validate(definition.spec).errors),[]);
  assert.ok(definition.importNotes.some(note=>note.includes("inferred EUR/items")));
  assert.ok(definition.importNotes.some(note=>note.includes("Quick Fix self-test passed")));
- const groupValues={additional_expenses:[{expense_amount:100}]};
- const calculate=(overrides={})=>{
+ const groupValues={additional_expenses:[{expense_amount:750},{expense_amount:750},{expense_amount:750}]};
+ const calculate=(overrides={},groups=groupValues)=>{
   const values={...Object.fromEntries(definition.spec.inputs.map(item=>[item.key,item.default])),...overrides};
-  return Object.fromEntries(engine.evaluateFormulaResults(definition.spec,values,groupValues).map(result=>[result.key,result.value]));
+  return Object.fromEntries(engine.evaluateFormulaResults(definition.spec,values,groups).map(result=>[result.key,result.value]));
  };
  const base=calculate();
  assert.equal(base.gross_revenue,15000);
- assert.equal(base.total_variable_costs,6100);
+ assert.equal(base.total_variable_costs,6000);
  assert.equal(base.total_fixed_expenses,4000);
- assert.equal(base.total_costs,10100);
- assert.equal(base.net_profit_before_tax,4900);
- assert.equal(base.net_profit_after_tax,4165);
- assert.ok(Math.abs(base.profit_margin_pct-27.7666666667)<1e-8);
+ assert.equal(base.additional_monthly_expenses,2250);
+ assert.equal(base.total_costs,12250);
+ assert.equal(base.net_profit_before_tax,2750);
+ assert.equal(base.net_profit_after_tax,2337.5);
+ assert.ok(Math.abs(base.profit_margin_pct-(2337.5/15000*100))<1e-8);
  assert.equal(base.contribution_margin_per_unit,30);
- assert.ok(Math.abs(base.break_even_units-(4100/30))<1e-8);
+ assert.equal(base.break_even_units,209);
  const growth=calculate(definition.spec.scenarios[1].values);
  assert.equal(growth.gross_revenue,33000);
- assert.equal(growth.total_variable_costs,10900);
- assert.equal(growth.total_costs,15400);
- assert.equal(growth.net_profit_after_tax,14960);
- assert.ok(Math.abs(growth.profit_margin_pct-45.3333333333)<1e-8);
+ assert.equal(growth.total_variable_costs,10800);
+ assert.equal(growth.additional_monthly_expenses,2250);
+ assert.equal(growth.total_costs,17550);
+ assert.equal(growth.net_profit_before_tax,15450);
+ assert.equal(growth.net_profit_after_tax,13132.5);
+ assert.ok(Math.abs(growth.profit_margin_pct-(13132.5/33000*100))<1e-8);
  assert.equal(growth.contribution_margin_per_unit,37);
- assert.ok(Math.abs(growth.break_even_units-(4600/37))<1e-8);
+ assert.equal(growth.break_even_units,183);
  const conservative=calculate(definition.spec.scenarios[2].values);
  assert.equal(conservative.gross_revenue,6750);
- assert.equal(conservative.total_variable_costs,3400);
- assert.equal(conservative.total_costs,6900);
- assert.equal(conservative.net_profit_before_tax,-150);
- assert.equal(conservative.net_profit_after_tax,-135);
+ assert.equal(conservative.total_variable_costs,3300);
+ assert.equal(conservative.additional_monthly_expenses,2250);
+ assert.equal(conservative.total_costs,9050);
+ assert.equal(conservative.net_profit_before_tax,-2300);
+ assert.equal(conservative.net_profit_after_tax,-2300);
+ assert.ok(Math.abs(conservative.profit_margin_pct-(-2300/6750*100))<1e-8);
+ assert.equal(conservative.break_even_units,250);
  const noSales=calculate({monthly_units_sold:0});
  assert.equal(noSales.gross_revenue,0);
+ assert.equal(noSales.total_variable_costs,0);
+ assert.equal(noSales.net_profit_after_tax,-6250);
  assert.equal(noSales.profit_margin_pct,0);
- assert.equal(noSales.break_even_units,4100/30);
+ assert.equal(noSales.break_even_units,209);
  const noContribution=calculate({average_price_per_unit:20,variable_cost_per_unit:20});
  assert.equal(noContribution.contribution_margin_per_unit,0);
  assert.equal(noContribution.break_even_units,0);
+ const editedExpenses=calculate({}, {additional_expenses:[{expense_amount:100},{expense_amount:200},{expense_amount:300}]});
+ assert.equal(editedExpenses.additional_monthly_expenses,600);
+ assert.equal(editedExpenses.total_costs,10600);
+ assert.equal(editedExpenses.break_even_units,154);
 });
-
 test("checks prompt keyword coverage locally without storing or transmitting the original request",()=>{
  const importer=getImporter();
  const candidate=blueprint({
