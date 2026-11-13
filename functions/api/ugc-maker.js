@@ -1209,8 +1209,8 @@ export async function onRequestPost(context){
             system=[
                 "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
                 "Preserve the exact title, category, description, subcategories, underlying subject, comparison and purpose from the existing calculator.",
-                "Preserve every existing input key in its original order. Do not add, remove, rename or repurpose input keys.",
-                "Preserve the exact number, order and labels of all result rows. Improve only input labels, sensible bounds/defaults/steps/units and the formula expressions where useful.",
+                "Preserve every existing fixed input key and its order, every dynamic group key and field key, every result key and label, and every scenario name. Do not add, remove, rename or repurpose structural keys during refinement.",
+                "Preserve the exact number, order, keys and labels of all result rows. Preserve group and scenario structure. Improve only labels, numeric bounds/defaults/steps/units and formulas where useful.",
                 "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
                 "Keep all assumptions explicit and do not invent factual prices, interest rates, tariffs or current market values.",
                 "When improving an existing calculator, preserve its existing currency codes and monetary input units unless the user explicitly requests a currency or unit change.",
@@ -1224,11 +1224,13 @@ export async function onRequestPost(context){
                     category:existingCalculator.category,
                     subcategories:existingCalculator.subcategories||existingCalculator.spec.subcategories||[],
                     inputs:existingCalculator.spec.inputs,
-                    results:existingCalculator.spec.results
+                    groups:existingCalculator.spec.groups||[],
+                    results:existingCalculator.spec.results,
+                    scenarios:existingCalculator.spec.scenarios||[]
                 }),
                 "Requested improvement:",
                 prompt,
-                "Return the improved full calculator definition. Keep title, description and category exactly unchanged; keep input keys and result labels exactly unchanged."
+                "Return the improved full calculator definition including inputs, groups, results and scenarios. Keep title, description, category, subcategories, all fixed input keys, all group and field keys, result keys and result labels exactly unchanged."
             ].join("\n");
         }else{
             system=[
@@ -1242,7 +1244,7 @@ export async function onRequestPost(context){
                 "Use regional context only for presentation defaults such as currency and locale. Never invent current prices, tariffs, exchange rates, tax rates, market data or provider-specific values. If a current or personal value is needed and was not supplied, make it an editable input rather than guessing.",
                 "For comparison topics, make the options comparable on the same basis and time period. Include useful totals or differences only when they follow directly from the available inputs and formulas.",
                 "Do not reject or overcomplicate a request merely because the user did not provide a detailed specification. Generate a sensible first version whenever the topic can be represented as a valid numeric calculator. Ask for clarification only when the subject is genuinely impossible to interpret or cannot be calculated safely within the supported schema.",
-                "Create 2 to 8 useful number inputs where possible (minimum 1, maximum 12). Include a separate result row for every output explicitly requested by the user; do not omit or combine requested results to fit a preferred row count. Support 1 to 6 result rows.",
+                "Create the smallest useful set of fixed numeric inputs, normally 2 to 8 (minimum 1, maximum 24). Use dynamic groups for repeated rows instead of creating many fixed inputs. Include a separate result row for every output explicitly requested by the user; do not omit or combine requested results to fit a preferred row count. Support up to 20 result rows, 4 dynamic groups and 3 comparison scenarios when they add real value.",
                 ...commonRules
             ].join(" ");
         }
@@ -1315,15 +1317,28 @@ export async function onRequestPost(context){
         if(mode==="refine"){
             const originalKeys=existingCalculator.spec.inputs.map(item=>String(item.key));
             const refinedKeys=definition.inputs.map(item=>String(item.key));
+            const groupStructure=spec=> (Array.isArray(spec?.groups)?spec.groups:[]).map(group=>({
+                key:String(group.key||""),
+                fields:(Array.isArray(group.fields)?group.fields:[]).map(field=>String(field.key||""))
+            }));
+            const originalGroups=groupStructure(existingCalculator.spec);
+            const refinedGroups=groupStructure(definition);
+            const originalResultKeys=existingCalculator.spec.results.map(item=>String(item.key||""));
+            const refinedResultKeys=definition.results.map(item=>String(item.key||""));
             const originalLabels=existingCalculator.spec.results.map(item=>String(item.label));
             const refinedLabels=definition.results.map(item=>String(item.label));
+            const originalScenarios=(existingCalculator.spec.scenarios||[]).map(item=>String(item.label||""));
+            const refinedScenarios=(definition.scenarios||[]).map(item=>String(item.label||""));
             const originalSubcategories=existingCalculator.subcategories||existingCalculator.spec.subcategories||[];
             const identityIsPreserved=
                 String(parsed.title||"").trim()===String(existingCalculator.title||"").trim()&&
                 String(parsed.description||"").trim()===String(existingCalculator.description||"").trim()&&
                 String(parsed.category||"").toLowerCase()===String(existingCalculator.category||"").toLowerCase()&&
                 sameArray(definition.subcategories,originalSubcategories)&&
-                sameArray(refinedKeys,originalKeys)&&sameArray(refinedLabels,originalLabels);
+                sameArray(refinedKeys,originalKeys)&&sameArray(refinedGroups.map(group=>group.key),originalGroups.map(group=>group.key))&&
+                sameArray(refinedGroups.map(group=>group.fields.join("|")),originalGroups.map(group=>group.fields.join("|")))&&
+                sameArray(refinedResultKeys,originalResultKeys)&&sameArray(refinedLabels,originalLabels)&&
+                sameArray(refinedScenarios,originalScenarios);
             if(!identityIsPreserved){
                 await refundAiOperation();
                 return jsonWithAiUsage({success:false,code:"CALCULATOR_IDENTITY_CHANGED",
