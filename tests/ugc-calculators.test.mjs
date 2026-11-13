@@ -2618,13 +2618,12 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   ],
   scenarios:[{label:"Lower cost",overrides:[{key:"base_cost",value:20},{key:"include_tax",value:0}]}]
  };
- let providerCalls=0,settlements=0;
+ let providerCalls=0;
+ const quotaEvents={settlements:0};
  await withFetch(async(url,options)=>{
   const path=String(url);
   if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
   if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
-  if(path.endsWith("/rest/v1/rpc/settle_worth_it_ugc_ai_operation")){settlements++;return new Response(JSON.stringify({ok:true}),{status:200});}
-  if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true}),{status:200});
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    providerCalls++;
    const body=JSON.parse(options.body);
@@ -2656,6 +2655,6 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   assert.equal(spec.results[2].expression,"subtotal + if(include_tax, subtotal * tax_rate / 100, 0)");
   assert.deepEqual(spec.scenarios[0].values,{base_cost:20,include_tax:0});
   assert.equal(providerCalls,1);
-  assert.equal(settlements,1);
- });
+  assert.equal(quotaEvents.settlements,1);
+ },quotaEvents);
 });
