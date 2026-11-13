@@ -194,7 +194,12 @@ test("repairs a serverless scaling blueprint with read, write, request and API c
   ["net_monthly_profit","Net Monthly Operating Profit","gross_monthly_revenue - total_monthly_infra_cost","currency","USD"],
   ["gross_margin_pct","Infrastructure Gross Margin","if(gt(gross_monthly_revenue, 0), (net_monthly_profit / gross_monthly_revenue) * 100, 0)","percent"],
   ["cost_per_thousand_users","Infrastructure Cost per 1,000 Users","if(gt(monthly_active_users, 0), (total_monthly_infra_cost / (monthly_active_users / 1000)) * (1 / (1 / 1)), 0)","unit","USD/people"]
- ].map(([key,label,expression,format,unit])=>({key,label,expression,format,...(format==="currency"?{currency:unit}:{format==="unit"?{unit}:{}}),explanation:"A deterministic scaling model result."}));
+ ].map(([key,label,expression,format,unit])=>{
+  const item={key,label,expression,format,explanation:"A deterministic scaling model result."};
+  if(format==="currency")item.currency=unit;
+  else if(format==="unit")item.unit=unit;
+  return item;
+ });
  const candidate={
   blueprintVersion:1,title:"Serverless Edge & Database Scaling Cost Calculator",
   description:"Models monthly cloud architecture expenses across serverless edge workers, database reads/writes, storage, and custom external API tiers with traffic growth projections.",
