@@ -53,6 +53,7 @@ test("imports a valid version-1 blueprint into the current Manual Builder defini
  assert.equal(definition.spec.results[1].expression,"base_cost + extra_total");
  assert.equal(definition.spec.scenarios[0].values.base_cost,20);
  assert.equal(definition.description,blueprint().description);
+ assert.ok(definition.importNotes.some(note=>note.includes("Quick Fix self-test passed")));
  assert.deepEqual(plain(definition.spec.assumptions),["All monetary amounts use EUR."]);
 });
 

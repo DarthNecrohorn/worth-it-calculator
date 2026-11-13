@@ -680,6 +680,9 @@ function normalizeBlueprint(source,validateSpec,requestText){
   }
   if(!validation.errors.length||JSON.stringify(spec)===before)break;
  }
+ if(!validation.errors.length){
+  compatibilityNotes.unshift("Quick Fix self-test passed: formulas were evaluated with default inputs, declared scenarios, fixed-input boundary combinations, and dynamic-group field and row-count boundaries. All tested results were finite and passed the shared formula and unit checks.");
+ }
  const definition={title,description,category,spec};
  const coverageNote=promptCoverageNote(requestText,definition);
  if(coverageNote)compatibilityNotes.unshift(coverageNote);
