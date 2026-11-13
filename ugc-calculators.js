@@ -1384,7 +1384,7 @@ function blueprintCountUnitFromLabel(label){
 }
 function canonicalBlueprintUnitLabel(value){
  let unit=String(value||"").trim();
- unit=unit.replace(/\\s+per\\s+/gi,"/").replace(/\\s*\\/\\s*/g,"/");
+ unit=unit.replace(/\s+per\s+/gi,"/").replace(/\s*\/\s*/g,"/");
  const aliases=[
   [/^watts?$/i,"W"],[/^kilowatts?$/i,"kW"],[/^watt[- ]hours?$/i,"Wh"],
   [/^kilowatt[- ]hours?$/i,"kWh"],[/^megawatt[- ]hours?$/i,"MWh"],
@@ -1423,14 +1423,14 @@ function inferBlueprintCountFieldUnit(item,label,notes){
   return;
  }
  const timeMatch=normalizedLabel.match(/\b(hours?|hrs?|minutes?|seconds?|days?|weeks?|months?|years?)\b/);
- const dailyUsePerItem=/\\b(?:daily|per day)\\b/.test(normalizedLabel)&&/\\b(?:usage|use|operation)\\b/.test(normalizedLabel)&&/\\b(?:bulb|lamp|device|item)\\b/.test(normalizedLabel);
+ const dailyUsePerItem=/\b(?:daily|per day)\b/.test(normalizedLabel)&&/\b(?:usage|use|operation)\b/.test(normalizedLabel)&&/\b(?:bulb|lamp|device|item)\b/.test(normalizedLabel);
  if(!current&&(timeMatch&&!denominator||dailyUsePerItem)){
   const timeUnit=(!timeMatch?"hours":({hrs:"hours",hr:"hours",hour:"hours",hours:"hours",minute:"minutes",minutes:"minutes",second:"seconds",seconds:"seconds",day:"days",days:"days",week:"weeks",weeks:"weeks",month:"months",months:"months",year:"years",years:"years"})[timeMatch[1]]||timeMatch[1]);
   item.unit=timeUnit;
   notes.push(label+": inferred the explicit time unit "+timeUnit+" from its label.");
   return;
  }
- if(current==="W"&&!current.includes("/")&&/\\b(?:bulb|lamp)\\b/.test(normalizedLabel)&&/\\b(?:wattage|power)\\b/.test(normalizedLabel)){
+ if(current==="W"&&!current.includes("/")&&/\b(?:bulb|lamp)\b/.test(normalizedLabel)&&/\b(?:wattage|power)\b/.test(normalizedLabel)){
   item.unit="W/items";
   notes.push(label+": inferred W/items because the wattage is specified per bulb.");
   return;
