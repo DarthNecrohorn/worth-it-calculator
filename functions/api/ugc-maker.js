@@ -12,6 +12,9 @@ if(!serverCurrencyData?.currencies||!serverCurrencyData?.historicalCurrencies||s
     throw new Error("The shared Worth It calculator engine or currency metadata could not be loaded.");
 }
 const SERVER_CALCULATOR_ENGINE=serverEngineApi.create(serverCurrencyData);
+const SERVER_SUPPORTED_CURRENCY_CODES=new Set([
+    ...serverCurrencyData.currencies,...serverCurrencyData.historicalCurrencies
+].map(item=>String(item[0]||"").toUpperCase()));
 const ALLOWED_CATEGORIES = new Set(["cars","money","technology","home","other"]);
 const ALLOWED_SUBCATEGORIES = {
  cars:new Set(["car-ownership","ev-ownership","fuel-costs","vehicle-financing","car-insurance","car-maintenance","depreciation-resale","vehicle-comparison"]),
@@ -732,7 +735,9 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         if(max>min&&(!Number.isFinite(maxStepPosition)||Math.abs(maxStepPosition-Math.round(maxStepPosition))>1e-7))throw new Error("The maximum value for "+label+" does not match its input step.");
         const unitWasSupplied=Object.prototype.hasOwnProperty.call(item||{},"unit");
         let unit=String(unitWasSupplied?item.unit:(previousInput?.unit||"")).trim().slice(0,16);
-        const monetaryInput=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax)\b/.test(semantic);
+        const unitCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+        const monetaryInput=/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
+            ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix);
         const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
         const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
             /^(?:m3|m³)$/i.test(rateBasis)?"m3":
@@ -756,14 +761,24 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         const format=["number","currency","percent","unit"].includes(item?.format)?item.format:"number";
         const previousCurrency=Array.isArray(previousSpec?.results)?previousSpec.results[index]?.currency:"";
         const currency=String(format==="currency"&&forceCurrency?forceCurrency:(item?.currency||previousCurrency||currencyFallback)).toUpperCase();
-        const unit=String(item?.unit||"").trim().slice(0,20);
+        let unit=String(item?.unit||"").trim().slice(0,20);
+        const resultCurrencyPrefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+        if(format==="unit"&&forceCurrency&&SERVER_SUPPORTED_CURRENCY_CODES.has(resultCurrencyPrefix)){
+            unit=forceCurrency+unit.slice(3);
+        }
         if(!label||!expression||!/^([A-Z]{3})$/.test(currency)||(format==="unit"&&!unit))throw new Error("The AI generated an invalid result.");
         return {label,expression,format,currency,unit,prefix:String(item?.prefix||"").slice(0,12),suffix:String(item?.suffix||"").slice(0,16)};
     });
     const spec={version:1,subcategories,inputs,results};
     const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
     const validationErrors=Array.isArray(validation?.errors)?validation.errors:[];
-    if(validationErrors.length)throw new Error(validationErrors[0]);
+    if(validationErrors.length){
+        const firstError=String(validationErrors[0]||"");
+        if(/^Calculator result chain:/i.test(firstError)){
+            throw new Error("The formula fails with a default, minimum or maximum input value. "+firstError);
+        }
+        throw new Error(firstError);
+    }
     if(options?.requireAllInputsUsed===true){
         const keys=new Set(inputs.map(item=>item.key));
         const referenced=new Set();
