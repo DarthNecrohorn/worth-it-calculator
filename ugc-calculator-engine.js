@@ -637,6 +637,426 @@ function resolveCalculatorVersions(spec){
  if(schemaVersion===2&&engineVersion===2)return {schemaVersion:2,engineVersion:2,legacy:false};
  throw new Error("This calculator schema/engine version combination is not supported.");
 }
+
+function compileV2Expression(source,symbols,groups){
+ const input=String(source||"");
+ if(!input.trim()||input.length>500)throw new Error("A v2 formula must contain 1–500 characters.");
+ let at=0,nodeCount=0,nesting=0;
+ const groupDefinitions=groups instanceof Map?groups:new Map();
+ const fail=()=>{throw new Error("This v2 formula contains invalid syntax or an unknown reference.");};
+ const node=value=>{nodeCount++;if(nodeCount>256)throw new Error("A v2 formula exceeds the 256-node limit.");return value;};
+ const ws=()=>{while(at<input.length&&/\s/.test(input[at]))at++;};
+ const take=value=>{ws();if(input.slice(at,at+value.length)===value){at+=value.length;return true;}return false;};
+ const nested=callback=>{nesting++;if(nesting>32)throw new Error("A v2 formula exceeds the 32-level nesting limit.");try{return callback();}finally{nesting--;}};
+ const identifier=()=>{ws();const match=input.slice(at).match(/^[A-Za-z_][A-Za-z0-9_]*/);if(!match)return null;at+=match[0].length;return match[0];};
+ const stringLiteral=()=>{
+  ws();if(input[at]!=="\"")return null;
+  const start=at++;let escaped=false;
+  while(at<input.length){
+   const ch=input[at++];
+   if(escaped){escaped=false;continue;}
+   if(ch==="\\"){escaped=true;continue;}
+   if(ch==="\""){
+    let value;try{value=JSON.parse(input.slice(start,at));}catch(_){fail();}
+    if(typeof value!=="string"||value.length>64)fail();
+    return node({type:"string",value});
+   }
+  }
+  fail();
+ };
+ const functions=new Set([
+  "min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan",
+  "if","gt","gte","lt","lte","eq","neq","and","or","not","sum_if","count_if",
+  "date_diff_days","add_days","add_months","days_in_month","calendar_year","calendar_month","weekday"
+ ]);
+ function primary(){
+  ws();
+  if(take("("))return nested(()=>{const expression=add();if(!take(")"))fail();return expression;});
+  const text=stringLiteral();if(text)return text;
+  const numberMatch=input.slice(at).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i);
+  if(numberMatch){at+=numberMatch[0].length;const value=Number(numberMatch[0]);if(!Number.isFinite(value))fail();return node({type:"number",value});}
+  const name=identifier();if(!name)fail();
+  if(name==="true"||name==="false")return node({type:"boolean",value:name==="true"});
+  if(name==="pi")return node({type:"number",value:Math.PI});
+  if(name==="e")return node({type:"number",value:Math.E});
+  if(take(".")){
+   const field=identifier(),definition=groupDefinitions.get(name);
+   if(!field||!definition?.fields?.some(item=>item.key===field))fail();
+   return node({type:"groupField",group:name,field});
+  }
+  if(take("(")){
+   if(!functions.has(name))fail();
+   const args=nested(()=>{
+    const list=[];if(!take(")")){do{list.push(add());}while(take(","));if(!take(")"))fail();}
+    return list;
+   });
+   const length=args.length;
+   const valid=name==="min"||name==="max"||name==="avg"?length>=1&&length<=12
+    :name==="sum"||name==="count"||name==="count_if"||name==="not"||name==="abs"||name==="floor"||name==="ceil"||name==="sqrt"||name==="trunc"||name==="sign"||name==="ln"||name==="exp"||name==="sin"||name==="cos"||name==="tan"||name==="asin"||name==="acos"||name==="atan"||name==="days_in_month"||name==="calendar_year"||name==="calendar_month"||name==="weekday"?length===1
+    :name==="pow"||name==="mod"||name==="gt"||name==="gte"||name==="lt"||name==="lte"||name==="eq"||name==="neq"||name==="sum_if"||name==="date_diff_days"||name==="add_days"||name==="add_months"?length===2
+    :name==="if"||name==="clamp"?length===3
+    :name==="and"||name==="or"?length>=2&&length<=12
+    :name==="hypot"?length>=2&&length<=8
+    :name==="round"||name==="log"?length>=1&&length<=2
+    :false;
+   if(!valid)throw new Error(name+"() has an invalid number of arguments.");
+   return node({type:"call",name,args});
+  }
+  if(groupDefinitions.has(name))return node({type:"group",name});
+  if(!symbols.has(name))throw new Error("Unknown v2 input or earlier result: "+name+".");
+  return node({type:"variable",name});
+ }
+ function unary(){if(take("+"))return node({type:"unary",op:"+",value:unary()});if(take("-"))return node({type:"unary",op:"-",value:unary()});return power();}
+ function power(){let expression=primary();if(take("^"))expression=node({type:"binary",op:"^",left:expression,right:unary()});return expression;}
+ function multiply(){let expression=unary();while(true){if(take("*"))expression=node({type:"binary",op:"*",left:expression,right:unary()});else if(take("/"))expression=node({type:"binary",op:"/",left:expression,right:unary()});else return expression;}}
+ function add(){let expression=multiply();while(true){if(take("+"))expression=node({type:"binary",op:"+",left:expression,right:multiply()});else if(take("-"))expression=node({type:"binary",op:"-",left:expression,right:multiply()});else return expression;}}
+ const ast=add();ws();if(at!==input.length)fail();return ast;
+}
+function typedFormulaGroupReferences(ast,output=[]){
+ if(!ast||typeof ast!=="object")return output;
+ if(ast.type==="groupField"){output.push({group:ast.group,field:ast.field});return output;}
+ if(ast.type==="binary"){typedFormulaGroupReferences(ast.left,output);typedFormulaGroupReferences(ast.right,output);}
+ else if(ast.type==="unary")typedFormulaGroupReferences(ast.value,output);
+ else if(ast.type==="call")(ast.args||[]).forEach(arg=>typedFormulaGroupReferences(arg,output));
+ return output;
+}
+function typedFormulaInputReferences(ast,output=new Set()){
+ if(!(output instanceof Set))output=new Set();
+ if(!ast||typeof ast!=="object")return output;
+ if(ast.type==="variable")output.add(ast.name);
+ else if(ast.type==="unary")typedFormulaInputReferences(ast.value,output);
+ else if(ast.type==="binary"){typedFormulaInputReferences(ast.left,output);typedFormulaInputReferences(ast.right,output);}
+ else if(ast.type==="call")(ast.args||[]).forEach(arg=>typedFormulaInputReferences(arg,output));
+ return output;
+}
+function dateParts(value){
+ if(!isIsoDateOnly(value))throw new Error("A date formula received an invalid calendar date.");
+ return {year:Number(value.slice(0,4)),month:Number(value.slice(5,7)),day:Number(value.slice(8,10))};
+}
+function daysInCalendarMonth(year,month){
+ const date=new Date(0);date.setUTCHours(0,0,0,0);date.setUTCFullYear(year,month,0);
+ return date.getUTCDate();
+}
+function formatCalendarDate(year,month,day){
+ if(!Number.isInteger(year)||year<1||year>9999||!Number.isInteger(month)||month<1||month>12||!Number.isInteger(day)||day<1||day>daysInCalendarMonth(year,month)){
+  throw new Error("A date formula produced a date outside the supported calendar range.");
+ }
+ return String(year).padStart(4,"0")+"-"+String(month).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+}
+function calendarDayNumber(value){
+ const parts=dateParts(value),date=new Date(0);
+ date.setUTCHours(0,0,0,0);date.setUTCFullYear(parts.year,parts.month-1,parts.day);
+ return Math.floor(date.getTime()/86400000);
+}
+function typedUnitCompatible(left,right,nodes,message){
+ const dimensioned=left.findIndex(unit=>Object.keys(unit.vector).length>0);
+ const target=left[dimensioned>=0?dimensioned:0]||unitDescriptor("");
+ const valid=left.every((unit,index)=>sameUnitDescriptor(unit,target)||
+  (constantFormulaValue(nodes[index])!==null&&Object.keys(unit.vector).length===0));
+ if(!valid)throw new Error(message);
+ return target;
+}
+function inferV2Expression(ast,symbols,groups){
+ const definitions=groups instanceof Map?groups:new Map();
+ const numberResult=unit=>({type:"number",unit:unit||unitDescriptor("")});
+ const scalarTypes=new Set(["number","boolean","enum","date"]);
+ const infer=expression=>{
+  if(expression.type==="number")return numberResult(unitDescriptor(""));
+  if(expression.type==="boolean")return {type:"boolean"};
+  if(expression.type==="string")return {type:"string"};
+  if(expression.type==="variable"){
+   const definition=symbols.get(expression.name);
+   if(!definition)throw new Error("Unknown v2 variable: "+expression.name+".");
+   return definition.type==="number"?numberResult(definition.unit||unitDescriptor("")):{...definition};
+  }
+  if(expression.type==="group"){
+   if(!definitions.has(expression.name))throw new Error("Unknown dynamic group: "+expression.name+".");
+   return {type:"group",group:expression.name};
+  }
+  if(expression.type==="groupField"){
+   const field=definitions.get(expression.group)?.fields?.find(item=>item.key===expression.field);
+   if(!field)throw new Error("Unknown dynamic group field: "+expression.group+"."+expression.field+".");
+   return field.type==="number"?numberResult(unitDescriptor(field.unit||"")):{type:field.type,choices:field.choices||[] ,group:expression.group};
+  }
+  if(expression.type==="unary"){
+   const value=infer(expression.value);
+   if(value.type!=="number")throw new Error("Unary numeric operators require a number.");
+   return value;
+  }
+  if(expression.type==="binary"){
+   const left=infer(expression.left),right=infer(expression.right);
+   if(left.type!=="number"||right.type!=="number")throw new Error("Arithmetic operators require numeric values; boolean, enum and date values are not numbers.");
+   if(expression.op==="+"||expression.op==="-"){
+    return numberResult(typedUnitCompatible([left.unit,right.unit],[expression.left,expression.right],"Addition and subtraction require matching units; numeric constants inherit the other value's unit."));
+   }
+   if(expression.op==="*")return numberResult(combineUnitDescriptors(left.unit,right.unit,1));
+   if(expression.op==="/")return numberResult(combineUnitDescriptors(left.unit,right.unit,-1));
+   const power=constantFormulaValue(expression.right);
+   if(power===null&&Object.keys(left.unit.vector).length)throw new Error("A dimensional value must use a fixed numeric power.");
+   const vector={};Object.entries(left.unit.vector).forEach(([key,value])=>{const result=value*(power===null?1:power);if(Math.abs(result)>1e-10)vector[key]=result;});
+   return numberResult({exact:"",vector,opaque:left.unit.opaque,symbols:{...(left.unit.symbols||{})}});
+  }
+  if(expression.type!=="call")throw new Error("This v2 expression node is unsupported.");
+  const args=expression.args.map(infer),name=expression.name;
+  const sameScalar=(left,right,context)=>{
+   if(left.type==="string"&&right.type==="enum"||right.type==="string"&&left.type==="enum"){
+    const enumType=left.type==="enum"?left:right,literal=left.type==="string"?left:right;
+    if(!enumType.choices.some(choice=>choice?.value===literal.value))throw new Error(context+" uses a string that is not one of the enum's declared choices.");
+    return;
+   }
+   if(left.type!==right.type||!scalarTypes.has(left.type))throw new Error(context+" requires values of the same supported type.");
+   if(left.type==="number")typedUnitCompatible([left.unit,right.unit],[{type:"number",value:null},{type:"number",value:null}],context+" compares values with incompatible units.");
+   if(left.type==="enum"&&JSON.stringify(left.choices.map(item=>item.value))!==JSON.stringify(right.choices.map(item=>item.value)))throw new Error(context+" requires the same enum definition.");
+  };
+  if(name==="if"){
+   if(args[0].type!=="boolean")throw new Error("if() condition must be boolean.");
+   const yes=args[1],no=args[2];
+   if(yes.type!==no.type||!scalarTypes.has(yes.type))throw new Error("if() branches must return the same supported value type.");
+   if(yes.type==="number")return numberResult(typedUnitCompatible([yes.unit,no.unit],[expression.args[1],expression.args[2]],"if() branches must return matching units."));
+   if(yes.type==="enum"&&JSON.stringify(yes.choices.map(item=>item.value))!==JSON.stringify(no.choices.map(item=>item.value)))throw new Error("if() enum branches must use the same choices.");
+   return yes;
+  }
+  if(["eq","neq"].includes(name)){
+   sameScalar(args[0],args[1],name+"()");
+   return {type:"boolean"};
+  }
+  if(["gt","gte","lt","lte"].includes(name)){
+   if(args[0].type==="date"&&args[1].type==="date")return {type:"boolean"};
+   if(args[0].type!=="number"||args[1].type!=="number")throw new Error(name+"() supports only compatible numbers or calendar dates.");
+   typedUnitCompatible([args[0].unit,args[1].unit],expression.args,name+"() compares values with incompatible units.");
+   return {type:"boolean"};
+  }
+  if(name==="and"||name==="or"||name==="not"){
+   if(args.some(item=>item.type!=="boolean"))throw new Error(name+"() accepts only boolean conditions.");
+   return {type:"boolean"};
+  }
+  if(name==="date_diff_days"){
+   if(args.some(item=>item.type!=="date"&&item.type!=="string"))throw new Error("date_diff_days() requires two calendar dates.");
+   expression.args.forEach((argument,index)=>{if(args[index].type==="string"&&!isIsoDateOnly(argument.value))throw new Error("date_diff_days() string literals must be valid YYYY-MM-DD dates.");});
+   return numberResult(unitDescriptor("days"));
+  }
+  if(name==="add_days"||name==="add_months"){
+   if(args[0].type!=="date")throw new Error(name+"() first argument must be a date input or date expression.");
+   if(args[1].type!=="number")throw new Error(name+"() offset must be numeric.");
+   const expected=unitDescriptor(name==="add_days"?"days":"months"),offsetUnit=args[1].unit;
+   const literal=constantFormulaValue(expression.args[1])!==null;
+   if(!literal&&!sameUnitDescriptor(offsetUnit,expected))throw new Error(name+"() offset must use "+(name==="add_days"?"days":"months")+" or be a numeric constant.");
+   return {type:"date"};
+  }
+  if(name==="days_in_month"){
+   if(args[0].type!=="date")throw new Error("days_in_month() requires a calendar date.");
+   return numberResult(unitDescriptor("days"));
+  }
+  if(name==="calendar_year"||name==="calendar_month"||name==="weekday"){
+   if(args[0].type!=="date")throw new Error(name+"() requires a calendar date.");
+   return numberResult(unitDescriptor(""));
+  }
+  if(name==="count"){
+   if(args[0].type!=="group")throw new Error("count() requires a dynamic group name.");
+   return numberResult(unitDescriptor(""));
+  }
+  if(name==="count_if"){
+   if(args[0].type!=="boolean")throw new Error("count_if() condition must be boolean.");
+   const refs=typedFormulaGroupReferences(expression.args[0]),names=[...new Set(refs.map(item=>item.group))];
+   if(!refs.length||names.length!==1)throw new Error("count_if() must refer to fields from exactly one dynamic group.");
+   return numberResult(unitDescriptor(""));
+  }
+  if(name==="sum"||name==="sum_if"){
+   const valueExpression=name==="sum"?expression.args[0]:expression.args[0];
+   const valueType=args[0];
+   if(valueType.type!=="number")throw new Error(name+"() must aggregate a numeric expression.");
+   const valueRefs=typedFormulaGroupReferences(valueExpression),groupsUsed=[...new Set(valueRefs.map(item=>item.group))];
+   if(!valueRefs.length||groupsUsed.length!==1)throw new Error(name+"() must aggregate fields from exactly one dynamic group.");
+   if(name==="sum_if"){
+    if(args[1].type!=="boolean")throw new Error("sum_if() predicate must be boolean.");
+    const predicateGroups=[...new Set(typedFormulaGroupReferences(expression.args[1]).map(item=>item.group))];
+    if(predicateGroups.length!==1||predicateGroups[0]!==groupsUsed[0])throw new Error("sum_if() value and predicate must refer to fields from the same dynamic group.");
+   }
+   return numberResult(valueType.unit);
+  }
+  if(args.some(item=>item.type!=="number"))throw new Error(name+"() accepts only numeric arguments.");
+  if(name==="min"||name==="max"||name==="avg"||name==="hypot"||name==="mod"||name==="clamp"){
+   return numberResult(typedUnitCompatible(args.map(item=>item.unit),expression.args,name+"() requires matching units."));
+  }
+  if(["abs","round","floor","ceil","trunc"].includes(name))return numberResult(args[0].unit);
+  if(name==="sign")return numberResult(unitDescriptor(""));
+  if(name==="sqrt"){
+   const vector={};Object.entries(args[0].unit.vector).forEach(([key,value])=>{if(Math.abs(value/2-Math.round(value/2))>1e-9)throw new Error("Square root requires even unit powers.");if(value/2)vector[key]=value/2;});
+   return numberResult({exact:"",vector,opaque:args[0].unit.opaque,symbols:{...(args[0].unit.symbols||{})}});
+  }
+  if(name==="pow"){
+   const power=constantFormulaValue(expression.args[1]);
+   if(power===null&&Object.keys(args[0].unit.vector).length)throw new Error("A dimensional value must use a fixed numeric power.");
+   const vector={};Object.entries(args[0].unit.vector).forEach(([key,value])=>{const result=value*(power===null?1:power);if(Math.abs(result)>1e-10)vector[key]=result;});
+   return numberResult({exact:"",vector,opaque:args[0].unit.opaque,symbols:{...(args[0].unit.symbols||{})}});
+  }
+  if(["log","ln","exp","sin","cos","tan","asin","acos","atan"].includes(name)){
+   if(Object.keys(args[0].unit.vector).length)throw new Error(name+"() requires a dimensionless input.");
+   return numberResult(unitDescriptor(""));
+  }
+  throw new Error("Unsupported v2 formula function: "+name+".");
+ };
+ return infer(ast);
+}
+function evaluateV2Expression(ast,values,groupValues,rowContext=null){
+ const groups=groupValues&&typeof groupValues==="object"?groupValues:{};
+ if(ast.type==="number"||ast.type==="boolean"||ast.type==="string")return ast.value;
+ if(ast.type==="variable")return values[ast.name];
+ if(ast.type==="group")return Array.isArray(groups[ast.name])?groups[ast.name]:[];
+ if(ast.type==="groupField"){
+  if(rowContext&&rowContext.group===ast.group)return rowContext.row?.[ast.field];
+  const rows=Array.isArray(groups[ast.group])?groups[ast.group]:[];
+  return rows.map(row=>row?.[ast.field]);
+ }
+ if(ast.type==="unary"){
+  const value=evaluateV2Expression(ast.value,values,groups,rowContext);
+  if(typeof value!=="number")throw new Error("Unary numeric operators require a number.");
+  return ast.op==="-"?-value:value;
+ }
+ if(ast.type==="binary"){
+  const left=evaluateV2Expression(ast.left,values,groups,rowContext),right=evaluateV2Expression(ast.right,values,groups,rowContext);
+  if(typeof left!=="number"||typeof right!=="number")throw new Error("Arithmetic operators require numeric values.");
+  if(ast.op==="+")return left+right;
+  if(ast.op==="-")return left-right;
+  if(ast.op==="*")return left*right;
+  if(ast.op==="/"){if(right===0)throw new Error("A formula divides by zero.");return left/right;}
+  return Math.pow(left,right);
+ }
+ const name=ast.name;
+ if(name==="if"){
+  const condition=evaluateV2Expression(ast.args[0],values,groups,rowContext);
+  if(typeof condition!=="boolean")throw new Error("if() condition must be boolean.");
+  return evaluateV2Expression(ast.args[condition?1:2],values,groups,rowContext);
+ }
+ if(name==="and"){
+  for(const argument of ast.args){if(evaluateV2Expression(argument,values,groups,rowContext)!==true)return false;}
+  return true;
+ }
+ if(name==="or"){
+  for(const argument of ast.args){if(evaluateV2Expression(argument,values,groups,rowContext)===true)return true;}
+  return false;
+ }
+ if(name==="not")return !evaluateV2Expression(ast.args[0],values,groups,rowContext);
+ if(["eq","neq","gt","gte","lt","lte"].includes(name)){
+  const left=evaluateV2Expression(ast.args[0],values,groups,rowContext),right=evaluateV2Expression(ast.args[1],values,groups,rowContext);
+  if(name==="eq")return left===right;
+  if(name==="neq")return left!==right;
+  if(name==="gt")return left>right;
+  if(name==="gte")return left>=right;
+  if(name==="lt")return left<right;
+  return left<=right;
+ }
+ if(name==="date_diff_days"){
+  const start=evaluateV2Expression(ast.args[0],values,groups,rowContext),end=evaluateV2Expression(ast.args[1],values,groups,rowContext);
+  return calendarDayNumber(end)-calendarDayNumber(start);
+ }
+ if(name==="add_days"||name==="add_months"){
+  const date=evaluateV2Expression(ast.args[0],values,groups,rowContext),offset=evaluateV2Expression(ast.args[1],values,groups,rowContext);
+  if(!Number.isInteger(offset))throw new Error(name+"() offset must be a whole number.");
+  const parts=dateParts(date);
+  if(name==="add_days"){
+   const target=calendarDayNumber(date)+offset,dateObject=new Date(target*86400000);
+   dateObject.setTime(target*86400000);
+   const year=dateObject.getUTCFullYear(),month=dateObject.getUTCMonth()+1,day=dateObject.getUTCDate();
+   return formatCalendarDate(year,month,day);
+  }
+  const totalMonths=parts.year*12+(parts.month-1)+offset;
+  const year=Math.floor(totalMonths/12),month=totalMonths-year*12+1;
+  return formatCalendarDate(year,month,Math.min(parts.day,daysInCalendarMonth(year,month)));
+ }
+ if(name==="days_in_month"){
+  const parts=dateParts(evaluateV2Expression(ast.args[0],values,groups,rowContext));
+  return daysInCalendarMonth(parts.year,parts.month);
+ }
+ if(name==="calendar_year")return dateParts(evaluateV2Expression(ast.args[0],values,groups,rowContext)).year;
+ if(name==="calendar_month")return dateParts(evaluateV2Expression(ast.args[0],values,groups,rowContext)).month;
+ if(name==="weekday"){
+  const date=evaluateV2Expression(ast.args[0],values,groups,rowContext),dayNumber=calendarDayNumber(date);
+  const jsDay=((dayNumber+4)%7+7)%7;
+  return jsDay===0?7:jsDay;
+ }
+ if(name==="count"){
+  const group=evaluateV2Expression(ast.args[0],values,groups,rowContext);
+  if(!Array.isArray(group))throw new Error("count() requires a dynamic group.");
+  return group.length;
+ }
+ if(name==="count_if"||name==="sum_if"){
+  const refs=typedFormulaGroupReferences(name==="count_if"?ast.args[0]:ast.args[1]);
+  const groupName=[...new Set(refs.map(item=>item.group))][0],rows=Array.isArray(groups[groupName])?groups[groupName]:[];
+  if(name==="count_if"){
+   let count=0;rows.forEach(row=>{if(evaluateV2Expression(ast.args[0],values,groups,{group:groupName,row})===true)count++;});
+   return count;
+  }
+  let total=0;rows.forEach(row=>{
+   if(evaluateV2Expression(ast.args[1],values,groups,{group:groupName,row})===true){
+    total+=evaluateV2Expression(ast.args[0],values,groups,{group:groupName,row});
+   }
+  });
+  return total;
+ }
+ if(name==="sum"){
+  const refs=typedFormulaGroupReferences(ast.args[0]),groupName=[...new Set(refs.map(item=>item.group))][0],rows=Array.isArray(groups[groupName])?groups[groupName]:[];
+  return rows.reduce((total,row)=>total+evaluateV2Expression(ast.args[0],values,groups,{group:groupName,row}),0);
+ }
+ const args=ast.args.map(argument=>evaluateV2Expression(argument,values,groups,rowContext));
+ let result;
+ if(name==="min")result=args.length===1&&Array.isArray(args[0])?Math.min(...args[0]):Math.min(...args);
+ else if(name==="max")result=args.length===1&&Array.isArray(args[0])?Math.max(...args[0]):Math.max(...args);
+ else if(name==="avg")result=args.length===1&&Array.isArray(args[0])?(args[0].length?args[0].reduce((sum,value)=>sum+value,0)/args[0].length:0):args.reduce((sum,value)=>sum+value,0)/args.length;
+ else if(name==="abs")result=Math.abs(args[0]);
+ else if(name==="round")result=args.length===1?Math.round(args[0]):Number(args[0].toFixed(Math.max(0,Math.min(8,Math.floor(args[1])))));
+ else if(name==="floor")result=Math.floor(args[0]);
+ else if(name==="ceil")result=Math.ceil(args[0]);
+ else if(name==="trunc")result=Math.trunc(args[0]);
+ else if(name==="sign")result=Math.sign(args[0]);
+ else if(name==="clamp"){if(args[1]>args[2])throw new Error("Clamp minimum cannot be greater than its maximum.");result=Math.min(args[2],Math.max(args[1],args[0]));}
+ else if(name==="mod"){if(args[1]===0)throw new Error("A formula cannot calculate a remainder by zero.");result=args[0]%args[1];}
+ else if(name==="hypot")result=Math.hypot(...args);
+ else if(name==="sqrt"){if(args[0]<0)throw new Error("Square root is invalid for these values.");result=Math.sqrt(args[0]);}
+ else if(name==="pow")result=Math.pow(args[0],args[1]);
+ else if(name==="log")result=args.length===1?Math.log10(args[0]):Math.log(args[0])/Math.log(args[1]);
+ else if(name==="ln")result=Math.log(args[0]);
+ else if(name==="exp")result=Math.exp(args[0]);
+ else if(name==="sin")result=Math.sin(args[0]);
+ else if(name==="cos")result=Math.cos(args[0]);
+ else if(name==="tan")result=Math.tan(args[0]);
+ else if(name==="asin")result=Math.asin(args[0]);
+ else if(name==="acos")result=Math.acos(args[0]);
+ else if(name==="atan")result=Math.atan(args[0]);
+ else throw new Error("Unsupported v2 formula function: "+name+".");
+ if(!Number.isFinite(result))throw new Error("The calculator produced an invalid numeric result.");
+ return result;
+}
+function validateV2FormulaResults(spec){
+ const errors=[],symbols=new Map(),groups=new Map((spec.groups||[]).map(group=>[group.key,group]));
+ (spec.inputs||[]).forEach(input=>{
+  symbols.set(input.key,input.type==="number"?{type:"number",unit:unitDescriptor(input.unit||"")}:
+   input.type==="enum"?{type:"enum",choices:input.choices||[]}:{type:input.type});
+ });
+ const results=[];
+ (spec.results||[]).forEach((result,index)=>{
+  const label=String(result.label||"Result "+(index+1));
+  try{
+   const ast=compileV2Expression(result.expression,symbols,groups);
+   const inferred=inferV2Expression(ast,symbols,groups);
+   if(inferred.type!=="number")throw new Error("Result formulas must return a number. Use typed booleans, enums and dates inside comparisons and if() expressions.");
+   validateFormulaResultUnit(result,inferred.unit);
+   results.push({ast,inferred});
+   if(result.key)symbols.set(result.key,{type:"number",unit:inferred.unit});
+  }catch(error){errors.push(label+" formula: "+String(error?.message||"could not be validated."));}
+ });
+ const values=createDefaultTypedValues(spec).values;
+ const groupDefaults=createDefaultTypedGroupValues(spec).groups;
+ if(!Object.keys(values).length)errors.push("A v2 calculator needs at least one valid default input.");
+ results.forEach((compiled,index)=>{
+  try{
+   const value=evaluateV2Expression(compiled.ast,values,groupDefaults);
+   if(typeof value!=="number"||!Number.isFinite(value))throw new Error("A result must produce one finite number.");
+  }catch(error){errors.push(String(spec.results[index]?.label||"Result "+(index+1))+": "+String(error?.message||"could not be evaluated with default values."));}
+ });
+ return {errors:[...new Set(errors)],compiled:results};
+}
+
 function validateV2TypedSpec(spec){
  const errors=[];
  const add=message=>errors.push(message);
