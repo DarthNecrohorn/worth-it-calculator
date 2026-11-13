@@ -3247,3 +3247,126 @@ test("AI Creator refuses malformed V2 requests and keeps V2 refinement unavailab
   assert.equal(providerCalls,0);
  },{});
 });
+
+
+function createCanonicalGeminiV2Candidate(){
+ return {
+  blueprintVersion:2,
+  title:"Typed Plan and Date Calculator",
+  description:"Evaluate an enabled quantity for a selected plan and compare a calendar date with a clear cutoff.",
+  category:"other",
+  subcategories:["general-comparison"],
+  assumptions:["Values are supplied by the calculator user."],
+  spec:{
+   schemaVersion:2,
+   engineVersion:2,
+   inputs:[
+    {key:"quantity",label:"Quantity",type:"number",control:"number",min:0,max:100,default:12,step:1,unit:""},
+    {key:"enabled",label:"Enabled",type:"boolean",control:"toggle",default:true},
+    {key:"plan",label:"Plan",type:"enum",control:"select",default:"pro",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+    {key:"start_date",label:"Start date",type:"date",control:"date",default:"2026-01-31"}
+   ],
+   groups:[],
+   results:[
+    {key:"eligible_quantity",label:"Eligible quantity",expression:'if(and(enabled, eq(plan, "pro")), quantity, 0)',format:"number",prefix:"",suffix:"",explanation:"Quantity is included only when enabled for the Pro plan."},
+    {key:"after_cutoff",label:"Quantity after date cutoff",expression:'if(gt(start_date, "2026-01-01"), eligible_quantity, 0)',format:"number",prefix:"",suffix:"",explanation:"The eligible quantity is shown only after the calendar cutoff."}
+   ],
+   scenarios:[{label:"Basic plan before cutoff",values:{enabled:false,plan:"basic",start_date:"2024-01-31"}}]
+  }
+ };
+}
+
+test("AI Creator accepts canonical Gemini typed V2 blueprints and validates them before settlement",async()=>{
+ const candidate=createCanonicalGeminiV2Candidate();
+ let providerCalls=0,reservations=0;
+ const quotaEvents={};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"gemini-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   providerCalls++;
+   const body=JSON.parse(options.body);
+   assert.match(body.systemInstruction.parts[0].text,/blueprintVersion 2/i);
+   assert.match(body.systemInstruction.parts[0].text,/typed/i);
+   return new Response(JSON.stringify({
+    modelVersion:"gemini-3.8-flash",
+    candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(candidate)}]}}],
+    usageMetadata:{promptTokenCount:100, candidatesTokenCount:200,totalTokenCount:300}
+   }),{status:200});
+  }
+  if(path.includes("api.groq.com"))throw new Error("Groq should not be called when Gemini returns a valid V2 blueprint.");
+  throw new Error("Unexpected Gemini V2 request: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    prompt:"Create a small typed calculator for an enabled quantity, a selected plan and a calendar date cutoff.",
+    schema_version:2
+   },{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(body.success,true);
+  assert.equal(body.calculator.spec.schemaVersion,2);
+  assert.equal(body.calculator.spec.engineVersion,2);
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="enabled").default,true);
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="plan").default,"pro");
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="start_date").default,"2026-01-31");
+  assert.deepEqual(body.calculator.spec.scenarios[0].values,{enabled:false,plan:"basic",start_date:"2024-01-31"});
+  assert.equal(body.calculator.spec.results.length,2);
+  assert.equal(providerCalls,1);
+  assert.equal(reservations,1);
+  assert.equal(quotaEvents.settlements,1);
+  assert.equal(quotaEvents.refunds||0,0);
+ },quotaEvents);
+});
+
+test("AI Creator refunds a reserved CALC operation when a Gemini V2 formula fails server validation",async()=>{
+ const candidate=createCanonicalGeminiV2Candidate();
+ candidate.spec.inputs=candidate.spec.inputs.slice(0,2);
+ candidate.spec.results=[{
+  key:"invalid_total",label:"Invalid total",expression:"quantity * enabled",
+  format:"number",prefix:"",suffix:"",explanation:"This intentionally mixes a number and a boolean."
+ }];
+ candidate.spec.scenarios=[];
+ let providerCalls=0,reservations=0;
+ const quotaEvents={};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"gemini-v2-refund-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   providerCalls++;
+   return new Response(JSON.stringify({
+    candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(candidate)}]}}],
+    usageMetadata:{promptTokenCount:100,candidatesTokenCount:100,totalTokenCount:200}
+   }),{status:200});
+  }
+  if(path.includes("api.groq.com"))throw new Error("Groq is not configured and must not be called.");
+  throw new Error("Unexpected invalid Gemini V2 request: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    prompt:"Create a small calculator that multiplies a quantity by whether an option is enabled.",
+    schema_version:2
+   },{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,422,JSON.stringify(body));
+  assert.equal(body.success,false);
+  assert.equal(body.code,"INVALID_AI_CALCULATOR");
+  assert.match(body.error,/server formula|boolean|type/i);
+  assert.equal(providerCalls,1);
+  assert.equal(reservations,1);
+  assert.equal(quotaEvents.settlements||0,0);
+  assert.equal(quotaEvents.refunds,1);
+ },quotaEvents);
+});
