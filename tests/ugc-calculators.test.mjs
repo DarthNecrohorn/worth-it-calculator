@@ -2654,6 +2654,133 @@ test("v2 typed dynamic rows reject unknown fields, wrong primitive types and inv
  assert.ok(malformedContainer.errors.some(error=>/must be an object/.test(error)));
 });
 
+
+test("v2 typed formulas evaluate boolean logic, enum comparisons, date operations and typed group aggregates",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"base_cost",label:"Base cost",type:"number",min:0,max:10000,default:100,step:1,unit:"EUR",control:"number"},
+   {key:"include_tax",label:"Include tax",type:"boolean",default:true,control:"toggle"},
+   {key:"tax_rate",label:"Tax rate",type:"number",min:0,max:100,default:20,step:1,unit:"%",control:"number"},
+   {key:"plan",label:"Plan",type:"enum",default:"pro",control:"select",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+   {key:"start_date",label:"Start date",type:"date",default:"2026-01-31",control:"date"}
+  ],
+  groups:[{
+   key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:6,
+   fields:[
+    {key:"amount",label:"Amount",type:"number",min:0,max:1000,default:0,step:1,unit:"EUR"},
+    {key:"taxable",label:"Taxable",type:"boolean",default:true},
+    {key:"kind",label:"Kind",type:"enum",default:"fixed",choices:[{label:"Fixed",value:"fixed"},{label:"Variable",value:"variable"}]},
+    {key:"due_date",label:"Due date",type:"date",default:"2026-02-15"}
+   ]
+  }],
+  results:[
+   {key:"eligible_expenses",label:"Eligible expenses",expression:"sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, \"fixed\")))",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Taxable fixed expenses."},
+   {key:"eligible_count",label:"Eligible expense count",expression:"count_if(and(expenses.taxable, eq(expenses.kind, \"fixed\")))",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Count of taxable fixed expenses."},
+   {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \"pro\")), base_cost * tax_rate / 100, 0)",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Tax is applied only when enabled for the selected plan."},
+   {key:"final_total",label:"Final total",expression:"base_cost + eligible_expenses + tax_amount",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Base cost plus eligible expenses and tax."},
+   {key:"days_to_next_month",label:"Days to next month",expression:"date_diff_days(start_date, add_months(start_date, 1))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Calendar days until the same day next month, clamped at month end."},
+   {key:"next_month_days",label:"Days in next month",expression:"days_in_month(add_months(start_date, 1))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Calendar length of the next month."},
+   {key:"next_date_year",label:"Next date year",expression:"calendar_year(add_days(start_date, 1))",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Calendar year after one day."},
+   {key:"start_weekday",label:"Start weekday",expression:"weekday(start_date)",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"ISO weekday number, Monday 1 through Sunday 7."},
+   {key:"plan_gate",label:"Pro plan selected",expression:"if(eq(plan, \"pro\"), 1, 0)",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"A typed enum equality check."},
+   {key:"due_after_cutoff",label:"Expenses due after cutoff",expression:"count_if(gt(expenses.due_date, \"2026-02-15\"))",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Count of group rows after the given date."},
+   {key:"date_gate",label:"Next month-end reached",expression:"if(gte(add_months(start_date, 1), \"2026-02-28\"), 1, 0)",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"A typed date comparison."}
+  ],
+  scenarios:[{label:"Leap-year case",values:{start_date:"2024-01-31",include_tax:false,plan:"basic"}}]
+ };
+ assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(spec).errors)),[]);
+ const evaluated=engine.evaluateV2TypedResults(spec,{},{
+  expenses:[
+   {amount:20,taxable:true,kind:"fixed",due_date:"2026-02-20"},
+   {amount:30,taxable:true,kind:"variable",due_date:"2026-02-15"},
+   {amount:40,taxable:false,kind:"fixed",due_date:"2026-03-01"},
+   {amount:15,taxable:true,kind:"fixed",due_date:"2026-03-10"}
+  ]
+ });
+ const values=Object.fromEntries(evaluated.results.map(item=>[item.key,item.value]));
+ assert.equal(values.eligible_expenses,35);
+ assert.equal(values.eligible_count,2);
+ assert.equal(values.tax_amount,20);
+ assert.equal(values.final_total,155);
+ assert.equal(values.days_to_next_month,28);
+ assert.equal(values.next_month_days,28);
+ assert.equal(values.next_date_year,2026);
+ assert.equal(values.start_weekday,6);
+ assert.equal(values.plan_gate,1);
+ assert.equal(values.due_after_cutoff,2);
+ assert.equal(values.date_gate,1);
+ const leap=evaluateV2TypedResults(spec,{start_date:"2024-01-31",include_tax:false,plan:"basic"},{expenses:[
+  {amount:20,taxable:true,kind:"fixed",due_date:"2024-03-01"}
+ ]});
+ const leapValues=Object.fromEntries(leap.results.map(item=>[item.key,item.value]));
+ assert.equal(leapValues.days_to_next_month,29);
+ assert.equal(leapValues.next_month_days,29);
+});
+
+test("v2 typed formula checker rejects invalid boolean logic, enum literals, date offsets and cross-group aggregates",()=>{
+ const engine=createCalculatorEngine();
+ const base={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"amount",label:"Amount",type:"number",min:0,max:100,default:10,step:1,unit:"EUR",control:"number"},
+   {key:"enabled",label:"Enabled",type:"boolean",default:true,control:"toggle"},
+   {key:"plan",label:"Plan",type:"enum",default:"basic",control:"select",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+   {key:"start_date",label:"Start date",type:"date",default:"2026-01-31",control:"date"}
+  ],
+  groups:[
+   {key:"items",label:"Items",itemLabel:"Item",minItems:1,maxItems:2,fields:[
+    {key:"amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"},
+    {key:"approved",label:"Approved",type:"boolean",default:true},
+    {key:"kind",label:"Kind",type:"enum",default:"basic",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]}
+   ]},
+   {key:"other_items",label:"Other items",itemLabel:"Item",minItems:1,maxItems:2,fields:[
+    {key:"amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"}
+   ]}
+  ],
+  results:[],
+  scenarios:[]
+ };
+ const invalid=formula=>{
+  const spec=structuredClone(base);
+  spec.results=[{label:"Invalid formula",expression:formula,format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Invalid formula fixture."}];
+  return engine.validateVersionedSpec(spec).errors;
+ };
+ assert.ok(invalid("amount + enabled").some(error=>/Arithmetic operators require numeric values/.test(error)));
+ assert.ok(invalid("and(enabled, plan)").some(error=>/accepts only boolean/.test(error)));
+ assert.ok(invalid("if(enabled, amount, plan)").some(error=>/same supported value type/.test(error)));
+ assert.ok(invalid("if(eq(plan, \"enterprise\"), 1, 0)").some(error=>/not one of the enum's declared choices/.test(error)));
+ assert.ok(invalid("add_days(start_date, 1.5)").some(error=>/offset constants must be whole numbers/.test(error)));
+ assert.ok(invalid("date_diff_days(start_date, 12)").some(error=>/requires two calendar dates/.test(error)));
+ assert.ok(invalid("sum_if(items.amount, eq(other_items.amount, 1))").some(error=>/same dynamic group/.test(error)));
+ assert.ok(invalid("eq(amount, start_date)").some(error=>/same supported type/.test(error)));
+ assert.ok(invalid("eq(amount, 10)").length===0,"numeric comparison with a unitless literal should inherit the compared value's unit");
+});
+
+test("v2 typed formula evaluator rejects invalid runtime values and enforces bounded date arithmetic",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"amount",label:"Amount",type:"number",min:0,max:100,default:10,step:1,unit:"EUR",control:"number"},
+   {key:"start_date",label:"Start date",type:"date",default:"2026-01-31",control:"date"}
+  ],
+  groups:[],
+  results:[
+   {key:"month_end",label:"Month end",expression:"add_months(start_date, 1)",format:"number",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"This intentionally invalid numeric output is rejected."}
+  ],
+  scenarios:[]
+ };
+ assert.ok(engine.validateVersionedSpec(spec).errors.some(error=>/Result formulas must return a number/.test(error)));
+ spec.results=[
+  {key:"month_days",label:"Month days",expression:"days_in_month(add_months(start_date, 1))",format:"unit",currency:"EUR",unit:"days",prefix:"",suffix:"",explanation:"Days in the following calendar month."}
+ ];
+ assert.equal(engine.evaluateV2TypedResults(spec,{amount:10,start_date:"2026-01-31"}).results[0].value,28);
+ assert.throws(()=>engine.evaluateV2TypedResults(spec,{amount:"10"}),/JSON number/);
+ assert.throws(()=>engine.evaluateV2TypedResults(spec,{amount:10,start_date:"2026-02-30"}),/valid calendar date/);
+});
+
 test("AI Creator server uses the shared v1 engine and accepts its expanded safe formula grammar",()=>{
  const definition=normalizeDefinition({
   title:"Capped Unit Cost",
