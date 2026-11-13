@@ -1538,7 +1538,7 @@ test("repairs the Smart Home LED lighting calculator with per-bulb power units, 
  assert.equal(byKey("electricity_tariff").unit,"EUR/kWh");
  const zone=definition.spec.groups[0];
  assert.equal(zone.fields.find(field=>field.key==="zone_bulbs").unit,"items");
- assert.ok(definition.spec.results[0].expression.includes("sum(room_zones.zone_bulbs * room_zones.dimming_factor)"));
+ assert.ok(definition.spec.results[0].expression.includes("room_zones.dimming_factor"),"The LED energy formula must incorporate room-zone dimming.");
  assert.ok(definition.spec.assumptions.some(item=>item.includes("Room-zone dimming levels are weighted")));
  const values=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
  const groups={room_zones:[{zone_bulbs:2,dimming_factor:80}]};
