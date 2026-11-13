@@ -875,7 +875,7 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
 });
 
 test("if() evaluates only the selected branch so guarded division is safe at zero",()=>{
- const start=builderSource.indexOf("function evaluate(ast,values,groupValues){");
+ const start=builderSource.indexOf("function evaluate(ast,values,groupValues");
  const end=builderSource.indexOf("\nfunction groupMapForSpec",start);
  assert.ok(start>=0&&end>start,"The shared formula evaluator must be present.");
  const evaluateSource=builderSource.slice(start,end);
@@ -1467,7 +1467,7 @@ test("repairs a Gemini home Wi-Fi estimator with rate choices, per-device group 
  assert.equal(definition.spec.groups[0].fields.find(field=>field.key==="device_count").unit,"device");
  const rates=definition.spec.inputs.filter(input=>input.key.startsWith("estimated_gb_hour"));
  assert.equal(rates.length,2);
- assert.deepEqual(rates.map(input=>input.default).sort((a,b)=>a-b),[0.15,0.8]);
+ assert.deepEqual(plain(rates.map(input=>input.default).sort((a,b)=>a-b)),[0.15,0.8]);
  assert.ok(rates.every(input=>input.unit==="GB/hour"));
  assert.equal(definition.spec.results.find(item=>item.key==="total_monthly_data_tb").format,"unit");
  assert.equal(definition.spec.results.find(item=>item.key==="total_monthly_data_tb").unit,"TB");
