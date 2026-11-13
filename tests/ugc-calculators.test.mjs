@@ -1618,7 +1618,7 @@ test("all built-in Manual Builder templates pass formula, unit and boundary vali
     });
     const invalid=[];
     for(const [key,template] of Object.entries(templates)){
-        const validation=engine.validateMakerSpec({inputs:template.inputs,results:template.results,scenarios:[]});
+        const validation=engine.validateMakerSpec({inputs:template.inputs,groups:template.groups||[],results:template.results,scenarios:template.scenarios||[]});
         if(validation.errors.length)invalid.push(key+": "+validation.errors.join(" | "));
     }
     assert.deepEqual(invalid,[], "Template formula/unit validation failures: "+JSON.stringify(invalid)+"; hourly dimensions: "+JSON.stringify(hourlyUnits));
