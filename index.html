@@ -1653,6 +1653,12 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </div>
           </div>
           <div class="ugc-blueprint-import-actions">
+            <label for="ugcBlueprintTargetVersion">Blueprint format
+              <select id="ugcBlueprintTargetVersion">
+                <option value="1">Version 1 · current numeric schema</option>
+                <option value="2">Version 2 · typed schema (experimental)</option>
+              </select>
+            </label>
             <button type="button" id="ugcBlueprintCopyPrompt" class="ugc-action-secondary">Copy instructions for an external AI</button>
             <p class="ugc-blueprint-import-note">After copying, add your own calculator request in the same message to the external AI. The request can cover any subject; these instructions define only the Worth It blueprint format and safety rules.</p>
           </div>

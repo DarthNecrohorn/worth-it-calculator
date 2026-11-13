@@ -2357,7 +2357,8 @@ function changeManualMode(mode){
 }
 async function copyBlueprintPrompt(){
  const statusNode=$("ugcBlueprintImportStatus");
- const prompt=window.WorthItBlueprintImport?.buildPrompt?.();
+ const targetVersion=Number($("ugcBlueprintTargetVersion")?.value||1);
+ const prompt=window.WorthItBlueprintImport?.buildPrompt?.(targetVersion);
  if(!prompt){if(statusNode)statusNode.textContent="Blueprint instructions are unavailable. Reload Manual Builder.";return;}
  try{
   if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(prompt);
@@ -2367,7 +2368,7 @@ async function copyBlueprintPrompt(){
    temporary.select();const copied=document.execCommand("copy");temporary.remove();
    if(!copied)throw new Error("Clipboard access is unavailable in this browser.");
   }
-  if(statusNode)statusNode.textContent="Instructions copied. Paste them into an external AI assistant; Worth It will not contact an AI service.";
+  if(statusNode)statusNode.textContent="Version "+targetVersion+" blueprint instructions copied. Paste them into an external AI assistant; Worth It will not contact an AI service.";
  }catch(error){
   if(statusNode)statusNode.textContent=error?.message||"Could not copy the instructions. You can select and copy them manually.";
  }
@@ -2427,7 +2428,7 @@ async function importManualBlueprint(){
   let definition=null,importError=null;
   try{
    if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
-   definition=importer.parseBlueprint(raw,validateMakerSpec,originalRequest);
+   definition=importer.parseBlueprint(raw,validateManualDraftSpec,originalRequest);
   }catch(error){importError=error;}
   let importNotes=[];
   let validationIssueCount=0;
@@ -2435,7 +2436,8 @@ async function importManualBlueprint(){
   if(definition){
    importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
    validationIssueCount=Number(definition.importValidationIssueCount)||0;
-   const sharedValidation=validateMakerSpec(definition.spec);
+   const typedV2=Number(definition.spec?.schemaVersion)===2;
+   const sharedValidation=validateManualDraftSpec(definition.spec);
    const sharedErrors=Array.isArray(sharedValidation?.errors)?sharedValidation.errors:[];
    validationIssueCount=Math.max(validationIssueCount,sharedErrors.length);
    validationSummary=sharedErrors.slice(0,4).join(" ");
@@ -2450,7 +2452,7 @@ async function importManualBlueprint(){
   }
   state.regionalDefaults=null;
   state.makerLocale="auto";
-  if(!definition||validationIssueCount>0){
+  if(!definition||(validationIssueCount>0&&!typedV2)){
    const reason=importError?.message||(validationSummary||validationIssueCount+" validation item(s) remained after Quick Fix.");
    const fallback=applyAdaptiveManualFallback(originalRequest,definition,reason,statusNode);
    const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
@@ -2470,8 +2472,14 @@ async function importManualBlueprint(){
    setMakerModeUI();
    renderMakerPreview(state.aiDraft);
    const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
-   makerStatus("Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged."+adjustmentText);
-   if(statusNode)statusNode.textContent="Quick Fix complete. Your editable calculator draft is ready; nothing was saved or published."+adjustmentText;
+   const completionMessage=typedV2
+    ?(validationIssueCount>0
+      ?"Typed V2 blueprint imported as an editable local draft, but "+validationIssueCount+" validation item(s) still need review. "+validationSummary
+      :"Typed V2 blueprint passed the schema, formula, unit and default-value checks.")
+      +" Review and test it locally. V2 Save and Publish remain disabled; nothing was saved, published, sent to an AI service or charged."
+    :"Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged.";
+   makerStatus(completionMessage+adjustmentText);
+   if(statusNode)statusNode.textContent=completionMessage+adjustmentText;
    $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
   }
  }catch(error){
@@ -2700,6 +2708,7 @@ function validateManualDraftSpec(spec){
  }catch(error){errors.push(String(error?.message||"The V2 default-value test failed."));}
  return{errors};
 }
+validateManualDraftSpec.repairBlueprintSpec=validateMakerSpec.repairBlueprintSpec;
 function renderManualSchemaVersionControl(host,definition){
  const label=document.createElement("label");label.className="ugc-maker-schema-version-field";
  label.appendChild(text("span","","Calculator schema"));

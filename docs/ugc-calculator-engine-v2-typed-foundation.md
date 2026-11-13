@@ -200,3 +200,14 @@ The V2 editor supports:
 - The shared V2 type checker and evaluator for a local, interactive test panel, including typed dynamic rows and scenario comparisons.
 
 V2 testing is local to the browser. It sends no AI request, consumes no CALC, writes no data to Supabase and does not publish anything. Both Save and Publish are disabled in V2, and the save handler independently rejects a V2 draft before it can call the save RPC. Saved calculator editing remains V1-only. This authoring slice does not change the AI Creator output, Blueprint Import, server APIs, database schema, save/publish RPCs or public calculator runtime.
+
+
+## 11. Blueprint Import typed V2
+
+Blueprint Import now recognizes an explicit V2 envelope: `blueprintVersion: 2` with `spec.schemaVersion: 2` and `spec.engineVersion: 2`. Version 1 remains the default prompt format and continues through the existing Quick Fix and repair pipeline.
+
+The V2 importer is intentionally strict and does not apply V1 numeric repairs. It preserves declared types and rejects malformed type definitions, ranges, dates, enum choices, duplicate keys, invalid typed scenario values, unknown properties and version mismatches. Formula/type/unit validation runs through the same Manual Builder V2 validator, including a default-value evaluation before a V2 import is treated as clean.
+
+A formula or dimensional validation issue does not coerce or rewrite V2 values. The importer keeps a structurally valid V2 definition as an editable typed draft and reports the remaining checks in the editor, where the shared V2 validator runs again. The V1 path retains its existing adaptive fallback behaviour for unresolved imports.
+
+The Blueprint Import panel now lets the user choose which prompt contract to copy: Version 1 or the experimental typed Version 2 contract. Import remains local-only. A V2 import cannot save or publish and does not call an AI service or Supabase.
