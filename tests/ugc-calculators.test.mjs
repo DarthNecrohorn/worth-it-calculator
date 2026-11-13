@@ -2595,6 +2595,12 @@ test("v2 typed schema rejects invalid dates, enum values, mismatched versions an
  const mismatch=structuredClone(spec);
  mismatch.engineVersion=1;
  assert.ok(engine.validateVersionedSpec(mismatch).errors.some(error=>/version combination is not supported/.test(error)));
+ const duplicateScenarios=structuredClone(spec);
+ duplicateScenarios.scenarios=[{label:"Same scenario",values:{amount:20}},{label:"same scenario",values:{amount:30}}];
+ assert.ok(engine.validateVersionedSpec(duplicateScenarios).errors.some(error=>/Scenario names must be unique/.test(error)));
+ const unsafeChoice=structuredClone(spec);
+ unsafeChoice.inputs[2].choices[0].formula="amount * 2";
+ assert.ok(engine.validateVersionedSpec(unsafeChoice).errors.some(error=>/choice 1 contains unsupported properties/.test(error)));
  const coerced=structuredClone(spec);
  coerced.results[0].expression="amount + (enabled * 1)";
  assert.ok(engine.validateVersionedSpec(coerced).errors.length>0,"boolean values must not be silently coerced into numeric formula operands");
@@ -2630,6 +2636,9 @@ test("v2 typed dynamic rows reject unknown fields, wrong primitive types and inv
  ]});
  assert.equal(tooMany.valid,false);
  assert.ok(tooMany.errors.some(error=>/1–2 rows/.test(error)));
+ const malformedContainer=engine.normalizeTypedGroupValues(spec,[]);
+ assert.equal(malformedContainer.valid,false);
+ assert.ok(malformedContainer.errors.some(error=>/must be an object/.test(error)));
 });
 
 test("AI Creator server uses the shared v1 engine and accepts its expanded safe formula grammar",()=>{
