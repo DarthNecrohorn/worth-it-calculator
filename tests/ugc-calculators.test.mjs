@@ -2731,12 +2731,12 @@ test("v2 typed formula checker rejects invalid boolean logic, enum literals, dat
   ],
   groups:[
    {key:"items",label:"Items",itemLabel:"Item",minItems:1,maxItems:2,fields:[
-    {key:"amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"},
+    {key:"item_amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"},
     {key:"approved",label:"Approved",type:"boolean",default:true},
     {key:"kind",label:"Kind",type:"enum",default:"basic",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]}
    ]},
    {key:"other_items",label:"Other items",itemLabel:"Item",minItems:1,maxItems:2,fields:[
-    {key:"amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"}
+    {key:"other_amount",label:"Amount",type:"number",min:0,max:100,default:1,step:1,unit:"EUR"}
    ]}
   ],
   results:[],
@@ -2753,7 +2753,7 @@ test("v2 typed formula checker rejects invalid boolean logic, enum literals, dat
  assert.ok(invalid("if(eq(plan, \"enterprise\"), 1, 0)").some(error=>/does not match a declared enum choice/.test(error)))
  assert.ok(invalid("add_days(start_date, 1.5)").some(error=>/offset constants must be whole numbers/.test(error)));
  assert.ok(invalid("date_diff_days(start_date, 12)").some(error=>/requires two calendar dates/.test(error)));
- const crossGroupErrors=invalid("sum_if(items.amount, eq(other_items.amount, 1))");
+ const crossGroupErrors=invalid("sum_if(items.item_amount, eq(other_items.other_amount, 1))");
  assert.ok(crossGroupErrors.some(error=>/same dynamic group/.test(error)),JSON.stringify(crossGroupErrors));
  assert.ok(invalid("eq(amount, start_date)").some(error=>/same supported type/.test(error)));
  assert.ok(invalid("eq(amount, 10)").length===0,"numeric comparison with a unitless literal should inherit the compared value's unit");
