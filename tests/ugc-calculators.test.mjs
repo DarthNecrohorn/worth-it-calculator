@@ -505,7 +505,8 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
             request:request({prompt:requestPrompt},{token:"valid-token"}),
             env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GROQ_API_KEY:"groq-test"}
         });
-        assert.equal(response.status,200);
+        const responseData=await response.clone().json();
+        assert.equal(response.status,200,JSON.stringify(responseData));
         const result=await response.json();
         assert.equal(result.success,true);
         assert.equal(result.calculator.spec.results.length,6);
