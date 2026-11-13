@@ -317,7 +317,7 @@ function analyseFormulaUnit(ast,inputs,groups){
   const target=units[dimensionedIndex>=0?dimensionedIndex:0]||unitDescriptor("");
   const valid=units.every((item,index)=>sameUnitDescriptor(item,target)||
    (constantFormulaValue(nodes[index])!==null&&Object.keys(item.vector).length===0));
-  if(!valid)throw new Error(message);
+  if(!valid)throw new Error(String(message||"Typed units are incompatible.")+" Details: "+JSON.stringify({left:left.map(unit=>({vector:unit.vector,exact:unit.exact,opaque:unit.opaque})),constants:nodes.map(node=>constantFormulaValue(node))}));
   return target;
  };
  if(ast.type==="binary"){
