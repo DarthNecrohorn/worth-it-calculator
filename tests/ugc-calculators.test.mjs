@@ -3154,10 +3154,10 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
     ]
    }],
    results:[
-    {key:"taxable_fixed_total",label:"Taxable fixed total",expression:"sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, \\"fixed\\")))",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Taxable expenses marked as fixed."},
+    {key:"taxable_fixed_total",label:"Taxable fixed total",expression:"sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, \"fixed\")))",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Taxable expenses marked as fixed."},
     {key:"base_total",label:"Base total",expression:"base_cost + taxable_fixed_total",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Base cost plus taxable fixed expenses."},
-    {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \\"pro\\")), base_total * 0.2, 0)",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Illustrative tax amount when enabled for the Pro plan."},
-    {key:"date_indicator",label:"Start date is after 2026",expression:"if(gt(start_date, \\"2026-01-01\\"), 1, 0)",format:"number",currency:null,unit:null,prefix:"",suffix:"",explanation:"A date comparison indicator."}
+    {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \"pro\")), base_total * 0.2, 0)",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Illustrative tax amount when enabled for the Pro plan."},
+    {key:"date_indicator",label:"Start date is after 2026",expression:"if(gt(start_date, \"2026-01-01\"), 1, 0)",format:"number",currency:null,unit:null,prefix:"",suffix:"",explanation:"A date comparison indicator."}
    ],
    scenarios:[{
     label:"Basic plan without tax",
