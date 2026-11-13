@@ -748,12 +748,12 @@ function calendarDayNumber(value){
  date.setUTCHours(0,0,0,0);date.setUTCFullYear(parts.year,parts.month-1,parts.day);
  return Math.floor(date.getTime()/86400000);
 }
-function typedUnitCompatible(left,right,nodes,message){
+function typedUnitCompatible(left,nodes,message){
  const dimensioned=left.findIndex(unit=>Object.keys(unit.vector).length>0);
  const target=left[dimensioned>=0?dimensioned:0]||unitDescriptor("");
  const valid=left.every((unit,index)=>sameUnitDescriptor(unit,target)||
   (constantFormulaValue(nodes[index])!==null&&Object.keys(unit.vector).length===0));
- if(!valid)throw new Error(String(message||"Typed units are incompatible.")+" Details: "+JSON.stringify({left:left.map(unit=>({vector:unit.vector,exact:unit.exact,opaque:unit.opaque})),constants:nodes.map(node=>constantFormulaValue(node))}));
+ if(!valid)throw new Error(message);
  return target;
 }
 function inferV2Expression(ast,symbols,groups){
@@ -1049,7 +1049,7 @@ function validateV2FormulaResults(spec){
    validateFormulaResultUnit(result,inferred.unit);
    results.push({ast,inferred});
    if(result.key)symbols.set(result.key,{type:"number",unit:inferred.unit});
-  }catch(error){errors.push(label+" formula: "+String(error?.stack||error?.message||error||"could not be validated."));}
+  }catch(error){errors.push(label+" formula: "+String(error?.message||"could not be validated."));}
  });
  const values=createDefaultTypedValues(spec).values;
  const groupDefaults=createDefaultTypedGroupValues(spec).groups;
