@@ -1582,7 +1582,7 @@ test("Manual Builder exposes random mode and adaptive recovery selects a topic-m
  assert.equal(ledDraft.title,"Smart Home LED Lighting Energy & Cost Calculator");
  assert.deepEqual(plain(getManualValidator()(ledDraft.spec).errors),[]);
  assert.ok(builderSource.includes("applyAdaptiveManualFallback(originalRequest,definition,reason,statusNode)"));
- assert.match(builderSource,/state\\.manualMode=mode/);
+ assert.ok(builderSource.includes("state.manualMode=mode"));
  assert.match(html,/option value="random">Random calculator/);
  assert.match(html,/data-manual-mode-info="random"/);
 });
