@@ -556,7 +556,7 @@ function validateMakerSpec(spec){
     availableKeys.add(resultKey);resultKeys.add(resultKey);
     formulaUnits.push({key:resultKey,unitDescriptor:outputUnit});
    }
-  }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||"could not be validated."));}
+  }catch(error){errors.push((item.label||"A result")+" formula: "+String(error?.message||error||"could not be validated."));}
  });
  scenarios.forEach(sample=>{
   try{evaluateFormulaResults(spec,sample,groupSamples);}
