@@ -1197,6 +1197,25 @@ function validateMakerSpec(spec){
   try{evaluateFormulaResults(spec,sample,groupSamples);}
   catch(error){errors.push("Calculator result chain: "+String(error?.message||"could not be validated."));}
  });
+ // Exercise dynamic-group field boundaries and maximum row counts with default fixed inputs.
+ const cloneGroupSamples=()=>Object.fromEntries(groups.map(group=>[
+  group.key,(groupSamples[group.key]||[]).map(row=>({...row}))
+ ]));
+ groups.forEach(group=>{
+  (Array.isArray(group.fields)?group.fields:[]).forEach(field=>{
+   [Number(field.min),Number(field.max)].forEach(boundary=>{
+    const sample=cloneGroupSamples();
+    if(sample[group.key]?.length)sample[group.key][0][field.key]=boundary;
+    try{evaluateFormulaResults(spec,values,sample);}
+    catch(error){errors.push("Dynamic group "+String(group.label||group.key)+" boundary check: "+String(error?.message||"could not be validated."));}
+   });
+  });
+  const maxRows=Math.max(Number(group.minItems)||1,Math.min(20,Number(group.maxItems)||1));
+  const maximumSample=cloneGroupSamples();
+  maximumSample[group.key]=Array.from({length:maxRows},()=>Object.fromEntries((group.fields||[]).map(field=>[field.key,Number(field.default)||0])));
+  try{evaluateFormulaResults(spec,values,maximumSample);}
+  catch(error){errors.push("Dynamic group "+String(group.label||group.key)+" maximum-row check: "+String(error?.message||"could not be validated."));}
+ });
  return {errors:[...new Set(errors)]};
 }
 
@@ -1427,6 +1446,43 @@ function normalizeMortgageTermExponentUnits(inputs,results,groups,notes){
  });
 }
 
+function guardedPositiveVariable(condition){
+ if(!condition||condition.type!=="call"||condition.args?.length!==2)return null;
+ const variable=condition.args[0],threshold=constantFormulaValue(condition.args[1]);
+ if(variable?.type!=="variable"||threshold===null)return null;
+ if(condition.name==="gt"&&threshold===0)return variable.name;
+ if(condition.name==="gte"&&threshold>=1)return variable.name;
+ return null;
+}
+function directDivisionNumerator(node,denominatorKey){
+ if(!node||node.type!=="binary"||node.op!=="/"||node.right?.type!=="variable"||node.right.name!==denominatorKey)return null;
+ return node.left;
+}
+function repairGuardedPerEntityFallbacks(ast,inputs,formulaUnits,groups,notes,label){
+ if(!ast||typeof ast!=="object")return ast;
+ if(ast.type==="binary")return{...ast,left:repairGuardedPerEntityFallbacks(ast.left,inputs,formulaUnits,groups,notes,label),right:repairGuardedPerEntityFallbacks(ast.right,inputs,formulaUnits,groups,notes,label)};
+ if(ast.type==="unary")return{...ast,value:repairGuardedPerEntityFallbacks(ast.value,inputs,formulaUnits,groups,notes,label)};
+ if(ast.type!=="call")return ast;
+ const args=ast.args.map(argument=>repairGuardedPerEntityFallbacks(argument,inputs,formulaUnits,groups,notes,label));
+ const repaired={...ast,args};
+ if(ast.name!=="if"||args.length!==3)return repaired;
+ const denominatorKey=guardedPositiveVariable(args[0]);
+ if(!denominatorKey)return repaired;
+ const input=inputs.find(item=>item.key===denominatorKey);
+ if(!input||Number(input.min)<0)return repaired;
+ const numerator=directDivisionNumerator(args[1],denominatorKey);
+ if(!numerator||formulaAstToText(args[2])!==formulaAstToText(numerator))return repaired;
+ let quotientUnit,fallbackUnit;
+ try{
+  quotientUnit=analyseFormulaUnit(args[1],formulaUnits,groups);
+  fallbackUnit=analyseFormulaUnit(args[2],formulaUnits,groups);
+ }catch(_){return repaired;}
+ if(sameUnitDescriptor(quotientUnit,fallbackUnit))return repaired;
+ args[2]={type:"number",value:0};
+ notes.push(label+": changed the zero-denominator fallback to 0 so a guarded per-entity calculation keeps its correct compound unit.");
+ return repaired;
+}
+
 function repairMakerBlueprintSpec(sourceSpec){
  const spec=JSON.parse(JSON.stringify(sourceSpec||{})),notes=[];
  const inputs=Array.isArray(spec.inputs)?spec.inputs:[];
@@ -1500,6 +1556,13 @@ function repairMakerBlueprintSpec(sourceSpec){
    if(node?.type==="unary")return denominatorMayBeZero(node.value);
    return true; // Composite expressions may cross zero unless proven constant.
   };
+  const compatibleIf=repairGuardedPerEntityFallbacks(ast,inputs,formulaUnits,groups,notes,label);
+  const compatibleIfText=formulaAstToText(compatibleIf);
+  if(compatibleIfText!==result.expression&&compatibleIfText.length<=500){
+   result.expression=compatibleIfText;
+   expression=compatibleIfText;
+   ast=compatibleIf;
+  }
   const guarded=guardFormulaDivisions(ast,denominatorMayBeZero);
   const guardedText=formulaAstToText(guarded);
   if(guardedText!==result.expression&&guardedText.length<=500){

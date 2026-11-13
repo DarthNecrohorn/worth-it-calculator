@@ -509,6 +509,69 @@ test("recognizes kW multiplied by hours as kWh and repairs solar savings depende
  assert.equal(results.find(item=>item.key==="payback_period_years").value,12000/720);
 });
 
+test("repairs guarded per-passenger currency branches and self-checks a car-trip blueprint",()=>{
+ const importer=getImporter();
+ const engine=getManualEngine();
+ const candidate={
+  blueprintVersion:1,
+  title:"Car Trip Fuel & Expense Calculator",
+  description:"Calculates total fuel consumption, road tolls, extra travel expenses, and cost per passenger for a road trip.",
+  category:"cars",
+  subcategories:["fuel","travel","expenses"],
+  assumptions:["All monetary calculations are in EUR.","Fuel efficiency and fuel price remain constant throughout the trip."],
+  spec:{
+   inputs:[
+    {key:"trip_distance_km",label:"Total Trip Distance",control:"number",min:0,max:3000,default:250,step:10,unit:"km"},
+    {key:"fuel_efficiency",label:"Fuel Consumption Rate",control:"number",min:2,max:20,default:7,step:0.5,unit:"L/100 km"},
+    {key:"fuel_price",label:"Fuel Price per Liter",control:"number",min:0.5,max:2.5,default:1.5,step:0.05,unit:"EUR/L"},
+    {key:"number_of_passengers",label:"Number of Passengers",control:"number",min:1,max:8,default:2,step:1,unit:"people"},
+    {key:"include_tolls",label:"Include Road Tolls",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+    {key:"total_tolls_cost",label:"Total Tolls Cost",control:"number",min:0,max:200,default:20,step:5,unit:"EUR"}
+   ],
+   groups:[{key:"extra_expenses",label:"Additional Trip Expenses",itemLabel:"Expense Item",minItems:1,maxItems:3,fields:[
+    {key:"expense_amount",label:"Expense Amount",min:0,max:100,default:10,step:5,unit:"EUR"}
+   ]}],
+   results:[
+    {key:"total_fuel_liters",label:"Total Fuel Consumed",expression:"(trip_distance_km / 100) * fuel_efficiency",format:"unit",unit:"L",explanation:"Total liters of fuel burned over the entire journey distance."},
+    {key:"total_fuel_cost",label:"Total Fuel Cost",expression:"total_fuel_liters * fuel_price",format:"currency",currency:"EUR",explanation:"Total monetary expense for fuel consumption."},
+    {key:"total_extra_cost",label:"Additional Expenses Total",expression:"sum(extra_expenses.expense_amount)",format:"currency",currency:"EUR",explanation:"Sum of all additional miscellaneous expenses like parking or snacks."},
+    {key:"grand_total_cost",label:"Grand Total Trip Cost",expression:"total_fuel_cost + if(eq(include_tolls, 1), total_tolls_cost, 0) + total_extra_cost",format:"currency",currency:"EUR",explanation:"Combined total cost of fuel, tolls, and additional expenses."},
+    {key:"cost_per_person",label:"Cost per Passenger",expression:"if(gt(number_of_passengers, 0), grand_total_cost / number_of_passengers, grand_total_cost)",format:"currency",currency:"EUR",explanation:"Share of the total trip cost divided evenly among passengers."}
+   ],
+   scenarios:[
+    {label:"Short Weekend Trip",values:{trip_distance_km:150,fuel_efficiency:6.5,fuel_price:1.5,number_of_passengers:2,include_tolls:0,total_tolls_cost:0}},
+    {label:"Long Cross-Country Journey",values:{trip_distance_km:850,fuel_efficiency:7.5,fuel_price:1.6,number_of_passengers:3,include_tolls:1,total_tolls_cost:45}}
+   ]
+  }
+ };
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),engine.validateMakerSpec);
+ assert.equal(definition.importValidationIssueCount,undefined);
+ assert.deepEqual(plain(engine.validateMakerSpec(definition.spec).errors),[]);
+ const perPerson=definition.spec.results.find(item=>item.key==="cost_per_person");
+ assert.equal(perPerson.format,"unit");
+ assert.equal(perPerson.unit,"EUR/people");
+ assert.match(perPerson.expression,/if\(gt\(number_of_passengers,0\)/);
+ assert.match(perPerson.expression/,/0\)$/);
+ const groupValues={extra_expenses:[{expense_amount:10}]};
+ const defaults=Object.fromEntries(definition.spec.inputs.map(input=>[input.key,input.default]));
+ const current=engine.evaluateFormulaResults(definition.spec,defaults,groupValues);
+ const value=(results,key)=>results.find(item=>item.key===key).value;
+ assert.equal(value(current,"total_fuel_liters"),17.5);
+ assert.equal(value(current,"total_fuel_cost"),26.25);
+ assert.equal(value(current,"grand_total_cost"),56.25);
+ assert.equal(value(current,"cost_per_person"),28.125);
+ const short=engine.evaluateFormulaResults(definition.spec,definition.spec.scenarios[0].values,groupValues);
+ assert.equal(value(short,"total_fuel_liters"),9.75);
+ assert.equal(value(short,"grand_total_cost"),24.625);
+ assert.equal(value(short,"cost_per_person"),12.3125);
+ const long=engine.evaluateFormulaResults(definition.spec,definition.spec.scenarios[1].values,groupValues);
+ assert.equal(value(long,"total_fuel_liters"),63.75);
+ assert.equal(value(long,"grand_total_cost"),157);
+ assert.ok(Math.abs(value(long,"cost_per_person")-157/3)<1e-10);
+ assert.ok([...current,...short,...long].every(result=>Number.isFinite(result.value)));
+ assert.ok(definition.importNotes.some(note=>/zero-denominator fallback to 0/.test(note)));
+});
+
 test("repairs mortgage amortization formulas with a variable monthly-payment exponent",()=>{
  const importer=getImporter();
  const engine=getManualEngine();
