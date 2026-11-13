@@ -3056,20 +3056,31 @@ function setMakerModeUI(){
  if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
  const blueprintImportPanel=$("ugcBlueprintImportPanel");
  if(blueprintImportPanel)blueprintImportPanel.hidden=!manual||Boolean(state.editingId);
+ const templateWrap=$("ugcManualTemplateWrap");
+ if(templateWrap)templateWrap.hidden=!manual||Boolean(state.editingId)||state.manualMode!=="template";
+ const modeSelect=$("ugcManualMode");
+ if(modeSelect&&manual)modeSelect.value=state.manualMode||"quick";
 }
 function loadManualTemplate(templateKey){
+ const selectedKey=templateKey==="random"?pickRandomManualTemplateKey():templateKey;
  state.blueprintImportActive=false;
- state.creationSource="manual";state.aiOperationId="";state.aiDraft=createManualDraft(templateKey);
- state.manualMode=$("ugcManualMode")?.value||"quick";
- const templateSelect=$("ugcManualTemplate");if(templateSelect&&templateSelect.value!==templateKey)templateSelect.value=templateKey;
- const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=state.manualMode!=="template";
+ state.creationSource="manual";state.aiOperationId="";
+ state.manualTemplateKey=selectedKey;
+ state.aiDraft=createManualDraft(selectedKey);
+ const modeSelect=$("ugcManualMode");if(modeSelect)modeSelect.value=state.manualMode||"quick";
+ const templateSelect=$("ugcManualTemplate");if(templateSelect&&templateSelect.value!==selectedKey)templateSelect.value=selectedKey;
  setMakerModeUI();renderMakerPreview(state.aiDraft);
- makerStatus("Manual calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
+ makerStatus(templateKey==="random"
+  ?"Random calculator draft ready: "+state.aiDraft.title+". Its title, description, inputs and formulas are matched to the selected topic. Edit and test it locally before saving."
+  :"Manual calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
 }
 function changeManualMode(mode){
- state.manualMode=["quick","template","advanced"].includes(mode)?mode:"quick";
+ state.manualMode=["quick","template","advanced","random"].includes(mode)?mode:"quick";
  const modeSelect=$("ugcManualMode");if(modeSelect)modeSelect.value=state.manualMode;
- const templateKey=state.manualMode==="quick"?"simple-cost":state.manualMode==="advanced"?"advanced":String($("ugcManualTemplate")?.value||"simple-cost");
+ const templateKey=state.manualMode==="quick"?"simple-cost"
+  :state.manualMode==="advanced"?"advanced"
+  :state.manualMode==="random"?"random"
+  :String($("ugcManualTemplate")?.value||"simple-cost");
  loadManualTemplate(templateKey);
 }
 async function copyBlueprintPrompt(){
@@ -3796,7 +3807,7 @@ function openNewCalculatorMaker(){
  makerStatus("Describe what you want to calculate.");
 }
 function openManualCalculatorMaker(){
- state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";
+ state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";state.manualTemplateKey="simple-cost";
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";
  state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";
  const mode=$("ugcManualMode");if(mode)mode.value="quick";
