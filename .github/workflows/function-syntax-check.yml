@@ -30,6 +30,7 @@ on:
       - "functions/api/guest-calc.js"
       - "functions/api/ugc-maker.js"
       - "ugc-calculators.js"
+      - "ugc-calculator-engine.js"
       - "ugc-blueprint-import.js"
       - "ugc-calculators.css"
       - "tests/ugc-blueprint-import.test.mjs"
@@ -105,7 +106,7 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js calc-economy.js community-features.js ugc-calculators.js ugc-blueprint-import.js ship-tracking-ui.js app.js settings.js admin-panel.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
+          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js calc-economy.js community-features.js ugc-calculators.js ugc-calculator-engine.js ugc-blueprint-import.js ship-tracking-ui.js app.js settings.js admin-panel.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
