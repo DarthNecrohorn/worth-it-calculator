@@ -2721,6 +2721,42 @@ const MANUAL_TEMPLATES={
    {label:"Yearly difference (A − B)",expression:"(option_a_monthly - option_b_monthly) * 12",format:"currency",currency:"EUR"}
   ]
  },
+ "smart-led-lighting":{
+  title:"Smart Home LED Lighting Energy & Cost Calculator",
+  description:"Compare monthly energy use and electricity costs for smart LED bulbs versus traditional bulbs, including standby power, room-zone dimming and estimated annual savings.",
+  category:"home",
+  subcategories:["lighting","energy","savings"],
+  assumptions:[
+   "All monetary calculations are denominated in EUR.",
+   "A standard billing month consists of 30 days and electricity tariffs remain constant.",
+   "Room-zone dimming levels are weighted by bulb count and applied to active LED energy use; standby energy is calculated separately."
+  ],
+  inputs:[
+   {key:"active_bulbs",label:"Number of Smart Bulbs Installed",min:1,max:50,default:10,step:1,unit:"items"},
+   {key:"daily_usage_hours",label:"Average Daily Usage per Bulb",min:1,max:12,default:4,step:0.5,unit:"hours"},
+   {key:"led_wattage",label:"Smart LED Bulb Wattage",min:3,max:25,default:9,step:1,unit:"W/items"},
+   {key:"replaced_wattage",label:"Replaced Traditional Bulb Wattage",min:25,max:150,default:60,step:5,unit:"W/items"},
+   {key:"electricity_tariff",label:"Electricity Price per kWh",min:0.05,max:0.5,default:0.2,step:0.01,unit:"EUR/kWh"},
+   {key:"include_smart_standby",label:"Include Smart Standby Power Draw",control:"toggle",min:0,max:1,default:1,step:1,unit:""},
+   {key:"standby_wattage",label:"Standby Power per Bulb",min:0.1,max:2,default:0.5,step:0.1,unit:"W/items"}
+  ],
+  groups:[{key:"room_zones",label:"Room Lighting Zones",itemLabel:"Zone",minItems:1,maxItems:5,fields:[
+   {key:"zone_bulbs",label:"Bulbs in Zone",min:1,max:10,default:2,step:1,unit:"items"},
+   {key:"dimming_factor",label:"Average Dimming Level (%)",min:20,max:100,default:80,step:10,unit:""}
+  ]}],
+  results:[
+   {key:"monthly_led_kwh",label:"Monthly Smart LED Energy Consumption",expression:"(active_bulbs * led_wattage * daily_usage_hours * 30 * if(gt(sum(room_zones.zone_bulbs),0),sum(room_zones.zone_bulbs * room_zones.dimming_factor) / sum(room_zones.zone_bulbs) / 100,1)) / 1000",format:"unit",unit:"kWh",explanation:"Monthly energy used by LED bulbs after applying the bulb-count-weighted dimming level across room zones."},
+   {key:"monthly_traditional_kwh",label:"Monthly Traditional Lighting Energy (Baseline)",expression:"(active_bulbs * replaced_wattage * daily_usage_hours * 30) / 1000",format:"unit",unit:"kWh",explanation:"Estimated monthly energy use if the same number of bulbs were traditional incandescent bulbs at full rated power."},
+   {key:"monthly_standby_kwh",label:"Monthly Smart Standby Energy Draw",expression:"if(eq(include_smart_standby,1),(active_bulbs * standby_wattage * (24-daily_usage_hours) * 30) / 1000,0)",format:"unit",unit:"kWh",explanation:"Additional monthly energy used while connected smart bulbs remain in standby mode."},
+   {key:"total_monthly_kwh",label:"Total Monthly Smart Lighting Energy",expression:"monthly_led_kwh + monthly_standby_kwh",format:"unit",unit:"kWh",explanation:"Combined monthly LED operating and standby energy use."},
+   {key:"monthly_lighting_cost",label:"Monthly Smart Lighting Cost",expression:"total_monthly_kwh * electricity_tariff",format:"currency",currency:"EUR",explanation:"Estimated monthly electricity cost for LED lighting and any included standby draw."},
+   {key:"annual_monetary_savings",label:"Annual Savings vs Traditional Bulbs",expression:"(monthly_traditional_kwh-total_monthly_kwh) * 12 * electricity_tariff",format:"currency",currency:"EUR",explanation:"Estimated annual cost difference between the traditional-bulb baseline and smart LED lighting, including standby consumption."}
+  ],
+  scenarios:[
+   {label:"Small Apartment Setup",values:{active_bulbs:6,daily_usage_hours:3,led_wattage:9,replaced_wattage:60,electricity_tariff:0.18,include_smart_standby:1,standby_wattage:0.5}},
+   {label:"Large Family Home",values:{active_bulbs:25,daily_usage_hours:5,led_wattage:10,replaced_wattage:75,electricity_tariff:0.25,include_smart_standby:1,standby_wattage:0.5}}
+  ]
+ },
  "electricity-cost":{
   title:"Electricity cost calculator",
   description:"Estimate the electricity bill from monthly energy consumption and the price per kilowatt-hour. This simple model uses one supplied unit price and does not estimate taxes, fixed fees or tariff bands unless you add them.",
@@ -2943,10 +2979,55 @@ const MANUAL_TEMPLATES={
   results:[{label:"Custom result",expression:"value",format:"number"}]
  }
 };
+const RANDOM_MANUAL_TEMPLATE_KEYS=["simple-cost","monthly-cost","compare-costs","unit-price-compare","discount-price","electricity-cost","smart-led-lighting","heating-compare","water-cost","flooring-materials","fuel-cost","car-ownership-cost","travel-budget","savings-total","hourly-pay","simple-interest","profit-margin","break-even"];
+function pickRandomManualTemplateKey(){
+ const available=RANDOM_MANUAL_TEMPLATE_KEYS.filter(key=>MANUAL_TEMPLATES[key]);
+ return available[Math.floor(Math.random()*available.length)]||"simple-cost";
+}
+function isRandomCalculatorRequest(value){
+ const normalized=String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ return /\brandom\b|\bnasumic\w*\b|\bsurprise me\b|\bpick (?:any|a) calculator\b|\bchoose (?:any|a) calculator\b|\bany random calculator\b|\bdaj neki random\b/.test(normalized);
+}
+function inferManualTemplateKey(request,definition){
+ if(isRandomCalculatorRequest(request))return "random";
+ const spec=definition?.spec||{};
+ const textParts=[
+  String(request||""),String(definition?.title||""),String(definition?.description||""),
+  String(definition?.category||""),
+  ...(Array.isArray(spec.inputs)?spec.inputs.flatMap(item=>[item.label,item.key]):[]),
+  ...(Array.isArray(spec.groups)?spec.groups.flatMap(group=>[group.label,group.key,...(group.fields||[]).flatMap(field=>[field.label,field.key])]):[]),
+  ...(Array.isArray(spec.results)?spec.results.flatMap(item=>[item.label,item.key,item.explanation,item.expression]):[])
+ ];
+ const text=textParts.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const rules=[
+  ["smart-led-lighting",/\b(?:smart led|led lighting|lighting zones?|dimming|incandescent bulbs?|smart bulbs?)\b/],
+  ["electricity-cost",/\b(?:electricity|electric|energy bill|power consumption|kilowatt hours?|kwh|electric tariff)\b/],
+  ["heating-compare",/\b(?:heating|pellets?|firewood|boiler)\b/],
+  ["water-cost",/\b(?:water bill|water usage|water consumption|cubic metres?|m3)\b/],
+  ["flooring-materials",/\b(?:flooring|floor area|tiles?|laminate|floor materials)\b/],
+  ["fuel-cost",/\b(?:fuel|petrol|diesel|gasoline|fuel consumption|litres? per 100)\b/],
+  ["car-ownership-cost",/\b(?:car ownership|vehicle ownership|car insurance|vehicle maintenance|ownership cost)\b/],
+  ["travel-budget",/\b(?:trip budget|travel budget|holiday budget|vacation budget|travellers?)\b/],
+  ["simple-interest",/\b(?:simple interest|principal amount|interest earned)\b/],
+  ["profit-margin",/\b(?:profit margin|business profit|gross revenue|net profit|units sold)\b/],
+  ["break-even",/\b(?:break[ -]?even|contribution margin)\b/],
+  ["savings-total",/\b(?:savings goal|saving contributions|monthly deposit|starting savings)\b/],
+  ["discount-price",/\b(?:discount|sale price|percentage off)\b/],
+  ["unit-price-compare",/\b(?:price per unit|unit price|package comparison|compare package)\b/],
+  ["monthly-cost",/\b(?:recurring cost|monthly cost|weekly cost|yearly cost)\b/],
+  ["compare-costs",/\b(?:compare two costs|cost comparison|option a|option b)\b/]
+ ];
+ for(const [key,pattern] of rules)if(pattern.test(text))return key;
+ if(/\b(?:cost|expense|price|total|budget)\b/.test(text))return "simple-cost";
+ return "random";
+}
 function createManualDraft(templateKey){
- const template=MANUAL_TEMPLATES[templateKey]||MANUAL_TEMPLATES["simple-cost"];
+ const selectedKey=templateKey==="random"?pickRandomManualTemplateKey():templateKey;
+ const template=MANUAL_TEMPLATES[selectedKey]||MANUAL_TEMPLATES["simple-cost"];
  return {title:template.title,description:template.description,category:template.category,
-  spec:{subcategories:[],inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),groups:[]}};
+  spec:{subcategories:JSON.parse(JSON.stringify(template.subcategories||[])),assumptions:JSON.parse(JSON.stringify(template.assumptions||[])),
+   inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),
+   groups:JSON.parse(JSON.stringify(template.groups||[])),scenarios:JSON.parse(JSON.stringify(template.scenarios||[]))}};
 }
 function setMakerModeUI(){
  const manual=state.creationSource==="manual";
