@@ -985,12 +985,12 @@ function normalizeTypedV2Definition(raw,defaultCurrency){
     delete engineSpec.assumptions;delete engineSpec.subcategories;
     const availableKeys=new Set((engineSpec.inputs||[]).map(item=>item.key));
     const referencedInputs=new Set();
-    const groupMap=SERVER_CALCULATOR_ENGINE.groupMapForSpec(engineSpec);
+    const groupDefinitions=new Map((engineSpec.groups||[]).map(group=>[group.key,group]));
     const referencedGroupFields=new Map((engineSpec.groups||[]).map(group=>[group.key,new Set()]));
     (engineSpec.results||[]).forEach(result=>{
-        const ast=SERVER_CALCULATOR_ENGINE.compileExpression(result.expression,availableKeys,groupMap);
-        SERVER_CALCULATOR_ENGINE.formulaInputReferences(ast,referencedInputs);
-        SERVER_CALCULATOR_ENGINE.formulaGroupFieldReferences(ast).forEach(reference=>{
+        const ast=SERVER_CALCULATOR_ENGINE.compileV2Expression(result.expression,availableKeys,groupDefinitions);
+        SERVER_CALCULATOR_ENGINE.typedFormulaInputReferences(ast,referencedInputs);
+        SERVER_CALCULATOR_ENGINE.typedFormulaGroupReferences(ast).forEach(reference=>{
             if(referencedGroupFields.has(reference.group))referencedGroupFields.get(reference.group).add(reference.field);
         });
         if(result.key)availableKeys.add(result.key);

@@ -1351,7 +1351,7 @@ function normalizeTypedGroupValues(spec,rawGroups){
 }
 
  return Object.freeze({
-  compileExpression,formulaGroupFieldReferences,formulaInputReferences,evaluate,groupMapForSpec,defaultGroupValues,
+  compileExpression,compileV2Expression,formulaGroupFieldReferences,formulaInputReferences,typedFormulaGroupReferences,typedFormulaInputReferences,evaluate,groupMapForSpec,defaultGroupValues,
   unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
   validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
   resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
