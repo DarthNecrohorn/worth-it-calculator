@@ -477,7 +477,11 @@ alter table private.worth_it_calc_transactions
         'ugc_creator_earning'
     ));
 
-create or replace function public.reserve_worth_it_ugc_ai_calc(p_request_id uuid,p_operation text)
+drop function if exists public.reserve_worth_it_ugc_ai_calc(uuid,text);
+
+create or replace function public.reserve_worth_it_ugc_ai_calc(
+    p_request_id uuid,p_operation text,p_schema_version integer
+)
 returns jsonb
 language plpgsql
 security definer
@@ -495,6 +499,8 @@ begin
     if v_user_id is null then raise exception 'Authentication required.' using errcode='28000'; end if;
     if p_request_id is null then raise exception 'Request ID is required.' using errcode='22023'; end if;
     if p_operation not in ('generation','improvement') then raise exception 'Unsupported UGC AI operation.' using errcode='22023'; end if;
+    if p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
+    if p_operation='improvement' and p_schema_version<>1 then raise exception 'AI improvement of saved V2 calculators is not yet supported.' using errcode='22023'; end if;
     select lower(coalesce(email,'')) into v_email from auth.users
      where id=v_user_id and email_confirmed_at is not null;
     if not found then raise exception 'Verify your email before using Worth It AI.' using errcode='42501'; end if;
@@ -504,7 +510,8 @@ begin
     if found then
         if v_existing.kind<>'ugc_ai_spend'
            or v_existing.status not in ('reserved','completed')
-           or v_existing.metadata->>'operation' is distinct from p_operation then
+           or v_existing.metadata->>'operation' is distinct from p_operation
+           or coalesce((v_existing.metadata->>'schema_version')::integer,1) is distinct from p_schema_version then
             return jsonb_build_object('ok',false,'code','REQUEST_ID_CONFLICT',
                 'duplicate',true,'status',v_existing.status);
         end if;
@@ -537,7 +544,8 @@ begin
         when v_wallet.premium_plan='premium_lite' and v_wallet.premium_expires_at>now() then 'premium_lite'
         else 'free'
     end;
-    v_amount := case v_plan when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end;
+    v_amount := (case v_plan when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end)
+        * case when p_schema_version=2 then 2 else 1 end;
 
     if not v_owner and v_wallet.balance_milli<v_amount then
         return jsonb_build_object('ok',false,'code','INSUFFICIENT_CALC',
@@ -556,7 +564,10 @@ begin
         v_user_id,'ugc_ai_spend',case when v_owner then 0 else -v_amount end,
         v_wallet.balance_milli,'reserved',p_request_id,
         case p_operation when 'generation' then 'AI UGC calculator generation' else 'AI UGC calculator improvement' end,
-        jsonb_build_object('operation',p_operation,'plan',v_plan,'price_milli',case when v_owner then 0 else v_amount end,'owner_exempt',v_owner)
+        jsonb_build_object('operation',p_operation,'schema_version',p_schema_version,'plan',v_plan,
+            'price_milli',case when v_owner then 0 else v_amount end,
+            'base_price_milli',case v_plan when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end,
+            'owner_exempt',v_owner)
     );
     return jsonb_build_object('ok',true,'plan',v_plan,'price_milli',case when v_owner then 0 else v_amount end,
         'price',case when v_owner then 0 else v_amount::numeric/1000 end,
@@ -565,9 +576,12 @@ end;
 $$;
 
 -- Reserve quota + CALC in one database transaction; insufficient balance
--- automatically returns the reserved daily AI slot.
+-- automatically returns the reserved daily AI slot. Schema version is explicit
+-- so typed V2 operations are charged at twice the corresponding V1 rate.
+drop function if exists public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid);
+
 create or replace function public.reserve_worth_it_ugc_ai_operation(
-    p_request_id uuid,p_mode text,p_calculator_id uuid default null
+    p_request_id uuid,p_mode text,p_calculator_id uuid,p_schema_version integer
 )
 returns jsonb
 language plpgsql
@@ -578,9 +592,10 @@ declare
     v_quota jsonb;
     v_charge jsonb;
 begin
+    if p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
     if p_mode='create' then
         v_quota := public.reserve_worth_it_ugc_maker_generation_v2(p_request_id);
-    elsif p_mode='refine' and p_calculator_id is not null then
+    elsif p_mode='refine' and p_calculator_id is not null and p_schema_version=1 then
         v_quota := public.reserve_worth_it_ugc_ai_edit(p_calculator_id,p_request_id);
     else
         raise exception 'Invalid UGC AI operation mode.' using errcode='22023';
@@ -588,7 +603,7 @@ begin
     if coalesce((v_quota->>'ok')::boolean,false) is not true then return v_quota; end if;
 
     v_charge := public.reserve_worth_it_ugc_ai_calc(
-        p_request_id,case p_mode when 'create' then 'generation' else 'improvement' end
+        p_request_id,case p_mode when 'create' then 'generation' else 'improvement' end,p_schema_version
     );
     if coalesce((v_charge->>'ok')::boolean,false) is not true then
         if p_mode='create' then
@@ -598,7 +613,7 @@ begin
         end if;
         return v_charge;
     end if;
-    return jsonb_build_object('ok',true,'mode',p_mode,'quota',v_quota,
+    return jsonb_build_object('ok',true,'mode',p_mode,'schema_version',p_schema_version,'quota',v_quota,
         'plan',v_charge->>'plan','price_milli',coalesce((v_charge->>'price_milli')::integer,0),
         'price',coalesce((v_charge->>'price')::numeric,0),'owner_exempt',coalesce((v_charge->>'owner_exempt')::boolean,false));
 end;
@@ -666,8 +681,8 @@ revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,j
 revoke all on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) from public,anon;
 revoke all on function public.get_worth_it_ugc_ai_edit_quota() from public,anon;
 revoke all on function public.reserve_worth_it_ugc_ai_edit(uuid,uuid) from public,anon;
-revoke all on function public.reserve_worth_it_ugc_ai_calc(uuid,text) from public,anon;
-revoke all on function public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid) from public,anon;
+revoke all on function public.reserve_worth_it_ugc_ai_calc(uuid,text,integer) from public,anon;
+revoke all on function public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid,integer) from public,anon;
 revoke all on function public.settle_worth_it_ugc_ai_operation(uuid,text) from public,anon;
 revoke all on function public.refund_worth_it_ugc_ai_operation(uuid,text) from public,anon;
 
@@ -676,8 +691,8 @@ grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,tex
 grant execute on function public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb) to authenticated;
 grant execute on function public.get_worth_it_ugc_ai_edit_quota() to authenticated;
 grant execute on function public.reserve_worth_it_ugc_ai_edit(uuid,uuid) to authenticated;
-grant execute on function public.reserve_worth_it_ugc_ai_calc(uuid,text) to authenticated;
-grant execute on function public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid) to authenticated;
+grant execute on function public.reserve_worth_it_ugc_ai_calc(uuid,text,integer) to authenticated;
+grant execute on function public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid,integer) to authenticated;
 grant execute on function public.settle_worth_it_ugc_ai_operation(uuid,text) to authenticated;
 grant execute on function public.refund_worth_it_ugc_ai_operation(uuid,text) to authenticated;
 
