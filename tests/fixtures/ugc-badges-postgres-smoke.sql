@@ -770,9 +770,7 @@ begin
 end
 $lite_quota$;
 
--- Tier-specific and shared AI Maker quota behavior is tested above, including
--- Free 1 / Premium Lite 2 / Premium 3 and refund restoration.
--- The old fixed ten-generations-per-user smoke test was removed.
+-- AI Maker quota and refund tests were removed because the user-facing AI Creator is disabled.
  
 -- Unconfirmed accounts cannot create or publish.
 select set_config('request.jwt.claim.sub','66666666-6666-4666-8666-666666666666',false);
@@ -788,13 +786,6 @@ begin
         failed:=true;
     end;
     if not failed then raise exception 'Unconfirmed account unexpectedly created a calculator.'; end if;
-    failed:=false;
-    begin
-        perform public.reserve_worth_it_ugc_maker_generation();
-    exception when insufficient_privilege then
-        failed:=true;
-    end;
-    if not failed then raise exception 'Unconfirmed account unexpectedly used the AI Maker.'; end if;
 end
 $test$;
 
@@ -1141,8 +1132,8 @@ begin
     if has_function_privilege('anon','public.reserve_worth_it_ugc_maker_generation()','execute') then
         raise exception 'Anonymous users can reserve AI Maker generations.';
     end if;
-    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_maker_generation()','execute') then
-        raise exception 'Authenticated users cannot reserve a secured AI Maker generation.';
+    if has_function_privilege('authenticated','public.reserve_worth_it_ugc_maker_generation()','execute') then
+        raise exception 'Authenticated users can still reserve disabled AI Maker generations.';
     end if;
     if has_function_privilege('anon','public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb)','execute') then
         raise exception 'Anonymous users can execute UGC creation.';
