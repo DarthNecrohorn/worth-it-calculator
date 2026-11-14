@@ -1071,7 +1071,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         const monetaryInput=control!=="toggle"&&!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
             /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
             ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
-        const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+        const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days|units?|items?|packs?|products?)\b/i)?.[1]||"";
         const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
             /^(?:m3|m³)$/i.test(rateBasis)?"m3":
             /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
@@ -1079,7 +1079,10 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             /^(?:kg)$/i.test(rateBasis)?"kg":
             /^(?:g)$/i.test(rateBasis)?"g":
             /^(?:hours?)$/i.test(rateBasis)?"hour":
-            /^(?:days?)$/i.test(rateBasis)?"day":"";
+            /^(?:days?)$/i.test(rateBasis)?"day":
+            /^(?:items?)$/i.test(rateBasis)?"item":
+            /^(?:packs?)$/i.test(rateBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rateBasis)?"unit":"";
         if(forceCurrency&&monetaryInput){
             const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
             unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
@@ -1134,7 +1137,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             const monetaryField=!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
                 /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
                 ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
-            const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+            const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days|units?|items?|packs?|products?)\b/i)?.[1]||"";
             const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
                 /^(?:m3|m³)$/i.test(rateBasis)?"m3":
                 /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
@@ -1142,7 +1145,10 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
                 /^(?:kg)$/i.test(rateBasis)?"kg":
                 /^(?:g)$/i.test(rateBasis)?"g":
                 /^(?:hours?)$/i.test(rateBasis)?"hour":
-                /^(?:days?)$/i.test(rateBasis)?"day":"";
+                /^(?:days?)$/i.test(rateBasis)?"day":
+            /^(?:items?)$/i.test(rateBasis)?"item":
+            /^(?:packs?)$/i.test(rateBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rateBasis)?"unit":"";
             if(forceCurrency&&monetaryField){
                 const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
                 unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
@@ -1437,7 +1443,7 @@ export async function onRequestPost(context){
             "Think through the user's actual question before designing the schema: identify the main quantity or decision, the variables that materially affect it, the comparison baseline, and the time period. Build the calculator around that question rather than a generic collection of fields.",
             "Every input must have a clear purpose and must be used by at least one result formula. Do not add redundant fields, duplicate the same cost under different names, or create inputs that do not affect any result.",
             "Maintain dimensional and unit consistency in every formula. Make input labels state the relevant unit or rate basis (for example, kWh per month, RSD per kWh, m3 per month, litres per 100 km, or currency per month). A price per unit must be multiplied by the matching quantity; do not multiply or compare incompatible units.",
-            "Set rate input units explicitly: a rate in currency per physical unit must use a compound unit such as RSD/kWh, RSD/m3, EUR/L or EUR/km, so multiplying it by the matching quantity produces a currency amount. Do not label such a rate with the bare currency code.",
+            "Set rate input units explicitly: a rate in currency per physical unit must use a compound unit such as RSD/kWh, RSD/m3, EUR/L, EUR/km or RSD/unit. For product/item pricing, use currency/unit (or currency/item) for the price and a count unit such as units for the matching quantity; multiplying them must produce a plain currency amount. Do not use a bare currency code for a per-item price, and do not multiply a bare currency amount by a count.",
             "Choose result formatting from the formula's actual dimensions. Use format currency only for currency amounts, format unit for dimensioned rates such as EUR/km or RSD/kWh (and include result.unit), format percent for dimensionless ratios, and number for other dimensionless values. Do not label a currency-per-distance result as a plain currency amount.",
             "A period count used only as a multiplier (for example, number of months, years, weeks, trips or billing cycles) is a count: use an empty unit string for that input, keep the period in its label, and multiply by the count in the formula. Use a time unit only when the formula genuinely needs a dimensional duration or rate conversion.",
             "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
@@ -1513,6 +1519,8 @@ export async function onRequestPost(context){
                 "Return the canonical root blueprintVersion 2 format defined above. Do not return a V1 root, classification object, numeric-only schema or saved-calculator object.",
                 "Keep the calculator compact but complete. Use a small set of meaningful inputs and typed dynamic groups for repeated rows. Every input and group field must be used by at least one result formula. Include every output explicitly requested by the user.",
                 "Use exact monetary values only when a concrete amount can be matched unambiguously to that input in the prompt. Every other monetary number input or group field must have minimum 0 and default 0. Monetary numeric inputs that need zero defaults must use number controls, not select controls. State clearly that unspecified prices and rates must be entered before relying on totals.",
+                "Use the same selected currency for every monetary input and every currency result unless the user explicitly requests a multi-currency comparison. A pure amount such as monthly fixed expenses uses the bare currency unit (for example RSD); a price or variable cost per product/item uses a compound unit such as RSD/unit or EUR/item. The matching sales quantity uses a count unit such as units or items, so currency/unit multiplied by units produces a plain currency amount. Do not multiply a bare currency amount by a count.",
+                "For monthly, weekly or annual totals, keep the period in the label and treat the total as a currency amount. Do not add /month or /year to a period total's unit unless the formula genuinely represents a rate per unit of time. Keep percent/fee-rate inputs dimensionless with unit % and do not assign them a currency unit.",
                 "Never invent current tariffs, fuel prices, taxes, interest rates, exchange rates, product prices, fixed fees, market data, population averages or personal costs. Regional currency and locale are presentation suggestions only. Use an explicitly requested currency where applicable; otherwise use the regional currency suggestion. Currency values are never automatically converted.",
                 "Model comparisons symmetrically on the same time and usage basis. Avoid double-counting, mixing monthly and annual amounts, or claiming a complete cost when important components are not represented.",
                 "Use clear labels in the same language as the user's request. Descriptions must explain what is measured, the main drivers, the output meaning and any material exclusions without unsupported claims.",
