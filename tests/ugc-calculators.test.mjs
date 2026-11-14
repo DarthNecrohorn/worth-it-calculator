@@ -3257,7 +3257,8 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
    providerCalls++;
    const body=JSON.parse(options.body);
    assert.deepEqual(body.response_format,{type:"json_object"});
-   assert.equal(body.reasoning_format,"parsed","Groq JSON mode must use a JSON-compatible reasoning format");
+   assert.equal(body.include_reasoning,false,"GPT-OSS supports include_reasoning, not reasoning_format");
+   assert.equal(Object.hasOwn(body,"reasoning_format"),false,"GPT-OSS does not support reasoning_format");
    assert.equal(body.max_completion_tokens,16384);
    assert.match(body.messages[0].content,/canonical root blueprintVersion 2/i);
    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
