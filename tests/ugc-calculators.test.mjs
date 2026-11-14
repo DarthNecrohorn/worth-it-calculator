@@ -205,11 +205,11 @@ test("UGC Maker Preview diagnostics verify the exact six-result prompt without r
     assert.deepEqual(incompleteResult.missingCoverage,["weekly result","yearly result","total yearly"]);
 });
 
-test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters", async () => {
-    assert.match(html, /id="ugcMakerPrompt"[^>]*maxlength="1000"/);
-    assert.ok(maker.includes("if(prompt.length<10||prompt.length>1000)"));
-    assert.match(makerApi, /const MAX_PROMPT_CHARS = 1000;/);
-    assert.match(makerApi, /10 to 1000 characters/);
+test("UGC AI Creator accepts a 5000-character prompt and rejects 5001 characters", async () => {
+    assert.match(html, /id="ugcMakerPrompt"[^>]*maxlength="5000"/);
+    assert.ok(maker.includes("if(prompt.length<10||prompt.length>5000)"));
+    assert.match(makerApi, /const MAX_PROMPT_CHARS = 5000;/);
+    assert.match(makerApi, /10 to 5000 characters/);
 
     const candidate = structuredClone(validDefinition);
     let providerCalls = 0;
@@ -227,17 +227,17 @@ test("UGC AI Creator accepts a 1000-character prompt and rejects 1001 characters
     }, async () => {
         const env = { SUPABASE_URL: "https://supabase.example", SUPABASE_PUBLISHABLE_KEY: "publishable", GROQ_API_KEY: "groq-test" };
         const accepted = await onRequestPost({
-            request: request({ prompt: "x".repeat(1000) }, { token: "valid-token" }),
+            request: request({ prompt: "x".repeat(5000) }, { token: "valid-token" }),
             env
         });
-        assert.equal(accepted.status, 200, "exactly 1000 characters must be accepted");
+        assert.equal(accepted.status, 200, "exactly 5000 characters must be accepted");
 
         const rejected = await onRequestPost({
-            request: request({ prompt: "x".repeat(1001) }, { token: "valid-token" }),
+            request: request({ prompt: "x".repeat(5001) }, { token: "valid-token" }),
             env
         });
-        assert.equal(rejected.status, 400, "1001 characters must be rejected");
-        assert.match((await rejected.json()).error, /10 to 1000 characters/);
+        assert.equal(rejected.status, 400, "5001 characters must be rejected");
+        assert.match((await rejected.json()).error, /10 to 5000 characters/);
         assert.equal(providerCalls, 1, "the over-limit prompt must be rejected before any AI provider call");
     });
 });
