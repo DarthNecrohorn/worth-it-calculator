@@ -156,26 +156,36 @@ function withFetch(mock, callback, quotaEvents = {}) {
     return Promise.resolve().then(callback).finally(() => { globalThis.fetch = previous; });
 }
 
-test("regional defaults prefer RSD for Serbia, USD for the US, EUR for Bulgaria and USD when country data is unavailable", () => {
+test("regional defaults select currency by country while keeping English locale fixed", () => {
     const requestFor = (country, language) => ({
         cf: country ? { country } : {},
         headers: new Headers(language ? { "Accept-Language": language } : {})
     });
-    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8")).currency, "RSD");
-    assert.equal(resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS")).locale, "sr-Latn-RS");
-    assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).locale, "sr-Latn-RS", "the browser language preference takes precedence over the country fallback");
-    assert.equal(resolveRegionalDefaults(requestFor("US", "en-US")).currency, "USD");
-    assert.equal(resolveRegionalDefaults(requestFor("DE", "de-DE")).currency, "EUR");
+    const serbia = resolveRegionalDefaults(requestFor("RS", "sr-Latn-RS,sr;q=0.9,en;q=0.8"));
+    assert.equal(serbia.currency, "RSD");
+    assert.equal(serbia.locale, "en-US", "Serbian browser language must never change Worth It's English locale");
+
+    const switzerland = resolveRegionalDefaults(requestFor("CH", "de-CH,de;q=0.9"));
+    assert.equal(switzerland.currency, "CHF");
+    assert.equal(switzerland.locale, "en-US", "Swiss regional data may select CHF but must not select German");
+
+    const germany = resolveRegionalDefaults(requestFor("DE", "de-DE"));
+    assert.equal(germany.currency, "EUR");
+    assert.equal(germany.locale, "en-US", "German browser language must never change Worth It's English locale");
+
+    assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).currency, "USD");
+    assert.equal(resolveRegionalDefaults(requestFor("US", "sr-Latn-RS,en-US;q=0.8")).locale, "en-US");
     assert.equal(resolvePromptCountry("Compare monthly electricity and natural gas costs for a household in Germany."), "DE");
-    const GermanyPromptDefaults=resolveRegionalDefaults(requestFor("RS", "en-US"), "Compare monthly electricity and natural gas costs for a household in Germany.");
+    const GermanyPromptDefaults=resolveRegionalDefaults(requestFor("RS", "de-DE"), "Compare monthly electricity and natural gas costs for a household in Germany.");
     assert.equal(GermanyPromptDefaults.country, "DE", "an explicitly named calculator country must override the visitor's country");
     assert.equal(GermanyPromptDefaults.currency, "EUR", "Germany must use EUR even when the visitor is in Serbia");
-    assert.equal(GermanyPromptDefaults.locale, "en-US", "country context must not silently change the visitor's chosen number format");
+    assert.equal(GermanyPromptDefaults.locale, "en-US", "calculator country and browser language must not change the English locale");
+
     assert.equal(resolveRegionalDefaults(requestFor("BG", "bg-BG")).currency, "EUR");
-    assert.equal(resolveRegionalDefaults({ cf: { country: "RO", continent: "EU" }, headers: new Headers() }).currency, "EUR");
-    assert.equal(resolveRegionalDefaults({ cf: { country: "EG", continent: "AF" }, headers: new Headers() }).currency, "USD");
+    assert.equal(resolveRegionalDefaults({ cf: { country: "RO", continent: "EU" }, headers: new Headers({ "Accept-Language": "ro-RO" }) }).currency, "EUR");
+    assert.equal(resolveRegionalDefaults({ cf: { country: "EG", continent: "AF" }, headers: new Headers({ "Accept-Language": "ar-EG" }) }).currency, "USD");
     assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).currency, "USD");
-    assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).locale, "en-GB");
+    assert.equal(resolveRegionalDefaults(requestFor("", "en-GB")).locale, "en-US", "missing country data must still keep English locale fixed");
 });
 
 test("UGC Maker currency consistency warnings ignore physical units such as kWh", () => {
@@ -195,9 +205,11 @@ test("UGC Maker currency consistency warnings ignore physical units such as kWh"
     assert.deepEqual(Array.from(mixedCurrencyWarnings),["EUR input → RSD result"]);
 });
 
-test("UGC Maker exposes editable regional number formatting, currency consistency warnings and free boundary tests", () => {
-    assert.match(maker, /Regional suggestion:/);
-    assert.match(maker, /Number format/);
+test("UGC Maker keeps English-only UI and fixed English number formatting while preserving regional currency suggestions", () => {
+    assert.match(maker, /Regional currency suggestion:/);
+    assert.match(maker, /Number format is fixed to English \(United States\)/);
+    assert.match(maker, /new Intl\.NumberFormat\("en-US"/);
+    assert.doesNotMatch(maker, /localeSelect|state\.makerLocale|state\.regionalDefaults\?\.locale|German \(Germany\)|French \(France\)|Serbian \(Latin\)|Use browser settings/);
     assert.match(maker, /validateMakerSpec/);
     assert.match(maker, /Formula dependencies, unit compatibility and input boundaries were checked/);
     assert.match(calculatorEngineSource, /for\(let left=0;left<inputs.length;left\+\+\)/);
@@ -208,8 +220,22 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.doesNotMatch(html, /ugcMakerBillingNotice|Limited AI capacity|ugcMakerPrompt|ugcMakerGenerate/);
     assert.doesNotMatch(maker, /generateWithAI|refreshMakerGenerationQuota|refreshAiEditQuota/);
     assert.match(html, /The UGC Calculator Builder uses no Worth It AI request and costs no CALC/);
-    assert.match(html, /The UGC Calculator Builder uses no Worth It AI request and costs no CALC/);
     assert.match(maker, /24–500 characters/);
+});
+
+test("UGC calculator result formatting stays English regardless of the visitor browser locale", () => {
+    const start=maker.indexOf("function formatResult(item,value){");
+    const end=maker.indexOf("\n}\nasync function refreshCreationQuota",start)+2;
+    assert.ok(start>=0&&end>start,"The shared result formatter must exist.");
+    const formatter=runInNewContext(maker.slice(start,end)+"; formatResult",{
+        CURRENCIES:currencyData.currencies,
+        HISTORICAL_CURRENCIES:currencyData.historicalCurrencies
+    });
+    assert.equal(formatter({format:"number"},1234.5),"1,234.5");
+    const swiss=formatter({format:"currency",currency:"CHF"},1234.5);
+    assert.match(swiss,/CHF/,"The Swiss franc code must be preserved.");
+    assert.match(swiss,/1,234\.50/,"The number must use fixed English thousands and decimal separators.");
+    assert.doesNotMatch(swiss,/1\.234,50/,"German-style separators must not be applied.");
 });
 
 test("UGC Calculator Builder can be closed only with its X button; backdrop clicks never dismiss it", () => {
