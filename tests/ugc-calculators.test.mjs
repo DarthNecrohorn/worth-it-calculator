@@ -832,7 +832,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
 
 test("UGC Maker expands provider output limits and exposes safe result-coverage diagnostics", () => {
     assert.match(makerApi, /max_tokens:8192/);
-    assert.match(makerApi, /maxOutputTokens:8192/);
+    assert.match(makerApi, /maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
     assert.match(makerApi, /finishReason==="MAX_TOKENS"/);
     assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\.resultLabels/);
     assert.match(makerApi, /coverageAttempts\.push\(/);
@@ -964,7 +964,7 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /\beval\s*\(/);
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
-    assert.match(makerApi, /response_format:\s*\{\s*type:\s*"json_schema"/);
+    assert.match(makerApi, /response_format:typedV2\?\{type:"json_object"\}:\{type:"json_schema"/);
     assert.match(makerApi, /reasoning_effort:\s*"high"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
     assert.match(makerApi, /thinkingConfig:\s*\{thinkingLevel:\s*"high"\}/);
