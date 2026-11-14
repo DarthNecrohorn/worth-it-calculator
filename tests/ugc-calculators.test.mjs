@@ -1009,7 +1009,8 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
     assert.match(maker, /customCurrency\.maxLength=3/);
     assert.match(maker, /Each result can use a different currency/);
     assert.match(maker, /Currency consistency warning/);
-    assert.match(calculatorEngineSource, /unit compatibility/);
+    assert.match(calculatorEngineSource, /function analyseFormulaUnit/);
+    assert.match(calculatorEngineSource, /Addition and subtraction require matching units/);
 });
 
 test("Mobile header uses two aligned rows with economy controls below the logo", () => {
@@ -1750,7 +1751,8 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(v2RuntimeSql,/require_test_before_reaction/);
  assert.match(maker,/if\(typedV2&&state\.v2PersistenceAvailable!==true\)/);
  assert.match(maker,/typedV2\?validateManualDraftSpec\(specToSave\):validateMakerSpec\(specToSave\)/);
- assert.match(maker,/if\(Number\(calculator\.spec\?\.schemaVersion\)===2\)\{await editCalculatorManually\(id\);return;\}/);
+ assert.match(maker,/async function editCalculator\(id\)\{\s*await editCalculatorManually\(id\);\s*\}/);
+ assert.match(maker,/async function editCalculatorManually\(id\)/);
  assert.match(v2PersistenceSql,/private\.worth_it_validate_ugc_v2_spec\(p_spec - 'subcategories' - 'assumptions'\)/);
  assert.match(v2PersistenceSql,/public\.get_worth_it_ugc_schema_capabilities/);
  assert.match(v2PersistenceSql,/revoke all on function public\.get_worth_it_ugc_schema_capabilities\(\) from public, anon, service_role/);
