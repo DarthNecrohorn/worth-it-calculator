@@ -872,6 +872,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.response_format.type, "json_schema");
         assert.equal(body.response_format.json_schema.strict, true);
         assert.equal(body.reasoning_effort, "high");
+        assert.equal(body.reasoning_format, "hidden", "Groq structured JSON output must use a JSON-compatible reasoning format");
         assert.doesNotMatch(body.messages[0].content,/Regional defaults: currency|regional currency suggestion [A-Z]{3}/);
         assert.match(body.messages[1].content,/Regional defaults: currency [A-Z]{3}/);
         assert.equal(body.response_format.json_schema.schema.type,"object");
