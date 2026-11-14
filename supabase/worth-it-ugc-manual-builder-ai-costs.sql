@@ -153,12 +153,11 @@ begin
     if not exists(select 1 from auth.users where id=v_user_id and email_confirmed_at is not null) then
         raise exception 'Verify your email before creating community calculators.' using errcode='42501';
     end if;
-    if v_source not in ('manual','ai') then
-        raise exception 'Calculator source must be manual or ai.' using errcode='22023';
+    if v_source <> 'manual' then
+        raise exception 'AI-created community calculators are disabled. Use the Manual Builder.' using errcode='22023';
     end if;
-    if (v_source='manual' and p_ai_request_id is not null)
-       or (v_source='ai' and p_ai_request_id is null) then
-        raise exception 'The calculator source proof is invalid.' using errcode='22023';
+    if p_ai_request_id is not null then
+        raise exception 'Manual calculator saves cannot include an AI operation request.' using errcode='22023';
     end if;
     if char_length(v_title) not between 3 and 70
        or char_length(v_description)>500
