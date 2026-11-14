@@ -3963,3 +3963,94 @@ test("AI Creator retries a Groq output-token truncation once with a non-reasonin
   assert.equal(quotaEvents.refunds||0,0);
  },quotaEvents);
 });
+
+
+test("V1 annual petrol fuel cost uses total annual distance and dimensional EUR/L pricing after provider recovery",async()=>{
+ const candidate={
+  title:"Annual Petrol Fuel Cost",
+  description:"Estimate the total petrol cost for one year from annual driving distance, fuel consumption and the editable petrol price per litre. Enter the actual fuel price before relying on the result.",
+  category:"cars",
+  subcategories:["fuel-costs"],
+  inputs:[
+   {key:"annual_distance",label:"Annual distance (km)",min:0,max:100000,default:12000,step:100,unit:"km",control:"number",choices:[]},
+   {key:"fuel_consumption",label:"Fuel consumption (L/100 km)",min:0.1,max:30,default:7,step:0.1,unit:"L/100 km",control:"number",choices:[]},
+   {key:"fuel_price",label:"Petrol price per litre",min:0,max:10,default:0,step:0.01,unit:"EUR/L",control:"number",choices:[]}
+  ],
+  groups:[],
+  results:[
+   {key:"annual_fuel_cost",label:"Annual petrol fuel cost (EUR)",expression:"annual_distance * fuel_consumption / 100 * fuel_price",format:"currency",currency:"EUR",unit:"",prefix:"",suffix:"",explanation:"Total petrol expenditure for the annual distance entered."}
+  ],
+  scenarios:[]
+ };
+ let reservations=0;
+ const models=[];
+ const quotaEvents={};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"petrol-v1-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,1);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   return new Response(JSON.stringify({error:{code:524,status:"DEADLINE_EXCEEDED"}}),{status:524});
+  }
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   const body=JSON.parse(options.body);
+   models.push(body.model);
+   if(body.model==="openai/gpt-oss-120b"){
+    assert.equal(body.reasoning_effort,"low");
+    assert.equal(body.include_reasoning,false);
+    return new Response(JSON.stringify({
+     model:"openai/gpt-oss-120b",
+     choices:[{finish_reason:"length",message:{content:""}}],
+     usage:{prompt_tokens:2800,completion_tokens:8192,total_tokens:10992,completion_tokens_details:{reasoning_tokens:8190}}
+    }),{status:200});
+   }
+   assert.equal(body.model,"llama-3.3-70b-versatile");
+   assert.deepEqual(body.response_format,{type:"json_object"});
+   assert.match(body.messages[0].content,/For a fuel-cost total over a named period/i);
+   assert.match(body.messages[0].content,/annual_distance \* fuel_consumption \/ 100 \* fuel_price/i);
+   assert.match(body.messages[0].content,/label it Annual distance \(km\), not km\/year/i);
+   return new Response(JSON.stringify({
+    model:"llama-3.3-70b-versatile",
+    choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}],
+    usage:{prompt_tokens:2900,completion_tokens:900,total_tokens:3800}
+   }),{status:200});
+  }
+  throw new Error("Unexpected request in annual petrol cost regression test: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    mode:"create",
+    schema_version:1,
+    prompt:"Create a Version 1 Annual Petrol Fuel Cost calculator in EUR. Model the total annual distance, petrol consumption in L/100 km and petrol price per litre. Show Annual petrol fuel cost (EUR)."
+   },{token:"valid-token"}),
+   env:{
+    SUPABASE_URL:"https://supabase.example",
+    SUPABASE_PUBLISHABLE_KEY:"publishable",
+    GEMINI_API_KEY:"gemini-test",
+    GROQ_API_KEY:"groq-test"
+   }
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(body.success,true);
+  assert.equal(body.calculator.spec.results[0].format,"currency");
+  assert.equal(body.calculator.spec.results[0].currency,"EUR");
+  assert.equal(body.calculator.spec.results[0].expression,"annual_distance * fuel_consumption / 100 * fuel_price");
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="annual_distance").unit,"km");
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="fuel_consumption").unit,"L/100 km");
+  assert.equal(body.calculator.spec.inputs.find(item=>item.key==="fuel_price").unit,"EUR/L");
+  assert.deepEqual(models,["openai/gpt-oss-120b","llama-3.3-70b-versatile"]);
+  assert.equal(body.aiUsage.attempts.length,3);
+  assert.equal(body.aiUsage.attempts[0].failureCode,"HTTP_524");
+  assert.equal(body.aiUsage.attempts[1].failureCode,"OUTPUT_TOKEN_LIMIT");
+  assert.equal(body.aiUsage.attempts[2].success,true);
+  assert.equal(reservations,1);
+  assert.equal(quotaEvents.settlements,1);
+  assert.equal(quotaEvents.refunds||0,0);
+ },quotaEvents);
+});
