@@ -36,6 +36,11 @@ function create(options={}){
   ["not","not(condition)","Invert a boolean condition.","not(include_tax)"],
   ["eq","eq(a, b)","Compare two values for equality.","eq(plan, \"pro\")"],
   ["gt","gt(a, b)","Test whether a number or date is greater.","gt(start_date, \"2026-01-01\")"],
+  ["gte","gte(a, b)","Test whether a number or date is greater than or equal.","gte(amount, minimum)"],
+  ["lt","lt(a, b)","Test whether a number or date is less.","lt(end_date, deadline)"],
+  ["lte","lte(a, b)","Test whether a number or date is less than or equal.","lte(amount, maximum)"],
+  ["neq","neq(a, b)","Test whether two supported scalar values differ.","neq(plan, \"basic\")"],
+
   ["sum_if","sum_if(value, predicate)","Sum matching rows from one dynamic group.","sum_if(expenses.amount, expenses.taxable)"],
   ["count_if","count_if(predicate)","Count matching rows from one dynamic group.","count_if(gt(expenses.amount, 100))"],
   ["median","median(group.numericExpression)","Median of numeric values in one group.","median(expenses.amount)"],
@@ -47,6 +52,10 @@ function create(options={}){
   ["add_days","add_days(date, days)","Add whole calendar days.","add_days(start_date, 30)"],
   ["add_months","add_months(date, months)","Add whole calendar months with month-end clamping.","add_months(start_date, 1)"],
   ["days_in_month","days_in_month(date)","Number of days in the date's month.","days_in_month(start_date)"],
+  ["calendar_year","calendar_year(date)","Calendar year number.","calendar_year(start_date)"],
+  ["calendar_month","calendar_month(date)","Calendar month number from 1 to 12.","calendar_month(start_date)"],
+  ["weekday","weekday(date)","ISO weekday number: Monday 1 through Sunday 7.","weekday(start_date)"],
+
   ["compound_interest","compound_interest(amount, rate, periods)","Compound amount; rate is a decimal fraction.","compound_interest(principal, 0.05, 12)"],
   ["present_value","present_value(futureAmount, rate, periods)","Discount a future amount to present value.","present_value(future_amount, 0.05, 12)"],
   ["loan_payment","loan_payment(principal, rate, periods)","Fixed periodic loan payment.","loan_payment(principal, 0.05, 12)"]
