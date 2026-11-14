@@ -3190,7 +3190,7 @@ function renderManualV2ResultEditor(host,definition){
   const formula=document.createElement("label");formula.appendChild(text("span","","Typed formula"));
   const expression=document.createElement("textarea");expression.rows=3;expression.maxLength=500;expression.value=String(item.expression||"");expression.placeholder='Example: if(and(include_tax, eq(plan, "pro")), base_cost * 0.2, 0)';
   expression.addEventListener("input",()=>{item.expression=expression.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});
-  formula.appendChild(expression);grid.appendChild(formula);
+  formula.appendChild(expression);formula.appendChild(createV2FormulaHelp(expression));grid.appendChild(formula);
   const explanation=document.createElement("label");explanation.appendChild(text("span","","What does this result mean?"));
   const detail=document.createElement("textarea");detail.rows=2;detail.maxLength=280;detail.value=String(item.explanation||"");detail.addEventListener("input",()=>{item.explanation=detail.value;});
   explanation.appendChild(detail);grid.appendChild(explanation);
@@ -3311,6 +3311,33 @@ function updateMakerV2TestResults(panel){
   :validation.errors.length?"Local calculation ran, but validation needs attention: "+validation.errors.slice(0,2).join(" ")
   :"Typed values, formulas, unit compatibility and default boundaries passed local checks.";
 }
+function createV2FormulaHelp(textarea){
+ const details=document.createElement("details");details.className="ugc-v2-formula-help";
+ details.appendChild(text("summary","","Formula autocomplete & function reference"));
+ const list=document.createElement("div");list.className="ugc-v2-formula-suggestions";
+ const functions=calculatorEngine.getV2FunctionHelp();
+ functions.forEach(item=>{
+  const entry=document.createElement("div");entry.className="ugc-v2-formula-suggestion";
+  const insert=button(item.name+"()","ugc-v2-formula-insert",()=>{
+   const start=Number.isInteger(textarea.selectionStart)?textarea.selectionStart:textarea.value.length;
+   const end=Number.isInteger(textarea.selectionEnd)?textarea.selectionEnd:start;
+   const snippet=item.name+"(";
+   const value=textarea.value;
+   textarea.value=value.slice(0,start)+snippet+value.slice(end);
+   const caret=start+snippet.length;
+   textarea.focus();textarea.setSelectionRange(caret,caret);
+   textarea.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  insert.title=item.signature+" — "+item.description;
+  const meta=text("span","ugc-v2-formula-signature",item.signature);
+  const description=text("span","ugc-v2-formula-description",item.description);
+  entry.append(insert,meta,description);list.appendChild(entry);
+ });
+ details.appendChild(list);
+ const note=text("p","ugc-v2-formula-note","Select a function to insert its name at the cursor, then complete the arguments. Function help is shared with the V2 engine registry.");
+ details.appendChild(note);
+ return details;
+}
 function renderManualV2Preview(host,definition){
  const spec=definition.spec;
  host.appendChild(text("h3","ugc-maker-schema-heading","Typed V2 definition"));
@@ -3329,7 +3356,7 @@ function renderManualV2Preview(host,definition){
   if(!testPanel.hidden)renderMakerV2TestPanel(false);
  });
  toggle.setAttribute("aria-expanded","false");host.append(toggle,testPanel);
- host.appendChild(text("p","ugc-maker-schema-summary","Allowed V2 formulas include strict boolean logic, typed enum/date comparisons, date-only arithmetic, same-group sum_if/count_if aggregation and bounded numeric functions. Arbitrary JavaScript is never executed."));
+ host.appendChild(text("p","ugc-maker-schema-summary","Allowed V2 formulas include strict boolean logic, typed enum/date comparisons, calendar functions, same-group statistical aggregation, financial functions and dimensional numeric formulas. Use Formula autocomplete for signatures and examples. Arbitrary JavaScript is never executed."));
  refreshMakerValidationNote();
  updateV2PersistenceControls();
 }
@@ -3530,6 +3557,7 @@ function renderMakerPreview(definition){
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
   const formulaInput=addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
   formulaInput.placeholder="Use input keys and earlier result keys; e.g. subtotal * tax_rate / 100 or sum(expenses.amount).";
+  formulaInput.parentElement?.appendChild(createV2FormulaHelp(formulaInput));
   const explanationLabel=document.createElement("label");explanationLabel.className="ugc-maker-result-explanation";
   explanationLabel.appendChild(text("span","","What does this result mean?"));
   const explanation=document.createElement("textarea");explanation.rows=2;explanation.maxLength=280;explanation.value=String(item.explanation||"");
