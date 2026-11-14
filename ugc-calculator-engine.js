@@ -4,6 +4,29 @@
 function create(options={}){
  const CURRENCIES=Array.isArray(options.currencies)?options.currencies:[];
  const HISTORICAL_CURRENCIES=Array.isArray(options.historicalCurrencies)?options.historicalCurrencies:[];
+ const V2_FUNCTION_HELP=Object.freeze([
+  ["if","if(condition, whenTrue, whenFalse)","Choose a value using a boolean condition.","if(eq(plan, \\"pro\\"), premium_price, base_price)"],
+  ["and","and(condition1, condition2, ...)","True only when every condition is true.","and(include_tax, gt(amount, 0))"],
+  ["or","or(condition1, condition2, ...)","True when at least one condition is true.","or(eq(plan, \\"pro\\"), eq(plan, \\"team\\"))"],
+  ["not","not(condition)","Invert a boolean condition.","not(include_tax)"],
+  ["eq","eq(a, b)","Compare two values for equality.","eq(plan, \\"pro\\")"],
+  ["gt","gt(a, b)","Test whether a number or date is greater.","gt(start_date, \\"2026-01-01\\")"],
+  ["sum_if","sum_if(value, predicate)","Sum matching rows from one dynamic group.","sum_if(expenses.amount, expenses.taxable)"],
+  ["count_if","count_if(predicate)","Count matching rows from one dynamic group.","count_if(gt(expenses.amount, 100))"],
+  ["median","median(group.numericExpression)","Median of numeric values in one group.","median(expenses.amount)"],
+  ["variance","variance(group.numericExpression)","Population variance (divide by N).","variance(items.score)"],
+  ["stddev","stddev(group.numericExpression)","Population standard deviation.","stddev(items.score)"],
+  ["percentile","percentile(group.numericExpression, p)","Interpolated percentile; p is a literal from 0 to 100.","percentile(items.amount, 75)"],
+  ["weighted_avg","weighted_avg(value, weight)","Weighted average; both expressions use the same group.","weighted_avg(items.score, items.weight)"],
+  ["date_diff_days","date_diff_days(startDate, endDate)","Signed calendar-day difference.","date_diff_days(start_date, end_date)"],
+  ["add_days","add_days(date, days)","Add whole calendar days.","add_days(start_date, 30)"],
+  ["add_months","add_months(date, months)","Add whole calendar months with month-end clamping.","add_months(start_date, 1)"],
+  ["days_in_month","days_in_month(date)","Number of days in the date's month.","days_in_month(start_date)"],
+  ["compound_interest","compound_interest(amount, rate, periods)","Compound amount; rate is a decimal fraction.","compound_interest(principal, 0.05, 12)"],
+  ["present_value","present_value(futureAmount, rate, periods)","Discount a future amount to present value.","present_value(future_amount, 0.05, 12)"],
+  ["loan_payment","loan_payment(principal, rate, periods)","Fixed periodic loan payment.","loan_payment(principal, 0.05, 12)"]
+ ].map(([name,signature,description,example])=>Object.freeze({name,signature,description,example})));
+
 function compileExpression(source,keys,groups){
  const input=String(source||"");let at=0;
  const groupDefinitions=groups instanceof Map?groups:new Map();
@@ -1410,7 +1433,8 @@ function normalizeTypedGroupValues(spec,rawGroups){
   unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
   validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
   resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
-  createDefaultTypedGroupValues,normalizeTypedGroupValues,evaluateV2TypedResults
+  createDefaultTypedGroupValues,normalizeTypedGroupValues,evaluateV2TypedResults,
+  getV2FunctionHelp:()=>V2_FUNCTION_HELP.map(item=>({...item}))
  });
 }
 root.WorthItCalculatorEngine=Object.freeze({apiVersion:1,create});
