@@ -338,6 +338,8 @@ test("short topic prompts are treated as requests for autonomous calculator desi
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
+        assert.equal(body.messages.length, 1);
+        assert.equal(body.messages[0].role, "user");
         generationSystem = body.messages[0].content;
         providerConfig = body;
         return new Response(JSON.stringify({
@@ -407,7 +409,7 @@ test("AI Maker uses regional currency only as an editable default and never stor
         }
         const body = JSON.parse(options.body);
         assert.doesNotMatch(body.messages[0].content, /regional suggestion RSD/i);
-        assert.match(body.messages[1].content, /Regional defaults: currency RSD/i);
+        assert.match(body.messages[0].content, /Regional defaults: currency RSD/i);
         assert.match(body.messages[0].content, /same language as the user's prompt when that language is clearly identifiable/i);
         assert.match(body.messages[0].content, /If the prompt has no clear language or is language-neutral\/ambiguous, use English/i);
         assert.match(body.messages[0].content, /Do not use the visitor's country, region or Accept-Language header to choose the language of calculator text/i);
@@ -445,8 +447,8 @@ test("a country named in the calculator prompt overrides visitor-region currency
         }
         const body = JSON.parse(options.body);
         assert.doesNotMatch(body.messages[0].content, /regional suggestion EUR/i);
-        assert.match(body.messages[1].content, /Regional defaults: currency EUR/i);
-        assert.match(body.messages[1].content, /currency EUR/i);
+        assert.match(body.messages[0].content, /Regional defaults: currency EUR/i);
+        assert.match(body.messages[0].content, /currency EUR/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
         }), { status: 200 });
@@ -485,7 +487,7 @@ test("an explicit prompt currency overrides the EUR or USD regional suggestion",
             return new Response(JSON.stringify({ ok: true, requests_used: 1, daily_limit: 1 }), { status: 200 });
         }
         const body = JSON.parse(options.body);
-        assert.match(body.messages[1].content, /Explicitly requested currencies: RSD/i);
+        assert.match(body.messages[0].content, /Explicitly requested currencies: RSD/i);
         return new Response(JSON.stringify({
             choices: [{ message: { content: JSON.stringify(candidate) } }]
         }), { status: 200 });
@@ -550,11 +552,12 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         assert.match(body.messages[0].content,/time-basis conversions or consistency assumptions/);
         assert.match(body.messages[0].content,/never invent exclusions, data sources, prices, rates, guarantees or unsupported claims/);
         assert.doesNotMatch(body.messages[0].content,/1 to 4 result rows/);
-        assert.match(body.messages[1].content,/Explicit result checklist from the user's Results section/);
-        const checklistText=body.messages[1].content.toLowerCase().replace(/\bthe\b/g,"").replace(/\s+/g," ");
+        const requestSection=body.messages[0].content.split("Calculator request:").slice(1).join("Calculator request:");
+        assert.match(requestSection,/Explicit result checklist from the user's Results section/);
+        const checklistText=requestSection.toLowerCase().replace(/\bthe\b/g,"").replace(/\s+/g," ");
         for (const label of candidate.results.map(item=>item.label)) assert.ok(checklistText.includes(label.toLowerCase().replace(/\bthe\b/g,"").replace(/\s+/g," ")), "Missing explicit result checklist item: "+label);
-        assert.equal((body.messages[1].content.match(/^- /gm)||[]).length,6);
-        assert.doesNotMatch(body.messages[1].content,/^- Total weekly ownership cost/im);
+        assert.equal((requestSection.match(/^- /gm)||[]).length,6);
+        assert.doesNotMatch(requestSection,/^- Total weekly ownership cost/im);
         const groqCandidate=structuredClone(candidate);
         delete groqCandidate.category;
         delete groqCandidate.subcategories;
@@ -873,8 +876,8 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.max_completion_tokens,8192);
         assert.equal(body.reasoning_effort, "high");
         assert.equal(body.reasoning_format, "hidden", "Groq structured JSON output must use a JSON-compatible reasoning format");
-        assert.doesNotMatch(body.messages[0].content,/Regional defaults: currency|regional currency suggestion [A-Z]{3}/);
-        assert.match(body.messages[1].content,/Regional defaults: currency [A-Z]{3}/);
+        assert.doesNotMatch(body.messages[0].content,/regional currency suggestion [A-Z]{3}/);
+        assert.match(body.messages[0].content,/Regional defaults: currency [A-Z]{3}/);
         assert.match(body.messages[0].content,/classification object/);
         assert.match(body.messages[0].content,/restricted arithmetic parser/);
         assert.match(body.messages[0].content,/dynamic groups/);
@@ -1218,15 +1221,15 @@ test("AI Maker runs one targeted Groq coverage repair when Groq is already the G
             const body=JSON.parse(options.body);
             assert.equal(body.response_format.type,"json_object");
             if(groqCalls===1){
-                assert.match(body.messages[1].content,/User request:/);
+                assert.match(body.messages[0].content,/User request:/);
                 return new Response(JSON.stringify({
                     choices:[{message:{content:JSON.stringify(asGroqDefinition(incomplete))}}]
                 }),{status:200});
             }
-            assert.match(body.messages[1].content,/weekly result/);
-            assert.match(body.messages[1].content,/yearly result/);
-            assert.match(body.messages[1].content,/total weekly/);
-            assert.match(body.messages[1].content,/total yearly/);
+            assert.match(body.messages[0].content,/weekly result/);
+            assert.match(body.messages[0].content,/yearly result/);
+            assert.match(body.messages[0].content,/total weekly/);
+            assert.match(body.messages[0].content,/total yearly/);
             return new Response(JSON.stringify({
                 choices:[{message:{content:JSON.stringify(asGroqDefinition(complete))}}]
             }),{status:200});
@@ -1282,10 +1285,10 @@ test("AI Maker retries an incomplete Gemini calculator with Groq and includes re
         if(path.includes("api.groq.com/openai/v1/chat/completions")){
             requested.push("groq");
             const body=JSON.parse(options.body);
-            assert.match(body.messages[1].content,/weekly result/);
-            assert.match(body.messages[1].content,/yearly result/);
-            assert.match(body.messages[1].content,/total weekly/);
-            assert.match(body.messages[1].content,/total yearly/);
+            assert.match(body.messages[0].content,/weekly result/);
+            assert.match(body.messages[0].content,/yearly result/);
+            assert.match(body.messages[0].content,/total weekly/);
+            assert.match(body.messages[0].content,/total yearly/);
             const output=structuredClone(complete);
             delete output.category;
             delete output.subcategories;
