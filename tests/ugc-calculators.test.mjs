@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage, normalizeDefinition } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, onRequestOptions, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage, summarizeAiCandidateForDiagnostics, normalizeDefinition } from "../functions/api/ugc-maker.js";
 import { validateCalculatorForServer } from "../functions/lib/ugc-calculator-validation.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -3736,4 +3736,95 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
  }),/at least 0|minimum|range/i);
  const invalidArity=engine.validateVersionedSpec({...spec,results:[{...spec.results[0],expression:"median(items.value, 2)"}]});
  assert.ok(invalidArity.errors.some(message=>/median\(\).*invalid number of arguments/i.test(message)),invalidArity.errors.join(" "));
+});
+
+
+test("AI UGC Maker opt-in diagnostics identify the provider and formula units after a Gemini timeout",async()=>{
+ const badDefinition=structuredClone(validDefinition);
+ badDefinition.results=[{
+  key:"annual_petrol_consumption",
+  label:"Annual petrol consumption (L/year)",
+  expression:"starting_amount",
+  format:"unit",
+  unit:"L/year"
+ }];
+ const groqDefinition=structuredClone(badDefinition);
+ delete groqDefinition.category;
+ delete groqDefinition.subcategories;
+ groqDefinition.classification={category:"money",subcategories:["budgeting","saving"]};
+ const quotaEvents={refunds:0,settlements:0};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user")){
+   return new Response(JSON.stringify({id:"user-id",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  }
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   return new Response(JSON.stringify({error:{code:524,status:"DEADLINE_EXCEEDED"}}),{status:524});
+  }
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   const body=JSON.parse(options.body);
+   assert.equal(body.include_reasoning,false);
+   assert.equal(Object.hasOwn(body,"response_format"),false);
+   return new Response(JSON.stringify({
+    model:"openai/gpt-oss-120b",
+    choices:[{finish_reason:"stop",message:{content:JSON.stringify(groqDefinition)}}],
+    usage:{prompt_tokens:100,completion_tokens:50,total_tokens:150}
+   }),{status:200});
+  }
+  throw new Error("Unexpected request in opt-in AI diagnostics test: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    mode:"create",
+    prompt:"Create a calculator for annual petrol consumption.",
+    schema_version:1,
+    debug_diagnostics:true
+   },{token:"valid-token"}),
+   env:{
+    SUPABASE_URL:"https://supabase.example",
+    SUPABASE_PUBLISHABLE_KEY:"publishable",
+    GEMINI_API_KEY:"gemini-test",
+    GROQ_API_KEY:"groq-test"
+   }
+  });
+  assert.equal(response.status,422);
+  const result=await response.json();
+  assert.equal(result.code,"INVALID_AI_CALCULATOR");
+  assert.match(result.error,/Annual petrol consumption/);
+  assert.equal(result.diagnostics.scope,"ugc-ai-creator");
+  assert.equal(result.diagnostics.providerUsed,"groq");
+  assert.equal(result.diagnostics.schemaVersion,1);
+  assert.equal(result.diagnostics.validationStage,"server-definition-validation");
+  assert.equal(result.diagnostics.candidate.inputs[0].unit,"EUR");
+  assert.equal(result.diagnostics.candidate.results[0].expression,"starting_amount");
+  assert.equal(result.diagnostics.candidate.results[0].unit,"L/year");
+  assert.equal(result.aiUsage.attempts.length,2);
+  assert.equal(result.aiUsage.attempts[0].provider,"gemini");
+  assert.equal(result.aiUsage.attempts[0].success,false);
+  assert.equal(result.aiUsage.attempts[0].failureCode,"HTTP_524");
+  assert.equal(result.aiUsage.attempts[1].provider,"groq");
+  assert.equal(result.aiUsage.attempts[1].success,true);
+  assert.equal(result.aiUsage.attempts[1].stage,"provider-fallback");
+  assert.equal(Object.hasOwn(result.diagnostics.candidate.inputs[0],"default"),false);
+  assert.equal(Object.hasOwn(result.diagnostics,"prompt"),false);
+  assert.equal(JSON.stringify(result).includes("gemini-test"),false);
+  assert.equal(JSON.stringify(result).includes("groq-test"),false);
+  assert.equal(quotaEvents.refunds,1);
+  assert.equal(quotaEvents.settlements||0,0);
+ },quotaEvents);
+});
+
+test("AI UGC Maker diagnostic summaries expose formula metadata but never default input values",()=>{
+ const candidate=structuredClone(validDefinition);
+ candidate.results[0]={...candidate.results[0],key:"annual",label:"Annual petrol consumption",expression:"monthly_deposit*12",format:"unit",unit:"L/year"};
+ const summary=summarizeAiCandidateForDiagnostics(candidate,1);
+ assert.equal(summary.schemaVersion,1);
+ assert.equal(summary.inputs[1].unit,"EUR");
+ assert.equal(summary.results[0].expression,"monthly_deposit*12");
+ assert.equal(summary.results[0].unit,"L/year");
+ assert.equal(Object.hasOwn(summary.inputs[1],"default"),false);
+ assert.equal(Object.hasOwn(summary,"prompt"),false);
 });
