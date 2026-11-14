@@ -403,7 +403,13 @@ export function createAiUsageCollector(){
 function providerFailureCode(error,provider){
     const message=String(error?.message||"");
     const status=message.match(new RegExp(provider+" calculator generation failed \\((\\d{3})\\)","i"));
-    if(status)return "HTTP_"+status[1];
+    if(status){
+        if(status[1]==="400"){
+            const detailCode=message.match(/"code"\\s*:\\s*"([a-z0-9_-]{1,48})"/i)?.[1];
+            if(detailCode)return "PROVIDER_"+detailCode.replace(/[^a-z0-9]+/gi,"_").toUpperCase();
+        }
+        return "HTTP_"+status[1];
+    }
     if(/token limit|truncated/i.test(message))return "OUTPUT_TOKEN_LIMIT";
     if(/empty calculator definition/i.test(message))return "EMPTY_RESPONSE";
     if(/timeout|aborted|network|fetch failed/i.test(message))return "NETWORK_ERROR";
