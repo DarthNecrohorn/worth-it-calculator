@@ -966,17 +966,87 @@ function prepareTypedV2ProviderCandidate(raw,defaultCurrency){
     });
     return candidate;
 }
-function normalizeTypedV2Definition(raw,defaultCurrency){
+function normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,forceCurrency){
+    const candidate=JSON.parse(JSON.stringify(raw));
+    const fallback=SERVER_SUPPORTED_CURRENCY_CODES.has(String(defaultCurrency||"").toUpperCase())
+        ?String(defaultCurrency).toUpperCase():"USD";
+    const forced=SERVER_SUPPORTED_CURRENCY_CODES.has(String(forceCurrency||"").toUpperCase())
+        ?String(forceCurrency).toUpperCase():"";
+    const normalizeField=field=>{
+        if(!field||typeof field!=="object"||field.type!=="number")return;
+        const semantic=normalizeMonetaryPromptText(String(field.label||"")+" "+String(field.key||""));
+        const unit=String(field.unit||"").trim();
+        const upperUnit=unit.toUpperCase();
+        const currencyPrefix=upperUnit.match(/^([A-Z]{3})(?:\\s*\\/|$)/)?.[1]||"";
+        const hasCurrencyUnit=SERVER_SUPPORTED_CURRENCY_CODES.has(upperUnit)
+            ||SERVER_SUPPORTED_CURRENCY_CODES.has(currencyPrefix);
+        const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
+        const percentageRate=/\\b(?:tax|interest|discount|growth|inflation|commission|margin|processing|marketplace)\\s+(?:fee\\s+)?(?:rates?|percentages?)\\b/.test(semantic);
+        const exchangeRate=/\\b(?:exchange|conversion)\\s+rates?\\b/.test(semantic);
+        const monetary=!percentageUnit&&!exchangeRate&&!(percentageRate&&!hasCurrencyUnit)&&(
+            hasCurrencyUnit
+            ||/\\b(?:price|cost|amount|fees?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription|revenue|profit|turnover)\\b/.test(semantic)
+        );
+        if(!monetary)return;
+        const basisMatch=semantic.match(/\\bper\\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hours?|days?|units?|items?|packs?|products?)\\b/i);
+        const rawBasis=basisMatch?.[1]||"";
+        const basis=/^kwh$/i.test(rawBasis)?"kWh":
+            /^(?:m3|m³)$/i.test(rawBasis)?"m3":
+            /^(?:litres?|liters?|l)$/i.test(rawBasis)?"L":
+            /^(?:kilometres?|kilometers?|km)$/i.test(rawBasis)?"km":
+            /^(?:kg)$/i.test(rawBasis)?"kg":
+            /^(?:g)$/i.test(rawBasis)?"g":
+            /^hours?$/i.test(rawBasis)?"hour":
+            /^days?$/i.test(rawBasis)?"day":
+            /^items?$/i.test(rawBasis)?"item":
+            /^packs?$/i.test(rawBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rawBasis)?"unit":"";
+        const existingRate=unit.match(/^[A-Z]{3}\\s*\\/\\s*(.+)$/);
+        let normalizedUnit=unit;
+        if(forced){
+            normalizedUnit=existingRate?forced+"/"+existingRate[1]:forced;
+        }else if(!hasCurrencyUnit){
+            normalizedUnit=fallback;
+        }
+        if(basis&&/^[A-Z]{3}$/.test(normalizedUnit))normalizedUnit+="/"+basis;
+        field.unit=normalizedUnit;
+    };
+    (Array.isArray(candidate?.spec?.inputs)?candidate.spec.inputs:[]).forEach(normalizeField);
+    (Array.isArray(candidate?.spec?.groups)?candidate.spec.groups:[]).forEach(group=>{
+        (Array.isArray(group?.fields)?group.fields:[]).forEach(normalizeField);
+    });
+    (Array.isArray(candidate?.spec?.results)?candidate.spec.results:[]).forEach(result=>{
+        if(!result||typeof result!=="object")return;
+        if(result.format==="currency"){
+            result.currency=forced||(
+                SERVER_SUPPORTED_CURRENCY_CODES.has(String(result.currency||"").toUpperCase())
+                    ?String(result.currency).toUpperCase():fallback
+            );
+            delete result.unit;
+        }else if(result.format==="unit"){
+            const unit=String(result.unit||"").trim();
+            const prefix=unit.match(/^([A-Z]{3})(?:\\s*\\/|$)/)?.[1]||"";
+            if(forced&&SERVER_SUPPORTED_CURRENCY_CODES.has(prefix))result.unit=forced+unit.slice(3);
+            delete result.currency;
+        }else{
+            delete result.currency;
+            delete result.unit;
+        }
+    });
+    return candidate;
+}
+function normalizeTypedV2Definition(raw,defaultCurrency,options={}){
+    const candidate=normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,options?.forceCurrency);
     const importer=globalThis.WorthItBlueprintImport;
     if(typeof importer?.parseBlueprint!=="function")throw new Error("The shared strict Blueprint V2 importer is unavailable.");
-    const category=String(raw?.category||"");
-    const subcategories=Array.isArray(raw?.subcategories)?raw.subcategories:[];
+    const category=String(candidate?.category||"");
+    const subcategories=Array.isArray(candidate?.subcategories)?candidate.subcategories:[];
     const allowed=ALLOWED_SUBCATEGORIES[category];
     if(!allowed||subcategories.length<1||subcategories.length>3||new Set(subcategories).size!==subcategories.length||
        subcategories.some(value=>typeof value!=="string"||!allowed.has(value))){
         throw new Error("The AI-selected V2 categories are invalid or do not belong to the selected primary category.");
     }
-    const normalized=importer.parseBlueprint(JSON.stringify(raw),spec=>{
+    const normalized=importer.parseBlueprint(JSON.stringify(candidate),spec=>{
         const result=validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec);
         return {errors:Array.isArray(result?.errors)?result.errors.map(String):["The server V2 validator returned an invalid response."]};
     });
@@ -989,7 +1059,7 @@ function normalizeTypedV2Definition(raw,defaultCurrency){
         throw new Error("The AI-generated calculator did not preserve the typed V2 schema.");
     }
     normalized.spec.subcategories=[...subcategories];
-    normalized.spec.assumptions=Array.isArray(raw.assumptions)?[...raw.assumptions]:[];
+    normalized.spec.assumptions=Array.isArray(candidate.assumptions)?[...candidate.assumptions]:[];
     normalized.spec.results.forEach(item=>{
         if(item.format==="currency"&&!SERVER_SUPPORTED_CURRENCY_CODES.has(String(item.currency||"").toUpperCase())){
             throw new Error("A currency result uses an unsupported ISO currency code.");
@@ -1020,7 +1090,7 @@ function normalizeTypedV2Definition(raw,defaultCurrency){
 }
 
 export function normalizeDefinition(raw,defaultCurrency,options={}){
-    if(Number(raw?.blueprintVersion)===2)return normalizeTypedV2Definition(raw,defaultCurrency);
+    if(Number(raw?.blueprintVersion)===2)return normalizeTypedV2Definition(raw,defaultCurrency,options);
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
     const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
