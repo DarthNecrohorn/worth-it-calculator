@@ -366,7 +366,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /silently audit it as a calculator designer/i);
         assert.equal(providerConfig.model, "openai/gpt-oss-120b");
         assert.equal(providerConfig.reasoning_effort, "high");
-        assert.equal(providerConfig.max_tokens, 8192);
+        assert.equal(providerConfig.max_completion_tokens, 8192);
     });
 });
 
@@ -541,7 +541,7 @@ test("AI Maker preserves all six explicitly requested car-cost results without i
         if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1}),{status:200});
         providerCalls++;
         const providerRequest=JSON.parse(options.body);
-        assert.equal(providerRequest.max_tokens,8192);
+        assert.equal(providerRequest.max_completion_tokens,8192);
         const body=providerRequest;
         assert.match(body.messages[0].content,/separate result row for every output explicitly requested/);
         assert.match(body.messages[0].content,/Support up to 20 result rows/);
@@ -3148,8 +3148,8 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
 test("AI Creator API uses JSON-only V2 provider fallback and validates through the shared Blueprint importer",()=>{
  assert.ok(makerApi.includes('import "../../ugc-blueprint-import.js";'));
  assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
- assert.match(makerApi,/response_format:typedV2\?\{type:"json_object"\}/);
- assert.match(makerApi,/max_completion_tokens:16384/);
+ assert.match(makerApi,/response_format:\{type:"json_object"\}/);
+ assert.match(makerApi,/max_completion_tokens:typedV2\?16384:8192/);
  assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
  assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
  assert.ok(makerApi.includes("normalizeTypedV2Definition"));
