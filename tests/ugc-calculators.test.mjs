@@ -3436,6 +3436,24 @@ test("v2 numeric normalization accepts browser numeric strings but rejects coerc
 });
 
 
+test("V2 formula parser survives deterministic adversarial and oversized-input corpus",()=>{
+ const engine=createCalculatorEngine(),symbols=new Set(["amount","rate","periods"]);
+ const groups=new Map([["items",{fields:[{key:"value",type:"number",unit:""},{key:"enabled",type:"boolean"}]}]]);
+ const fragments=["amount","1","0","(",")","+","-","*","/","^",",","if(","and(","true","false",'"x"',"unknown",";","[","]","__proto__","constructor","NaN","1e309","sum_if(","items.value","items.enabled","\\\\","<script>"];
+ let seed=0x5eed1234;
+ const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;};
+ for(let index=0;index<600;index++){
+  const count=1+(random()%40),source=Array.from({length:count},()=>fragments[random()%fragments.length]).join(index%3===0?" ":"");
+  try{
+   const ast=engine.compileV2Expression(source,symbols,groups);
+   assert.ok(ast&&typeof ast==="object","accepted source must produce an AST");
+  }catch(error){
+   assert.ok(error instanceof Error,"parser failures must be ordinary errors, not leaked runtime exceptions");
+  }
+ }
+ assert.throws(()=>engine.compileV2Expression("1".repeat(501),symbols,groups),/1–500 characters/);
+});
+
 test("v2 formula compiler enforces bounded formula length, nesting and AST node counts",()=>{
  const engine=createCalculatorEngine();
  const symbols=new Set(["amount"]),groups=new Map();
