@@ -1080,7 +1080,7 @@ function evaluateV2Expression(ast,values,groupValues,rowContext=null){
  }
  if(["compound_interest","present_value","loan_payment"].includes(name)){
   const amount=evaluateV2Expression(ast.args[0],values,groups,rowContext),rate=evaluateV2Expression(ast.args[1],values,groups,rowContext),periods=evaluateV2Expression(ast.args[2],values,groups,rowContext);
-  if(rate<=-1||periods<=0)throw new Error(name+"() requires a rate greater than -100% and a positive period count.");
+  if(rate<=-1||periods<=0||(name==="loan_payment"&&rate<0))throw new Error(name==="loan_payment"?"loan_payment() requires a non-negative rate and a positive period count.":name+"() requires a rate greater than -100% and a positive period count.");
   if(name==="compound_interest")return amount*Math.pow(1+rate,periods);
   if(name==="present_value")return amount/Math.pow(1+rate,periods);
   return rate===0?amount/periods:amount*rate/(1-Math.pow(1+rate,-periods));
