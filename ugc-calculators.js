@@ -3627,7 +3627,7 @@ async function generateWithAI(){
  state.blueprintImportActive=false;
  state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
  const prompt=String($("ugcMakerPrompt")?.value||"").trim();
- if(prompt.length<10||prompt.length>1000){makerStatus("Describe the requested changes in 10 to 1000 characters.","error");return;}
+ if(prompt.length<10||prompt.length>5000){makerStatus("Describe the request in 10 to 5000 characters.","error");return;}
  const button=$("ugcMakerGenerate");button.disabled=true;
  makerStatus(state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…","generating");
  $("ugcMakerPreview").hidden=true;
