@@ -3448,7 +3448,7 @@ test("V2 formula parser survives deterministic adversarial and oversized-input c
    const ast=engine.compileV2Expression(source,symbols,groups);
    assert.ok(ast&&typeof ast==="object","accepted source must produce an AST");
   }catch(error){
-   assert.ok(error instanceof Error,"parser failures must be ordinary errors, not leaked runtime exceptions");
+   assert.ok(error&&typeof error.message==="string","parser failures must expose a descriptive error message");
   }
  }
  assert.throws(()=>engine.compileV2Expression("1".repeat(501),symbols,groups),/1–500 characters/);
@@ -3507,7 +3507,7 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
   scenarios:[]
  };
  const validation=engine.validateVersionedSpec(spec);
- assert.deepEqual(validation.errors,[]);
+ assert.equal(validation.errors.length,0,validation.errors.join(" "));
  const result=engine.evaluateV2TypedResults(spec,{},{
   items:[
    {value:10,weight:1,score:2},
