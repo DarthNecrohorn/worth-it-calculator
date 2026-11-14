@@ -25,151 +25,6 @@ const ALLOWED_SUBCATEGORIES = {
  home:new Set(["utilities-energy","rent-housing","home-buying","renovation-repairs","home-appliances","home-maintenance","household-budget"]),
  other:new Set(["travel","education-career","health-fitness","food-groceries","business","lifestyle","general-comparison"])
 };
-const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
-    name: "worth_it_calculator",
-    strict: true,
-    schema: {
-        type: "object",
-        properties: {
-            title: { type: "string" },
-            description: { type: "string" },
-            classification: {
-                type: "object",
-                properties: {
-                    category: { type: "string", enum: [...ALLOWED_CATEGORIES] },
-                    subcategories: {
-                        type: "array",
-                        minItems: 1,
-                        maxItems: 3,
-                        items: {
-                            type: "string",
-                            enum: [...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]
-                        }
-                    }
-                },
-                required: ["category","subcategories"],
-                additionalProperties: false
-            },
-            inputs: {
-                type: "array",
-                minItems: 1,
-                maxItems: 24,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        min: { type: "number" },
-                        max: { type: "number" },
-                        default: { type: "number" },
-                        step: { type: "number" },
-                        unit: { type: "string" },
-                        control: { type: "string", enum: ["number","slider","select","toggle"] },
-                        choices: {
-                            type: "array",
-                            maxItems: 12,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    label: { type: "string" },
-                                    value: { type: "number" }
-                                },
-                                required: ["label","value"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["key","label","min","max","default","step","unit","control","choices"],
-                    additionalProperties: false
-                }
-            },
-            groups: {
-                type: "array",
-                maxItems: 4,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        itemLabel: { type: "string" },
-                        minItems: { type: "integer" },
-                        maxItems: { type: "integer" },
-                        fields: {
-                            type: "array",
-                            minItems: 1,
-                            maxItems: 6,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    key: { type: "string" },
-                                    label: { type: "string" },
-                                    min: { type: "number" },
-                                    max: { type: "number" },
-                                    default: { type: "number" },
-                                    step: { type: "number" },
-                                    unit: { type: "string" }
-                                },
-                                required: ["key","label","min","max","default","step","unit"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["key","label","itemLabel","minItems","maxItems","fields"],
-                    additionalProperties: false
-                }
-            },
-            results: {
-                type: "array",
-                minItems: 1,
-                maxItems: 20,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        expression: { type: "string" },
-                        format: { type: "string", enum: ["number","currency","percent","unit"] },
-                        currency: { type: "string" },
-                        unit: { type: "string" },
-                        prefix: { type: "string" },
-                        suffix: { type: "string" },
-                        explanation: { type: "string" }
-                    },
-                    required: ["key","label","expression","format","currency","unit","prefix","suffix","explanation"],
-                    additionalProperties: false
-                }
-            },
-            scenarios: {
-                type: "array",
-                maxItems: 3,
-                items: {
-                    type: "object",
-                    properties: {
-                        label: { type: "string" },
-                        overrides: {
-                            type: "array",
-                            minItems: 1,
-                            maxItems: 24,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    key: { type: "string" },
-                                    value: { type: "number" }
-                                },
-                                required: ["key","value"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["label","overrides"],
-                    additionalProperties: false
-                }
-            }
-        },
-        required: ["title","description","classification","inputs","groups","results","scenarios"],
-        additionalProperties: false
-    }
-};
 const V2_VALUE_SCHEMA={
     anyOf:[{type:"number"},{type:"boolean"},{type:"string"}]
 };
@@ -405,7 +260,7 @@ function providerFailureCode(error,provider){
     const status=message.match(new RegExp(provider+" calculator generation failed \\((\\d{3})\\)","i"));
     if(status){
         if(status[1]==="400"){
-            const detailCode=message.match(/"code"\\s*:\\s*"([a-z0-9_-]{1,48})"/i)?.[1];
+            const detailCode=message.match(/"code"\s*:\s*"([a-z0-9_-]{1,48})"/i)?.[1];
             if(detailCode)return "PROVIDER_"+detailCode.replace(/[^a-z0-9]+/gi,"_").toUpperCase();
         }
         return "HTTP_"+status[1];
@@ -608,10 +463,10 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             body:JSON.stringify({
                 model:GROQ_MODEL,
                 temperature:0.15,
-                ...(typedV2?{max_completion_tokens:16384}:{max_tokens:8192}),
+                max_completion_tokens:typedV2?16384:8192,
                 reasoning_effort:"high",
                 reasoning_format:"hidden",
-                response_format:typedV2?{type:"json_object"}:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
+                response_format:{type:"json_object"},
                 // Groq's GPT-OSS guidance recommends putting instructions in the user message, not a system message.
                 messages:typedV2
                     ?[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
@@ -1662,7 +1517,7 @@ export async function onRequestPost(context){
         // Retry a rejected Gemini draft with Groq's category-specific strict schema once,
         // keeping the same Maker reservation for this generation request.
         if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
-            console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
+            console.warn("Gemini UGC calculator output failed validation; trying validated Groq fallback:",validationError);
             try{
                 content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback",outputSchemaVersion);
                 contentProvider="groq";
