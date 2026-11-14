@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { onRequestPost } from "../functions/api/ai-chat.js";
 
 const PREVIEW_ORIGIN = "https://pr-preview-123.worth-it-calculator.pages.dev";
@@ -182,4 +183,19 @@ test("AI Chat can stream a successful Gemini response without invoking Groq", as
         assert.equal(geminiCalls, 1);
         assert.equal(groqCalls, 0);
     });
+});
+
+
+test("AI Chat navigation, standalone panel and frontend are restored", () => {
+    const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const ui = readFileSync(new URL("../ai-ui.js", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+    assert.match(html, /id="aiChatNavBtn"/);
+    assert.match(html, /id="aiChatOverlay"/);
+    assert.match(html, /script src="\/ai-ui\.js/);
+    assert.match(ui, /\/api\/ai-chat/);
+    assert.match(ui, /function openAIChat/);
+    assert.match(ui, /function sendAIChatMessage/);
+    assert.match(css, /\.ai-chat-nav-btn/);
+    assert.match(css, /\.ai-chat-overlay/);
 });
