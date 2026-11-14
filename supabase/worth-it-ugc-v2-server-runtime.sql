@@ -81,6 +81,35 @@ begin
 end;
 $$;
 
+
+-- V2 persistence is not advertised as ready until the server calculation path
+-- and public formula redaction are installed as well.
+create or replace function public.get_worth_it_ugc_schema_capabilities()
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = pg_catalog, auth
+as $$
+    select case
+        when auth.uid() is null then
+            jsonb_build_object(
+                'supported_schema_versions', jsonb_build_array(1),
+                'v2_persistence', false,
+                'v2_server_runtime', false
+            )
+        else
+            jsonb_build_object(
+                'supported_schema_versions', jsonb_build_array(1, 2),
+                'v2_persistence', true,
+                'v2_server_runtime', true
+            )
+    end;
+$$;
+
+revoke all on function public.get_worth_it_ugc_schema_capabilities() from public, anon, service_role;
+grant execute on function public.get_worth_it_ugc_schema_capabilities() to authenticated;
+
 -- Only the server runtime endpoint uses this function, with a user ID that it
 -- has independently verified against Supabase Auth. A caller cannot invoke it
 -- with anon/authenticated credentials or retrieve a private calculator by ID.

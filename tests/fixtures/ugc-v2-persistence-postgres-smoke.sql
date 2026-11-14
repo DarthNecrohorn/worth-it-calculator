@@ -49,6 +49,7 @@ declare
 begin
     v_capabilities:=public.get_worth_it_ugc_schema_capabilities();
     if v_capabilities->>'v2_persistence' is distinct from 'true'
+       or v_capabilities->>'v2_server_runtime' is distinct from 'true'
        or not (v_capabilities->'supported_schema_versions' @> '[2]'::jsonb) then
         raise exception 'The database must advertise V2 persistence after its migration: %',v_capabilities;
     end if;

@@ -73,8 +73,8 @@ function updateV2PersistenceControls(){
  if(publish)publish.disabled=!enabled;
  const note=$("ugcMakerV2PersistenceNote");
  if(note)note.textContent=enabled
-  ?"V2 save and publish are enabled in this database. The PostgreSQL validator checks every save and publish operation."
-  :"V2 remains local-only in this database. Save and Publish stay disabled until the V2 persistence migration is installed.";
+  ?"V2 save and publish are enabled in this database. The PostgreSQL validator and server calculation runtime are both available."
+  :"V2 remains local-only in this database. Save and Publish stay disabled until both the V2 persistence and server runtime migrations are installed.";
 }
 async function refreshUGCSchemaCapabilities(){
  const request=++state.v2CapabilitiesRequest;
@@ -91,7 +91,7 @@ async function refreshUGCSchemaCapabilities(){
   if(request!==state.v2CapabilitiesRequest)return state.v2PersistenceAvailable;
   const payload=normalizeObject(response.data);
   const versions=Array.isArray(payload?.supported_schema_versions)?payload.supported_schema_versions:[];
-  state.v2PersistenceAvailable=payload?.v2_persistence===true&&versions.includes(2);
+  state.v2PersistenceAvailable=payload?.v2_persistence===true&&payload?.v2_server_runtime===true&&versions.includes(2);
  }catch(error){
   if(request===state.v2CapabilitiesRequest){
    state.v2PersistenceAvailable=false;

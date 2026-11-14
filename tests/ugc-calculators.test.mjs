@@ -3119,6 +3119,8 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(maker,/rpc\("get_worth_it_ugc_schema_capabilities"\)/);
  assert.match(maker,/function updateV2PersistenceControls\(\)/);
  assert.match(maker,/state\.v2PersistenceAvailable===true/);
+ assert.match(maker,/payload\?\.v2_server_runtime===true/);
+ assert.match(v2RuntimeSql,/v2_server_runtime/);
  assert.match(maker,/function appendV2RuntimeGroupControls\(host,group\)/);
  assert.match(maker,/function collectV2RuntimeValues\(root,spec\)/);
  const runtimeStart=maker.indexOf("async function runCalculation(calculator){");
