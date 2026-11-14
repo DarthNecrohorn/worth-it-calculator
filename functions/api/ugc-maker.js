@@ -977,18 +977,18 @@ function normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,forceCurrency){
         const semantic=normalizeMonetaryPromptText(String(field.label||"")+" "+String(field.key||""));
         const unit=String(field.unit||"").trim();
         const upperUnit=unit.toUpperCase();
-        const currencyPrefix=upperUnit.match(/^([A-Z]{3})(?:\\s*\\/|$)/)?.[1]||"";
+        const currencyPrefix=upperUnit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
         const hasCurrencyUnit=SERVER_SUPPORTED_CURRENCY_CODES.has(upperUnit)
             ||SERVER_SUPPORTED_CURRENCY_CODES.has(currencyPrefix);
         const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
-        const percentageRate=/\\b(?:tax|interest|discount|growth|inflation|commission|margin|processing|marketplace)\\s+(?:fee\\s+)?(?:rates?|percentages?)\\b/.test(semantic);
-        const exchangeRate=/\\b(?:exchange|conversion)\\s+rates?\\b/.test(semantic);
+        const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin|processing|marketplace)\s+(?:fee\s+)?(?:rates?|percentages?)\b/.test(semantic);
+        const exchangeRate=/\b(?:exchange|conversion)\s+rates?\b/.test(semantic);
         const monetary=!percentageUnit&&!exchangeRate&&!(percentageRate&&!hasCurrencyUnit)&&(
             hasCurrencyUnit
-            ||/\\b(?:price|cost|amount|fees?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription|revenue|profit|turnover)\\b/.test(semantic)
+            ||/\b(?:price|cost|amount|fees?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription|revenue|profit|turnover)\b/.test(semantic)
         );
         if(!monetary)return;
-        const basisMatch=semantic.match(/\\bper\\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hours?|days?|units?|items?|packs?|products?)\\b/i);
+        const basisMatch=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hours?|days?|units?|items?|packs?|products?)\b/i);
         const rawBasis=basisMatch?.[1]||"";
         const basis=/^kwh$/i.test(rawBasis)?"kWh":
             /^(?:m3|m³)$/i.test(rawBasis)?"m3":
@@ -1001,7 +1001,7 @@ function normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,forceCurrency){
             /^items?$/i.test(rawBasis)?"item":
             /^packs?$/i.test(rawBasis)?"pack":
             /^(?:units?|products?)$/i.test(rawBasis)?"unit":"";
-        const existingRate=unit.match(/^[A-Z]{3}\\s*\\/\\s*(.+)$/);
+        const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
         let normalizedUnit=unit;
         if(forced){
             normalizedUnit=existingRate?forced+"/"+existingRate[1]:forced;
@@ -1025,7 +1025,7 @@ function normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,forceCurrency){
             delete result.unit;
         }else if(result.format==="unit"){
             const unit=String(result.unit||"").trim();
-            const prefix=unit.match(/^([A-Z]{3})(?:\\s*\\/|$)/)?.[1]||"";
+            const prefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
             if(forced&&SERVER_SUPPORTED_CURRENCY_CODES.has(prefix))result.unit=forced+unit.slice(3);
             delete result.currency;
         }else{
