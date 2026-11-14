@@ -3131,7 +3131,8 @@ function appendV2TestGroup(panel,group){
  const rows=document.createElement("div");rows.className="ugc-dynamic-group-rows";
  const min=Math.max(1,Number(group.minItems)||1),max=Math.max(min,Math.min(20,Number(group.maxItems)||20));
  const notify=()=>updateMakerV2TestResults(panel);
- const refresh=()=>{Array.from(rows.children).forEach(row=>{const remove=row.querySelector("button");if(remove)remove.disabled=rows.children.length<=min;});add.disabled=rows.children.length>=max;};
+ let addButton=null;
+ const refresh=()=>{Array.from(rows.children).forEach(row=>{const remove=row.querySelector("button");if(remove)remove.disabled=rows.children.length<=min;});if(addButton)addButton.disabled=rows.children.length>=max;};
  const addRow=(values={})=>{
   if(rows.children.length>=max)return;
   const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcV2GroupRow="";
@@ -3147,8 +3148,8 @@ function appendV2TestGroup(panel,group){
   row.append(fields,remove);rows.appendChild(row);refresh();
  };
  for(let i=0;i<min;i++)addRow({});
- const add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{if(rows.children.length<max)addRow({});});
- section.append(rows,add);refresh();panel.appendChild(section);return section;
+ addButton=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{if(rows.children.length<max)addRow({});});
+ section.append(rows,addButton);refresh();panel.appendChild(section);return section;
 }
 function renderMakerV2TestPanel(preserveValues){
  const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
