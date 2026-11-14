@@ -400,6 +400,15 @@ function nullableUsageNumber(value){
 export function createAiUsageCollector(){
     return {attempts:[]};
 }
+function providerFailureCode(error,provider){
+    const message=String(error?.message||"");
+    const status=message.match(new RegExp(provider+" calculator generation failed \\((\\d{3})\\)","i"));
+    if(status)return "HTTP_"+status[1];
+    if(/token limit|truncated/i.test(message))return "OUTPUT_TOKEN_LIMIT";
+    if(/empty calculator definition/i.test(message))return "EMPTY_RESPONSE";
+    if(/timeout|aborted|network|fetch failed/i.test(message))return "NETWORK_ERROR";
+    return "PROVIDER_ERROR";
+}
 export function recordAiUsageAttempt(collector,attempt){
     if(!collector||!Array.isArray(collector.attempts))return;
     const inputTokens=nullableUsageNumber(attempt.inputTokens);
@@ -422,7 +431,8 @@ export function recordAiUsageAttempt(collector,attempt){
             ?Number((boundedCachedInputTokens/inputTokens*100).toFixed(2))
             :cacheUsageKnown?0:null,
         finishReason:typeof attempt.finishReason==="string"?attempt.finishReason:null,
-        httpStatus:nullableUsageNumber(attempt.httpStatus)
+        httpStatus:nullableUsageNumber(attempt.httpStatus),
+        failureCode:typeof attempt.failureCode==="string"?attempt.failureCode:null
     });
 }
 export function summarizeAiUsage(collector){
@@ -491,10 +501,10 @@ async function settleAiOperationReservation(env,token,requestId,mode){
         p_request_id:requestId,p_mode:mode
     }));
 }
-async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="initial-generation"){
+async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
-    const record=(success)=>{
+    const record=(success,error=null)=>{
         if(recorded)return;
         const usage=data?.usageMetadata||{};
         recordAiUsageAttempt(usageCollector,{
@@ -509,7 +519,8 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
             totalTokens:usage.totalTokenCount,
             cachedInputTokens:usage.cachedContentTokenCount,
             finishReason:data?.candidates?.[0]?.finishReason||null,
-            httpStatus
+            httpStatus,
+            failureCode:success?null:providerFailureCode(error,"Gemini")
         });
         recorded=true;
     };
@@ -522,7 +533,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
                 body:JSON.stringify({
                     systemInstruction:{parts:[{text:system}]},
                     contents:[{role:"user",parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
+                    generationConfig:{maxOutputTokens:Number(schemaVersion)===2?16384:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
                 })
             }
         );
@@ -539,14 +550,14 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
         record(true);
         return content;
     }catch(error){
-        record(false);
+        record(false,error);
         throw error;
     }
 }
 async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
-    const record=(success)=>{
+    const record=(success,error=null)=>{
         if(recorded)return;
         const usage=data?.usage||{};
         recordAiUsageAttempt(usageCollector,{
@@ -561,7 +572,8 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             totalTokens:usage.total_tokens,
             cachedInputTokens:usage.prompt_tokens_details?.cached_tokens,
             finishReason:data?.choices?.[0]?.finish_reason||null,
-            httpStatus
+            httpStatus,
+            failureCode:success?null:providerFailureCode(error,"Groq")
         });
         recorded=true;
     };
@@ -590,9 +602,9 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             body:JSON.stringify({
                 model:GROQ_MODEL,
                 temperature:0.15,
-                max_tokens:8192,
+                ...(typedV2?{max_completion_tokens:16384}:{max_tokens:8192}),
                 reasoning_effort:"high",
-                response_format:{type:"json_schema",json_schema:typedV2?GROQ_TYPED_V2_BLUEPRINT_SCHEMA:GROQ_CALCULATOR_RESPONSE_SCHEMA},
+                response_format:typedV2?{type:"json_object"}:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
         });
@@ -624,7 +636,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
         record(true);
         return normalized;
     }catch(error){
-        record(false);
+        record(false,error);
         throw error;
     }
 }
@@ -1525,7 +1537,7 @@ export async function onRequestPost(context){
         // of user-specific content so supported providers can reuse cached prefixes.
         if(geminiKey){
             try{
-                content=await generateWithGemini(geminiKey,system,userPrompt,aiUsageCollector,"initial-generation");
+                content=await generateWithGemini(geminiKey,system,userPrompt,aiUsageCollector,"initial-generation",outputSchemaVersion);
                 if(content)contentProvider="gemini";
             }catch(error){console.warn("Gemini UGC calculator request failed:",error);}
         }
