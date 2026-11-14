@@ -334,6 +334,48 @@ function jsonWithAiUsage(data,status,origin,collector){
     const aiUsage=summarizeAiUsage(collector);
     return json(aiUsage.attemptCount?{...data,aiUsage}:data,status,origin);
 }
+export function summarizeAiCandidateForDiagnostics(candidate,schemaVersion=1){
+    if(!candidate||typeof candidate!=="object"||Array.isArray(candidate))return null;
+    const spec=candidate.spec&&typeof candidate.spec==="object"?candidate.spec:candidate;
+    const boundedString=(value,max=500)=>String(value??"").trim().slice(0,max);
+    const inputs=Array.isArray(spec.inputs)?spec.inputs.slice(0,24).map(item=>({
+        key:boundedString(item?.key,32),
+        label:boundedString(item?.label,60),
+        type:boundedString(item?.type||"number",16),
+        control:boundedString(item?.control||"number",16),
+        unit:boundedString(item?.unit,24),
+        min:Number.isFinite(Number(item?.min))?Number(item.min):null,
+        max:Number.isFinite(Number(item?.max))?Number(item.max):null,
+        step:Number.isFinite(Number(item?.step))?Number(item.step):null
+    })):[];
+    const groups=Array.isArray(spec.groups)?spec.groups.slice(0,4).map(group=>({
+        key:boundedString(group?.key,32),
+        label:boundedString(group?.label,60),
+        fields:Array.isArray(group?.fields)?group.fields.slice(0,6).map(field=>({
+            key:boundedString(field?.key,32),
+            label:boundedString(field?.label,60),
+            type:boundedString(field?.type||"number",16),
+            unit:boundedString(field?.unit,24)
+        })):[]
+    })):[];
+    const results=Array.isArray(spec.results)?spec.results.slice(0,20).map(item=>({
+        key:boundedString(item?.key,32),
+        label:boundedString(item?.label,70),
+        expression:boundedString(item?.expression,500),
+        format:boundedString(item?.format,16),
+        currency:boundedString(item?.currency,3),
+        unit:boundedString(item?.unit,24)
+    })):[];
+    return {
+        schemaVersion:Number(schemaVersion)===2?2:1,
+        title:boundedString(candidate.title,70),
+        category:boundedString(candidate.category||candidate.classification?.category,24),
+        inputs,
+        groups,
+        results,
+        scenarioCount:Array.isArray(spec.scenarios)?Math.min(3,spec.scenarios.length):0
+    };
+}
 function allowedOrigin(request){
     const origin=request.headers.get("Origin")||new URL(request.url).origin;
     if(origin===SITE_ORIGIN)return origin;
