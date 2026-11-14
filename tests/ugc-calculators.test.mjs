@@ -3425,3 +3425,26 @@ test("v2 numeric normalization accepts browser numeric strings but rejects coerc
  assert.equal(engine.normalizeTypedValue({...definition,min:"0"},"1").valid,false,
   "the numeric definition itself must not rely on string coercion");
 });
+
+
+test("v2 formula compiler enforces bounded formula length, nesting and AST node counts",()=>{
+ const engine=createCalculatorEngine();
+ const symbols=new Set(["amount"]),groups=new Map();
+ const exactLength=" ".repeat(250)+"1"+" ".repeat(249);
+ assert.equal(exactLength.length,500);
+ assert.equal(engine.compileV2Expression(exactLength,symbols,groups).value,1);
+ assert.throws(()=>engine.compileV2Expression(exactLength+" ",symbols,groups),/1–500 characters/);
+ assert.throws(()=>engine.compileV2Expression(" ".repeat(500),symbols,groups),/1–500 characters/);
+ const nesting32="(".repeat(32)+"amount"+")".repeat(32);
+ assert.equal(engine.compileV2Expression(nesting32,symbols,groups).name,"amount");
+ const nesting33="(".repeat(33)+"amount"+")".repeat(33);
+ assert.throws(()=>engine.compileV2Expression(nesting33,symbols,groups),/32-level nesting limit/);
+ const nodes255=Array(128).fill("1").join("+");
+ assert.equal(engine.compileV2Expression(nodes255,symbols,groups).type,"binary");
+ const nodesOverLimit=Array(129).fill("1").join("+");
+ assert.throws(()=>engine.compileV2Expression(nodesOverLimit,symbols,groups),/256-node limit/);
+ const malformed=["1 +","1.2.3","unknown","amount || 1",'"unterminated','sum()'];
+ for(const formula of malformed){
+  assert.throws(()=>engine.compileV2Expression(formula,symbols,groups),undefined,formula);
+ }
+});
