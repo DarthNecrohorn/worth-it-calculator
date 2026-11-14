@@ -3636,7 +3636,17 @@ async function generateWithAI(){
   const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt,schema_version:targetSchemaVersion};
   const response=await fetch("/api/ugc-maker",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+state.session.access_token,"Accept":"application/json"},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>null);
-  if(!response.ok||!data?.success)throw new Error(data?.error||"The AI calculator maker is unavailable.");
+  if(!response.ok||!data?.success){
+   const providerFailures=Array.isArray(data?.aiUsage?.attempts)
+    ?data.aiUsage.attempts.filter(item=>item?.success!==true).map(item=>{
+     const provider=String(item?.provider||"AI").toUpperCase();
+     const reason=String(item?.failureCode||(Number.isFinite(Number(item?.httpStatus))?"HTTP_"+item.httpStatus:"REQUEST_FAILED"));
+     return provider+" "+reason;
+    })
+    :[];
+   const message=data?.error||"The AI calculator maker is unavailable.";
+   throw new Error(providerFailures.length?message+" (Provider diagnostics: "+providerFailures.join("; ")+").":message);
+  }
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(data.operation_id||""))){
    throw new Error("The AI operation could not be verified. No calculator draft was accepted.");
   }
