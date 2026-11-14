@@ -952,7 +952,7 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
     assert.match(makerApi,/providerRequest\.response_format=\{type:"json_object"\}/);
-    assert.match(makerApi,/include_reasoning:false/);
+    assert.match(makerApi,/providerRequest\.include_reasoning=false/);
     assert.match(makerApi, /const GROQ_REASONING_EFFORT = "low"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
     assert.match(makerApi, /const GEMINI_THINKING_LEVEL = "medium"/);
@@ -3167,7 +3167,7 @@ test("AI Creator API prompts GPT-OSS for JSON and validates through the shared B
  assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
   assert.match(makerApi,/return ONLY one complete JSON object/i);
  assert.match(makerApi,/providerRequest\.response_format=\{type:"json_object"\}/);
-    assert.match(makerApi,/include_reasoning:false/);
+    assert.match(makerApi,/providerRequest\.include_reasoning=false/);
  assert.match(makerApi,/max_completion_tokens:typedV2\?16384:8192/);
  assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
  assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
