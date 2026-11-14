@@ -1685,7 +1685,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </select>
           </label>
           <p class="ugc-maker-status">AI generation and AI improvement use CALC and have separate daily limits. Testing remains free and runs locally in your browser. Typed V2 generation also uses the normal AI charge, but its draft is only editable and locally testable; saving and publishing are disabled.</p>
-          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note">AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed requests are refunded. The experimental typed V2 format has the same AI cost; only local editing and testing are available after generation.</p>
+          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note"><strong>Version 1:</strong> AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. <strong>Version 2 · typed:</strong> AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance. V2 saved-calculator AI improvement is not enabled yet.</p>
+          <p class="ugc-maker-status" role="note"><strong>Limited AI capacity:</strong> Worth It AI depends on external model token, context and request limits. Long or highly detailed prompts and complex calculator definitions can consume substantially more capacity, so generation may be temporarily unavailable or fail. Keep requests focused; failed operations are refunded.</p>
           <div class="ugc-maker-actions">
             <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
           </div>
@@ -1706,7 +1707,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
           <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
         </div>
-        <p class="ugc-maker-status">There is no lifetime limit on saved community calculators. Guest and Guest Lite members cannot create or improve community UGC calculators. Each UTC day, Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3. This allowance applies only to new manual saves; AI-generated calculators do not use it. AI generation and AI improvement each have separate daily limits: Guest 0, Free 1, Premium Lite 2 and Premium 3. Each successful AI operation costs 2 CALC for Free, 4 CALC for Premium Lite or 6 CALC for Premium; failed AI operations refund both the CALC and the daily AI allowance. AI improvements preserve the existing calculator's original subject and purpose. Saved calculators can be published publicly or kept private. Published calculators use restricted formulas; arbitrary JavaScript is never executed.</p>
+        <p class="ugc-maker-status">There is no lifetime limit on saved community calculators. Guest and Guest Lite members cannot create or improve community UGC calculators. Each UTC day, Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3. This allowance applies only to new manual saves; AI-generated calculators do not use it. AI generation and AI improvement each have separate daily limits: Guest 0, Free 1, Premium Lite 2 and Premium 3. Version 1 AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Version 2 typed AI generation costs 4 CALC, 8 CALC and 12 CALC respectively; V2 saved-calculator improvements are not enabled yet. Failed operations refund both the CALC charge and daily AI allowance. AI improvements preserve the existing calculator's original subject and purpose. Saved calculators can be published publicly or kept private. Published calculators use restricted formulas; arbitrary JavaScript is never executed.</p>
         <p class="ugc-maker-status" id="ugcMakerEditQuotaStatus" role="status" aria-live="polite" hidden></p>
       </section>
     </div>
@@ -3500,7 +3501,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <li>1 new AI-generated UGC calculator per UTC day</li>
                         <li>1 AI improvement to an existing UGC calculator per UTC day</li>
                         <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
-                        <li>AI generation costs 2 CALC per successful operation</li>
+                        <li>Version 1 AI generation or improvement costs 2 CALC per successful operation</li>
+                        <li>Version 2 typed AI generation costs 4 CALC per successful operation</li>
                         <li>Create, edit, save and publish calculators publicly or privately</li>
                         <li>Standard profile, chat and media limits</li>
                     </ul>
@@ -3518,7 +3520,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <li>2 new AI-generated UGC calculators per UTC day</li>
                         <li>2 AI improvements to existing UGC calculators per UTC day</li>
                         <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                        <li>AI generation costs 4 CALC per successful operation</li>
+                        <li>Version 1 AI generation or improvement costs 4 CALC per successful operation</li>
+                        <li>Version 2 typed AI generation costs 8 CALC per successful operation</li>
                         <li>Premium Lite profile and chat badge</li>
                         <li>Higher image, GIF and video upload limits</li>
                         <li>Extra profile and chat customisation</li>
@@ -3537,7 +3540,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <li>3 new AI-generated UGC calculators per UTC day</li>
                         <li>3 AI improvements to existing UGC calculators per UTC day</li>
                         <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                        <li>AI generation costs 6 CALC per successful operation</li>
+                        <li>Version 1 AI generation or improvement costs 6 CALC per successful operation</li>
+                        <li>Version 2 typed AI generation costs 12 CALC per successful operation</li>
                         <li>Exclusive Premium profile and chat badge</li>
                         <li>Highest image, GIF and video upload limits</li>
                         <li>More personalisation and future member features</li>
@@ -3545,7 +3549,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">New manual (non-AI) calculator saves are limited to 1 per UTC day for Free, 2 for Premium Lite and 3 for Premium. New AI calculator generations have a separate 1/2/3 daily limit, and AI improvements have a separate 1/2/3 daily limit. Each successful AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed AI operations return the CALC charge and daily AI allowance. There is no lifetime limit on saved calculators. Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+            <p class="web-shop-footnote">New manual (non-AI) calculator saves are limited to 1 per UTC day for Free, 2 for Premium Lite and 3 for Premium. New AI calculator generations have a separate 1/2/3 daily limit, and AI improvements have a separate 1/2/3 daily limit. Version 1 AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Version 2 typed AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium; saved-calculator V2 improvements are not enabled yet. Failed AI operations refund the CALC charge and daily AI allowance. Large prompts and complex outputs are limited by external AI token, context and request capacity. There is no lifetime limit on saved calculators. Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
         </section>
 
         <section class="web-shop-history" id="webShopHistory" hidden aria-labelledby="webShopHistoryTitle">
