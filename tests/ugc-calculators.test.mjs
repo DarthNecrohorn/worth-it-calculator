@@ -3457,3 +3457,54 @@ test("v2 formula compiler enforces bounded formula length, nesting and AST node 
   assert.throws(()=>engine.compileV2Expression(formula,symbols,groups),undefined,formula);
  }
 });
+
+
+test("V2 statistical aggregations and financial formulas evaluate deterministically with typed units",()=>{
+ const engine=createCalculatorEngine();
+ const spec={
+  schemaVersion:2,engineVersion:2,
+  inputs:[
+   {key:"principal",label:"Principal",type:"number",control:"number",min:0,max:100000,default:100,step:1,unit:"EUR"},
+   {key:"rate",label:"Rate",type:"number",control:"number",min:0,max:1,default:0.1,step:0.01,unit:""},
+   {key:"periods",label:"Periods",type:"number",control:"number",min:1,max:100,default:2,step:1,unit:""}
+  ],
+  groups:[{
+   key:"items",label:"Items",itemLabel:"Item",minItems:2,maxItems:10,
+   fields:[
+    {key:"value",label:"Value",type:"number",min:0,max:1000,default:10,step:1,unit:"EUR"},
+    {key:"weight",label:"Weight",type:"number",min:0,max:100,default:1,step:1,unit:""},
+    {key:"score",label:"Score",type:"number",min:0,max:100,default:10,step:1,unit:""}
+   ]
+  }],
+  results:[
+   {key:"median_value",label:"Median value",expression:"median(items.value)",format:"unit",unit:"EUR"},
+   {key:"p50_value",label:"50th percentile",expression:"percentile(items.value, 50)",format:"unit",unit:"EUR"},
+   {key:"weighted_value",label:"Weighted average",expression:"weighted_avg(items.value, items.weight)",format:"unit",unit:"EUR"},
+   {key:"score_variance",label:"Score variance",expression:"variance(items.score)",format:"number"},
+   {key:"score_stddev",label:"Score standard deviation",expression:"stddev(items.score)",format:"number"},
+   {key:"future",label:"Future value",expression:"compound_interest(principal, rate, periods)",format:"unit",unit:"EUR"},
+   {key:"present",label:"Present value",expression:"present_value(principal, rate, periods)",format:"unit",unit:"EUR"},
+   {key:"payment",label:"Periodic loan payment",expression:"loan_payment(principal, rate, periods)",format:"unit",unit:"EUR"}
+  ],
+  scenarios:[]
+ };
+ const validation=engine.validateVersionedSpec(spec);
+ assert.deepEqual(validation.errors,[]);
+ const result=engine.evaluateV2TypedResults(spec,{},{
+  items:[
+   {value:10,weight:1,score:2},
+   {value:20,weight:3,score:4},
+   {value:30,weight:0,score:6}
+  ]
+ });
+ const values=Object.fromEntries(result.results.map(item=>[item.key,item.value]));
+ assert.equal(values.median_value,20);
+ assert.equal(values.p50_value,20);
+ assert.equal(values.weighted_value,17.5);
+ assert.equal(values.score_variance,8/3);
+ assert.ok(Math.abs(values.score_stddev-Math.sqrt(8/3))<1e-12);
+ assert.equal(values.future,121);
+ assert.ok(Math.abs(values.present-100/1.21)<1e-12);
+ assert.ok(Math.abs(values.payment-(100*0.1/(1-Math.pow(1.1,-2))))<1e-12);
+ assert.throws(()=>engine.compileV2Expression("median(items.value, 2)",new Map(["principal","rate","periods"]),new Map([["items",{fields:[{key:"value",type:"number",unit:"EUR"}]}]])),/invalid number of arguments/i);
+});
