@@ -673,7 +673,8 @@ function compileV2Expression(source,symbols,groups){
  const functions=new Set([
   "min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan",
   "if","gt","gte","lt","lte","eq","neq","and","or","not","sum_if","count_if",
-  "date_diff_days","add_days","add_months","days_in_month","calendar_year","calendar_month","weekday"
+  "date_diff_days","add_days","add_months","days_in_month","calendar_year","calendar_month","weekday",
+  "median","variance","stddev","percentile","weighted_avg","compound_interest","present_value","loan_payment"
  ]);
  function primary(){
   ws();
@@ -704,6 +705,8 @@ function compileV2Expression(source,symbols,groups){
     :name==="and"||name==="or"?length>=2&&length<=12
     :name==="hypot"?length>=2&&length<=8
     :name==="round"||name==="log"?length>=1&&length<=2
+    :name==="percentile"||name==="weighted_avg"||name==="compound_interest"||name==="present_value"||name==="loan_payment"?length===3&&name!=="percentile"&&name!=="weighted_avg"||length===2
+    :name==="median"||name==="variance"||name==="stddev"?length===1
     :false;
    if(!valid)throw new Error(name+"() has an invalid number of arguments.");
    return node({type:"call",name,args});
@@ -864,6 +867,24 @@ function inferV2Expression(ast,symbols,groups){
    if(args[0].type!=="date")throw new Error(name+"() requires a calendar date.");
    return numberResult(unitDescriptor(""));
   }
+  if(["median","variance","stddev","percentile","weighted_avg"].includes(name)){
+   const valueIndex=0,refs=typedFormulaGroupReferences(expression.args[valueIndex]),groupNames=[...new Set(refs.map(item=>item.group))];
+   if(args[0].type!=="number"||!refs.length||groupNames.length!==1)throw new Error(name+"() requires a numeric expression from exactly one dynamic group.");
+   if(name==="percentile"&&(args[1].type!=="number"||constantFormulaValue(expression.args[1])===null||constantFormulaValue(expression.args[1])<0||constantFormulaValue(expression.args[1])>100))throw new Error("percentile() requires a constant percentile from 0 to 100.");
+   if(name==="weighted_avg"){
+    const weightRefs=typedFormulaGroupReferences(expression.args[1]),weightGroups=[...new Set(weightRefs.map(item=>item.group))];
+    if(args[1].type!=="number"||weightGroups.length!==1||weightGroups[0]!==groupNames[0]||Object.keys(args[1].unit.vector).length)throw new Error("weighted_avg() requires a dimensionless weight from the same dynamic group.");
+    return numberResult(args[0].unit);
+   }
+   if(name==="variance")return numberResult(combineUnitDescriptors(args[0].unit,args[0].unit,1));
+   return numberResult(args[0].unit);
+  }
+  if(["compound_interest","present_value","loan_payment"].includes(name)){
+   if(args.some(item=>item.type!=="number"))throw new Error(name+"() accepts numeric arguments only.");
+   if(Object.keys(args[1].unit.vector).length||Object.keys(args[2].unit.vector).length)throw new Error(name+"() rate and period arguments must be dimensionless.");
+   if(name==="loan_payment"&&args[2].type!=="number")throw new Error("loan_payment() requires a numeric period count.");
+   return numberResult(args[0].unit);
+  }
   if(name==="count"){
    if(args[0].type!=="group")throw new Error("count() requires a dynamic group name.");
    return numberResult(unitDescriptor(""));
@@ -987,6 +1008,33 @@ function evaluateV2Expression(ast,values,groupValues,rowContext=null){
   const date=evaluateV2Expression(ast.args[0],values,groups,rowContext),dayNumber=calendarDayNumber(date);
   const jsDay=((dayNumber+4)%7+7)%7;
   return jsDay===0?7:jsDay;
+ }
+ if(["median","variance","stddev","percentile","weighted_avg"].includes(name)){
+  const refs=typedFormulaGroupReferences(ast.args[0]),groupName=[...new Set(refs.map(item=>item.group))][0],rows=Array.isArray(groups[groupName])?groups[groupName]:[];
+  const valuesForRows=rows.map(row=>evaluateV2Expression(ast.args[0],values,groups,{group:groupName,row}));
+  if(!valuesForRows.length)return 0;
+  if(name==="weighted_avg"){
+   let weighted=0,totalWeight=0;
+   rows.forEach(row=>{const value=evaluateV2Expression(ast.args[0],values,groups,{group:groupName,row});const weight=evaluateV2Expression(ast.args[1],values,groups,{group:groupName,row});if(weight<0)throw new Error("weighted_avg() weights cannot be negative.");weighted+=value*weight;totalWeight+=weight;});
+   if(totalWeight===0)throw new Error("weighted_avg() requires a positive total weight.");
+   return weighted/totalWeight;
+  }
+  const sorted=[...valuesForRows].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);
+  if(name==="median")return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
+  if(name==="percentile"){
+   const percentile=evaluateV2Expression(ast.args[1],values,groups,rowContext),position=(sorted.length-1)*percentile/100,lower=Math.floor(position),upper=Math.ceil(position);
+   return sorted[lower]+(sorted[upper]-sorted[lower])*(position-lower);
+  }
+  const mean=valuesForRows.reduce((sum,value)=>sum+value,0)/valuesForRows.length;
+  const variance=valuesForRows.reduce((sum,value)=>sum+(value-mean)**2,0)/valuesForRows.length;
+  return name==="variance"?variance:Math.sqrt(variance);
+ }
+ if(["compound_interest","present_value","loan_payment"].includes(name)){
+  const amount=evaluateV2Expression(ast.args[0],values,groups,rowContext),rate=evaluateV2Expression(ast.args[1],values,groups,rowContext),periods=evaluateV2Expression(ast.args[2],values,groups,rowContext);
+  if(rate<=-1||periods<=0)throw new Error(name+"() requires a rate greater than -100% and a positive period count.");
+  if(name==="compound_interest")return amount*Math.pow(1+rate,periods);
+  if(name==="present_value")return amount/Math.pow(1+rate,periods);
+  return rate===0?amount/periods:amount*rate/(1-Math.pow(1+rate,-periods));
  }
  if(name==="count"){
   const group=evaluateV2Expression(ast.args[0],values,groups,rowContext);
