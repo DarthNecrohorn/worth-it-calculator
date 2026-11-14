@@ -440,7 +440,9 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
     };
     try{
         const typedV2=Number(schemaVersion)===2;
+        const jsonOutputRule="Output contract: return ONLY one complete JSON object. Do not return Markdown fences, prose, explanations, comments or any text before or after the JSON object. Use valid JSON strings and escape all quotation marks and newlines correctly.";
         const groqSystem=typedV2?[
+            jsonOutputRule,
             system,
             "For this provider use the canonical Blueprint V2 root: blueprintVersion, title, description, category, subcategories, assumptions, spec. Never use classification or the V1 numeric schema.",
             "spec must contain schemaVersion 2, engineVersion 2, inputs, groups, results and scenarios.",
@@ -465,9 +467,10 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 temperature:0.15,
                 max_completion_tokens:typedV2?16384:8192,
                 reasoning_effort:"high",
-                reasoning_format:"hidden",
-                response_format:{type:"json_object"},
-                // Groq recommends a single user message for GPT-OSS; keep instructions and request together.
+                // GPT-OSS uses include_reasoning; reasoning_format is not supported by this model.
+                include_reasoning:false,
+                // Keep JSON parsing and strict V1/V2 validation on our server. Provider JSON mode
+                // can reject generation with json_validate_failed before our validator can inspect it.
                 messages:[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
             })
         });
