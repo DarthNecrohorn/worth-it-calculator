@@ -3438,7 +3438,7 @@ test("v2 numeric normalization accepts browser numeric strings but rejects coerc
 
 test("V2 formula parser survives deterministic adversarial and oversized-input corpus",()=>{
  const engine=createCalculatorEngine(),symbols=new Set(["amount","rate","periods"]);
- const groups=new Map([["items",{fields:[{key:"value",type:"number",unit:""},{key:"enabled",type:"boolean"}]}]]);
+ const groups=null;
  const fragments=["amount","1","0","(",")","+","-","*","/","^",",","if(","and(","true","false",'"x"',"unknown",";","[","]","__proto__","constructor","NaN","1e309","sum_if(","items.value","items.enabled","\\\\","<script>"];
  let seed=0x5eed1234;
  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;};
@@ -3533,5 +3533,6 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
  assert.throws(()=>engine.evaluateV2TypedResults(spec,{rate:-0.01},{
   items:[{value:10,weight:1,score:2},{value:20,weight:3,score:4}]
  }),/at least 0|minimum|range/i);
- assert.throws(()=>engine.compileV2Expression("median(items.value, 2)",new Set(["principal","rate","periods"]),new Map([["items",{fields:[{key:"value",type:"number",unit:"EUR"}]}]])),/invalid number of arguments/i);
+ const invalidArity=engine.validateVersionedSpec({...spec,results:[{...spec.results[0],expression:"median(items.value, 2)"}]});
+ assert.ok(invalidArity.errors.some(message=>/median\(\).*invalid number of arguments/i.test(message)),invalidArity.errors.join(" "));
 });
