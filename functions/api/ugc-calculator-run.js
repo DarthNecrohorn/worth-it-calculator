@@ -105,16 +105,16 @@ function normalizeRpcObject(value) {
 async function rpc(config, functionName, payload, options = {}) {
     const admin = options.admin === true;
     const key = admin ? config.serviceKey : config.publishableKey;
-    const headers = {
+    const headers = new Headers({
         apikey: key,
         "Content-Type": "application/json",
         Accept: "application/json"
-    };
+    });
     if (admin) {
         // New Supabase secret keys are opaque API keys, not JWTs.
-        if (!key.startsWith("sb_secret_")) headers.Authorization = "Bearer " + key;
+        if (!key.startsWith("sb_secret_")) headers.set("Authorization", "Bearer " + key);
     } else {
-        headers.Authorization = "Bearer " + options.token;
+        headers.set("Authorization", "Bearer " + options.token);
     }
     const response = await fetch(config.base + "/rest/v1/rpc/" + encodeURIComponent(functionName), {
         method: "POST",

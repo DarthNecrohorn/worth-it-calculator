@@ -24,6 +24,7 @@ const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql
 const composableBuilderSql = read("supabase/worth-it-ugc-composable-builder.sql");
 const v2DatabaseValidatorSql = read("supabase/worth-it-ugc-v2-database-validator.sql");
 const v2PersistenceSql = read("supabase/worth-it-ugc-v2-persistence.sql");
+const v2RuntimeSql = read("supabase/worth-it-ugc-v2-server-runtime.sql");
 const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
@@ -3120,10 +3121,15 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(maker,/state\.v2PersistenceAvailable===true/);
  assert.match(maker,/function appendV2RuntimeGroupControls\(host,group\)/);
  assert.match(maker,/function collectV2RuntimeValues\(root,spec\)/);
- assert.match(maker,/function executableV2Spec\(spec\)/);
- assert.match(maker,/delete executable\.assumptions;delete executable\.subcategories/);
- assert.match(maker,/evaluateV2TypedResults\(evaluationSpec,scenarioValues,groupValues\)/);
- assert.match(maker,/evaluateFormulaResults\(evaluationSpec,scenarioValues,groupValues\)/);
+ const runtimeStart=maker.indexOf("async function runCalculation(calculator){");
+ const runtimeEnd=maker.indexOf("\nfunction renderCalculationResults",runtimeStart);
+ const memberRuntime=maker.slice(runtimeStart,runtimeEnd);
+ assert.match(memberRuntime,/api\/ugc-calculator-run/);
+ assert.doesNotMatch(memberRuntime,/evaluateV2TypedResults/);
+ assert.match(memberRuntime,/evaluateFormulaResults\(spec,values,groupValues\)/);
+ assert.match(v2RuntimeSql,/public\.get_worth_it_ugc_runtime_spec/);
+ assert.match(v2RuntimeSql,/grant execute on function public\.get_worth_it_ugc_runtime_spec\(uuid, uuid\)\s+to service_role/);
+ assert.match(v2RuntimeSql,/result_item - 'expression'/);
  assert.match(maker,/if\(typedV2&&state\.v2PersistenceAvailable!==true\)/);
  assert.match(maker,/typedV2\?validateManualDraftSpec\(specToSave\):validateMakerSpec\(specToSave\)/);
  assert.match(maker,/if\(Number\(calculator\.spec\?\.schemaVersion\)===2\)\{await editCalculatorManually\(id\);return;\}/);
