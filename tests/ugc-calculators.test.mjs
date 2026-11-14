@@ -3477,6 +3477,36 @@ test("v2 formula compiler enforces bounded formula length, nesting and AST node 
 });
 
 
+test("V2 maximum supported schema shape evaluates 24 inputs, 4 groups, 480 fields, 20 results and 3 scenarios",()=>{
+ const engine=createCalculatorEngine();
+ const inputs=Array.from({length:24},(_,index)=>({
+  key:"input_"+index,label:"Input "+index,type:"number",control:"number",min:0,max:100,default:1,step:1,unit:""
+ }));
+ const groups=Array.from({length:4},(_,groupIndex)=>({
+  key:"group_"+groupIndex,label:"Group "+groupIndex,itemLabel:"Row",minItems:20,maxItems:20,
+  fields:Array.from({length:6},(_,fieldIndex)=>({
+   key:"g"+groupIndex+"_f"+fieldIndex,label:"Field "+fieldIndex,type:"number",min:0,max:100,default:1,step:1,unit:""
+  }))
+ }));
+ const results=Array.from({length:20},(_,index)=>{
+  const groupIndex=index%4,fieldIndex=Math.floor(index/4);
+  return {key:"result_"+index,label:"Result "+index,expression:"sum(group_"+groupIndex+".g"+groupIndex+"_f"+fieldIndex+")",format:"number"};
+ });
+ const scenarios=Array.from({length:3},(_,index)=>({label:"Scenario "+(index+1),values:{["input_"+index]:index+2}}));
+ const spec={schemaVersion:2,engineVersion:2,inputs,groups,results,scenarios};
+ const validation=engine.validateVersionedSpec(spec);
+ assert.equal(validation.errors.length,0,validation.errors.join(" "));
+ const rawGroups=Object.fromEntries(groups.map(group=>[group.key,
+  Array.from({length:20},()=>Object.fromEntries(group.fields.map(field=>[field.key,1])))
+ ]));
+ const evaluated=engine.evaluateV2TypedResults(spec,{},rawGroups);
+ assert.equal(evaluated.results.length,20);
+ assert.equal(evaluated.groups.group_0.length,20);
+ assert.equal(evaluated.groups.group_3.length,20);
+ assert.ok(evaluated.results.every(item=>item.value===20));
+ assert.equal(Object.keys(evaluated.values).length,24);
+});
+
 test("V2 statistical aggregations and financial formulas evaluate deterministically with typed units",()=>{
  const engine=createCalculatorEngine();
  const spec={
