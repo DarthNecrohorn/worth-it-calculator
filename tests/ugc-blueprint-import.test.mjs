@@ -1005,6 +1005,53 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(builderSource,/maxLength=5000/);
 });
 
+test("Blueprint import keeps V1 and V2 schema detection in scope through completion",async()=>{
+ const start=builderSource.indexOf("async function importManualBlueprint(){");
+ const end=builderSource.indexOf("\nfunction renderManualGroupEditor(host,definition){",start);
+ assert.ok(start>=0&&end>start,"the complete import handler must exist");
+ const importSource=builderSource.slice(start,end)+"\nthis.runImport=importManualBlueprint;";
+ async function run(version){
+  const nodes={
+   ugcBlueprintImportStatus:{textContent:""},
+   ugcBlueprintImportJson:{value:"{}"},
+   ugcBlueprintImportButton:{textContent:"Import",disabled:false},
+   ugcBlueprintOriginalRequest:{value:""},
+   ugcManualMode:{value:"quick"},
+   ugcManualTemplateWrap:{hidden:false}
+  };
+  const messages=[];
+  const definition={
+   title:"Subscription Cost Planner",
+   description:"Calculate subscription costs over a selected period and compare durations.",
+   category:"money",
+   spec:{schemaVersion:version,engineVersion:version,inputs:[],groups:[],results:[],scenarios:[]}
+  };
+  const sandbox={
+   state:{editingId:null,aiDraft:null,creationSource:"manual",aiOperationId:"",manualMode:"quick",manualTemplateKey:"",blueprintImportActive:false,regionalDefaults:null,makerLocale:""},
+   window:{WorthItBlueprintImport:{parseBlueprint:()=>definition},confirm:()=>true},
+   $:id=>nodes[id]||null,
+   setTimeout:callback=>{callback();return 1;},
+   validateManualDraftSpec:()=>({errors:[]}),
+   makerStatus:message=>messages.push(String(message)),
+   setMakerModeUI:()=>{},
+   renderMakerPreview:()=>{}
+  };
+  runInNewContext(importSource,sandbox);
+  await sandbox.runImport();
+  return {definition,state:sandbox.state,nodes,messages};
+ }
+ const v1=await run(1);
+ assert.equal(v1.state.aiDraft,v1.definition);
+ assert.equal(v1.state.blueprintImportActive,true);
+ assert.ok(v1.messages.some(message=>message.includes("Quick Fix complete")),v1.messages.join("\n"));
+ assert.doesNotMatch(v1.nodes.ugcBlueprintImportStatus.textContent,/typedV2 is not defined|Creator could not complete/i);
+ const v2=await run(2);
+ assert.equal(v2.state.aiDraft,v2.definition);
+ assert.equal(v2.state.blueprintImportActive,true);
+ assert.ok(v2.messages.some(message=>message.includes("Typed V2 blueprint passed")),v2.messages.join("\n"));
+ assert.doesNotMatch(v2.nodes.ugcBlueprintImportStatus.textContent,/typedV2 is not defined|Creator could not complete/i);
+});
+
 test("if() evaluates only the selected branch so guarded division is safe at zero",()=>{
   const evaluate=getManualEngine().evaluate;
  const guarded={
