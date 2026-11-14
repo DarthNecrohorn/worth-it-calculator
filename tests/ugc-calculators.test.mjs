@@ -3439,7 +3439,7 @@ test("v2 numeric normalization accepts browser numeric strings but rejects coerc
 test("V2 formula parser survives deterministic adversarial and oversized-input corpus",()=>{
  const engine=createCalculatorEngine(),symbols=new Set(["amount","rate","periods"]);
  const groups=null;
- const fragments=["amount","1","0","(",")","+","-","*","/","^",",","if(","and(","true","false",'"x"',"unknown",";","[","]","__proto__","constructor","NaN","1e309","sum_if(","items.value","items.enabled","\\\\","<script>"];
+ const fragments=["amount","1","0","(",")","+","-","*","/","^",",","if(","and(","true","false",'"x"',"unknown",";","[","]","__proto__","constructor","prototype","NaN","1e309","1e999","9".repeat(480),"sum_if(","items.value","items.enabled","\\\\","<script>","\uD800","\u202E","\u0000","\uFEFF","\u200B","😀"];
  let seed=0x5eed1234;
  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;};
  for(let index=0;index<600;index++){
@@ -3452,6 +3452,7 @@ test("V2 formula parser survives deterministic adversarial and oversized-input c
   }
  }
  assert.throws(()=>engine.compileV2Expression("1".repeat(501),symbols,groups),/1–500 characters/);
+ assert.throws(()=>engine.compileV2Expression("9".repeat(480),symbols,groups),/invalid syntax|numeric|characters/i,"oversized numeric literals must fail safely");
 });
 
 test("v2 formula compiler enforces bounded formula length, nesting and AST node counts",()=>{
