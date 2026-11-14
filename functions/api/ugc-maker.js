@@ -471,7 +471,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 include_reasoning:false,
                 // Keep JSON parsing and strict V1/V2 validation on our server. Provider JSON mode
                 // can reject generation with json_validate_failed before our validator can inspect it.
-                messages:[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
+                messages:[{role:"user",content:[jsonOutputRule,groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
             })
         });
         httpStatus=response.status;
