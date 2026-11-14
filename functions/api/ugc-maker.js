@@ -6,7 +6,7 @@ import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.8-flash";
-const MAX_PROMPT_CHARS = 1000;
+const MAX_PROMPT_CHARS = 5000;
 const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v3";
 const serverCurrencyData=globalThis.WorthItCalculatorCurrencyData;
 const serverEngineApi=globalThis.WorthItCalculatorEngine;
@@ -713,7 +713,7 @@ export async function onRequestGet(context){
  const url=new URL(request.url);
  if(url.searchParams.get("diagnostic")!=="coverage")return json({success:false,error:"Use diagnostic=coverage."},405,origin);
  const prompt=url.searchParams.get("prompt")||"";
- if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Provide the calculator prompt (up to 1000 characters)."},400,origin);
+ if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Provide the calculator prompt (up to 5000 characters)."},400,origin);
  const requestedResultItems=extractRequestedResultItems(prompt);
  let suppliedLabels=[];
  const rawLabels=url.searchParams.get("labels");
@@ -1307,7 +1307,7 @@ export async function onRequestPost(context){
         const outputSchemaVersion=mode==="create"?requestedSchemaVersion:1;
         const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
         const regionalDefaults=resolveRegionalDefaults(request,prompt);
-        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 1000 characters."},400,origin);
+        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 5000 characters."},400,origin);
         const requestedCurrencies=resolveExplicitCurrencies(prompt);
         const requestedCurrency=requestedCurrencies.length===1?requestedCurrencies[0]:null;
         const defaultCurrency=requestedCurrency||regionalDefaults.currency;
