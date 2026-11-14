@@ -3393,7 +3393,8 @@ test("V2 recovers from Gemini 503 and normalizes per-unit prices and result curr
    groqCalls++;
    const body=JSON.parse(options.body);
    assert.equal(body.response_format.type,"json_object");
-   assert.equal(body.include_reasoning,false);
+   assert.equal(body.reasoning_format,"hidden");
+   assert.equal(Object.hasOwn(body,"include_reasoning"),false);
    assert.equal(body.messages[0].role,"user");
    assert.match(body.messages[0].content,/RSD\/unit/);
    return new Response(JSON.stringify({choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}]}),{status:200});
