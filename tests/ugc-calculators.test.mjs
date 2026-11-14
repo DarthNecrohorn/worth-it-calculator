@@ -367,7 +367,7 @@ test("short topic prompts are treated as requests for autonomous calculator desi
         assert.match(generationSystem, /do not claim that tiered or seasonal tariffs are calculated/i);
         assert.match(generationSystem, /silently audit it as a calculator designer/i);
         assert.equal(providerConfig.model, "openai/gpt-oss-120b");
-        assert.equal(providerConfig.reasoning_effort, "high");
+        assert.equal(providerConfig.reasoning_effort, "low");
         assert.equal(providerConfig.max_completion_tokens, 8192);
     });
 });
@@ -876,7 +876,7 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         assert.equal(body.include_reasoning,false);
         assert.equal(Object.hasOwn(body,"reasoning_format"),false);
         assert.equal(body.max_completion_tokens,8192);
-        assert.equal(body.reasoning_effort, "high");
+        assert.equal(body.reasoning_effort, "low");
         assert.equal(body.include_reasoning,false,"GPT-OSS reasoning is excluded using its supported parameter");
         assert.equal(Object.hasOwn(body,"reasoning_format"),false);
         assert.doesNotMatch(body.messages[0].content,/regional currency suggestion [A-Z]{3}/);
@@ -953,9 +953,9 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.match(makerApi, /email_confirmed_at/);
     assert.doesNotMatch(makerApi,/response_format:\{type:"json_object"\}/);
     assert.match(makerApi,/include_reasoning:false/);
-    assert.match(makerApi, /reasoning_effort:\s*"high"/);
+    assert.match(makerApi, /const GROQ_REASONING_EFFORT = "low"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
-    assert.match(makerApi, /thinkingConfig:\s*\{thinkingLevel:\s*"high"\}/);
+    assert.match(makerApi, /const GEMINI_THINKING_LEVEL = "medium"/);
     assert.match(makerApi, /requireAllInputsUsed:mode==="create"/);
     assert.match(makerApi, /classification object must contain exactly category and subcategories/);
     assert.match(makerApi, /subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only/);
@@ -1017,7 +1017,7 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         if (String(url).includes("generativelanguage.googleapis.com")) {
             const body = JSON.parse(options.body);
             assert.equal(body.generationConfig.responseMimeType, "application/json");
-            assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "high");
+            assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "medium");
             assert.equal(body.generationConfig.maxOutputTokens, 8192);
             assert.equal(String(url).includes("/models/gemini-3.8-flash:generateContent"), true);
             assert.equal(Object.hasOwn(body.generationConfig, "temperature"), false, "Gemini 3 should use its recommended default temperature");
