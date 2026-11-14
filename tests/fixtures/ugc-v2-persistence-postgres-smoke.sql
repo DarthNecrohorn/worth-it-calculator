@@ -6,6 +6,10 @@ insert into auth.users(id,email,email_confirmed_at)
 values ('77777777-7777-4777-8777-777777777777','v2-owner@example.test',now())
 on conflict(id) do update set email='v2-owner@example.test',email_confirmed_at=now();
 
+insert into auth.users(id,email,email_confirmed_at)
+values ('22222222-2222-4222-8222-222222222222','v2-member@example.test',now())
+on conflict(id) do update set email='v2-member@example.test',email_confirmed_at=now();
+
 insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name)
 values ('77777777-7777-4777-8777-777777777777',777777,'v2_owner','Typed V2 Owner')
 on conflict(user_id) do update set username=excluded.username,display_name=excluded.display_name;
@@ -40,6 +44,8 @@ declare
     v_detail jsonb;
     v_updated jsonb;
     v_blocked boolean := false;
+    v_member_detail jsonb;
+    v_runtime jsonb;
 begin
     v_capabilities:=public.get_worth_it_ugc_schema_capabilities();
     if v_capabilities->>'v2_persistence' is distinct from 'true'
@@ -90,6 +96,27 @@ begin
        or jsonb_array_length(v_detail->'spec'->'assumptions')<>2 then
         raise exception 'The persisted V2 calculator could not be read back with its typed schema and assumptions: %',v_detail;
     end if;
+
+    if not ((v_detail->'spec'->'results'->0) ? 'expression') then
+        raise exception 'The calculator owner must retain access to the original V2 formulas.';
+    end if;
+
+    -- Public non-owners keep typed inputs and output metadata but do not receive V2 formulas.
+    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
+    v_member_detail:=public.get_worth_it_ugc_calculator(v_id);
+    if v_member_detail->>'is_owner'<>'false'
+       or v_member_detail->'spec'->>'schemaVersion'<>'2'
+       or ((v_member_detail->'spec'->'results'->0) ? 'expression') then
+        raise exception 'The public V2 detail RPC must redact formulas from non-owners: %',v_member_detail;
+    end if;
+
+    -- The private runtime lookup retains the real formula only for the verified public member.
+    v_runtime:=public.get_worth_it_ugc_runtime_spec(v_id,'22222222-2222-4222-8222-222222222222');
+    if v_runtime->'spec'->>'schemaVersion'<>'2'
+       or v_runtime->'spec'->'results'->0->>'expression'<>'if(and(enabled,eq(plan,"pro")),amount,0)' then
+        raise exception 'The server-only V2 runtime lookup did not return the stored formula.';
+    end if;
+    perform set_config('request.jwt.claim.sub','77777777-7777-4777-8777-777777777777',true);
 
     -- Owner edits remain possible and still pass through the independent V2 validator.
     v_updated:=jsonb_set(v_spec,'{inputs,0,default}','15'::jsonb);
@@ -168,7 +195,10 @@ begin
        or has_function_privilege('service_role','private.worth_it_validate_ugc_v2_spec(jsonb)','EXECUTE')
        or has_function_privilege('anon','private.worth_it_validate_ugc_spec(jsonb)','EXECUTE')
        or has_function_privilege('authenticated','private.worth_it_validate_ugc_spec(jsonb)','EXECUTE')
-       or has_function_privilege('service_role','private.worth_it_validate_ugc_spec(jsonb)','EXECUTE') then
+       or has_function_privilege('service_role','private.worth_it_validate_ugc_spec(jsonb)','EXECUTE')
+       or has_function_privilege('anon','public.get_worth_it_ugc_runtime_spec(uuid,uuid)','EXECUTE')
+       or has_function_privilege('authenticated','public.get_worth_it_ugc_runtime_spec(uuid,uuid)','EXECUTE')
+       or not has_function_privilege('service_role','public.get_worth_it_ugc_runtime_spec(uuid,uuid)','EXECUTE') then
         raise exception 'V2 persistence capability or private validator privileges are not correctly restricted.';
     end if;
 end

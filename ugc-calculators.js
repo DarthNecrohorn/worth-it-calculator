@@ -1486,6 +1486,48 @@ async function runCalculation(calculator){
  }catch(error){detailStatus(error?.message||"Check the calculator inputs and repeated rows.",true);return;}
  const button=form.querySelector(".ugc-calculate-button");if(button)button.disabled=true;
  detailStatus("Calculating…");
+
+ if(typedV2){
+  try{
+   let session=state.session;
+   if(!session?.access_token)session=await getSession();
+   if(!session?.access_token)throw new Error("Sign in to calculate.");
+   const response=await fetch("/api/ugc-calculator-run",{
+    method:"POST",
+    headers:{
+     "Content-Type":"application/json",
+     "Authorization":"Bearer "+session.access_token,
+     "Accept":"application/json"
+    },
+    body:JSON.stringify({calculator_id:calculator.id,values,groups:groupValues}),
+    cache:"no-store"
+   });
+   const payload=await response.json().catch(()=>null);
+   if(!response.ok||payload?.success!==true)throw new Error(String(payload?.error||"The server could not complete this calculation."));
+   const displayRows=items=>(Array.isArray(items)?items:[]).map(result=>{
+    const definition=(spec.results||[]).find(item=>String(item.key||"")===String(result.key||""))||{};
+    return{
+     label:String(result.label||definition.label||"Result"),
+     value:formatResult(definition,result.value),
+     explanation:String(result.explanation||definition.explanation||"")
+    };
+   });
+   const results=displayRows(payload.results);
+   const scenarioComparisons=(Array.isArray(payload.scenario_comparisons)?payload.scenario_comparisons:[]).map(scenario=>({
+    label:String(scenario.label||"Alternative"),
+    results:displayRows(scenario.results)
+   }));
+   clearReactionNote();
+   renderCalculationResults(results,scenarioComparisons);
+   const chargedMilli=Math.min(500,Math.max(100,Number(payload.usage_price_milli)||Number(calculator.usage_price_milli)||100));
+   detailStatus("Calculation complete. "+formatCalcPrice(chargedMilli)+" CALC was charged.",false);
+   await refreshCalcWallet();
+  }catch(error){
+   detailStatus(error?.message||"Could not calculate. Please try again.",true);
+  }finally{if(button)button.disabled=false;}
+  return;
+ }
+
  const requestId=crypto.randomUUID();
  let reserved=false;
  try{
@@ -1501,24 +1543,16 @@ async function runCalculation(calculator){
   }
   priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
-  const evaluationSpec=typedV2?executableV2Spec(spec):spec;
-  const evaluateResults=(scenarioValues)=>typedV2
-   ?evaluateV2TypedResults(evaluationSpec,scenarioValues,groupValues).results
-   :evaluateFormulaResults(evaluationSpec,scenarioValues,groupValues);
-  const results=evaluateResults(values).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+  const results=evaluateFormulaResults(spec,values,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
   const scenarioComparisons=(Array.isArray(spec.scenarios)?spec.scenarios:[]).map(scenario=>{
    const scenarioValues={...values,...(scenario.values||{})};
-   const scenarioResults=evaluateResults(scenarioValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+   const scenarioResults=evaluateFormulaResults(spec,scenarioValues,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
    return{label:String(scenario.label||"Alternative"),results:scenarioResults};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
   reserved=false;
-  // calc_wallet_settle records successful public UGC use atomically with the
-  // completed CALC transaction. Clear any previous rating gate message.
-  if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id)){
-   clearReactionNote();
-  }
+  if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id))clearReactionNote();
   renderCalculationResults(results,scenarioComparisons);
   detailStatus("Calculation complete. "+priceLabel+" CALC was charged.",false);
   await refreshCalcWallet();
