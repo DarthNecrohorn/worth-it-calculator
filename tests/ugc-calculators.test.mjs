@@ -3188,7 +3188,7 @@ test("AI Creator API uses JSON-only V2 provider fallback and validates through t
  assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
  assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
  assert.ok(makerApi.includes("normalizeTypedV2Definition"));
- assert.ok(makerApi.includes("importer.parseBlueprint(JSON.stringify(raw)"));
+ assert.ok(makerApi.includes("importer.parseBlueprint(JSON.stringify(candidate)"));
  assert.ok(makerApi.includes("validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec)"));
  assert.ok(makerApi.includes('body?.schema_version===undefined?1:body.schema_version'));
  assert.ok(makerApi.includes("V2_REFINEMENT_UNAVAILABLE"));
@@ -3311,7 +3311,7 @@ test("V1 keeps product price-per-unit formulas dimensionally valid after regiona
    {key:"packaging_cost_per_unit",label:"Packaging cost per unit",min:0,max:1000,default:0,step:1,unit:"EUR"},
    {key:"shipping_cost_per_unit",label:"Shipping cost per unit",min:0,max:1000,default:0,step:1,unit:"EUR"},
    {key:"selling_price_per_unit",label:"Selling price per unit",min:0,max:100000,default:0,step:1,unit:"EUR"},
-   {key:"payment_processing_fee_percentage",label:"Payment processing fee percentage",min:0,max:100,default:0,step:0.1,unit:"%"},
+   {key:"processing_fee_percent",label:"Payment processing fee percentage",min:0,max:100,default:0,step:0.1,unit:"%"},
    {key:"marketplace_fee_percentage",label:"Marketplace fee percentage",min:0,max:100,default:0,step:0.1,unit:"%"},
    {key:"monthly_fixed_expenses",label:"Monthly fixed business expenses",min:0,max:1000000,default:0,step:1,unit:"EUR"},
    {key:"expected_monthly_sales_volume",label:"Expected monthly sales volume",min:0,max:1000000,default:100,step:1,unit:"units"}
@@ -3320,7 +3320,7 @@ test("V1 keeps product price-per-unit formulas dimensionally valid after regiona
   results:[
    {label:"Monthly Revenue",expression:"selling_price_per_unit*expected_monthly_sales_volume",format:"currency",currency:"EUR"},
    {label:"Monthly Total Variable Costs",expression:"(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume",format:"currency",currency:"EUR"},
-   {label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(payment_processing_fee_percentage+marketplace_fee_percentage)/100",format:"currency",currency:"EUR"}
+   {label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(processing_fee_percent+marketplace_fee_percentage)/100",format:"currency",currency:"EUR"}
   ],
   scenarios:[]
  };
@@ -3354,7 +3354,7 @@ test("V2 recovers from Gemini 503 and normalizes per-unit prices and result curr
     numberInput("packaging_cost_per_unit","Packaging cost per unit","EUR"),
     numberInput("shipping_cost_per_unit","Shipping cost per unit","EUR"),
     numberInput("selling_price_per_unit","Selling price per unit","EUR"),
-    numberInput("payment_processing_fee_percentage","Payment processing fee percentage","%",0,100),
+    numberInput("processing_fee_percent","Payment processing fee percentage","%",0,100),
     numberInput("marketplace_fee_percentage","Marketplace fee percentage","%",0,100),
     numberInput("monthly_fixed_expenses","Monthly fixed business expenses","EUR"),
     numberInput("expected_monthly_sales_volume","Expected monthly sales volume","units",100,1000000)
@@ -3363,7 +3363,7 @@ test("V2 recovers from Gemini 503 and normalizes per-unit prices and result curr
    results:[
     {key:"monthly_revenue",label:"Monthly Revenue",expression:"selling_price_per_unit*expected_monthly_sales_volume",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Selling price per unit multiplied by monthly sales volume."},
     {key:"monthly_total_variable_costs",label:"Monthly Total Variable Costs",expression:"(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Unit purchase, packaging and shipping costs multiplied by monthly sales volume."},
-    {key:"monthly_net_profit",label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(payment_processing_fee_percentage+marketplace_fee_percentage)/100",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Revenue less variable costs, fixed expenses and percentage-based fees."}
+    {key:"monthly_net_profit",label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(processing_fee_percent+marketplace_fee_percentage)/100",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Revenue less variable costs, fixed expenses and percentage-based fees."}
    ],
    scenarios:[]
   }
