@@ -650,7 +650,7 @@ export async function onRequestGet(context){
 }
 const MONETARY_CURRENCY_CODES = new Set([
     ...EXPLICIT_CURRENCY_RULES.map(([code])=>code),
-    ...Object.values(COUNTRY_DEFAULTS).map(([code])=>code),
+    ...Object.values(COUNTRY_DEFAULTS),
     "BGN","RON","UAH","ILS","THB","IDR","MYR","PHP","VND","QAR","KWD","JOD","EGP","PKR","BDT","NGN","KES"
 ]);
 function normalizeMonetaryPromptText(value){
