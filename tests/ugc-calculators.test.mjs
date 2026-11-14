@@ -3524,5 +3524,14 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
  assert.equal(values.future,121);
  assert.ok(Math.abs(values.present-100/1.21)<1e-12);
  assert.ok(Math.abs(values.payment-(100*0.1/(1-Math.pow(1.1,-2))))<1e-12);
+ assert.throws(()=>engine.evaluateV2TypedResults(spec,{},{
+  items:[{value:10,weight:-1,score:2},{value:20,weight:3,score:4}]
+ }),/weights cannot be negative/);
+ assert.throws(()=>engine.evaluateV2TypedResults(spec,{},{
+  items:[{value:10,weight:0,score:2},{value:20,weight:0,score:4}]
+ }),/positive total weight/);
+ assert.throws(()=>engine.evaluateV2TypedResults(spec,{rate:-0.01},{
+  items:[{value:10,weight:1,score:2},{value:20,weight:3,score:4}]
+ }),/at least 0|minimum|range/i);
  assert.throws(()=>engine.compileV2Expression("median(items.value, 2)",new Set(["principal","rate","periods"]),new Map([["items",{fields:[{key:"value",type:"number",unit:"EUR"}]}]])),/invalid number of arguments/i);
 });
