@@ -5,6 +5,7 @@ import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js
 
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_TOKEN_LIMIT_FALLBACK_MODEL = "llama-3.3-70b-versatile";
 const GEMINI_MODEL = "gemini-3.8-flash";
 const GEMINI_THINKING_LEVEL = "medium";
 const GROQ_REASONING_EFFORT = "low";
@@ -459,7 +460,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
         throw error;
     }
 }
-async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
+async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1,model=GROQ_MODEL){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
     const record=(success,error=null)=>{
@@ -467,7 +468,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
         const usage=data?.usage||{};
         recordAiUsageAttempt(usageCollector,{
             provider:"groq",
-            model:data?.model||GROQ_MODEL,
+            model:data?.model||model,
             stage,
             success,
             durationMs:Date.now()-startedAt,
@@ -503,20 +504,25 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             "Never use an empty subcategories array, never mix subcategories from different categories, and never put category or subcategory fields at the root level.",
             "Keep title, description, inputs, groups, results and scenarios as root fields. Use empty arrays when no dynamic groups or comparison scenarios are needed. The server converts classification into the calculator's saved category fields."
         ].join(" ");
+        const providerRequest={
+            model,
+            temperature:0.15,
+            max_completion_tokens:typedV2?16384:8192,
+            messages:[{role:"user",content:[jsonOutputRule,groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
+        };
+        if(model===GROQ_MODEL){
+            providerRequest.reasoning_effort=GROQ_REASONING_EFFORT;
+            // GPT-OSS uses include_reasoning; reasoning_format is not supported by this model.
+            providerRequest.include_reasoning=false;
+        }else if(model===GROQ_TOKEN_LIMIT_FALLBACK_MODEL){
+            // This non-reasoning recovery model supports JSON Object Mode. Server-side
+            // V1/V2 parsing and validation still remain authoritative.
+            providerRequest.response_format={type:"json_object"};
+        }
         const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
             method:"POST",
             headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
-            body:JSON.stringify({
-                model:GROQ_MODEL,
-                temperature:0.15,
-                max_completion_tokens:typedV2?16384:8192,
-                reasoning_effort:GROQ_REASONING_EFFORT,
-                // GPT-OSS uses include_reasoning; reasoning_format is not supported by this model.
-                include_reasoning:false,
-                // Keep JSON parsing and strict V1/V2 validation on our server. Provider JSON mode
-                // can reject generation with json_validate_failed before our validator can inspect it.
-                messages:[{role:"user",content:[jsonOutputRule,groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
-            })
+            body:JSON.stringify(providerRequest)
         });
         httpStatus=response.status;
         if(!response.ok){
@@ -548,6 +554,18 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
     }catch(error){
         record(false,error);
         throw error;
+    }
+}
+async function generateWithGroqWithTokenRecovery(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
+    try{
+        return await generateWithGroq(apiKey,system,prompt,usageCollector,stage,schemaVersion);
+    }catch(error){
+        if(providerFailureCode(error,"Groq")!=="OUTPUT_TOKEN_LIMIT")throw error;
+        console.warn("Groq GPT-OSS exhausted its completion-token budget; retrying once with the non-reasoning JSON model.");
+        return generateWithGroq(
+            apiKey,system,prompt,usageCollector,"token-limit-recovery",schemaVersion,
+            GROQ_TOKEN_LIMIT_FALLBACK_MODEL
+        );
     }
 }
 async function verifyUser(env,token){
@@ -1532,7 +1550,7 @@ export async function onRequestPost(context){
         }
         if(!content&&groqKey){
             try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"provider-fallback",outputSchemaVersion);
+                content=await generateWithGroqWithTokenRecovery(groqKey,system,userPrompt,aiUsageCollector,"provider-fallback",outputSchemaVersion);
                 if(content)contentProvider="groq";
             }catch(error){console.error("Groq UGC calculator request failed:",error);}
         }
@@ -1575,7 +1593,7 @@ export async function onRequestPost(context){
         if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
             console.warn("Gemini UGC calculator output failed validation; trying validated Groq fallback:",validationError);
             try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback",outputSchemaVersion);
+                content=await generateWithGroqWithTokenRecovery(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback",outputSchemaVersion);
                 contentProvider="groq";
                 const validated=parseAndValidate(content);
                 parsed=validated.candidate;
@@ -1689,7 +1707,7 @@ export async function onRequestPost(context){
                     "Use the original inputs and their keys. Do not invent new inputs unless absolutely required by the requested calculation.",
                     "Keep all original requested assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
                 ].join("\n");
-                const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt,aiUsageCollector,"coverage-repair",outputSchemaVersion);
+                const repairedContent=await generateWithGroqWithTokenRecovery(groqKey,system,coverageRepairPrompt,aiUsageCollector,"coverage-repair",outputSchemaVersion);
                 const repaired= parseAndValidate(repairedContent);
                 const repairedCoverageDefinition=outputSchemaVersion===2?{inputs:repaired.candidate?.spec?.inputs||[],results:repaired.candidate?.spec?.results||[]}:repaired.candidate;
                 const repairedMissing=findMissingRequestedCoverage(prompt,repairedCoverageDefinition);
