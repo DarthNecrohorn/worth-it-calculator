@@ -486,9 +486,9 @@ function tokenFrom(request){
     const header=request.headers.get("Authorization")||"";
     return header.startsWith("Bearer ")?header.slice(7).trim():"";
 }
-async function reserveAiOperation(env,token,requestId,mode,calculatorId){
+async function reserveAiOperation(env,token,requestId,mode,calculatorId,schemaVersion=1){
     return normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_ai_operation",{
-        p_request_id:requestId,p_mode:mode,p_calculator_id:calculatorId||null
+        p_request_id:requestId,p_mode:mode,p_calculator_id:calculatorId||null,p_schema_version:schemaVersion
     }));
 }
 async function refundAiOperationReservation(env,token,requestId,mode){
@@ -1379,7 +1379,7 @@ export async function onRequestPost(context){
             aiOperationRequestId=crypto.randomUUID();
             aiOperationMode="create";
             let usage;
-            try{usage=await reserveAiOperation(env,token,aiOperationRequestId,"create",null);}
+            try{usage=await reserveAiOperation(env,token,aiOperationRequestId,"create",null,outputSchemaVersion);}
             catch(error){
                 await refundAiOperation();
                 aiOperationRequestId="";
