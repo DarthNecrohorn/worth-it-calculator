@@ -62,7 +62,10 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('66666666-6666-4666-8666-666666666666','unconfirmed@example.test',null),
  ('a7777777-7777-4777-8777-777777777777','ugc-billing-free@example.test',now()),
  ('a8888888-8888-4888-8888-888888888889','ugc-billing-lite@example.test',now()),
- ('a9999999-9999-4999-8999-999999999998','ugc-billing-premium@example.test',now());
+ ('a9999999-9999-4999-8999-999999999998','ugc-billing-premium@example.test',now()),
+ ('a7777777-7777-4777-8777-777777777778','ugc-billing-free-v2@example.test',now()),
+ ('a8888888-8888-4888-8888-888888888890','ugc-billing-lite-v2@example.test',now()),
+ ('a9999999-9999-4999-8999-999999999999','ugc-billing-premium-v2@example.test',now());
 
 insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name,created_at) values
  ('11111111-1111-4111-8111-111111111111',101,'creator','Calculator Creator',now()-interval '13 months'),
@@ -84,7 +87,10 @@ insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_a
  ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '30 days',20000),
  ('a7777777-7777-4777-8777-777777777777','free',null,10000),
  ('a8888888-8888-4888-8888-888888888889','premium_lite',now()+interval '30 days',3000),
- ('a9999999-9999-4999-8999-999999999998','premium',now()+interval '30 days',20000)
+ ('a9999999-9999-4999-8999-999999999998','premium',now()+interval '30 days',20000),
+ ('a7777777-7777-4777-8777-777777777778','free',null,10000),
+ ('a8888888-8888-4888-8888-888888888890','premium_lite',now()+interval '30 days',12000),
+ ('a9999999-9999-4999-8999-999999999999','premium',now()+interval '30 days',20000)
 on conflict(user_id) do update set
  premium_plan=excluded.premium_plan,
  premium_expires_at=excluded.premium_expires_at,
@@ -1489,6 +1495,9 @@ declare
     v_free uuid := 'a7777777-7777-4777-8777-777777777777';
     v_lite uuid := 'a8888888-8888-4888-8888-888888888889';
     v_premium uuid := 'a9999999-9999-4999-8999-999999999998';
+    v_free_v2 uuid := 'a7777777-7777-4777-8777-777777777778';
+    v_lite_v2 uuid := 'a8888888-8888-4888-8888-888888888890';
+    v_premium_v2 uuid := 'a9999999-9999-4999-8999-999999999999';
     v_owner uuid := '55555555-5555-4555-8555-555555555555';
     v_request uuid;
     v_calculator uuid;
@@ -1509,7 +1518,7 @@ begin
     -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
     perform set_config('request.jwt.claim.sub',v_free::text,true);
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>2000 then
         raise exception 'Free AI generation should reserve 2 CALC: %',q;
     end if;
@@ -1523,6 +1532,21 @@ begin
         raise exception 'AI generation must not consume the manual save quota: %',q;
     end if;
 
+    -- Typed V2 costs exactly twice the V1 Free rate and refunds both
+    -- the reservation and its daily generation slot after failure.
+    perform set_config('request.jwt.claim.sub',v_free_v2::text,true);
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>4000 then
+        raise exception 'Free V2 generation should reserve 4 CALC: %',q;
+    end if;
+    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    if (q->>'ok')::boolean is distinct from true then raise exception 'Free V2 generation was not refunded: %',q; end if;
+    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_free_v2;
+    if v_balance<>10000 then raise exception 'Failed Free V2 generation must restore 4 CALC; balance %.',v_balance; end if;
+
+    -- Restore the original Free account for the V1 save-provenance checks.
+    perform set_config('request.jwt.claim.sub',v_free::text,true);
     q:=public.save_worth_it_ugc_calculator(
         null,'Free AI calculator',v_description,'money',v_spec,'ai',v_request
     );
@@ -1618,7 +1642,7 @@ begin
     -- both the 4-CALC reservation and the daily AI slot.
     perform set_config('request.jwt.claim.sub',v_lite::text,true);
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
     if q->>'code'<>'INSUFFICIENT_CALC' or (q->>'required_milli')::integer<>4000 then
         raise exception 'Premium Lite must require 4 CALC: %',q;
     end if;
@@ -1632,7 +1656,7 @@ begin
 
     update private.worth_it_calc_wallets set balance_milli=12000 where user_id=v_lite;
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
     if (q->>'price_milli')::integer<>4000 then raise exception 'Premium Lite AI generation must cost 4 CALC: %',q; end if;
     q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Failed Premium Lite AI generation was not refunded: %',q; end if;
@@ -1640,11 +1664,23 @@ begin
     if (q->>'ok')::boolean is distinct from true then raise exception 'Repeated AI refund should be idempotent: %',q; end if;
     select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_lite;
     if v_balance<>12000 then raise exception 'Failed AI generation did not restore all 4 CALC; balance %.',v_balance; end if;
+    -- Premium Lite typed V2 generation costs 8 CALC, twice its V1 rate.
+    perform set_config('request.jwt.claim.sub',v_lite_v2::text,true);
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>8000 then
+        raise exception 'Premium Lite V2 generation should reserve 8 CALC: %',q;
+    end if;
+    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium Lite V2 generation was not refunded: %',q; end if;
+    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_lite_v2;
+    if v_balance<>12000 then raise exception 'Failed Premium Lite V2 generation must restore 8 CALC; balance %.',v_balance; end if;
+    perform set_config('request.jwt.claim.sub',v_lite::text,true);
     q:=public.get_worth_it_ugc_maker_generation_quota();
     if (q->>'requests_used')::integer<>0 then raise exception 'Failed AI generation must restore the daily slot: %',q; end if;
 
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>4000 then
         raise exception 'Premium Lite should be able to reuse a refunded slot: %',q;
     end if;
@@ -1672,7 +1708,7 @@ begin
     q:=public.get_worth_it_ugc_ai_edit_quota();
     if (q->>'daily_limit')::integer<>3 then raise exception 'Premium AI improvement allowance should be three: %',q; end if;
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'refine',v_calculator);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'refine',v_calculator,1);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>6000 then
         raise exception 'Premium AI improvement should cost 6 CALC: %',q;
     end if;
@@ -1689,11 +1725,23 @@ begin
     q:=public.get_worth_it_ugc_ai_edit_quota();
     if (q->>'edits_used')::integer<>1 then raise exception 'Premium AI improvement should consume exactly one edit slot: %',q; end if;
 
+    -- Premium typed V2 generation costs 12 CALC, twice the V1 Premium rate.
+    perform set_config('request.jwt.claim.sub',v_premium_v2::text,true);
+    v_request:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>12000 then
+        raise exception 'Premium V2 generation should reserve 12 CALC: %',q;
+    end if;
+    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium V2 generation was not refunded: %',q; end if;
+    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_premium_v2;
+    if v_balance<>20000 then raise exception 'Failed Premium V2 generation must restore 12 CALC; balance %.',v_balance; end if;
+
     -- Owner operations remain exempt from CALC while the AI daily quota still
     -- records their successful use.
     perform set_config('request.jwt.claim.sub',v_owner::text,true);
     v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null);
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
     if (q->>'ok')::boolean is distinct from true or coalesce((q->>'price_milli')::integer,-1)<>0
        or coalesce((q->>'owner_exempt')::boolean,false) is not true then
         raise exception 'Owner AI generation must be CALC-exempt: %',q;
