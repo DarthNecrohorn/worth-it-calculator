@@ -3624,7 +3624,7 @@ async function saveMakerDraft(publish){
    const publication=normalizeObject(result.data);
    if(publication?.success!==true||publication.visibility!==visibility)throw new Error("The calculator was saved, but publication was not confirmed.");
   }
-  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerTitleHeading").textContent="Create a calculator manually";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
+  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerTitleHeading").textContent="Create a UGC calculator";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
   const publicNumber=Number(payload?.calculator_number);
   const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
