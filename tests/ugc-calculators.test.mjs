@@ -2511,7 +2511,7 @@ test("Manual Builder footer clearly separates manual saves from AI quotas and re
     assert.match(html,/Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3/);
     assert.match(html,/AI-generated calculators do not use it/);
     assert.match(html,/AI generation and AI improvement each have separate daily limits/);
-    assert.match(html,/failed AI operations refund both the CALC and the daily AI allowance/);
+    assert.match(html,/Failed operations refund the CALC charge and daily AI allowance/);
     assert.match(html,/arbitrary JavaScript is never executed/);
 });
 
