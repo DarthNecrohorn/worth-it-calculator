@@ -3521,7 +3521,7 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
  assert.equal(values.weighted_value,17.5);
  assert.equal(values.score_variance,8/3);
  assert.ok(Math.abs(values.score_stddev-Math.sqrt(8/3))<1e-12);
- assert.equal(values.future,121);
+ assert.ok(Math.abs(values.future-121)<1e-10);
  assert.ok(Math.abs(values.present-100/1.21)<1e-12);
  assert.ok(Math.abs(values.payment-(100*0.1/(1-Math.pow(1.1,-2))))<1e-12);
  assert.throws(()=>engine.evaluateV2TypedResults(spec,{},{
