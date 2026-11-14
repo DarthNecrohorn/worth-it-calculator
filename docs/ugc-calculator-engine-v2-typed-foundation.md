@@ -154,7 +154,7 @@ The V2 function registry also supports bounded, deterministic statistical and fi
 - `present_value(futureAmount, rate, periods)` discounts a future amount by `(1 + rate)^periods`.
 - `loan_payment(principal, rate, periods)` computes the fixed periodic payment; a zero rate uses principal divided by periods.
 
-Rates are decimal fractions (for example, 0.05 means 5%), not percentage-point values. Periods must be positive at runtime. Financial functions preserve the first amount's unit; rates and period counts must be dimensionless. They do not infer compounding frequency, annualization, fees, taxes or a real-world APR convention: those must be represented explicitly by the calculator's inputs and assumptions.
+Rates are decimal fractions (for example, 0.05 means 5%), not percentage-point values. Periods must be positive at runtime. Loan-payment rates must also be non-negative; compound-interest and present-value rates must be greater than -100%. Financial functions preserve the first amount's unit; rates and period counts must be dimensionless. They do not infer compounding frequency, annualization, fees, taxes or a real-world APR convention: those must be represented explicitly by the calculator's inputs and assumptions.
 
 Statistical aggregates must reference fields from exactly one dynamic group. Weighted-average values and weights must both belong to that same group. These functions do not introduce arbitrary row callbacks or cross-group joins.
 
