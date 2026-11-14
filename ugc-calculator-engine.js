@@ -598,12 +598,18 @@ function normalizeTypedValue(definition,rawValue){
  const type=String(definition?.type||"");
  const fail=error=>({valid:false,value:undefined,error});
  if(type==="number"){
-  if(rawValue===null||rawValue===undefined||rawValue===""||typeof rawValue==="boolean")return fail("Enter a numeric value.");
-  const value=Number(rawValue),min=Number(definition.min),max=Number(definition.max),step=Number(definition.step);
-  if(!Number.isFinite(value)||!Number.isFinite(min)||!Number.isFinite(max)||!Number.isFinite(step)||step<=0||value<min||value>max)return fail("The number is outside its allowed range.");
+  let value;
+  if(typeof rawValue==="number")value=rawValue;
+  else if(typeof rawValue==="string"){
+   const numericText=rawValue.trim();
+   if(!numericText||! /^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/.test(numericText))return fail("Enter a numeric value.");
+   value=Number(numericText);
+  }else return fail("Enter a numeric value.");
+  const min=definition.min,max=definition.max,step=definition.step;
+  if(![value,min,max,step].every(Number.isFinite)||min>max||value<min||value>max||step<=0)return fail("The number is outside its allowed range.");
   const stepPosition=(value-min)/step;
   if(!Number.isFinite(stepPosition)||Math.abs(stepPosition-Math.round(stepPosition))>1e-7)return fail("The number does not match the permitted step.");
-  if(definition.control==="select"&&(!Array.isArray(definition.choices)||!definition.choices.some(choice=>Number(choice?.value)===value)))return fail("Choose one of the listed numeric options.");
+  if(definition.control==="select"&&(!Array.isArray(definition.choices)||!definition.choices.some(choice=>choice?.value===value)))return fail("Choose one of the listed numeric options.");
   return {valid:true,value,error:null};
  }
  if(type==="boolean")return typeof rawValue==="boolean"?{valid:true,value:rawValue,error:null}:fail("Choose true or false.");

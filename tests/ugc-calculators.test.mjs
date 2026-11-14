@@ -3393,3 +3393,35 @@ test("AI Creator refunds a reserved CALC operation when a Gemini V2 formula fail
   assert.equal(quotaEvents.refunds,1);
  },quotaEvents);
 });
+
+
+test("v2 numeric normalization accepts browser numeric strings but rejects coercible non-numbers",()=>{
+ const engine=createCalculatorEngine();
+ const definition={type:"number",min:0,max:100,default:1,step:0.5,control:"number"};
+ const accepted=[
+  [0,0],[12,12],["12",12],[" 12.5 ",12.5],[".5",0.5],["5.",5],["1e2",100],["+2.5",2.5]
+ ];
+ for(const [raw,expected] of accepted){
+  const result=engine.normalizeTypedValue(definition,raw);
+  assert.equal(result.valid,true,String(raw));
+  assert.equal(result.value,expected,String(raw));
+ }
+ const rejected=[
+  "", " ", "\t\n", [], [1], {}, {value:1}, true, false, null, undefined,
+  "0x10", "0b10", "Infinity", "NaN", "1,5", "1 2", "1e309", "--1", "+", ".", "1e"
+ ];
+ for(const raw of rejected){
+  const result=engine.normalizeTypedValue(definition,raw);
+  assert.equal(result.valid,false,"Expected "+JSON.stringify(raw)+" to be rejected");
+ }
+ assert.equal(engine.normalizeTypedValue(definition,NaN).valid,false);
+ assert.equal(engine.normalizeTypedValue(definition,Infinity).valid,false);
+ assert.equal(engine.normalizeTypedValue(definition,101).valid,false);
+ assert.equal(engine.normalizeTypedValue(definition,1.25).valid,false,"step mismatch");
+ const select={...definition,control:"select",choices:[{label:"One",value:1},{label:"Two",value:2}]};
+ assert.equal(engine.normalizeTypedValue(select,"1").valid,true);
+ assert.equal(engine.normalizeTypedValue({...select,choices:[{label:"One",value:"1"},{label:"Two",value:2}]},"1").valid,false,
+  "numeric select choices must retain numeric JSON values rather than coercing strings");
+ assert.equal(engine.normalizeTypedValue({...definition,min:"0"},"1").valid,false,
+  "the numeric definition itself must not rely on string coercion");
+});
