@@ -295,7 +295,7 @@ declare
  v_exponent numeric;v_value text;
 begin
  v_a:=p_args->0;v_b:=p_args->1;v_c:=p_args->2;
- if p_name not in ('min','max','abs','round','floor','ceil','sqrt','pow','clamp','avg','sum','count','mod','trunc','sign','hypot','log','ln','exp','sin','cos','tan','asin','acos','atan','if','gt','gte','lt','lte','eq','neq','and','or','not','sum_if','count_if','date_diff_days','add_days','add_months','days_in_month','calendar_year','calendar_month','weekday') then
+ if p_name not in ('min','max','abs','round','floor','ceil','sqrt','pow','clamp','avg','sum','count','mod','trunc','sign','hypot','log','ln','exp','sin','cos','tan','asin','acos','atan','if','gt','gte','lt','lte','eq','neq','and','or','not','sum_if','count_if','date_diff_days','add_days','add_months','days_in_month','calendar_year','calendar_month','weekday','median','variance','stddev','percentile','weighted_avg','compound_interest','present_value','loan_payment') then
   raise exception 'Unsupported calculator formula function: %.',p_name using errcode='22023';
  end if;
  if (p_name in ('min','max','avg') and v_count not between 1 and 12)
@@ -303,7 +303,9 @@ begin
   or (p_name in ('round','log') and v_count not between 1 and 2)
   or (p_name in ('and','or') and v_count not between 2 and 12)
   or (p_name in ('if','clamp') and v_count<>3)
-  or (p_name in ('pow','mod','gt','gte','lt','lte','eq','neq','sum_if','date_diff_days','add_days','add_months') and v_count<>2)
+  or (p_name in ('pow','mod','gt','gte','lt','lte','eq','neq','sum_if','date_diff_days','add_days','add_months','percentile','weighted_avg') and v_count<>2)
+  or (p_name in ('compound_interest','present_value','loan_payment') and v_count<>3)
+  or (p_name in ('median','variance','stddev') and v_count<>1)
   or (p_name in ('sum','count','count_if','not','abs','floor','ceil','sqrt','trunc','sign','ln','exp','sin','cos','tan','asin','acos','atan','days_in_month','calendar_year','calendar_month','weekday') and v_count<>1) then
   raise exception '%() has an invalid number of arguments.',p_name using errcode='22023';
  end if;
@@ -388,6 +390,39 @@ begin
    raise exception 'count_if() must use a boolean predicate referencing exactly one dynamic group.' using errcode='22023';
   end if;
   return jsonb_build_object('kind','number','unit','','unit_vector','{}'::jsonb,'group_refs','[]'::jsonb,'is_constant',false);
+ end if;
+ if p_name in ('median','variance','stddev','percentile','weighted_avg') then
+  if v_a->>'kind'<>'number' or jsonb_array_length(coalesce(v_a->'group_refs','[]'::jsonb))<>1 then
+   raise exception '%() requires a numeric expression from exactly one dynamic group.',p_name using errcode='22023';
+  end if;
+  if p_name='percentile' and (v_b->>'kind'<>'number' or coalesce((v_b->>'is_constant')::boolean,false) is not true
+    or coalesce((v_b->>'value')::numeric,-1)<0 or coalesce((v_b->>'value')::numeric,101)>100) then
+   raise exception 'percentile() requires a constant percentile from 0 to 100.' using errcode='22023';
+  end if;
+  if p_name='weighted_avg' and (v_b->>'kind'<>'number'
+    or jsonb_array_length(coalesce(v_b->'group_refs','[]'::jsonb))<>1
+    or (v_a->'group_refs'->>0)<>(v_b->'group_refs'->>0)
+    or coalesce(v_b->'unit_vector','{}'::jsonb)<>'{}'::jsonb) then
+   raise exception 'weighted_avg() requires a dimensionless weight from the same dynamic group.' using errcode='22023';
+  end if;
+  if p_name='variance' then
+   v_unit:=private.worth_it_v2_unit_combine(v_a,v_a,1);
+   return jsonb_build_object('kind','number','unit','', 'unit_vector',coalesce(v_unit->'vector','{}'::jsonb),
+    'unit_symbols',coalesce(v_unit->'symbols','{}'::jsonb),'group_refs','[]'::jsonb,'is_constant',false);
+  end if;
+  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),
+   'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_a->'unit_symbols','{}'::jsonb),
+   'group_refs','[]'::jsonb,'is_constant',false);
+ end if;
+ if p_name in ('compound_interest','present_value','loan_payment') then
+  if v_a->>'kind'<>'number' or v_b->>'kind'<>'number' or v_c->>'kind'<>'number'
+   or coalesce(v_b->'unit_vector','{}'::jsonb)<>'{}'::jsonb
+   or coalesce(v_c->'unit_vector','{}'::jsonb)<>'{}'::jsonb then
+   raise exception '%() requires an amount with dimensionless rate and period values.',p_name using errcode='22023';
+  end if;
+  return jsonb_build_object('kind','number','unit',coalesce(v_a->>'unit',''),
+   'unit_vector',coalesce(v_a->'unit_vector','{}'::jsonb),'unit_symbols',coalesce(v_a->'unit_symbols','{}'::jsonb),
+   'group_refs',v_refs,'is_constant',false);
  end if;
  if p_name in ('sum','sum_if') then
   if v_a->>'kind'<>'number' or jsonb_array_length(coalesce(v_a->'group_refs','[]'::jsonb))<>1 then
