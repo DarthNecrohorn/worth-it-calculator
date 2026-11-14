@@ -951,7 +951,7 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /\beval\s*\(/);
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
-    assert.doesNotMatch(makerApi,/response_format:\{type:"json_object"\}/);
+    assert.match(makerApi,/providerRequest\.response_format=\{type:"json_object"\}/);
     assert.match(makerApi,/include_reasoning:false/);
     assert.match(makerApi, /const GROQ_REASONING_EFFORT = "low"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
@@ -3883,5 +3883,83 @@ test("AI UGC Maker opt-in diagnostics identify typed V2 formula-unit failures be
   assert.equal(result.aiUsage.attempts[0].success,true);
   assert.equal(quotaEvents.refunds,1);
   assert.equal(quotaEvents.settlements||0,0);
+ },quotaEvents);
+});
+
+
+test("AI Creator retries a Groq output-token truncation once with a non-reasoning JSON model",async()=>{
+ const candidate=createCanonicalGeminiV2Candidate();
+ const models=[];
+ let reservations=0;
+ const quotaEvents={};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"groq-recovery-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,2);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:4,price_milli:4000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   return new Response(JSON.stringify({error:{code:524,status:"DEADLINE_EXCEEDED"}}),{status:524});
+  }
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   const body=JSON.parse(options.body);
+   models.push(body.model);
+   if(body.model==="openai/gpt-oss-120b"){
+    assert.equal(body.reasoning_effort,"low");
+    assert.equal(body.include_reasoning,false);
+    assert.equal(Object.hasOwn(body,"response_format"),false);
+    assert.equal(body.max_completion_tokens,16384);
+    return new Response(JSON.stringify({
+     model:"openai/gpt-oss-120b",
+     choices:[{finish_reason:"length",message:{content:""}}],
+     usage:{prompt_tokens:3600,completion_tokens:16384,total_tokens:19984,completion_tokens_details:{reasoning_tokens:16382}}
+    }),{status:200});
+   }
+   assert.equal(body.model,"llama-3.3-70b-versatile");
+   assert.deepEqual(body.response_format,{type:"json_object"});
+   assert.equal(Object.hasOwn(body,"reasoning_effort"),false);
+   assert.equal(Object.hasOwn(body,"include_reasoning"),false);
+   assert.equal(body.max_completion_tokens,16384);
+   return new Response(JSON.stringify({
+    model:"llama-3.3-70b-versatile",
+    choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}],
+    usage:{prompt_tokens:3600,completion_tokens:1400,total_tokens:5000}
+   }),{status:200});
+  }
+  throw new Error("Unexpected request in Groq token-limit recovery test: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    mode:"create",
+    prompt:"Create a typed calculator for a quantity, an enabled toggle, a plan selection and a calendar date cutoff.",
+    schema_version:2
+   },{token:"valid-token"}),
+   env:{
+    SUPABASE_URL:"https://supabase.example",
+    SUPABASE_PUBLISHABLE_KEY:"publishable",
+    GEMINI_API_KEY:"gemini-test",
+    GROQ_API_KEY:"groq-test"
+   }
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(body.success,true);
+  assert.equal(body.calculator.spec.schemaVersion,2);
+  assert.equal(body.billing.price,4);
+  assert.deepEqual(models,["openai/gpt-oss-120b","llama-3.3-70b-versatile"]);
+  assert.equal(body.aiUsage.attempts.length,3);
+  assert.equal(body.aiUsage.attempts[0].provider,"gemini");
+  assert.equal(body.aiUsage.attempts[0].failureCode,"HTTP_524");
+  assert.equal(body.aiUsage.attempts[1].model,"openai/gpt-oss-120b");
+  assert.equal(body.aiUsage.attempts[1].failureCode,"OUTPUT_TOKEN_LIMIT");
+  assert.equal(body.aiUsage.attempts[2].model,"llama-3.3-70b-versatile");
+  assert.equal(body.aiUsage.attempts[2].stage,"token-limit-recovery");
+  assert.equal(body.aiUsage.attempts[2].success,true);
+  assert.equal(reservations,1);
+  assert.equal(quotaEvents.settlements,1);
+  assert.equal(quotaEvents.refunds||0,0);
  },quotaEvents);
 });
