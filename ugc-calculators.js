@@ -1344,6 +1344,7 @@ function formatResult(item,value){
  if(item.format==="percent")return prefix+format({maximumFractionDigits:2})+"%"+suffix;
  if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
  return prefix+format({maximumFractionDigits:4})+suffix;
+}
 async function refreshCreationQuota(){
  const host=$("ugcMakerQuotaStatus");
  if(!host||!state.userId)return;
