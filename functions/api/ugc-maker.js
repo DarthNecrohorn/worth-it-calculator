@@ -6,6 +6,8 @@ import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_THINKING_LEVEL = "medium";
+const GROQ_REASONING_EFFORT = "low";
 const MAX_PROMPT_CHARS = 5000;
 const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v3";
 const serverCurrencyData=globalThis.WorthItCalculatorCurrencyData;
@@ -436,7 +438,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
                 body:JSON.stringify({
                     systemInstruction:{parts:[{text:system}]},
                     contents:[{role:"user",parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:Number(schemaVersion)===2?16384:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
+                    generationConfig:{maxOutputTokens:Number(schemaVersion)===2?16384:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:GEMINI_THINKING_LEVEL}}
                 })
             }
         );
@@ -508,7 +510,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 model:GROQ_MODEL,
                 temperature:0.15,
                 max_completion_tokens:typedV2?16384:8192,
-                reasoning_effort:"high",
+                reasoning_effort:GROQ_REASONING_EFFORT,
                 // GPT-OSS uses include_reasoning; reasoning_format is not supported by this model.
                 include_reasoning:false,
                 // Keep JSON parsing and strict V1/V2 validation on our server. Provider JSON mode
