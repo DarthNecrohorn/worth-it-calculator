@@ -96,121 +96,27 @@ on conflict(user_id) do update set
  premium_expires_at=excluded.premium_expires_at,
  balance_milli=excluded.balance_milli;
 
--- AI Maker generations follow the same Free / Premium Lite / Premium daily
--- tiers as new calculator creation, with an additional shared 100/day cap.
-do $maker_generation_tier_quotas$
-declare
-    v_request uuid;
-    q jsonb;
-    v_global_used integer;
-    i integer;
-    v_today date := (now() at time zone 'UTC')::date;
+-- User-facing AI UGC generation and improvement RPCs are intentionally disabled.
+do $ugc_ai_creator_privileges$
 begin
-    -- Free: one successful generation; second generation is blocked.
-    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if q->>'plan'<>'free' or (q->>'daily_limit')::integer<>1 then
-        raise exception 'Free AI generation quota must be one: %',q;
+    if has_function_privilege('anon','public.get_worth_it_ugc_maker_generation_quota()','execute')
+       or has_function_privilege('authenticated','public.get_worth_it_ugc_maker_generation_quota()','execute')
+       or has_function_privilege('authenticated','public.reserve_worth_it_ugc_maker_generation_v2(uuid)','execute')
+       or has_function_privilege('authenticated','public.refund_worth_it_ugc_maker_generation_v2(uuid)','execute')
+       or has_function_privilege('authenticated','public.settle_worth_it_ugc_maker_generation_v2(uuid)','execute')
+       or has_function_privilege('authenticated','public.get_worth_it_ugc_ai_edit_quota()','execute')
+       or has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_edit(uuid,uuid)','execute')
+       or has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_operation(uuid,text,uuid,integer)','execute')
+       or has_function_privilege('authenticated','public.settle_worth_it_ugc_ai_operation(uuid,text)','execute')
+       or has_function_privilege('authenticated','public.refund_worth_it_ugc_ai_operation(uuid,text)','execute') then
+        raise exception 'Authenticated users can still access disabled AI UGC RPCs.';
     end if;
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-    if (q->>'ok')::boolean is distinct from true or (q->>'daily_limit')::integer<>1 then
-        raise exception 'Free account could not reserve its one generation: %',q;
+    if not has_function_privilege('authenticated','public.get_worth_it_ugc_creation_quota()','execute')
+       or not has_function_privilege('authenticated','public.save_worth_it_ugc_calculator(uuid,text,text,text,jsonb,text,uuid)','execute') then
+        raise exception 'Authenticated users must retain Manual Builder quota and save RPC access.';
     end if;
-    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
-    if q->>'code'<>'DAILY_LIMIT' then
-        raise exception 'Free account generated more than one calculator in a UTC day: %',q;
-    end if;
-
-    -- Premium Lite: two successful generations. Refunds restore both counters.
-    perform set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',true);
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if q->>'plan'<>'premium_lite' or (q->>'daily_limit')::integer<>2 then
-        raise exception 'Premium Lite AI generation quota must be two: %',q;
-    end if;
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-    if (q->>'ok')::boolean is distinct from true then
-        raise exception 'Premium Lite first generation reservation failed: %',q;
-    end if;
-    q:=public.refund_worth_it_ugc_maker_generation_v2(v_request);
-    if (q->>'refunded')::boolean is distinct from true then
-        raise exception 'Failed Premium Lite generation did not refund its daily slots: %',q;
-    end if;
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-    if (q->>'ok')::boolean is distinct from true then
-        raise exception 'Premium Lite generation slot was not restored after a refund: %',q;
-    end if;
-    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-    if (q->>'ok')::boolean is distinct from true then
-        raise exception 'Premium Lite second generation reservation failed: %',q;
-    end if;
-    perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
-    if q->>'code'<>'DAILY_LIMIT' then
-        raise exception 'Premium Lite account generated more than two calculators in a UTC day: %',q;
-    end if;
-
-    -- Premium: three successful generations; fourth is blocked.
-    perform set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if q->>'plan'<>'premium' or (q->>'daily_limit')::integer<>3 then
-        raise exception 'Premium AI generation quota must be three: %',q;
-    end if;
-    for i in 1..3 loop
-        v_request:=gen_random_uuid();
-        q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-        if (q->>'ok')::boolean is distinct from true then
-            raise exception 'Premium generation % reservation failed: %',i,q;
-        end if;
-        perform public.settle_worth_it_ugc_maker_generation_v2(v_request);
-    end loop;
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(gen_random_uuid());
-    if q->>'code'<>'DAILY_LIMIT' then
-        raise exception 'Premium account generated more than three calculators in a UTC day: %',q;
-    end if;
-
-    select requests_used into v_global_used
-      from private.worth_it_ugc_maker_global_daily_usage
-     where usage_date=v_today;
-    if v_global_used<>6 then
-        raise exception 'Refunds and tier quotas should leave exactly six shared generations, got %.',v_global_used;
-    end if;
-
-    perform set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',true);
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if (q->>'requests_used')::integer<>2 or (q->>'remaining')::integer<>0
-       or (q->>'global_requests_used')::integer<>6 or (q->>'global_remaining')::integer<>94 then
-        raise exception 'AI Maker quota status must show per-tier and shared counts: %',q;
-    end if;
-
-    -- Simulate the shared ceiling and verify an otherwise eligible owner account
-    -- cannot bypass it. The failed reservation must not remain counted.
-    update private.worth_it_ugc_maker_global_daily_usage
-       set requests_used=100,updated_at=now()
-     where usage_date=v_today;
-    perform set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_maker_generation_v2(v_request);
-    if q->>'code'<>'GLOBAL_DAILY_LIMIT' or (q->>'global_daily_limit')::integer<>100 then
-        raise exception 'The shared 100-generation daily limit was not enforced: %',q;
-    end if;
-    if exists(select 1 from private.worth_it_ugc_maker_generation_reservations where request_id=v_request) then
-        raise exception 'A globally blocked AI generation left a reservation behind.';
-    end if;
-
-    -- Restore the actual simulated daily count so the remaining smoke tests
-    -- can verify authenticated reservation/refund behavior independently.
-    update private.worth_it_ugc_maker_global_daily_usage
-       set requests_used=v_global_used,updated_at=now()
-     where usage_date=v_today;
 end
-$maker_generation_tier_quotas$;
-
+$ugc_ai_creator_privileges$;
 
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select (public.save_worth_it_ugc_calculator(
@@ -1035,91 +941,7 @@ begin
 end
 $identity_lock$;
 
--- Free: one AI improvement per UTC day, then a hard server-side limit.
-delete from private.worth_it_calc_wallets where user_id='11111111-1111-4111-8111-111111111111';
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-do $free_ai_edit_quota$
-declare q jsonb; result jsonb; i integer; calculator_id uuid;
-begin
-    select id into calculator_id from private.worth_it_user_calculators
-     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'daily_limit')::integer<>1 then raise exception 'Free AI edit limit must be 1: %',q; end if;
-    for i in 1..1 loop
-        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-        if (result->>'ok')::boolean is distinct from true then raise exception 'Free AI edit % was rejected: %',i,result; end if;
-        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
-    end loop;
-    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
-        raise exception 'Free account could exceed one AI improvement per UTC day: %',result;
-    end if;
-end
-$free_ai_edit_quota$;
-
--- Premium Lite: two AI improvements per UTC day.
-select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
-do $lite_ai_edit_quota$
-declare q jsonb; result jsonb; i integer; calculator_id uuid;
-begin
-    select id into calculator_id from private.worth_it_user_calculators
-     where owner_user_id='44444444-4444-4444-8444-444444444444' order by created_at limit 1;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'daily_limit')::integer<>2 then raise exception 'Premium Lite AI edit limit must be 2: %',q; end if;
-    for i in 1..2 loop
-        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium Lite AI edit % was rejected: %',i,result; end if;
-        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
-    end loop;
-    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
-        raise exception 'Premium Lite account could exceed two AI improvements per UTC day: %',result;
-    end if;
-end
-$lite_ai_edit_quota$;
-
--- Premium: three AI improvements per UTC day.
-select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
-do $premium_ai_edit_quota$
-declare q jsonb; result jsonb; i integer; calculator_id uuid;
-begin
-    select id into calculator_id from private.worth_it_user_calculators
-     where owner_user_id='33333333-3333-4333-8333-333333333333' order by created_at limit 1;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium AI edit limit must be 3: %',q; end if;
-    for i in 1..3 loop
-        result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-        if (result->>'ok')::boolean is distinct from true then raise exception 'Premium AI edit % was rejected: %',i,result; end if;
-        perform public.settle_worth_it_ugc_ai_edit((result->>'request_id')::uuid);
-    end loop;
-    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,gen_random_uuid());
-    if (result->>'ok')::boolean is distinct from false or result->>'code' is distinct from 'DAILY_LIMIT' then
-        raise exception 'Premium account could exceed three AI improvements per UTC day: %',result;
-    end if;
-end
-$premium_ai_edit_quota$;
-
--- Failed AI requests refund both the reservation and the corresponding daily allowance.
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-do $ai_edit_refund$
-declare calculator_id uuid; request_id uuid:=gen_random_uuid(); result jsonb; q jsonb;
-begin
-    update private.worth_it_ugc_ai_edit_daily_usage
-       set usage_date=(now() at time zone 'utc')::date-1
-     where user_id='11111111-1111-4111-8111-111111111111';
-    select id into calculator_id from private.worth_it_user_calculators
-     where owner_user_id='11111111-1111-4111-8111-111111111111' order by created_at limit 1;
-    result:=public.reserve_worth_it_ugc_ai_edit(calculator_id,request_id);
-    if (result->>'ok')::boolean is distinct from true then raise exception 'The fresh-day AI edit reservation failed: %',result; end if;
-    result:=public.refund_worth_it_ugc_ai_edit(request_id);
-    if (result->>'ok')::boolean is distinct from true then raise exception 'The failed AI edit could not be refunded: %',result; end if;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'edits_used')::integer<>0 or (q->>'remaining')::integer<>1 then
-        raise exception 'A refunded AI improvement still consumed the daily allowance: %',q;
-    end if;
-end
-$ai_edit_refund$;
-
+-- Removed: per-tier AI improvement quotas and CALC reservations. Manual editing is unrestricted by AI quotas.
 -- The new owner-only RPCs are unavailable to anonymous users but callable by authenticated owners.
 do $enhancement_privileges$
 begin
@@ -1129,8 +951,8 @@ begin
     if has_function_privilege('anon','public.update_worth_it_ugc_calculator_description(uuid,text)','execute') then
         raise exception 'Anonymous users can change a community calculator description.';
     end if;
-    if not has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_edit(uuid,uuid)','execute') then
-        raise exception 'Authenticated owners cannot reserve a secured AI improvement.';
+    if has_function_privilege('authenticated','public.reserve_worth_it_ugc_ai_edit(uuid,uuid)','execute') then
+        raise exception 'Authenticated users must not reserve disabled AI improvements.';
     end if;
 end
 $enhancement_privileges$;
@@ -1411,353 +1233,83 @@ end
 $ugc_pagination$;
 
 
--- Maker generation reservations are request-bound, refundable once, and owner-only.
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-do $maker_generation_refunds$
-declare
-    v_failed_request uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa10';
-    v_success_request uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa11';
-    v_reserved jsonb;
-    v_duplicate jsonb;
-    v_refunded jsonb;
-    v_refunded_again jsonb;
-    v_cross_account jsonb;
-    v_settled jsonb;
-    v_rejected_refund jsonb;
-    v_used smallint;
-begin
-    v_reserved := public.reserve_worth_it_ugc_maker_generation_v2(v_failed_request);
-    if v_reserved->>'ok' <> 'true' or (v_reserved->>'requests_used')::integer <> 1 then
-        raise exception 'A new Maker generation should reserve exactly one daily attempt: %',v_reserved;
-    end if;
+-- Removed: generation reservations/refunds are no longer part of the public UGC creation flow.
 
-    v_duplicate := public.reserve_worth_it_ugc_maker_generation_v2(v_failed_request);
-    if v_duplicate->>'ok' <> 'true'
-       or v_duplicate->>'already_reserved' <> 'true'
-       or (v_duplicate->>'requests_used')::integer <> 1 then
-        raise exception 'Repeating a reservation ID must not increment the Maker counter twice: %',v_duplicate;
-    end if;
-
-    perform set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
-    v_cross_account := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
-    if v_cross_account->>'ok' <> 'false' or v_cross_account->>'code' <> 'RESERVATION_NOT_FOUND' then
-        raise exception 'One account must not refund another account Maker reservation: %',v_cross_account;
-    end if;
-
-    perform set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-    v_refunded := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
-    if v_refunded->>'ok' <> 'true' or v_refunded->>'refunded' <> 'true'
-       or (v_refunded->>'requests_used')::integer <> 0 then
-        raise exception 'A failed Maker generation must restore exactly one attempt: %',v_refunded;
-    end if;
-
-    v_refunded_again := public.refund_worth_it_ugc_maker_generation_v2(v_failed_request);
-    if v_refunded_again->>'ok' <> 'true' or v_refunded_again->>'already_refunded' <> 'true' then
-        raise exception 'A Maker generation refund must be idempotent: %',v_refunded_again;
-    end if;
-
-    v_reserved := public.reserve_worth_it_ugc_maker_generation_v2(v_success_request);
-    if v_reserved->>'ok' <> 'true' or (v_reserved->>'requests_used')::integer <> 1 then
-        raise exception 'A new successful generation should reserve one attempt: %',v_reserved;
-    end if;
-    v_settled := public.settle_worth_it_ugc_maker_generation_v2(v_success_request);
-    if v_settled->>'ok' <> 'true' then
-        raise exception 'A successful Maker generation should settle: %',v_settled;
-    end if;
-    v_rejected_refund := public.refund_worth_it_ugc_maker_generation_v2(v_success_request);
-    if v_rejected_refund->>'ok' <> 'false'
-       or v_rejected_refund->>'code' <> 'RESERVATION_ALREADY_CONSUMED' then
-        raise exception 'A completed Maker generation must not be refundable: %',v_rejected_refund;
-    end if;
-
-    select requests_used into v_used
-      from private.worth_it_ugc_maker_daily_usage
-     where user_id='11111111-1111-4111-8111-111111111111'
-       and usage_date=(now() at time zone 'UTC')::date;
-    if v_used is distinct from 1 then
-        raise exception 'Only the successful Maker generation should remain counted, got %.',v_used;
-    end if;
-
-    if has_table_privilege('anon','private.worth_it_ugc_maker_generation_reservations','select')
-       or has_table_privilege('authenticated','private.worth_it_ugc_maker_generation_reservations','select')
-       or has_function_privilege('anon','public.refund_worth_it_ugc_maker_generation_v2(uuid)','execute')
-       or not has_function_privilege('authenticated','public.refund_worth_it_ugc_maker_generation_v2(uuid)','execute') then
-        raise exception 'Maker reservation storage or RPC privileges are not restricted correctly.';
-    end if;
-end
-$maker_generation_refunds$;
-
-
--- UGC AI billing and manual Builder isolation. These tests run only against
--- the disposable PostgreSQL fixture; no live Supabase wallet is touched.
-do $ugc_manual_ai_billing$
+-- Manual Builder is the only UGC creation path. Verify each tier's save allowance,
+-- reject AI-sourced saves at the database boundary, and keep edit operations available.
+do $ugc_manual_only$
 declare
     v_free uuid := 'a7777777-7777-4777-8777-777777777777';
     v_lite uuid := 'a8888888-8888-4888-8888-888888888889';
     v_premium uuid := 'a9999999-9999-4999-8999-999999999998';
-    v_free_v2 uuid := 'a7777777-7777-4777-8777-777777777778';
-    v_lite_v2 uuid := 'a8888888-8888-4888-8888-888888888890';
-    v_premium_v2 uuid := 'a9999999-9999-4999-8999-999999999999';
-    v_owner uuid := '55555555-5555-4555-8555-555555555555';
-    v_request uuid;
-    v_request_v2 uuid;
-    v_calculator uuid;
-    v_spec jsonb := '{"subcategories":["budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
-    v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[{"key":"higher_amount","label":"Higher amount","values":{"amount":20}}]}'::jsonb;
-    v_description text := 'A clear description for this calculator and its assumptions.';
-    q jsonb;
-    v_balance integer;
+    v_user uuid;
+    v_limit integer;
     v_used integer;
-    v_count integer;
-    v_before integer;
-    v_owner_status text;
-    v_deleted_calculator_id uuid;
-    v_creation_source text;
-    v_saved_spec jsonb;
-    blocked boolean := false;
+    v_id uuid;
+    v_result jsonb;
+    v_quota jsonb;
+    v_description text := 'A manual calculator used to verify daily save limits and edit behavior.';
+    v_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[]}'::jsonb;
+    blocked boolean;
+    i integer;
 begin
-    -- Free: AI generation costs 2 CALC and does not use the manual-save slot.
-    perform set_config('request.jwt.claim.sub',v_free::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>2000 then
-        raise exception 'Free AI generation should reserve 2 CALC: %',q;
-    end if;
-    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_free;
-    if v_balance<>8000 then raise exception 'Free AI generation must deduct exactly 2 CALC; got %.',v_balance; end if;
-    q:=public.settle_worth_it_ugc_ai_operation(v_request,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Free AI generation could not settle: %',q; end if;
+    for v_user,v_limit in
+        select * from (values
+            ('a7777777-7777-4777-8777-777777777777'::uuid,1),
+            ('a8888888-8888-4888-8888-888888888889'::uuid,2),
+            ('a9999999-9999-4999-8999-999999999998'::uuid,3)
+        ) as tier(user_id,daily_limit)
+    loop
+        perform set_config('request.jwt.claim.sub',v_user::text,true);
+        v_quota:=public.get_worth_it_ugc_creation_quota();
+        if (v_quota->>'daily_limit')::integer<>v_limit then
+            raise exception 'Manual save quota should be % for account %, got %.',v_limit,v_user,v_quota;
+        end if;
 
-    q:=public.get_worth_it_ugc_creation_quota();
-    if (q->>'creations_used')::integer<>0 or (q->>'remaining')::integer<>1 then
-        raise exception 'AI generation must not consume the manual save quota: %',q;
-    end if;
+        for i in 1..v_limit loop
+            v_result:=public.save_worth_it_ugc_calculator(
+                null,'Manual-only quota '||v_user::text||' #'||i,v_description,'money',v_spec,'manual',null
+            );
+            v_id:=(v_result->>'id')::uuid;
+            if v_id is null then raise exception 'Manual save % failed for account %: %',i,v_user,v_result; end if;
+            select creation_source into v_used from private.worth_it_user_calculators where id=v_id;
+            if v_used::text<>'manual' then raise exception 'A Manual Builder save has incorrect provenance: %',v_used; end if;
+        end loop;
 
-    -- Typed V2 costs exactly twice the V1 Free rate and refunds both
-    -- the reservation and its daily generation slot after failure.
-    perform set_config('request.jwt.claim.sub',v_free_v2::text,true);
-    v_request_v2:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>4000 then
-        raise exception 'Free V2 generation should reserve 4 CALC: %',q;
-    end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Free V2 generation was not refunded: %',q; end if;
-    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_free_v2;
-    if v_balance<>10000 then raise exception 'Failed Free V2 generation must restore 4 CALC; balance %.',v_balance; end if;
+        v_quota:=public.get_worth_it_ugc_creation_quota();
+        if (v_quota->>'creations_used')::integer<>v_limit or (v_quota->>'remaining')::integer<>0 then
+            raise exception 'Manual save quota usage did not reach the tier limit: %',v_quota;
+        end if;
 
-    -- Restore the original Free account for the V1 save-provenance checks.
-    perform set_config('request.jwt.claim.sub',v_free::text,true);
-    q:=public.save_worth_it_ugc_calculator(
-        null,'Free AI calculator',v_description,'money',v_spec,'ai',v_request
-    );
-    v_calculator:=(q->>'id')::uuid;
-    if v_calculator is null then raise exception 'A paid, settled AI generation could not be saved: %',q; end if;
-    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
-    if v_creation_source<>'ai' then raise exception 'A successfully AI-generated calculator must keep AI provenance; got %.',v_creation_source; end if;
+        blocked:=false;
+        begin
+            perform public.save_worth_it_ugc_calculator(
+                null,'Manual quota overflow '||v_user::text,v_description,'money',v_spec,'manual',null
+            );
+        exception when sqlstate '54000' then blocked:=true;
+        end;
+        if not blocked then raise exception 'Account % exceeded its % manual saves per UTC day.',v_user,v_limit; end if;
 
-    -- An identical retry returns the original calculator; changed content cannot
-    -- reuse the same paid operation ID.
-    q:=public.save_worth_it_ugc_calculator(
-        null,'Free AI calculator',v_description,'money',v_spec,'ai',v_request
-    );
-    if (q->>'already_saved')::boolean is distinct from true or (q->>'id')::uuid<>v_calculator then
-        raise exception 'AI save retries should be idempotent: %',q;
-    end if;
-    blocked:=false;
-    begin
-        perform public.save_worth_it_ugc_calculator(
-            null,'Changed AI title',v_description,'money',v_spec,'ai',v_request
+        -- An old/forged AI request ID cannot make a newly saved calculator AI-sourced.
+        blocked:=false;
+        begin
+            perform public.save_worth_it_ugc_calculator(
+                null,'Disabled AI source '||v_user::text,v_description,'money',v_spec,'ai',gen_random_uuid()
+            );
+        exception when sqlstate '22023' then blocked:=true;
+        end;
+        if not blocked then raise exception 'The database accepted a new AI-sourced UGC calculator for %.',v_user; end if;
+
+        -- Editing an existing manual calculator remains possible even after the new-save allowance is used.
+        v_result:=public.save_worth_it_ugc_calculator(
+            v_id,'Manual-only quota '||v_user::text||' #'||v_limit,v_description,'money',v_spec,'manual',null
         );
-    exception when insufficient_privilege then blocked:=true;
-    end;
-    if not blocked then raise exception 'One AI operation was reused to create a different calculator definition.'; end if;
-
-    -- Deleting an AI-generated calculator must not erase the consumed-operation
-    -- proof or make the paid request reusable for unlimited replacement saves.
-    delete from private.worth_it_user_calculators
-     where id=v_calculator and owner_user_id=v_free;
-    select calculator_id into v_deleted_calculator_id
-      from private.worth_it_ugc_ai_saved_operations
-     where request_id=v_request and user_id=v_free;
-    if not found or v_deleted_calculator_id is not null then
-        raise exception 'Deleting an AI calculator must retain its consumed operation proof with a null calculator reference.';
-    end if;
-    blocked:=false;
-    begin
-        perform public.save_worth_it_ugc_calculator(
-            null,'Free AI calculator',v_description,'money',v_spec,'ai',v_request
-        );
-    exception when raise_exception then blocked:=true;
-    end;
-    if not blocked then raise exception 'A deleted AI calculator operation was recycled to create a replacement.'; end if;
-
-    -- A client cannot claim AI provenance without both a settled quota and a
-    -- matching, completed CALC transaction.
-    blocked:=false;
-    begin
-        perform public.save_worth_it_ugc_calculator(
-            null,'Forged AI calculator',v_description,'money',v_spec,'ai',gen_random_uuid()
-        );
-    exception when insufficient_privilege then blocked:=true;
-    end;
-    if not blocked then raise exception 'A forged AI save without a paid operation was accepted.'; end if;
-
-    -- The same Free account may still make its one manual save today.
-    q:=public.save_worth_it_ugc_calculator(
-        null,'Free manual calculator',v_description,'money',v_manual_spec,'manual',null
-    );
-    if coalesce((q->>'remaining')::integer,-1)<>0 then
-        raise exception 'The Free manual save quota should be used only by a manual save: %',q;
-    end if;
-    select creation_source,spec into v_creation_source,v_saved_spec from private.worth_it_user_calculators where id=(q->>'id')::uuid;
-    if v_creation_source<>'manual' then raise exception 'A manual calculator must keep manual provenance; got %.',v_creation_source; end if;
-    if jsonb_array_length(coalesce(v_saved_spec->'scenarios','[]'::jsonb))<>1
-       or v_saved_spec->'scenarios'->0->'values'->>'amount'<>'20' then
-        raise exception 'A valid manual comparison scenario was not preserved in the saved definition.';
-    end if;
-    blocked:=false;
-    begin
-        perform public.save_worth_it_ugc_calculator(
-            null,'Invalid scenario calculator',v_description,'money',
-            jsonb_set(v_manual_spec,'{scenarios,0,values}','{"amount":101}'::jsonb),
-            'manual',null
-        );
-    exception when invalid_parameter_value then blocked:=true;
-    end;
-    if not blocked then raise exception 'A scenario value outside the input range was accepted.'; end if;
-    select creations_used into v_used from private.worth_it_ugc_manual_daily_usage
-     where user_id=v_free and usage_date=(now() at time zone 'UTC')::date;
-    if v_used<>1 then raise exception 'Free manual save counter should be one after the manual save; got %.',v_used; end if;
-    blocked:=false;
-    begin
-        perform public.save_worth_it_ugc_calculator(
-            null,'Free manual second calculator',v_description,'money',v_manual_spec,'manual',null
-        );
-    exception when sqlstate '54000' then blocked:=true;
-    end;
-    if not blocked then raise exception 'Free account exceeded its one manual calculator save per UTC day.'; end if;
-
-    -- Premium Lite: insufficient funds restore its AI generation slot and
-    -- create no charge transaction; a later failed provider request refunds
-    -- both the 4-CALC reservation and the daily AI slot.
-    perform set_config('request.jwt.claim.sub',v_lite::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
-    if q->>'code'<>'INSUFFICIENT_CALC' or (q->>'required_milli')::integer<>4000 then
-        raise exception 'Premium Lite must require 4 CALC: %',q;
-    end if;
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if (q->>'requests_used')::integer<>0 then
-        raise exception 'An insufficient CALC balance must restore the Premium Lite AI generation slot: %',q;
-    end if;
-    if exists(select 1 from private.worth_it_calc_transactions where user_id=v_lite and request_id=v_request) then
-        raise exception 'An insufficient balance must not create a CALC transaction.';
-    end if;
-
-    update private.worth_it_calc_wallets set balance_milli=12000 where user_id=v_lite;
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
-    if (q->>'price_milli')::integer<>4000 then raise exception 'Premium Lite AI generation must cost 4 CALC: %',q; end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Failed Premium Lite AI generation was not refunded: %',q; end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Repeated AI refund should be idempotent: %',q; end if;
-    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_lite;
-    if v_balance<>12000 then raise exception 'Failed AI generation did not restore all 4 CALC; balance %.',v_balance; end if;
-    -- Premium Lite typed V2 generation costs 8 CALC, twice its V1 rate.
-    perform set_config('request.jwt.claim.sub',v_lite_v2::text,true);
-    v_request_v2:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>8000 then
-        raise exception 'Premium Lite V2 generation should reserve 8 CALC: %',q;
-    end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium Lite V2 generation was not refunded: %',q; end if;
-    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_lite_v2;
-    if v_balance<>12000 then raise exception 'Failed Premium Lite V2 generation must restore 8 CALC; balance %.',v_balance; end if;
-    perform set_config('request.jwt.claim.sub',v_lite::text,true);
-    q:=public.get_worth_it_ugc_maker_generation_quota();
-    if (q->>'requests_used')::integer<>0 then raise exception 'Failed AI generation must restore the daily slot: %',q; end if;
-
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>4000 then
-        raise exception 'Premium Lite should be able to reuse a refunded slot: %',q;
-    end if;
-    q:=public.settle_worth_it_ugc_ai_operation(v_request,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium Lite AI generation could not settle: %',q; end if;
-    q:=public.save_worth_it_ugc_calculator(
-        null,'Premium Lite AI calculator',v_description,'money',v_spec,'ai',v_request
-    );
-    if (q->>'success')::boolean is distinct from true then raise exception 'Premium Lite paid AI save was rejected: %',q; end if;
-    select creation_source into v_creation_source from private.worth_it_user_calculators where id=(q->>'id')::uuid;
-    if v_creation_source<>'ai' then raise exception 'Premium Lite AI calculator must keep AI provenance; got %.',v_creation_source; end if;
-    q:=public.get_worth_it_ugc_creation_quota();
-    if (q->>'creations_used')::integer<>0 then raise exception 'Premium Lite AI save must not consume manual quota: %',q; end if;
-
-    -- Premium: manual save and AI improvement are separate. AI improvement
-    -- costs 6 CALC and does not consume the manual save allowance.
-    perform set_config('request.jwt.claim.sub',v_premium::text,true);
-    q:=public.save_worth_it_ugc_calculator(
-        null,'Premium manual calculator',v_description,'money',v_manual_spec,'manual',null
-    );
-    v_calculator:=(q->>'id')::uuid;
-    if v_calculator is null then raise exception 'Premium manual calculator could not be saved: %',q; end if;
-    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
-    if v_creation_source<>'manual' then raise exception 'Premium manual calculator must keep manual provenance; got %.',v_creation_source; end if;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'daily_limit')::integer<>3 then raise exception 'Premium AI improvement allowance should be three: %',q; end if;
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'refine',v_calculator,1);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>6000 then
-        raise exception 'Premium AI improvement should cost 6 CALC: %',q;
-    end if;
-    q:=public.settle_worth_it_ugc_ai_operation(v_request,'refine');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium AI improvement could not settle: %',q; end if;
-    q:=public.save_worth_it_ugc_calculator(
-        v_calculator,'Premium manual calculator',v_description,'money',v_spec,'ai',v_request
-    );
-    if (q->>'success')::boolean is distinct from true then raise exception 'A paid AI improvement could not be saved: %',q; end if;
-    select creation_source into v_creation_source from private.worth_it_user_calculators where id=v_calculator;
-    if v_creation_source<>'manual' then raise exception 'An AI improvement must not change the original manual provenance; got %.',v_creation_source; end if;
-    q:=public.get_worth_it_ugc_creation_quota();
-    if (q->>'creations_used')::integer<>1 then raise exception 'AI improvement must not consume the manual save quota: %',q; end if;
-    q:=public.get_worth_it_ugc_ai_edit_quota();
-    if (q->>'edits_used')::integer<>1 then raise exception 'Premium AI improvement should consume exactly one edit slot: %',q; end if;
-
-    -- Premium typed V2 generation costs 12 CALC, twice the V1 Premium rate.
-    perform set_config('request.jwt.claim.sub',v_premium_v2::text,true);
-    v_request_v2:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
-    if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>12000 then
-        raise exception 'Premium V2 generation should reserve 12 CALC: %',q;
-    end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Premium V2 generation was not refunded: %',q; end if;
-    select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_premium_v2;
-    if v_balance<>20000 then raise exception 'Failed Premium V2 generation must restore 12 CALC; balance %.',v_balance; end if;
-
-    -- Owner operations remain exempt from CALC while the AI daily quota still
-    -- records their successful use.
-    perform set_config('request.jwt.claim.sub',v_owner::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,1);
-    if (q->>'ok')::boolean is distinct from true or coalesce((q->>'price_milli')::integer,-1)<>0
-       or coalesce((q->>'owner_exempt')::boolean,false) is not true then
-        raise exception 'Owner AI generation must be CALC-exempt: %',q;
-    end if;
-    q:=public.settle_worth_it_ugc_ai_operation(v_request,'create');
-    if (q->>'ok')::boolean is distinct from true then raise exception 'Owner AI generation could not settle: %',q; end if;
-    select amount_milli,status into v_before,v_owner_status
-      from private.worth_it_calc_transactions
-     where user_id=v_owner and request_id=v_request and kind='ugc_ai_spend';
-    if v_before<>0 or v_owner_status<>'completed' then
-        raise exception 'Owner AI generation must be recorded as a completed zero-CALC transaction.';
-    end if;
+        if (v_result->>'success')::boolean is distinct from true then
+            raise exception 'A manual edit was blocked by the new-save quota: %',v_result;
+        end if;
+    end loop;
 end
-$ugc_manual_ai_billing$;
-
+$ugc_manual_only$;
 
 -- Composable Manual Builder: prior result keys and dynamic group expressions.
 do $composable_ugc_builder$
