@@ -207,12 +207,12 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
     assert.doesNotMatch(html, /ugcMakerBillingNotice|Limited AI capacity|ugcMakerPrompt|ugcMakerGenerate/);
     assert.doesNotMatch(maker, /generateWithAI|refreshMakerGenerationQuota|refreshAiEditQuota/);
-    assert.match(html, /Manual Builder uses no AI and costs no CALC/);
+    assert.match(html, /The UGC Calculator Builder uses no Worth It AI request and costs no CALC/);
     assert.match(html, /Manual Builder uses no AI and costs no CALC/);
     assert.match(maker, /24–500 characters/);
 });
 
-test("Manual Builder can be closed only with its X button; backdrop clicks never dismiss it", () => {
+test("UGC Calculator Builder can be closed only with its X button; backdrop clicks never dismiss it", () => {
     assert.ok(maker.includes('$("ugcMakerClose")?.addEventListener("click",closeMaker);'), "the X button is wired to close the maker");
     assert.ok(!maker.includes('addEventListener("click",event=>{\n  const shouldClose='), "there is no backdrop click-to-close handler");
     assert.ok(!maker.includes('makerBackdropPointerDown'), "there is no pointer-based backdrop dismissal");
@@ -317,7 +317,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
         "a saved draft ID is retained if the first publication attempt fails, so retries do not create duplicate calculators");
     assert.ok(html.includes("ugcMakerVisibilityWrap"));
     assert.ok(maker.includes("Calculator categories"));
-    assert.ok(html.includes("New manual calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3."));
+    assert.ok(html.includes("New UGC calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3."));
     assert.ok(maker.includes("get_worth_it_ugc_catalog_page"));
     assert.ok(maker.includes("p_sort:state.sort"));
     assert.ok(maker.includes("p_category:state.category"));
@@ -345,7 +345,7 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(sqlEnhancements,/private\.worth_it_guard_ugc_calculator_update/);
 });
 
-test("Subscriptions show only the manual community-calculator save quotas without selling Free", () => {
+test("Subscriptions show only UGC calculator save quotas without selling Free", () => {
     const start = html.indexOf('<section id="webShopSubscriptionsPanel"');
     const end = html.indexOf("</section>", start);
     const panel = html.slice(start, end);
@@ -354,14 +354,14 @@ test("Subscriptions show only the manual community-calculator save quotas withou
     const premiumStart = panel.indexOf('<h4>Premium</h4>');
     const freeCard = panel.slice(freeStart, liteStart);
     assert.ok(freeStart >= 0 && liteStart > freeStart && premiumStart > liteStart);
-    assert.match(freeCard, /1 new manually created \(non-AI\) UGC calculator saved per UTC day/);
-    assert.match(panel, /2 new manually created \(non-AI\) UGC calculators saved per UTC day/);
-    assert.match(panel, /3 new manually created \(non-AI\) UGC calculators saved per UTC day/);
+    assert.match(freeCard, /1 new UGC calculator saved per UTC day/);
+    assert.match(panel, /2 new UGC calculators saved per UTC day/);
+    assert.match(panel, /3 new UGC calculators saved per UTC day/);
     assert.doesNotMatch(panel, /AI-generated UGC calculator|AI improvement to an existing UGC calculator|Version [12] AI generation|AI generation or improvement costs|AI improvements per UTC day/i);
     assert.doesNotMatch(freeCard, /<button\b/i, "Free is informational and cannot be purchased");
 });
 
-test("Manual UGC Builder remains independent of AI and keeps separate daily save limits", () => {
+test("UGC Calculator Builder remains independent of AI and keeps separate daily save limits", () => {
     assert.match(html, /id="ugcCreateManualButton"/);
     assert.doesNotMatch(html, /id="ugcCreateButton"|Create with AI|ugcMakerPrompt|ugcMakerGenerate|ugcMakerTargetSchemaVersion|ugcManualAiImproveButton/);
     assert.match(html, /id="ugcManualMode"/);
@@ -395,7 +395,7 @@ test("internal Gemini profile image and banner moderation stays independent of u
     assert.doesNotMatch(moderation,/calc_wallet_|ugc_ai_operation|ugc_maker_generation|reserve_worth_it_ugc/);
 });
 
-test("UGC calculator cards show verified original creation source", () => {
+test("UGC calculator cards hide origin badges while stored provenance remains intact", () => {
     const basicStart=html.indexOf('<section class="section calculator-explore-panel" id="calculators">');
     const communityNav=html.indexOf('id="ugcNavigationActions"',basicStart);
     const basicEnd=html.indexOf("</section>",basicStart);
@@ -403,11 +403,11 @@ test("UGC calculator cards show verified original creation source", () => {
     assert.ok(basicStart>=0 && communityNav>basicStart);
     assert.match(basicPanel,/id="ugcCatalogJumpButton"[^>]*>🌐 Community calculators/);
     assert.doesNotMatch(basicPanel,/Create with AI|ugcMakerJumpButton/);
-    assert.match(html,/id="ugcCreateManualButton"[^>]*>＋ Create manually/);
+    assert.match(html,/id="ugcCreateManualButton"[^>]*>＋ Create UGC calculator/);
     assert.doesNotMatch(html,/id="ugcCreateButton"|Create with AI/);
-    assert.match(maker,/const source=String\(item\.creation_source\|\|""\)/);
-    assert.match(maker,/source==="manual"\?"MANUAL":"AI MADE"/);
-    assert.match(maker,/item\.creation_source/);
+    assert.doesNotMatch(maker,/ugc-origin-tag|is-manual|is-ai-made|source==="manual"\?"MANUAL":"AI MADE"/);
+    
+    
     assert.match(manualBuilderSql,/add column if not exists creation_source text not null default 'legacy'/);
     assert.match(manualBuilderSql,/creation_source in \('manual','ai','legacy'\)/);
     assert.match(manualBuilderSql,/values\(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories',v_source\)/);
@@ -1261,9 +1261,9 @@ test("Community Discovery places its heading on the left and back button on the 
     assert.match(paginationCss,/\.ugc-discovery-page-header\{grid-template-columns:minmax\(0,1fr\)/);
 });
 
-test("Manual Builder footer clearly explains its daily manual save limits", () => {
+test("UGC Calculator Builder footer clearly explains daily UGC save limits", () => {
     assert.match(html,/There is no lifetime limit on saved community calculators/);
-    assert.match(html,/New manual calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3/);
+    assert.match(html,/New UGC calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3/);
     assert.match(html,/editing an existing calculator does not consume another new-save slot/i);
     assert.doesNotMatch(html,/AI-generated calculators do not use it|AI generation and AI improvement each have separate daily limits|Version [12] AI generation or improvement costs|Failed AI operations refund/i);
     assert.match(html,/arbitrary JavaScript is never executed/);
