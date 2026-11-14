@@ -598,7 +598,7 @@ function collectV2RuntimeValues(root,spec){
    return raw;
   });
  });
- const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ const normalizedGroups=normalizeTypedGroupValues(executionSpec,rawGroups);
  if(normalizedGroups.valid!==true)throw new Error((normalizedGroups.errors||[]).slice(0,3).join(" "));
  return {values,groups:normalizedGroups.groups};
 }
@@ -2780,12 +2780,16 @@ function changeManualSchemaVersion(definition,version){
   renderMakerPreview(definition);
  }
 }
+function toV2ExecutionSpec(spec){
+ const engineSpec=cloneCalculatorData(spec);
+ // Authoring metadata is stored with the draft but never reaches the strict engine.
+ delete engineSpec.assumptions;delete engineSpec.subcategories;
+ return engineSpec;
+}
 function validateManualDraftSpec(spec){
  if(Number(spec?.schemaVersion)!==2)return validateMakerSpec(spec);
  const errors=[];
- const engineSpec=cloneCalculatorData(spec);
- // These are Manual Builder presentation metadata, not executable schema fields.
- delete engineSpec.assumptions;delete engineSpec.subcategories;
+ const engineSpec=toV2ExecutionSpec(spec);
  let validation;
  try{validation=validateVersionedSpec(engineSpec);}catch(error){return{errors:[String(error?.message||"V2 validation failed.")]};}
  if(!Array.isArray(validation?.errors))return{errors:["The V2 validator returned an invalid response."]};
@@ -3177,6 +3181,7 @@ function renderMakerV2TestPanel(preserveValues){
 }
 function updateMakerV2TestResults(panel){
  const spec=state.aiDraft?.spec;if(!panel||Number(spec?.schemaVersion)!==2)return;
+ const executionSpec=toV2ExecutionSpec(spec);
  const rawValues={};let invalidControl=null;
  panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{
   const field=spec.inputs.find(item=>item.key===control.dataset.ugcMakerTestKey);
@@ -3206,7 +3211,7 @@ function updateMakerV2TestResults(panel){
  const render=(host,values,compact)=>{
   host.replaceChildren();
   try{
-   evaluateV2TypedResults(spec,values,normalizedGroups.groups).results.forEach(result=>{
+   evaluateV2TypedResults(executionSpec,values,normalizedGroups.groups).results.forEach(result=>{
     const card=document.createElement(compact?"div":"article");card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
     card.append(text("span","",result.label||"Result"),text(compact?"b":"strong","",formatResult(result.item||{},result.value)));
     if(!compact&&result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));host.appendChild(card);
