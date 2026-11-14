@@ -872,10 +872,13 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         }
         calls++;
         const body = JSON.parse(options.body);
-        assert.equal(body.response_format.type, "json_object");
+        assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+        assert.equal(body.include_reasoning,false);
+        assert.equal(Object.hasOwn(body,"reasoning_format"),false);
         assert.equal(body.max_completion_tokens,8192);
         assert.equal(body.reasoning_effort, "high");
-        assert.equal(body.reasoning_format, "hidden", "Groq structured JSON output must use a JSON-compatible reasoning format");
+        assert.equal(body.include_reasoning,false,"GPT-OSS reasoning is excluded using its supported parameter");
+        assert.equal(Object.hasOwn(body,"reasoning_format"),false);
         assert.doesNotMatch(body.messages[0].content,/regional currency suggestion [A-Z]{3}/);
         assert.match(body.messages[0].content,/Regional defaults: currency [A-Z]{3}/);
         assert.match(body.messages[0].content,/classification object/);
@@ -948,7 +951,8 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /\beval\s*\(/);
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
-    assert.match(makerApi,/response_format:\{type:"json_object"\}/);
+    assert.doesNotMatch(makerApi,/response_format:\{type:"json_object"\}/);
+    assert.match(makerApi,/include_reasoning:false/);
     assert.match(makerApi, /reasoning_effort:\s*"high"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
     assert.match(makerApi, /thinkingConfig:\s*\{thinkingLevel:\s*"high"\}/);
@@ -1021,7 +1025,9 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         }
         assert.match(String(url), /api\.groq\.com\/openai\/v1\/chat\/completions/);
         const body = JSON.parse(options.body);
-        assert.equal(body.response_format.type, "json_object");
+        assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+        assert.equal(body.include_reasoning,false);
+        assert.equal(Object.hasOwn(body,"reasoning_format"),false);
         return new Response(JSON.stringify({
             model: "openai/gpt-oss-120b",
             choices: [{ message: { content: JSON.stringify(validDefinition), finish_reason: "stop" } }],
@@ -1112,7 +1118,9 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         if(path.includes("api.groq.com/openai/v1/chat/completions")){
             requested.push("groq");
             const body=JSON.parse(options.body);
-            assert.equal(body.response_format.type,"json_object");
+            assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+            assert.equal(body.include_reasoning,false);
+            assert.equal(Object.hasOwn(body,"reasoning_format"),false);
             assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios/);
             assert.match(body.messages[0].content,/subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only/);
             const groqDefinition=structuredClone(validDefinition);
@@ -1219,7 +1227,9 @@ test("AI Maker runs one targeted Groq coverage repair when Groq is already the G
             groqCalls++;
             requested.push("groq-"+groqCalls);
             const body=JSON.parse(options.body);
-            assert.equal(body.response_format.type,"json_object");
+            assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+            assert.equal(body.include_reasoning,false);
+            assert.equal(Object.hasOwn(body,"reasoning_format"),false);
             if(groqCalls===1){
                 assert.match(body.messages[0].content,/User request:/);
                 return new Response(JSON.stringify({
@@ -1334,7 +1344,9 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         }
         if (path.includes("api.groq.com/openai/v1/chat/completions")) {
             const body = JSON.parse(options.body);
-            assert.equal(body.response_format.type, "json_object");
+            assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+        assert.equal(body.include_reasoning,false);
+        assert.equal(Object.hasOwn(body,"reasoning_format"),false);
                 assert.equal(body.max_completion_tokens,8192);
             return new Response(JSON.stringify({ error: { code: "json_validate_failed" } }), { status: 400 });
         }
@@ -3053,7 +3065,9 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    providerCalls++;
    const body=JSON.parse(options.body);
-   assert.equal(body.response_format.type,"json_object");
+   assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+            assert.equal(body.include_reasoning,false);
+            assert.equal(Object.hasOwn(body,"reasoning_format"),false);
    assert.equal(body.max_completion_tokens,8192);
    assert.match(body.messages[0].content,/sum\(group_key\.field_key\)/);
    assert.match(body.messages[0].content,/comparison scenario/);
@@ -3148,10 +3162,12 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(workflow,/tests\/fixtures\/ugc-v2-persistence-postgres-smoke\.sql/);
 });
 
-test("AI Creator API uses JSON-only V2 provider fallback and validates through the shared Blueprint importer",()=>{
+test("AI Creator API prompts GPT-OSS for JSON and validates through the shared Blueprint importer",()=>{
  assert.ok(makerApi.includes('import "../../ugc-blueprint-import.js";'));
  assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
- assert.match(makerApi,/response_format:\{type:"json_object"\}/);
+  assert.match(makerApi,/return ONLY one complete JSON object/i);
+ assert.doesNotMatch(makerApi,/response_format:\{type:"json_object"\}/);
+    assert.match(makerApi,/include_reasoning:false/);
  assert.match(makerApi,/max_completion_tokens:typedV2\?16384:8192/);
  assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
  assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
@@ -3224,9 +3240,12 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    providerCalls++;
    const body=JSON.parse(options.body);
-   assert.deepEqual(body.response_format,{type:"json_object"});
-   assert.equal(body.reasoning_format,"hidden","Groq GPT-OSS JSON mode requires a JSON-compatible reasoning format");
-   assert.equal(Object.hasOwn(body,"include_reasoning"),false,"include_reasoning and reasoning_format are mutually exclusive");
+   assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+    assert.equal(body.include_reasoning,false);
+    assert.equal(Object.hasOwn(body,"reasoning_format"),false);
+   assert.equal(body.include_reasoning,false,"GPT-OSS uses include_reasoning rather than reasoning_format");
+    assert.equal(Object.hasOwn(body,"reasoning_format"),false);
+   assert.equal(body.include_reasoning,false);
    assert.equal(body.max_completion_tokens,16384);
    assert.equal(body.messages.length,1,"GPT-OSS V2 uses one user message rather than a system message");
    assert.equal(body.messages[0].role,"user");
@@ -3359,9 +3378,12 @@ test("V2 recovers from Gemini 503 and normalizes per-unit prices and result curr
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    groqCalls++;
    const body=JSON.parse(options.body);
-   assert.equal(body.response_format.type,"json_object");
-   assert.equal(body.reasoning_format,"hidden");
-   assert.equal(Object.hasOwn(body,"include_reasoning"),false);
+   assert.equal(Object.hasOwn(body,"response_format"),false,"Groq output is parsed and validated by the server");
+            assert.equal(body.include_reasoning,false);
+            assert.equal(Object.hasOwn(body,"reasoning_format"),false);
+   assert.equal(body.include_reasoning,false);
+    assert.equal(Object.hasOwn(body,"reasoning_format"),false);
+   assert.equal(body.include_reasoning,false);
    assert.equal(body.messages[0].role,"user");
    assert.match(body.messages[0].content,/RSD\/unit/);
    return new Response(JSON.stringify({choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}]}),{status:200});
