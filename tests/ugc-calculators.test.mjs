@@ -822,8 +822,9 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
     assert.ok(maker.includes("switchCalculatorExploreView"));
     assert.ok(html.includes("ugcBackToBasicButton"));
-    assert.ok(html.includes("IMPORTANT — PLEASE READ BEFORE USING WORTH IT AI"));
-    assert.ok(html.includes("Each successful AI reply costs"));
+    assert.ok(html.includes("Limited AI capacity"),"the AI Creator explains external token, context and request limits");
+    assert.doesNotMatch(html,/aiChatNavBtn|aiChatOverlay|ai-ui\.js|Worth It AI Chat/,"the removed AI Chat must not remain in the visible page");
+    assert.match(html,/data-theme-preview-view="chat"[^>]*>Community Chat/,"theme preview keeps a Community Chat sample");
     assert.ok(maker.includes("update_worth_it_ugc_calculator_description"));
     assert.ok(maker.includes("get_worth_it_ugc_ai_edit_quota"));
     assert.ok(sqlEnhancements.includes("get_worth_it_my_favorite_ugc_calculators"));
