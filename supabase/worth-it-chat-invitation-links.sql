@@ -228,7 +228,7 @@ create or replace function public.accept_worth_it_group_invite(p_invite_token te
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
     actor_id uuid := auth.uid();
@@ -238,6 +238,16 @@ declare
 begin
     if actor_id is null then
         raise exception 'Authentication required';
+    end if;
+
+    if not exists (
+        select 1
+          from auth.users as verified_user
+         where verified_user.id = actor_id
+           and verified_user.email_confirmed_at is not null
+    ) then
+        raise exception 'Email confirmation required'
+            using errcode = '42501';
     end if;
 
     if p_invite_token is null or lower(p_invite_token) !~ '^[0-9a-f]{64}$' then
