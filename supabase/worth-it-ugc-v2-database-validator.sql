@@ -1,6 +1,6 @@
 -- Independent PostgreSQL-side validation for Worth It Calculator schema/engine v2.
--- This validator is intentionally private and is NOT wired into save/publish yet.
--- The existing version gate continues to reject V2 persistence.
+-- This validator is intentionally private. The subsequent V2 persistence migration
+-- routes exact schema 2 / engine 2 definitions here while preserving the V1 validator.
 begin;
 
 create or replace function private.worth_it_v2_assert_keys(p_object jsonb,p_allowed text[],p_label text)
