@@ -1297,6 +1297,7 @@ export async function onRequestPost(context){
         let body;
         try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
         const mode=body?.mode==="refine"?"refine":"create";
+        const debugDiagnostics=body?.debug_diagnostics===true&&mode==="create";
         const requestedSchemaVersion=body?.schema_version===undefined?1:body.schema_version;
         if(requestedSchemaVersion!==1&&requestedSchemaVersion!==2)return json({success:false,code:"UNSUPPORTED_CALCULATOR_SCHEMA",error:"Choose calculator schema version 1 or 2."},400,origin);
         if(mode==="refine"&&requestedSchemaVersion!==1)return json({success:false,code:"V2_REFINEMENT_UNAVAILABLE",error:"AI improvement of saved calculators remains on Version 1 until typed V2 persistence is supported."},400,origin);
@@ -1541,10 +1542,20 @@ export async function onRequestPost(context){
         let parsed;
         let definition;
         let validationError=null;
+        let latestCandidateDiagnostic=null;
+        let latestCandidateProvider=null;
         const parseAndValidate=generatedContent=>{
             let candidate=JSON.parse(generatedContent);
+            if(debugDiagnostics){
+                latestCandidateDiagnostic=summarizeAiCandidateForDiagnostics(candidate,outputSchemaVersion);
+                latestCandidateProvider=contentProvider;
+            }
             if(outputSchemaVersion===2)candidate=prepareTypedV2ProviderCandidate(candidate,defaultCurrency);
             if(mode==="create")applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency);
+            if(debugDiagnostics){
+                latestCandidateDiagnostic=summarizeAiCandidateForDiagnostics(candidate,outputSchemaVersion);
+                latestCandidateProvider=contentProvider;
+            }
             const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency,requireAllInputsUsed:mode==="create"});
             return {candidate,normalized};
         };
@@ -1576,11 +1587,22 @@ export async function onRequestPost(context){
         if(validationError){
             await refundAiOperation();
             const invalidJson=validationError instanceof SyntaxError;
-            return jsonWithAiUsage({
+            const responseBody={
                 success:false,
                 code:invalidJson?"INVALID_AI_JSON":"INVALID_AI_CALCULATOR",
                 error:validationError?.message||"The AI returned an invalid calculator definition."
-            },invalidJson?502:422,origin,aiUsageCollector);
+            };
+            if(debugDiagnostics){
+                responseBody.diagnostics={
+                    scope:"ugc-ai-creator",
+                    schemaVersion:outputSchemaVersion,
+                    providerUsed:latestCandidateProvider||contentProvider||null,
+                    validationStage:invalidJson?"provider-json-parse":"server-definition-validation",
+                    validationErrorName:String(validationError?.name||"Error"),
+                    candidate:latestCandidateDiagnostic
+                };
+            }
+            return jsonWithAiUsage(responseBody,invalidJson?502:422,origin,aiUsageCollector);
         }
 
         if(mode==="refine"){
