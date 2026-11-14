@@ -1500,6 +1500,7 @@ declare
     v_premium_v2 uuid := 'a9999999-9999-4999-8999-999999999999';
     v_owner uuid := '55555555-5555-4555-8555-555555555555';
     v_request uuid;
+    v_request_v2 uuid;
     v_calculator uuid;
     v_spec jsonb := '{"subcategories":["budgeting"],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}]}'::jsonb;
     v_manual_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[{"key":"higher_amount","label":"Higher amount","values":{"amount":20}}]}'::jsonb;
@@ -1535,12 +1536,12 @@ begin
     -- Typed V2 costs exactly twice the V1 Free rate and refunds both
     -- the reservation and its daily generation slot after failure.
     perform set_config('request.jwt.claim.sub',v_free_v2::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    v_request_v2:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>4000 then
         raise exception 'Free V2 generation should reserve 4 CALC: %',q;
     end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Free V2 generation was not refunded: %',q; end if;
     select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_free_v2;
     if v_balance<>10000 then raise exception 'Failed Free V2 generation must restore 4 CALC; balance %.',v_balance; end if;
@@ -1666,12 +1667,12 @@ begin
     if v_balance<>12000 then raise exception 'Failed AI generation did not restore all 4 CALC; balance %.',v_balance; end if;
     -- Premium Lite typed V2 generation costs 8 CALC, twice its V1 rate.
     perform set_config('request.jwt.claim.sub',v_lite_v2::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    v_request_v2:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>8000 then
         raise exception 'Premium Lite V2 generation should reserve 8 CALC: %',q;
     end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Premium Lite V2 generation was not refunded: %',q; end if;
     select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_lite_v2;
     if v_balance<>12000 then raise exception 'Failed Premium Lite V2 generation must restore 8 CALC; balance %.',v_balance; end if;
@@ -1727,12 +1728,12 @@ begin
 
     -- Premium typed V2 generation costs 12 CALC, twice the V1 Premium rate.
     perform set_config('request.jwt.claim.sub',v_premium_v2::text,true);
-    v_request:=gen_random_uuid();
-    q:=public.reserve_worth_it_ugc_ai_operation(v_request,'create',null,2);
+    v_request_v2:=gen_random_uuid();
+    q:=public.reserve_worth_it_ugc_ai_operation(v_request_v2,'create',null,2);
     if (q->>'ok')::boolean is distinct from true or (q->>'price_milli')::integer<>12000 then
         raise exception 'Premium V2 generation should reserve 12 CALC: %',q;
     end if;
-    q:=public.refund_worth_it_ugc_ai_operation(v_request,'create');
+    q:=public.refund_worth_it_ugc_ai_operation(v_request_v2,'create');
     if (q->>'ok')::boolean is distinct from true then raise exception 'Premium V2 generation was not refunded: %',q; end if;
     select balance_milli into v_balance from private.worth_it_calc_wallets where user_id=v_premium_v2;
     if v_balance<>20000 then raise exception 'Failed Premium V2 generation must restore 12 CALC; balance %.',v_balance; end if;
