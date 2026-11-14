@@ -198,14 +198,16 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-1px\)/);
 });
 
-test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
+test("the broken audioOnly reference is removed, chat assets remain current and AI Chat is restored", () => {
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);
-    assert.doesNotMatch(html, /ai-ui\.js|aiChatOverlay|aiChatNavBtn/);
+    assert.match(html, /ai-ui\.js\?v=worthit-ai-chat-restored-20261114a/);
+    assert.match(html, /id="aiChatOverlay"/);
+    assert.match(html, /id="aiChatNavBtn"/);
 });
 
 
