@@ -400,9 +400,9 @@ test("UGC calculator cards show verified original creation source", () => {
     assert.match(paginationSql,/'creation_source',q\.creation_source/);
     assert.match(paginationSql,/c\.category,c\.creation_source,c\.status/);
     assert.match(paginationSql,/'creation_source',creation_source/);
-    assert.match(paginationFixture,/successfully AI-generated calculator must keep AI provenance/);
-    assert.match(paginationFixture,/manual calculator must keep manual provenance/);
-    assert.match(paginationFixture,/AI improvement must not change the original manual provenance/);
+    assert.match(paginationFixture,/A Manual Builder save has incorrect provenance/);
+    assert.match(paginationFixture,/database accepted a new AI-sourced UGC calculator/);
+    assert.match(manualBuilderSql,/creation_source in \('manual','ai','legacy'\)/);
     assert.match(paginationCss,/\.ugc-origin-tag\.is-manual/);
     assert.match(paginationCss,/\.ugc-origin-tag\.is-ai-made/);
 });
@@ -1007,7 +1007,6 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
     assert.match(maker, /CURRENCIES\.forEach/);
     assert.match(maker, /currencySelect\.value=isKnownCurrency\?currentCurrency:"__custom__"/);
     assert.match(maker, /customCurrency\.maxLength=3/);
-    assert.match(maker, /Each result can use a different currency/);
     assert.match(maker, /Each result can use a different currency/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(calculatorEngineSource, /unit compatibility/);
