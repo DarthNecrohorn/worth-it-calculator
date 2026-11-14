@@ -3300,6 +3300,132 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
  },quotaEvents);
 });
 
+test("V1 keeps product price-per-unit formulas dimensionally valid after regional currency selection",()=>{
+ const definition={
+  title:"Small Business Product Profitability",
+  description:"Estimate monthly product revenue, variable costs and net profit after fixed business expenses and payment fees.",
+  category:"other",
+  subcategories:["business"],
+  inputs:[
+   {key:"purchase_cost_per_unit",label:"Product purchase cost per unit",min:0,max:10000,default:0,step:1,unit:"EUR"},
+   {key:"packaging_cost_per_unit",label:"Packaging cost per unit",min:0,max:1000,default:0,step:1,unit:"EUR"},
+   {key:"shipping_cost_per_unit",label:"Shipping cost per unit",min:0,max:1000,default:0,step:1,unit:"EUR"},
+   {key:"selling_price_per_unit",label:"Selling price per unit",min:0,max:100000,default:0,step:1,unit:"EUR"},
+   {key:"payment_processing_fee_percentage",label:"Payment processing fee percentage",min:0,max:100,default:0,step:0.1,unit:"%"},
+   {key:"marketplace_fee_percentage",label:"Marketplace fee percentage",min:0,max:100,default:0,step:0.1,unit:"%"},
+   {key:"monthly_fixed_expenses",label:"Monthly fixed business expenses",min:0,max:1000000,default:0,step:1,unit:"EUR"},
+   {key:"expected_monthly_sales_volume",label:"Expected monthly sales volume",min:0,max:1000000,default:100,step:1,unit:"units"}
+  ],
+  groups:[],
+  results:[
+   {label:"Monthly Revenue",expression:"selling_price_per_unit*expected_monthly_sales_volume",format:"currency",currency:"EUR"},
+   {label:"Monthly Total Variable Costs",expression:"(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume",format:"currency",currency:"EUR"},
+   {label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(payment_processing_fee_percentage+marketplace_fee_percentage)/100",format:"currency",currency:"EUR"}
+  ],
+  scenarios:[]
+ };
+ const normalized=normalizeDefinition(definition,"RSD",{forceCurrency:"RSD",requireAllInputsUsed:true});
+ const inputs=Object.fromEntries(normalized.inputs.map(item=>[item.key,item]));
+ assert.equal(inputs.purchase_cost_per_unit.unit,"RSD/unit");
+ assert.equal(inputs.packaging_cost_per_unit.unit,"RSD/unit");
+ assert.equal(inputs.shipping_cost_per_unit.unit,"RSD/unit");
+ assert.equal(inputs.selling_price_per_unit.unit,"RSD/unit");
+ assert.equal(inputs.monthly_fixed_expenses.unit,"RSD");
+ assert.equal(inputs.expected_monthly_sales_volume.unit,"units");
+ assert.ok(normalized.results.every(item=>item.currency==="RSD"));
+});
+
+test("V2 recovers from Gemini 503 and normalizes per-unit prices and result currencies before strict formula validation",async()=>{
+ const numberInput=(key,label,unit,defaultValue=0,max=100000)=>({
+  key,label,type:"number",control:"number",min:0,max,default:defaultValue,step:1,unit,
+  choices:[],minDate:null,maxDate:null
+ });
+ const candidate={
+  blueprintVersion:2,
+  title:"Small Business Product Profitability",
+  description:"Estimate monthly product revenue, variable costs and net profit after fixed business expenses and payment fees.",
+  category:"other",
+  subcategories:["business"],
+  assumptions:["All monetary amounts use one selected currency.","Monthly sales volume is a count; the month is part of the label, not a conversion."],
+  spec:{
+   schemaVersion:2,engineVersion:2,
+   inputs:[
+    numberInput("purchase_cost_per_unit","Product purchase cost per unit","EUR"),
+    numberInput("packaging_cost_per_unit","Packaging cost per unit","EUR"),
+    numberInput("shipping_cost_per_unit","Shipping cost per unit","EUR"),
+    numberInput("selling_price_per_unit","Selling price per unit","EUR"),
+    numberInput("payment_processing_fee_percentage","Payment processing fee percentage","%",0,100),
+    numberInput("marketplace_fee_percentage","Marketplace fee percentage","%",0,100),
+    numberInput("monthly_fixed_expenses","Monthly fixed business expenses","EUR"),
+    numberInput("expected_monthly_sales_volume","Expected monthly sales volume","units",100,1000000)
+   ],
+   groups:[],
+   results:[
+    {key:"monthly_revenue",label:"Monthly Revenue",expression:"selling_price_per_unit*expected_monthly_sales_volume",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Selling price per unit multiplied by monthly sales volume."},
+    {key:"monthly_total_variable_costs",label:"Monthly Total Variable Costs",expression:"(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Unit purchase, packaging and shipping costs multiplied by monthly sales volume."},
+    {key:"monthly_net_profit",label:"Monthly Net Profit after Fixed Expenses",expression:"selling_price_per_unit*expected_monthly_sales_volume-(purchase_cost_per_unit+packaging_cost_per_unit+shipping_cost_per_unit)*expected_monthly_sales_volume-monthly_fixed_expenses-selling_price_per_unit*expected_monthly_sales_volume*(payment_processing_fee_percentage+marketplace_fee_percentage)/100",format:"currency",currency:"EUR",unit:null,prefix:"",suffix:"",explanation:"Revenue less variable costs, fixed expenses and percentage-based fees."}
+   ],
+   scenarios:[]
+  }
+ };
+ let geminiCalls=0,groqCalls=0,reservations=0;
+ const quotaEvents={};
+ const req=request({
+  prompt:"Create a Small Business Product Pricing and Profitability Calculator. Include product purchase cost per unit, packaging cost per unit, shipping cost per unit, selling price per unit, payment processing fee percentage, marketplace fee percentage, monthly fixed business expenses and expected monthly sales volume. Calculate Monthly Revenue, Monthly Total Variable Costs and Monthly Net Profit after Fixed Expenses. Use one currency consistently and do not convert currencies.",
+  schema_version:2
+ },{token:"valid-token"});
+ Object.defineProperty(req,"cf",{value:{country:"RS",continent:"EU"}});
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"v2-currency-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   reservations++;
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,2);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:4,price_milli:4000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   geminiCalls++;
+   return new Response(JSON.stringify({error:{message:"Temporarily unavailable"}}),{status:503});
+  }
+  if(path.includes("api.groq.com/openai/v1/chat/completions")){
+   groqCalls++;
+   const body=JSON.parse(options.body);
+   assert.equal(body.response_format.type,"json_object");
+   assert.equal(body.include_reasoning,false);
+   assert.equal(body.messages[0].role,"user");
+   assert.match(body.messages[0].content,/RSD\/unit/);
+   return new Response(JSON.stringify({choices:[{finish_reason:"stop",message:{content:JSON.stringify(candidate)}}]}),{status:200});
+  }
+  throw new Error("Unexpected V2 recovery request: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:req,
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test",GROQ_API_KEY:"groq-test"}
+  });
+  const body=await response.clone().json();
+  assert.equal(response.status,200,JSON.stringify(body));
+  assert.equal(body.success,true);
+  assert.equal(body.billing.price,4);
+  const spec=body.calculator.spec;
+  const inputs=Object.fromEntries(spec.inputs.map(item=>[item.key,item]));
+  for(const key of ["purchase_cost_per_unit","packaging_cost_per_unit","shipping_cost_per_unit","selling_price_per_unit"]){
+   assert.equal(inputs[key].unit,"RSD/unit",key+" must be normalized to RSD per unit");
+   assert.equal(inputs[key].default,0,key+" must not gain an invented monetary default");
+  }
+  assert.equal(inputs.monthly_fixed_expenses.unit,"RSD");
+  assert.equal(inputs.expected_monthly_sales_volume.unit,"units");
+  assert.ok(spec.results.every(item=>item.currency==="RSD"));
+  assert.equal(geminiCalls,1);
+  assert.equal(groqCalls,1);
+  assert.equal(reservations,1);
+  assert.equal(quotaEvents.settlements,1);
+  assert.equal(quotaEvents.refunds||0,0);
+  assert.ok(body.aiUsage.attempts.some(item=>item.provider==="gemini"&&item.httpStatus===503));
+  assert.ok(body.aiUsage.attempts.some(item=>item.provider==="groq"&&item.success===true));
+ },quotaEvents);
+});
+
 test("AI Creator refuses malformed V2 requests and keeps V2 refinement unavailable before reservation",async()=>{
  let reservations=0,providerCalls=0;
  await withFetch(async(url)=>{
