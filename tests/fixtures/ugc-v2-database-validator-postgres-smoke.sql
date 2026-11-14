@@ -9,14 +9,18 @@ declare
    {"key":"include_tax","label":"Include tax","type":"boolean","default":true,"control":"toggle"},
    {"key":"plan","label":"Plan","type":"enum","default":"pro","control":"select","choices":[{"label":"Basic","value":"basic"},{"label":"Pro","value":"pro"}]},
    {"key":"start_date","label":"Start date","type":"date","default":"2026-01-31","control":"date"},
-   {"key":"days_ahead","label":"Days ahead","type":"number","min":0,"max":30,"default":7,"step":1,"unit":"days","control":"number"}
+   {"key":"days_ahead","label":"Days ahead","type":"number","min":0,"max":30,"default":7,"step":1,"unit":"days","control":"number"},
+   {"key":"interest_rate","label":"Interest rate","type":"number","min":0,"max":1,"default":0.05,"step":0.01,"unit":"","control":"number"},
+   {"key":"periods","label":"Periods","type":"number","min":1,"max":120,"default":12,"step":1,"unit":"","control":"number"}
   ],
   "groups":[
    {"key":"expenses","label":"Expenses","itemLabel":"Expense","minItems":1,"maxItems":5,"fields":[
     {"key":"amount","label":"Amount","type":"number","min":0,"max":1000,"default":20,"step":1,"unit":"EUR"},
     {"key":"taxable","label":"Taxable","type":"boolean","default":true},
     {"key":"kind","label":"Kind","type":"enum","default":"fixed","choices":[{"label":"Fixed","value":"fixed"},{"label":"Variable","value":"variable"}]},
-    {"key":"due_date","label":"Due date","type":"date","default":"2026-02-15"}
+    {"key":"due_date","label":"Due date","type":"date","default":"2026-02-15"},
+    {"key":"weight","label":"Weight","type":"number","min":0,"max":100,"default":1,"step":1,"unit":""},
+    {"key":"score","label":"Score","type":"number","min":0,"max":100,"default":10,"step":1,"unit":""}
    ]}
   ],
   "results":[
@@ -28,6 +32,14 @@ declare
    {"key":"days_ahead_span","label":"Days ahead span","expression":"date_diff_days(start_date,add_days(start_date,days_ahead))","format":"unit","currency":"EUR","unit":"days","prefix":"","suffix":"","explanation":"Typed date offset."},
    {"key":"pro_selected","label":"Pro selected","expression":"if(eq(plan,\"pro\"),1,0)","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Enum equality."},
    {"key":"date_gate","label":"Due after date","expression":"count_if(gt(expenses.due_date,\"2026-02-15\"))","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Calendar-date predicate."}
+   ,{"key":"median_amount","label":"Median amount","expression":"median(expenses.amount)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Median over one group."}
+   ,{"key":"variance_score","label":"Score variance","expression":"variance(expenses.score)","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Population variance."}
+   ,{"key":"stddev_score","label":"Score deviation","expression":"stddev(expenses.score)","format":"number","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Population standard deviation."}
+   ,{"key":"p75_amount","label":"75th percentile","expression":"percentile(expenses.amount,75)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Interpolated percentile."}
+   ,{"key":"weighted_amount","label":"Weighted amount","expression":"weighted_avg(expenses.amount,expenses.weight)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Weighted average over one group."}
+   ,{"key":"future_value","label":"Future value","expression":"compound_interest(base_cost,interest_rate,periods)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Compound interest."}
+   ,{"key":"present_value","label":"Present value","expression":"present_value(base_cost,interest_rate,periods)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Discounted value."}
+   ,{"key":"loan_payment","label":"Loan payment","expression":"loan_payment(base_cost,interest_rate,periods)","format":"currency","currency":"EUR","unit":"","prefix":"","suffix":"","explanation":"Periodic payment."}
   ],
   "scenarios":[{"label":"Basic plan","values":{"plan":"basic","include_tax":false,"start_date":"2024-01-31","base_cost":80}}]
  }'::jsonb;
