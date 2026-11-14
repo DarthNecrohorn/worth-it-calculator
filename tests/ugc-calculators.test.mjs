@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { readFileSync } from "node:fs";
-import { onRequestGet, onRequestPost } from "../functions/api/ugc-maker.js";
+import { onRequestGet, onRequestPost, resolveExplicitCurrency, resolveExplicitCurrencies, resolvePromptCountry, resolveRegionalDefaults, createAiUsageCollector, recordAiUsageAttempt, summarizeAiUsage, summarizeAiCandidateForDiagnostics, normalizeDefinition } from "../functions/api/ugc-maker.js";
 import { validateCalculatorForServer } from "../functions/lib/ugc-calculator-validation.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -207,7 +207,7 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.doesNotMatch(html, /ugcMakerBillingNotice|Limited AI capacity|ugcMakerPrompt|ugcMakerGenerate/);
     assert.doesNotMatch(maker, /generateWithAI|refreshMakerGenerationQuota|refreshAiEditQuota/);
     assert.match(html, /Manual Builder uses no AI and costs no CALC/);
-    assert.match(html, /Testing remains free and runs locally in your browser/);
+    assert.match(html, /Manual Builder uses no AI and costs no CALC/);
     assert.match(maker, /24–500 characters/);
 });
 
@@ -247,7 +247,7 @@ test("Manual Builder test mode recalculates locally with the restricted formula 
     assert.match(maker, /control\.min=String\(item\.min\)/);
     assert.match(maker, /control\.max=String\(item\.max\)/);
     assert.match(maker, /renderMakerTestPanel\(true\)/, "formula edits refresh the open test panel while keeping sample values");
-    const localTestCode = maker.slice(maker.indexOf("function refreshMakerTestIfOpen"), maker.indexOf("async function generateWithAI"));
+    const localTestCode = maker.slice(maker.indexOf("function refreshMakerTestIfOpen"), maker.indexOf("function describeResultFormula"));
     assert.match(localTestCode, /Free local test/);
     assert.doesNotMatch(localTestCode, /calc_wallet_(?:reserve|settle|refund)|\.rpc\(|fetch\(/, "test mode must never charge CALC or call a server");
     assert.match(paginationCss, /\.ugc-maker-test-panel/);
@@ -688,11 +688,9 @@ test("calculator formulas are declarative and never executed as arbitrary JavaSc
     assert.match(makerQuotaSql, /worth_it_ugc_maker_generation_reservations/);
     assert.match(makerQuotaSql, /refund_worth_it_ugc_maker_generation_v2/);
     assert.match(makerQuotaSql, /status = 'refunded'/);
-    assert.match(makerApi, /reserve_worth_it_ugc_ai_operation/);
-    assert.match(makerApi, /refund_worth_it_ugc_ai_operation/);
-    assert.match(makerApi, /DAILY_AI_LIMIT/);
-    assert.match(makerApi, /GEMINI_API_KEY/);
-    assert.match(makerApi, /GROQ_API_KEY/);
+    assert.match(makerApi, /AI_UGC_CREATOR_DISABLED/);
+    assert.match(makerApi, /AI generation and AI improvement for community calculators have been removed/);
+    assert.doesNotMatch(makerApi, /export async function onRequestPost\(context\)\s*\{[^}]*generateWithGemini/s);
 });
 
 test("UGC writes are owner-bound with no lifetime cap and private calculators are hidden server-side", () => {
@@ -1010,8 +1008,9 @@ test("UGC Maker offers multi-currency result formatting and selectable measureme
     assert.match(maker, /currencySelect\.value=isKnownCurrency\?currentCurrency:"__custom__"/);
     assert.match(maker, /customCurrency\.maxLength=3/);
     assert.match(maker, /Each result can use a different currency/);
-    assert.match(makerApi, /For monetary inputs, set unit to the relevant ISO 4217 currency code/);
-    assert.match(makerApi, /Only calculate currency conversion when an exchange rate is supplied/);
+    assert.match(maker, /Each result can use a different currency/);
+    assert.match(maker, /Currency consistency warning/);
+    assert.match(calculatorEngineSource, /unit compatibility/);
 });
 
 test("Mobile header uses two aligned rows with economy controls below the logo", () => {
