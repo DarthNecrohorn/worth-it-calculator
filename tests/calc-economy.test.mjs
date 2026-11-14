@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -13,7 +13,8 @@ const economyFollowup = read("supabase/calc-economy-followup.sql");
 const creatorEarnings = read("supabase/worth-it-ugc-creator-earnings.sql");
 const creatorPriceCap = read("supabase/worth-it-ugc-creator-earnings-price-cap.sql");
 const ugc = read("ugc-calculators.js");
-const ai = read("functions/api/ai-chat.js");
+const aiMaker = read("functions/api/ugc-maker.js");
+const removedAIChatEndpoint = new URL("../functions/api/ai-chat.js", import.meta.url);
 const mediaApi = read("functions/api/chat-media.js");
 const chat = read("chat-ui.js");
 const profile = read("profile-ui.js");
@@ -178,20 +179,12 @@ test("Custom Theme persistence is restricted to active Premium Lite/Premium at t
     assert.ok(setup.includes("enable row level security"));
 });
 
-test("AI reservations settle only after successful Gemini or Groq replies and failure paths refund", () => {
-    const reserve = ai.indexOf('"calc_wallet_reserve"');
-    const settle = ai.indexOf('"calc_wallet_settle"');
-    const refund = ai.indexOf('"calc_wallet_refund"');
-    const geminiSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (env.GEMINI_API_KEY)"));
-    const groqSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (!env.GROQ_API_KEY)"));
-    const geminiDone = ai.indexOf('type: "done", provider: "gemini"');
-    const groqDone = ai.indexOf('type: "done", provider: "groq"');
-    assert.ok(reserve >= 0 && settle > reserve && refund > reserve);
-    assert.ok(geminiSettleCall > reserve && geminiDone > geminiSettleCall);
-    assert.ok(groqSettleCall > reserve && groqDone > groqSettleCall);
-    assert.match(ai, /INSUFFICIENT_CALC/);
-    assert.match(ai, /No CALC was charged/);
-    assert.match(ai, /async cancel\(\)/);
+test("AI Chat endpoint is removed while UGC AI operations retain independent CALC reservation and refunds", () => {
+    assert.equal(existsSync(removedAIChatEndpoint), false, "the standalone AI Chat Worker endpoint must not be deployed");
+    assert.match(aiMaker, /reserve_worth_it_ugc_ai_operation/);
+    assert.match(aiMaker, /settle_worth_it_ugc_ai_operation/);
+    assert.match(aiMaker, /refund_worth_it_ugc_ai_operation/);
+    assert.match(aiMaker, /outputSchemaVersion/);
 });
 
 test("chat media limits are enforced server-side and dynamically validated in the composer", () => {
