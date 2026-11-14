@@ -727,12 +727,7 @@ function compileV2Expression(source,symbols,groups){
   }
   fail();
  };
- const functions=new Set([
-  "min","max","abs","round","floor","ceil","sqrt","pow","clamp","avg","sum","count","mod","trunc","sign","hypot","log","ln","exp","sin","cos","tan","asin","acos","atan",
-  "if","gt","gte","lt","lte","eq","neq","and","or","not","sum_if","count_if",
-  "date_diff_days","add_days","add_months","days_in_month","calendar_year","calendar_month","weekday",
-  "median","variance","stddev","percentile","weighted_avg","compound_interest","present_value","loan_payment"
- ]);
+ const functions=new Set(V2_FUNCTION_HELP.map(item=>item.name));
  function primary(){
   ws();
   if(take("("))return nested(()=>{const expression=add();if(!take(")"))fail();return expression;});
