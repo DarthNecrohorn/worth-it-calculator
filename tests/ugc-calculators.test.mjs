@@ -3166,7 +3166,7 @@ test("AI Creator API prompts GPT-OSS for JSON and validates through the shared B
  assert.ok(makerApi.includes('import "../../ugc-blueprint-import.js";'));
  assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
   assert.match(makerApi,/return ONLY one complete JSON object/i);
- assert.doesNotMatch(makerApi,/response_format:\{type:"json_object"\}/);
+ assert.match(makerApi,/providerRequest\.response_format=\{type:"json_object"\}/);
     assert.match(makerApi,/include_reasoning:false/);
  assert.match(makerApi,/max_completion_tokens:typedV2\?16384:8192/);
  assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
