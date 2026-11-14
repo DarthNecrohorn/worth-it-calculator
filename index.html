@@ -433,7 +433,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </section>
         </div>
 
-,<button class="ai-chat-nav-btn" id="aiChatNavBtn" onclick="openAIChat()" title="Worth It AI Chat">
+        <button class="ai-chat-nav-btn" id="aiChatNavBtn" onclick="openAIChat()" title="Worth It AI Chat">
             🤖 <span>AI Chat</span>
         </button>
 
@@ -1752,7 +1752,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         What are CALC and WIP?
                     </button>
                     <div class="faq-answer">
-                        CALC is Worth It's in-app credit for supported calculators and successful AI calculator-generation or improvement operations. WIP is a separate activity point earned by signed-in accounts once per UTC day and can only be used to activate Premium Lite. Neither currency is cash, transferable or withdrawable.
+                        CALC is Worth It's in-app credit for supported calculator operations. WIP is a separate activity point earned by signed-in accounts once per UTC day and can only be used to activate Premium Lite. Neither currency is cash, transferable or withdrawable.
                     </div>
                 </div>
 
@@ -1788,7 +1788,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         Can guests use community calculators?
                     </button>
                     <div class="faq-answer">
-                        No. Community calculators, the AI Maker and the Web Shop require a signed-in account. Guest Lite can use the first 50 built-in calculators with its separate 0.5 CALC Lite daily allowance.
+                        No. Community calculators, the Manual Builder and the Web Shop require a signed-in account. Guest Lite can use the first 50 built-in calculators with its separate 0.5 CALC Lite daily allowance.
                     </div>
                 </div>
 
@@ -3394,7 +3394,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
                     <button type="button" class="web-shop-back" onclick="backFromWebShop()">← Back to Worth It</button>
                 </div>
-                <p class="web-shop-subtitle">CALC pays for supported calculators and successful AI calculator-generation or improvement operations. WIP is earned daily and is used only for Premium Lite. Guests use a separate 0.5 CALC Lite daily allowance.</p>
+                <p class="web-shop-subtitle">CALC pays for supported calculator operations. WIP is earned daily and is used only for Premium Lite. Guests use a separate 0.5 CALC Lite daily allowance.</p>
             </div>
             <div class="web-shop-tools">
                 <div class="web-shop-balance" aria-live="polite">
@@ -3411,7 +3411,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <div class="web-shop-notice">
             <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
-            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP daily. Premium Lite members receive 1.5 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 CALC Lite per UTC day and no WIP. CALC pays for supported calculators and successful AI replies; WIP is reserved for Premium Lite.</p>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP daily. Premium Lite members receive 1.5 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 CALC Lite per UTC day and no WIP. CALC pays only for supported calculator operations; WIP is reserved for Premium Lite.</p>
         </div>
 
         <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
@@ -3421,13 +3421,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
             <div class="web-shop-category-heading">
-                <div><h3>CALC currency</h3><p>Digital credits for supported calculator and AI features. Each paid calculation costs 0.1 CALC.</p></div>
+                <div><h3>CALC currency</h3><p>Digital credits for supported calculator operations. Each paid calculation costs 0.1 CALC.</p></div>
             </div>
             <div class="web-shop-grid">
                 <article class="web-shop-card">
                     <div class="web-shop-card-icon" aria-hidden="true">◈</div>
                     <h4>Starter Pack</h4>
-                    <p class="web-shop-description">A small balance top-up for occasional calculator and AI use.</p>
+                    <p class="web-shop-description">A small balance top-up for occasional supported calculator use.</p>
                     <p class="web-shop-price">10 <small>CALC</small></p>
                     <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Cannot be transferred or withdrawn</li></ul>
                     <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
@@ -3450,7 +3450,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">CALC is a closed-use Worth It credit for supported calculators and successful AI calculator-generation or improvement operations. AI costs depend on the selected schema version and membership tier; failed operations are refunded. CALC has no cash value, cannot be transferred, exchanged for WIP or withdrawn, and <strong>cannot be used to buy Premium Lite</strong>. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
+            <p class="web-shop-footnote">CALC is a closed-use Worth It credit for supported calculator operations. Each paid calculation costs 0.1 CALC. CALC has no cash value, cannot be transferred, exchanged for WIP or withdrawn, and <strong>cannot be used to buy Premium Lite</strong>. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
             <article class="web-shop-wip-note">
                 <strong>Worth It Points (WIP)</strong>
                 <p>WIP is a separate activity currency. Every signed-in account earns 1 WIP per UTC day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value and cannot be exchanged for CALC. <strong>WIP is the only currency used to activate Premium Lite: 50 WIP for 15 days.</strong> CALC is never deducted for Premium Lite.</p>
@@ -3470,8 +3470,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <p class="web-shop-price">Free <small>· no purchase required</small></p>
                     <ul class="web-shop-feature-list">
                         <li>1 CALC and 1 WIP daily reward</li>
-                                                                        <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
-                                                                        <li>Create, edit, save and publish calculators publicly or privately</li>
+                        <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
+                        <li>Create, edit, save and publish calculators publicly or privately</li>
                         <li>Standard profile, chat and media limits</li>
                     </ul>
                     <p class="web-shop-footnote">Free is the default membership. This card is informational only and cannot be purchased.</p>
@@ -3485,8 +3485,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <ul class="web-shop-feature-list">
                         <li>No ads while active</li>
                         <li>1.5 CALC and 1 WIP daily reward</li>
-                                                                        <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                                                                        <li>Premium Lite profile and chat badge</li>
+                        <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                        <li>Premium Lite profile and chat badge</li>
                         <li>Higher image, GIF and video upload limits</li>
                         <li>Extra profile and chat customisation</li>
                     </ul>
@@ -3501,8 +3501,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <ul class="web-shop-feature-list">
                         <li>No ads while active</li>
                         <li>3 CALC and 1 WIP daily reward</li>
-                                                                        <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                                                                        <li>Exclusive Premium profile and chat badge</li>
+                        <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                        <li>Exclusive Premium profile and chat badge</li>
                         <li>Highest image, GIF and video upload limits</li>
                         <li>More personalisation and future member features</li>
                     </ul>
