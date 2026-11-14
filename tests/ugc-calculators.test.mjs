@@ -390,8 +390,8 @@ test("internal Gemini profile image and banner moderation stays independent of u
     assert.match(moderation,/generativelanguage\.googleapis\.com\/v1beta\/models/);
     assert.match(moderation,/You are a strict safety moderator/);
     assert.match(moderation,/decision must be 'allow' or 'reject'/);
-    assert.match(profile,/Images and GIF frames are sent to Google Gemini for automated safety screening/);
-    assert.match(profile,/Banners receive the same automatic safety checks as profile pictures/);
+    assert.match(html,/Images and GIF frames are sent to Google Gemini for automated safety screening/);
+    assert.match(html,/Banners receive the same automatic safety checks as profile pictures/);
     assert.doesNotMatch(moderation,/calc_wallet_|ugc_ai_operation|ugc_maker_generation|reserve_worth_it_ugc/);
 });
 
