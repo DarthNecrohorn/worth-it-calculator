@@ -604,6 +604,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 temperature:0.15,
                 ...(typedV2?{max_completion_tokens:16384}:{max_tokens:8192}),
                 reasoning_effort:"high",
+                ...(typedV2?{reasoning_format:"parsed"}:{}),
                 response_format:typedV2?{type:"json_object"}:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
