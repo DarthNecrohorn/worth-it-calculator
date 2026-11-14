@@ -2526,7 +2526,7 @@ async function importManualBlueprint(){
  try{
   const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
   const importer=window.WorthItBlueprintImport;
-  let definition=null,importError=null;
+  let definition=null,importError=null,typedV2=false;
   try{
    if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
    definition=importer.parseBlueprint(raw,validateManualDraftSpec,originalRequest);
@@ -2537,7 +2537,7 @@ async function importManualBlueprint(){
   if(definition){
    importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
    validationIssueCount=Number(definition.importValidationIssueCount)||0;
-   const typedV2=Number(definition.spec?.schemaVersion)===2;
+   typedV2=Number(definition.spec?.schemaVersion)===2;
    const sharedValidation=validateManualDraftSpec(definition.spec);
    const sharedErrors=Array.isArray(sharedValidation?.errors)?sharedValidation.errors:[];
    validationIssueCount=Math.max(validationIssueCount,sharedErrors.length);
