@@ -3828,3 +3828,60 @@ test("AI UGC Maker diagnostic summaries expose formula metadata but never defaul
  assert.equal(Object.hasOwn(summary.inputs[1],"default"),false);
  assert.equal(Object.hasOwn(summary,"prompt"),false);
 });
+
+
+test("AI UGC Maker opt-in diagnostics identify typed V2 formula-unit failures before a draft is accepted",async()=>{
+ const badCandidate=createCanonicalGeminiV2Candidate();
+ badCandidate.spec.results[0]={
+  key:"eligible_quantity",
+  label:"Annual petrol consumption (L/year)",
+  expression:"quantity",
+  format:"unit",
+  currency:null,
+  unit:"L/year",
+  prefix:"",
+  suffix:"",
+  explanation:"Annual petrol consumption."
+ };
+ const quotaEvents={refunds:0,settlements:0};
+ await withFetch(async(url,options)=>{
+  const path=String(url);
+  if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"typed-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
+  if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,2);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:4,price_milli:4000,plan:"free"}),{status:200});
+  }
+  if(path.includes("generativelanguage.googleapis.com")){
+   return new Response(JSON.stringify({
+    modelVersion:"gemini-3.8-flash",
+    candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(badCandidate)}]}}],
+    usageMetadata:{promptTokenCount:100,candidatesTokenCount:200,totalTokenCount:300}
+   }),{status:200});
+  }
+  throw new Error("Unexpected request in typed V2 formula diagnostics test: "+path);
+ },async()=>{
+  const response=await onRequestPost({
+   request:request({
+    mode:"create",
+    prompt:"Create a typed calculator with an enabled quantity, a selected plan and a calendar date cutoff. Include annual petrol consumption in L/year.",
+    schema_version:2,
+    debug_diagnostics:true
+   },{token:"valid-token"}),
+   env:{SUPABASE_URL:"https://supabase.example",SUPABASE_PUBLISHABLE_KEY:"publishable",GEMINI_API_KEY:"gemini-test"}
+  });
+  assert.equal(response.status,422);
+  const result=await response.json();
+  assert.equal(result.code,"INVALID_AI_CALCULATOR");
+  assert.equal(result.diagnostics.providerUsed,"gemini");
+  assert.equal(result.diagnostics.schemaVersion,2);
+  assert.equal(result.diagnostics.candidate.inputs.find(item=>item.key==="quantity").unit,"");
+  assert.equal(result.diagnostics.candidate.results[0].expression,"quantity");
+  assert.equal(result.diagnostics.candidate.results[0].unit,"L/year");
+  assert.equal(result.aiUsage.attempts.length,1);
+  assert.equal(result.aiUsage.attempts[0].provider,"gemini");
+  assert.equal(result.aiUsage.attempts[0].success,true);
+  assert.equal(quotaEvents.refunds,1);
+  assert.equal(quotaEvents.settlements||0,0);
+ },quotaEvents);
+});
