@@ -44,7 +44,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -1329,9 +1329,9 @@ function refreshMakerValidationNote(){
  const testToggle=host.querySelector(".ugc-maker-test-toggle");
  if(testToggle)testToggle.insertAdjacentElement("beforebegin",note);else host.appendChild(note);
 }
-function formatResult(item,value,locale){
+function formatResult(item,value){
  const prefix=String(item.prefix||""),suffix=String(item.suffix||"");
- const format=(options)=>{try{return new Intl.NumberFormat(locale||undefined,options).format(value);}catch(_){return new Intl.NumberFormat(undefined,options).format(value);}};
+ const format=(options)=>{try{return new Intl.NumberFormat("en-US",options).format(value);}catch(_){return Number(value).toLocaleString("en-US",options);}};
  if(item.format==="currency"){
   const currency=String(item.currency||"USD").toUpperCase();
   const currencyMeta=[...CURRENCIES,...HISTORICAL_CURRENCIES].find(entry=>entry[0]===currency);
@@ -1339,14 +1339,11 @@ function formatResult(item,value,locale){
   if(Number.isInteger(minorUnits)&&minorUnits>=0&&minorUnits<=4){
    try{return prefix+format({style:"currency",currency,minimumFractionDigits:minorUnits,maximumFractionDigits:minorUnits})+suffix;}catch(_){}
   }
-  // ISO codes marked with no minor unit do not define a settlement precision.
-  // Keep up to four displayed decimals and show the code explicitly.
   return prefix+format({maximumFractionDigits:4})+" "+currency+suffix;
  }
  if(item.format==="percent")return prefix+format({maximumFractionDigits:2})+"%"+suffix;
  if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
  return prefix+format({maximumFractionDigits:4})+suffix;
-}
 async function refreshCreationQuota(){
  const host=$("ugcMakerQuotaStatus");
  if(!host||!state.userId)return;
@@ -1951,16 +1948,8 @@ function renderMakerTestPanel(preserveValues){
  const reset=button("Reset values","ugc-maker-test-reset",()=>renderMakerTestPanel(false));
  reset.setAttribute("aria-label","Reset test values to the calculator defaults");
  heading.append(intro,reset);panel.appendChild(heading);
- const localeLabel=document.createElement("label");localeLabel.className="ugc-maker-test-locale";
- localeLabel.appendChild(text("span","","Number format"));
- const localeSelect=document.createElement("select");localeSelect.setAttribute("aria-label","Number formatting locale");
- const localeOptions=[["auto","Use browser settings"],["en-US","English (United States)"],["en-GB","English (United Kingdom)"],["de-DE","German (Germany)"],["fr-FR","French (France)"],["es-ES","Spanish (Spain)"],["pt-BR","Portuguese (Brazil)"],["sr-Latn-RS","Serbian (Latin)"],["ja-JP","Japanese (Japan)"]];
- const selectedLocale=state.makerLocale||state.regionalDefaults?.locale||"auto";
- localeOptions.forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;localeSelect.appendChild(option);});
- if(selectedLocale!=="auto"&&!localeOptions.some(([value])=>value===selectedLocale)){const option=document.createElement("option");option.value=selectedLocale;option.textContent="Detected regional format ("+selectedLocale+")";localeSelect.appendChild(option);}
- localeSelect.value=selectedLocale;
- localeSelect.addEventListener("change",()=>{state.makerLocale=localeSelect.value;updateMakerTestResults(panel);});
- localeLabel.appendChild(localeSelect);panel.appendChild(localeLabel);
+ const numberFormatNote=text("p","ugc-maker-test-locale","Number format is fixed to English (United States).");
+ panel.appendChild(numberFormatNote);
  const inputGrid=document.createElement("div");inputGrid.className="ugc-maker-test-inputs";
  spec.inputs.forEach(item=>{
   const label=document.createElement("label");label.className="ugc-maker-test-input";
@@ -2031,7 +2020,7 @@ function updateMakerTestResults(panel){
     const card=document.createElement(compact?"div":"article");
     card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
     card.appendChild(text("span","",item.label||"Result"));
-    card.appendChild(text(compact?"b":"strong","",formatResult(item.item||{},item.value,state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||""))));
+    card.appendChild(text(compact?"b":"strong","",formatResult(item.item||{},item.value)));
     if(!compact&&item.explanation)card.appendChild(text("small","ugc-result-explanation",item.explanation));
     host.appendChild(card);
    });
@@ -2484,7 +2473,7 @@ function applyAdaptiveManualFallback(originalRequest,sourceDefinition,reason,sta
  state.manualMode=mode;
  state.manualTemplateKey=selectedTemplateKey;
  state.regionalDefaults=null;
- state.makerLocale="auto";
+ 
  state.blueprintImportActive=false;
  state.aiDraft=createManualDraft(selectedTemplateKey);
  if(selectedTemplateKey==="advanced"&&sourceDefinition?.title){
@@ -2552,7 +2541,7 @@ async function importManualBlueprint(){
    return;
   }
   state.regionalDefaults=null;
-  state.makerLocale="auto";
+  
   if(!definition||(validationIssueCount>0&&!typedV2)){
    const reason=importError?.message||(validationSummary||validationIssueCount+" validation item(s) remained after Quick Fix.");
    const fallback=applyAdaptiveManualFallback(originalRequest,definition,reason,statusNode);
@@ -3217,7 +3206,7 @@ function updateMakerV2TestResults(panel){
   try{
    evaluateV2TypedResults(spec,values,normalizedGroups.groups).results.forEach(result=>{
     const card=document.createElement(compact?"div":"article");card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
-    card.append(text("span","",result.label||"Result"),text(compact?"b":"strong","",formatResult(result.item||{},result.value,state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||""))));
+    card.append(text("span","",result.label||"Result"),text(compact?"b":"strong","",formatResult(result.item||{},result.value)));
     if(!compact&&result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));host.appendChild(card);
    });
   }catch(error){formulaErrors++;const card=text(compact?"div":"article",compact?"ugc-maker-scenario-result is-error":"ugc-maker-test-result is-error","");card.append(text("span","","Calculation error"),text(compact?"b":"strong","","Cannot calculate"),text("small","",error?.message||"Check the formula."));host.appendChild(card);}
@@ -3295,7 +3284,7 @@ function renderMakerPreview(definition){
   if(item.format==="currency")ensureResultCurrency(item,state.regionalDefaults?.currency||"EUR");
  });
  if(state.regionalDefaults){
-  const regionNote=text("p","ugc-maker-schema-summary","Regional suggestion: "+state.regionalDefaults.currency+" · number format "+state.regionalDefaults.locale+". This is only a starting point; you can change every input unit and result currency below. Currency selection never performs conversion.");
+  const regionNote=text("p","ugc-maker-schema-summary","Regional currency suggestion: "+state.regionalDefaults.currency+". The interface and number formatting remain in English. You can change input units and result currencies below; currency selection never performs conversion.");
   regionNote.id="ugcMakerRegionalDefaults";host.appendChild(regionNote);
  }
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
@@ -3754,7 +3743,7 @@ window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
 function openManualCalculatorMaker(){
  state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";state.manualTemplateKey="simple-cost";
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";
- state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";
+ state.aiDraft=null;state.regionalDefaults=null;
  const mode=$("ugcManualMode");if(mode)mode.value="quick";
  const template=$("ugcManualTemplate");if(template)template.value="simple-cost";
  $("ugcMakerVisibility").value="private";
