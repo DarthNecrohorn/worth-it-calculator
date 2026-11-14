@@ -145,6 +145,37 @@ function executableSpec(storedSpec) {
     return spec;
 }
 
+function normalizeRuntimeInputs(spec, rawValues, rawGroups) {
+    const source = rawValues === undefined || rawValues === null ? {} : rawValues;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+        throw new Error("Calculator input values must be an object.");
+    }
+    const defaults = ENGINE.createDefaultTypedValues(spec);
+    if (defaults?.valid !== true) throw new Error("The stored calculator has invalid default input values.");
+    const definitions = new Map((spec.inputs || []).map(input => [input.key, input]));
+    Object.keys(source).forEach(key => {
+        if (!definitions.has(key)) throw new Error("Unknown calculator input: " + key + ".");
+    });
+    const values = { ...defaults.values };
+    Object.entries(source).forEach(([key, rawValue]) => {
+        const definition = definitions.get(key);
+        // The member runtime sends actual JSON numbers, not numeric strings.
+        if (definition.type === "number" && typeof rawValue !== "number") {
+            throw new Error(String(definition.label || key) + " must use a JSON number value.");
+        }
+        const normalized = ENGINE.normalizeTypedValue(definition, rawValue);
+        if (normalized?.valid !== true) {
+            throw new Error(String(definition.label || key) + ": " + String(normalized?.error || "Invalid value."));
+        }
+        values[key] = normalized.value;
+    });
+    const normalizedGroups = ENGINE.normalizeTypedGroupValues(spec, rawGroups);
+    if (normalizedGroups?.valid !== true) {
+        throw new Error((normalizedGroups?.errors || ["Dynamic group values are invalid."]).slice(0, 3).join(" "));
+    }
+    return { values, groups: normalizedGroups.groups };
+}
+
 function publicResult(item, definition) {
     return {
         key: item.key,
@@ -161,8 +192,8 @@ function publicResult(item, definition) {
 
 async function refundReservation(config, token, requestId) {
     try {
-        await rpc(config, "calc_wallet_refund", { p_request_id: requestId }, { token });
-        return true;
+        const result = await rpc(config, "calc_wallet_refund", { p_request_id: requestId }, { token });
+        return result?.ok === true;
     } catch (_) {
         return false;
     }
@@ -264,23 +295,14 @@ export async function onRequestPost(context) {
         }, 422, access.origin);
     }
 
-    let evaluation;
-    let scenarios;
+    let normalizedInputs;
     try {
-        evaluation = ENGINE.evaluateV2TypedResults(spec, body.values, body.groups);
-        scenarios = (Array.isArray(spec.scenarios) ? spec.scenarios : []).map(scenario => {
-            const values = { ...evaluation.values, ...(scenario.values || {}) };
-            const result = ENGINE.evaluateV2TypedResults(spec, values, evaluation.groups);
-            return {
-                label: String(scenario.label || "Alternative"),
-                results: result.results.map((item, index) => publicResult(item, spec.results[index]))
-            };
-        });
+        normalizedInputs = normalizeRuntimeInputs(spec, body.values, body.groups);
     } catch (error) {
         return responseJson({
             success: false,
             code: "INVALID_CALCULATOR_INPUT",
-            error: String(error?.message || "The calculator inputs could not be evaluated.")
+            error: String(error?.message || "The calculator inputs are invalid.")
         }, 422, access.origin);
     }
 
@@ -304,6 +326,29 @@ export async function onRequestPost(context) {
             required: reservation?.required,
             balance: reservation?.balance
         }, insufficient ? 402 : 409, access.origin);
+    }
+
+    let evaluation;
+    let scenarios;
+    try {
+        evaluation = ENGINE.evaluateV2TypedResults(spec, normalizedInputs.values, normalizedInputs.groups);
+        scenarios = (Array.isArray(spec.scenarios) ? spec.scenarios : []).map(scenario => {
+            const values = { ...evaluation.values, ...(scenario.values || {}) };
+            const result = ENGINE.evaluateV2TypedResults(spec, values, evaluation.groups);
+            return {
+                label: String(scenario.label || "Alternative"),
+                results: result.results.map((item, index) => publicResult(item, spec.results[index]))
+            };
+        });
+    } catch (error) {
+        const refunded = await refundReservation(config, token, requestId);
+        return responseJson({
+            success: false,
+            code: refunded ? "CALCULATION_FAILED" : "CALCULATION_FAILED_REFUND_PENDING",
+            error: refunded
+                ? String(error?.message || "The calculator could not complete this calculation.")
+                : "The calculator could not complete this calculation and its CALC refund could not be confirmed."
+        }, refunded ? 422 : 502, access.origin);
     }
 
     try {

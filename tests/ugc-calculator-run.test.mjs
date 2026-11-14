@@ -163,6 +163,51 @@ test("V2 runtime rejects tampered stored formulas before reserving CALC", async 
     });
 });
 
+test("V2 runtime refunds CALC when a valid input causes a formula execution error", async () => {
+    const spec = typedSpec({
+        inputs: [
+            { key: "amount", label: "Amount", type: "number", control: "number", min: 0, max: 1000, default: 10, step: 1, unit: "" },
+            { key: "enabled", label: "Enabled", type: "boolean", control: "toggle", default: true },
+            { key: "plan", label: "Plan", type: "enum", control: "select", default: "pro", choices: [{ label: "Basic", value: "basic" }, { label: "Pro", value: "pro" }] },
+            { key: "start_date", label: "Start date", type: "date", control: "date", default: "2026-01-31" }
+        ],
+        results: [{
+            key: "quotient",
+            label: "Quotient",
+            expression: "10 / (amount - 5)",
+            format: "number",
+            currency: "",
+            unit: "",
+            prefix: "",
+            suffix: "",
+            explanation: ""
+        }],
+        scenarios: []
+    });
+    const calls = [];
+    await withFetch(async (url, options) => {
+        const path = String(url);
+        calls.push(path);
+        if (path.endsWith("/auth/v1/user")) return response({ id: "user-123" });
+        if (path.endsWith("/rest/v1/rpc/get_worth_it_ugc_runtime_spec")) return response({ spec, usage_price_milli: 250 });
+        if (path.endsWith("/rest/v1/rpc/calc_wallet_reserve")) return response({ ok: true, usage_price_milli: 250 });
+        if (path.endsWith("/rest/v1/rpc/calc_wallet_refund")) return response({ ok: true, refunded: true });
+        if (path.endsWith("/rest/v1/rpc/calc_wallet_settle")) throw new Error("Settlement must not run after a formula error.");
+        throw new Error("Unexpected request: " + path);
+    }, async () => {
+        const result = await onRequestPost({
+            request: makeRequest(body({ values: { amount: 5, enabled: true, plan: "pro", start_date: "2026-02-01" } })),
+            env: config()
+        });
+        const data = await result.json();
+        assert.equal(result.status, 422);
+        assert.equal(data.code, "CALCULATION_FAILED");
+        assert.ok(calls.some(path => path.endsWith("/rpc/calc_wallet_reserve")));
+        assert.ok(calls.some(path => path.endsWith("/rpc/calc_wallet_refund")));
+        assert.equal(calls.some(path => path.endsWith("/rpc/calc_wallet_settle")), false);
+    });
+});
+
 test("V2 runtime refunds a CALC reservation when settlement cannot be confirmed", async () => {
     const spec = typedSpec();
     const calls = [];
