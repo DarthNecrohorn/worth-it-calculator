@@ -701,8 +701,9 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /ugc-maker-test-locale/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
-    assert.match(html, /Version 1:.*AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
-    assert.match(html, /Version 2 · typed:.*AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium/);
+    assert.match(html, /id="ugcMakerBillingNotice".*Version 1:.*AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
+    assert.match(maker, /function updateMakerBillingNotice\(\)/);
+    assert.match(maker, /addEventListener\("change",updateMakerBillingNotice\)/);
     assert.match(html, /Limited AI capacity/);
     assert.match(html, /Manual Builder uses no AI and costs no CALC/);
     assert.match(html, /Testing remains free and runs locally in your browser/);
@@ -3125,6 +3126,29 @@ test("AI Creator exposes a separate experimental typed V2 schema choice and rout
  assert.match(maker,/if\(Number\(state\.aiDraft\?\.spec\?\.schemaVersion\)===2\)/);
  assert.match(maker,/V2 remains local-only in this database/);
  assert.match(maker,/V2 save and publish are enabled in this database/);
+});
+
+test("AI Creator billing notice follows the selected V1/V2 schema and keeps saved-calculator refinement V1-only",()=>{
+ const start=maker.indexOf("function updateMakerBillingNotice(){");
+ const end=maker.indexOf("\nfunction setMakerModeUI(){",start);
+ assert.ok(start>=0&&end>start,"The billing notice updater must be isolated before the maker UI setup.");
+ const sandbox={state:{editingId:null},version:"1",notice:{innerHTML:""}};
+ sandbox.$=id=>id==="ugcMakerBillingNotice"?sandbox.notice:{value:sandbox.version};
+ runInNewContext(maker.slice(start,end)+"\nglobalThis.updateMakerBillingNotice=updateMakerBillingNotice;",sandbox);
+ sandbox.version="2";
+ sandbox.updateMakerBillingNotice();
+ assert.match(sandbox.notice.innerHTML,/Version 2 · typed/);
+ assert.match(sandbox.notice.innerHTML,/4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium/);
+ assert.match(sandbox.notice.innerHTML,/V2 saved-calculator AI improvement is not enabled yet/);
+ sandbox.version="1";
+ sandbox.updateMakerBillingNotice();
+ assert.match(sandbox.notice.innerHTML,/Version 1/);
+ assert.match(sandbox.notice.innerHTML,/2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
+ sandbox.state.editingId="existing-calculator";
+ sandbox.version="2";
+ sandbox.updateMakerBillingNotice();
+ assert.match(sandbox.notice.innerHTML,/Version 1/,"saved-calculator AI improvements remain V1-only");
+ assert.doesNotMatch(sandbox.notice.innerHTML,/Version 2 · typed/);
 });
 
 test("Typed V2 persistence uses a database capability gate and a strict member runtime without changing V1 evaluation",()=>{
