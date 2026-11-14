@@ -467,10 +467,8 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 reasoning_effort:"high",
                 reasoning_format:"hidden",
                 response_format:{type:"json_object"},
-                // Groq's GPT-OSS guidance recommends putting instructions in the user message, not a system message.
-                messages:typedV2
-                    ?[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
-                    :[{role:"system",content:groqSystem},{role:"user",content:prompt}]
+                // Groq recommends a single user message for GPT-OSS; keep instructions and request together.
+                messages:[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
             })
         });
         httpStatus=response.status;
