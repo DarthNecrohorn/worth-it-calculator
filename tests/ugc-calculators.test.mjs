@@ -208,7 +208,7 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.doesNotMatch(html, /ugcMakerBillingNotice|Limited AI capacity|ugcMakerPrompt|ugcMakerGenerate/);
     assert.doesNotMatch(maker, /generateWithAI|refreshMakerGenerationQuota|refreshAiEditQuota/);
     assert.match(html, /The UGC Calculator Builder uses no Worth It AI request and costs no CALC/);
-    assert.match(html, /Manual Builder uses no AI and costs no CALC/);
+    assert.match(html, /The UGC Calculator Builder uses no Worth It AI request and costs no CALC/);
     assert.match(maker, /24–500 characters/);
 });
 
@@ -1290,7 +1290,7 @@ test("Community Discovery is a separate slide with 100 ranked profiles and respo
 });
 
 
-test("Community Discovery sits immediately to the left of Create manually in the UGC header", () => {
+test("Community Discovery sits immediately to the left of Create UGC calculator in the UGC header", () => {
     const headerStart = html.indexOf('<header class="ugc-community-header">');
     const headerEnd = html.indexOf('</header>', headerStart);
     const header = html.slice(headerStart, headerEnd);
