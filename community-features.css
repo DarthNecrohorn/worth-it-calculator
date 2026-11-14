@@ -1,0 +1,581 @@
+.calculator-toolbar .calculator-favourites-toggle{min-height:44px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;color:var(--text);background:var(--card2);font-weight:700;white-space:nowrap}
+.calculator-toolbar .calculator-favourites-toggle.active{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 17%,var(--card2))}
+.calc-card{position:relative}
+.calc-favorite-toggle{position:absolute;top:12px;right:12px;z-index:2;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--border);border-radius:12px;color:var(--muted);background:color-mix(in srgb,var(--card-solid) 88%,transparent);font-size:22px;line-height:1;transition:transform .18s ease,border-color .18s ease,color .18s ease}
+.calc-favorite-toggle:hover{transform:translateY(-2px);border-color:var(--primary);color:var(--primary)}
+.calc-favorite-toggle.is-favourite{color:#fbbf24;border-color:rgba(251,191,36,.48);background:rgba(251,191,36,.10)}
+.calc-favorite-toggle:disabled{opacity:.55;cursor:wait}
+
+/* Everyone can preview Custom Themes; this callout explains the Premium save benefit. */
+.worth-it-theme-locked{
+ display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;
+ margin-bottom:14px;padding:15px 16px;border:1px solid color-mix(in srgb,var(--primary) 42%,var(--border));
+ border-radius:15px;background:linear-gradient(125deg,color-mix(in srgb,var(--primary) 13%,var(--card-solid)),color-mix(in srgb,var(--primary2) 9%,var(--card-solid)));
+}
+.worth-it-theme-locked[hidden]{display:none!important}
+.worth-it-theme-locked-icon{
+ width:42px;height:42px;display:grid;place-items:center;border-radius:12px;
+ background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-size:21px;
+}
+.worth-it-theme-locked strong{display:block;color:var(--text);font-size:14px;font-weight:850}
+.worth-it-theme-locked p{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.55}
+.worth-it-theme-locked .settings-option{min-height:40px;white-space:nowrap;border-color:color-mix(in srgb,var(--primary) 54%,var(--border))}
+.worth-it-theme-editor-head .settings-note{font-size:11px;text-align:right}
+@media(max-width:700px){
+ .worth-it-theme-locked{grid-template-columns:38px minmax(0,1fr);gap:10px;padding:12px}
+ .worth-it-theme-locked-icon{width:38px;height:38px}
+ .worth-it-theme-locked>button{grid-column:1/-1;width:100%;white-space:normal}
+ .worth-it-theme-editor-head{align-items:flex-start;flex-direction:column;gap:4px}
+ .worth-it-theme-editor-head .settings-note{text-align:left}
+}
+
+
+/* Full-site Custom Theme design tokens and live component sample. */
+html[data-worth-it-custom-theme] body{
+ background:
+  radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--primary) 16%,transparent),transparent 30%),
+  radial-gradient(circle at 90% 10%,color-mix(in srgb,var(--primary2) 13%,transparent),transparent 28%),
+  linear-gradient(135deg,var(--bg),var(--bg2));
+ color:var(--text);
+ font-family:var(--worth-it-theme-font-family);
+ line-height:var(--worth-it-theme-body-line-height);
+ letter-spacing:var(--worth-it-theme-body-letter-spacing);
+}
+html[data-worth-it-custom-theme] h1,
+html[data-worth-it-custom-theme] h2,
+html[data-worth-it-custom-theme] h3,
+html[data-worth-it-custom-theme] h4,
+html[data-worth-it-custom-theme] h5,
+html[data-worth-it-custom-theme] h6,
+html[data-worth-it-custom-theme] .calc-card-title,
+html[data-worth-it-custom-theme] .worth-it-settings-panel-heading h2,
+html[data-worth-it-custom-theme] .account-page-title{
+ color:var(--worth-it-theme-heading-color);
+ font-family:var(--worth-it-theme-heading-font-family);
+ font-weight:var(--worth-it-theme-heading-weight);
+ letter-spacing:var(--worth-it-theme-heading-letter-spacing);
+ text-transform:var(--worth-it-theme-heading-transform);
+}
+html[data-worth-it-custom-theme] a:not(.logo):not([class*="button"]):not([class*="-btn"]):not([aria-disabled="true"]){
+ color:var(--worth-it-theme-link-color);
+}
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .worth-it-settings-panel,
+html[data-worth-it-custom-theme] .account-page-card,
+html[data-worth-it-custom-theme] .worth-it-theme-editor,
+html[data-worth-it-custom-theme] .worth-it-report-card{
+ border-radius:var(--radius);
+}
+html[data-worth-it-custom-theme] .settings-option,
+html[data-worth-it-custom-theme] .feedback-nav-btn,
+html[data-worth-it-custom-theme] .settings-btn,
+html[data-worth-it-custom-theme] .signout-nav-btn,
+html[data-worth-it-custom-theme] .auth-btn,
+html[data-worth-it-custom-theme] .menu-btn,
+html[data-worth-it-custom-theme] .calc-economy-nav>button,
+html[data-worth-it-custom-theme] .calc-wallet-nav{
+ border-radius:var(--worth-it-theme-control-radius);
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .feedback-nav-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .settings-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] .menu-btn{
+ background:var(--primary)!important;border-color:var(--primary)!important;color:var(--worth-it-gradient-foreground)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .feedback-nav-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .settings-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] .menu-btn{
+ background:transparent!important;border:1px solid var(--primary)!important;color:var(--worth-it-primary-readable)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .settings-option:not(.danger),
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .feedback-nav-btn{
+ background:linear-gradient(115deg,var(--primary),var(--primary2));
+ border-color:transparent;color:var(--worth-it-gradient-foreground);
+}
+.worth-it-theme-design-section{display:grid;gap:9px;padding-top:13px;border-top:1px solid var(--border)}
+.worth-it-theme-design-section h4{color:var(--text);font-size:14px;font-weight:850}
+.worth-it-theme-design-section>p{color:var(--muted);font-size:12px;line-height:1.55}
+.worth-it-theme-style-fields select{
+ width:100%;min-height:46px;padding:9px 36px 9px 11px;border:1px solid var(--border);
+ border-radius:11px;background:var(--card-solid);color:var(--text);font:inherit;cursor:pointer;
+}
+.worth-it-theme-preview{
+ display:grid;gap:12px;width:100%;height:auto;min-height:0;padding:14px;
+ border:1px solid var(--border);border-radius:var(--radius);
+ background:var(--bg);color:var(--text);overflow:hidden;
+}
+.worth-it-theme-preview-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.worth-it-theme-preview-brand{display:flex;align-items:center;gap:8px;color:var(--worth-it-theme-heading-color);font-weight:850}
+.worth-it-theme-preview-mark{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:var(--worth-it-gradient-foreground);font-weight:900}
+.worth-it-theme-preview-chip{padding:5px 9px;border:1px solid var(--border);border-radius:99px;background:var(--card2);color:var(--muted);font-size:9px;font-weight:850;letter-spacing:.08em}
+.worth-it-theme-preview-card{display:grid;gap:8px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card-solid);color:var(--text)}
+.worth-it-theme-preview-eyebrow{color:var(--worth-it-primary-readable);font-size:9px;font-weight:900;letter-spacing:.12em}
+.worth-it-theme-preview-card h4{margin:0;color:var(--worth-it-theme-heading-color);font-size:clamp(16px,2.8vw,21px);font-family:var(--worth-it-theme-heading-font-family);font-weight:var(--worth-it-theme-heading-weight);letter-spacing:var(--worth-it-theme-heading-letter-spacing);text-transform:var(--worth-it-theme-heading-transform)}
+.worth-it-theme-preview-card p{color:var(--text);font-size:12px;line-height:var(--worth-it-theme-body-line-height)}
+.worth-it-theme-preview-card p a{color:var(--worth-it-theme-link-color);text-decoration:underline;text-underline-offset:2px}
+.worth-it-theme-preview-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.worth-it-theme-preview-input{flex:1 1 135px;min-height:34px;display:flex;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:var(--worth-it-theme-control-radius);background:var(--card2);color:var(--muted);font-size:11px}
+.worth-it-theme-preview-controls button{min-height:34px;padding:7px 11px;border:1px solid var(--primary);border-radius:var(--worth-it-theme-control-radius);font-size:11px;font-weight:800}
+.worth-it-theme-preview-primary{background:linear-gradient(115deg,var(--primary),var(--primary2));color:var(--worth-it-gradient-foreground);border-color:transparent!important}
+.worth-it-theme-preview-secondary{background:transparent;color:var(--worth-it-primary-readable)}
+.worth-it-theme-preview-controls button:disabled{opacity:1;cursor:default}
+.worth-it-theme-preview-footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border);color:var(--muted);font-size:10px}
+@media(max-width:600px){
+ .worth-it-theme-editor{padding:12px}
+ .worth-it-theme-preview{padding:10px}
+ .worth-it-theme-preview-card{padding:11px}
+ .worth-it-theme-preview-controls{align-items:stretch}
+ .worth-it-theme-preview-controls button{flex:1 1 100px}
+}
+
+.worth-it-theme-editor{display:grid;gap:14px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft)}
+.worth-it-theme-editor-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.worth-it-theme-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.worth-it-theme-field{display:flex;flex-direction:column;gap:7px;min-width:0;color:var(--muted);font-size:13px;font-weight:700}
+.worth-it-theme-field input[type=color]{width:100%;height:46px;padding:4px;border:1px solid var(--border);border-radius:11px;background:var(--card-solid);cursor:pointer}
+.worth-it-theme-name{width:100%;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--card-solid);color:var(--text)}
+.worth-it-theme-actions{display:flex;flex-wrap:wrap;gap:9px}
+.worth-it-theme-actions .settings-option{min-height:42px}
+.worth-it-theme-status{min-height:20px;color:var(--muted);font-size:13px}
+.worth-it-theme-status.is-error{color:var(--danger)}
+.worth-it-profile-report-wrap{display:flex;justify-content:flex-end;margin-top:10px}
+.worth-it-profile-report-button{min-height:38px;padding:8px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:13px;font-weight:700;transition:border-color .18s ease,color .18s ease,transform .18s ease}
+.worth-it-profile-report-button:hover{border-color:var(--danger);color:var(--danger);transform:translateY(-1px)}
+.worth-it-report-overlay{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:18px;background:rgba(3,7,18,.74);backdrop-filter:blur(12px)}
+.worth-it-report-overlay[hidden]{display:none}
+.worth-it-report-card{width:min(100%,480px);max-height:min(90vh,720px);overflow:auto;padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--card-solid);box-shadow:0 25px 90px rgba(0,0,0,.48);color:var(--text)}
+.worth-it-report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:20px}
+.worth-it-report-head span{font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--primary)}
+.worth-it-report-head h2{margin:5px 0;font-size:21px}
+.worth-it-report-head p{color:var(--muted);font-size:13px}
+.worth-it-report-close{width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft);color:var(--text);font-size:24px}
+.worth-it-report-card>label{display:block;margin:14px 0 7px;font-size:13px;font-weight:700}
+.worth-it-report-card>label span{color:var(--muted);font-weight:400}
+.worth-it-report-card select,.worth-it-report-card textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:11px;background:var(--bg2);color:var(--text);font:inherit}
+.worth-it-report-card textarea{resize:vertical;min-height:100px}
+.worth-it-report-status{min-height:20px;margin:12px 0;color:var(--muted);font-size:13px}
+.worth-it-report-status.is-error{color:var(--danger)}
+.worth-it-report-actions{display:flex;justify-content:flex-end;gap:9px}
+.worth-it-report-actions button{min-height:42px;padding:9px 14px;border:1px solid var(--border);border-radius:11px;font-weight:700}
+.worth-it-report-cancel{background:var(--surface-soft);color:var(--text)}
+.worth-it-report-submit{background:linear-gradient(110deg,var(--primary),var(--primary2));border-color:transparent!important;color:white}
+.worth-it-report-submit:disabled{opacity:.6;cursor:wait}
+@media(max-width:600px){.calculator-toolbar .calculator-favourites-toggle{width:100%}.worth-it-theme-fields{grid-template-columns:1fr}.worth-it-report-card{padding:18px}}
+.admin-user-reports-list{display:grid;gap:14px}
+.admin-user-report-card{display:grid;gap:11px;padding:16px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
+.admin-user-report-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.admin-user-report-top>div{display:grid;gap:3px}
+.admin-user-report-top small,.admin-user-report-card>small{color:var(--muted);font-size:12px}
+.admin-user-report-top>span{padding:4px 8px;border:1px solid var(--border);border-radius:999px;color:var(--primary);font-size:11px;text-transform:capitalize}
+.admin-user-report-card>p{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.admin-user-report-card>p strong{color:var(--text)}
+.admin-user-report-details{padding:11px;border-radius:10px;background:var(--card2);white-space:pre-wrap}
+.admin-user-report-card>label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+.admin-user-report-card select,.admin-user-report-card textarea{width:100%;min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font:inherit}
+.admin-user-report-card textarea{resize:vertical}
+@media(max-width:560px){.admin-user-report-card{padding:12px}.admin-user-report-top{flex-direction:column}}
+
+.admin-user-report-readonly-note{display:grid;gap:4px;margin:0 0 14px;padding:13px 15px;border:1px solid color-mix(in srgb,var(--warning) 40%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--warning) 8%,var(--card2));color:var(--text);font-size:13px}
+.admin-user-report-readonly-note span,.admin-user-report-readonly-hint{color:var(--muted);font-size:12px}
+.admin-user-report-readonly-hint{padding:10px;border-radius:9px;background:var(--card2)}
+.admin-user-report-readonly-hint strong{color:var(--text);text-transform:capitalize}
+
+
+/* UGC-only social controls. Keep the star glyph slightly above the button centre. */
+.calc-favorite-toggle{top:12px}
+.calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(-2px)}
+
+/* Keep the site-owner calculator catalogue in three columns on phones. */
+@media(max-width:700px){
+ #calculatorGrid.calculator-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:8px !important;
+  align-items:stretch;
+ }
+ #calculatorGrid>.calc-card{
+  width:auto !important;
+  min-width:0;
+  min-height:0;
+  padding:12px 8px 11px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+ }
+ #calculatorGrid>.calc-card .calc-icon{font-size:24px;margin-bottom:8px}
+ #calculatorGrid>.calc-card h3{
+  min-width:0;
+  min-height:2.45em;
+  margin-bottom:6px;
+  font-size:13px;
+  line-height:1.22;
+  overflow-wrap:anywhere;
+  word-break:normal;
+ }
+ #calculatorGrid>.calc-card p{
+  min-width:0;
+  margin:0;
+  font-size:10.5px;
+  line-height:1.38;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+ }
+ #calculatorGrid>.calc-card .open-calc{
+  width:100%;
+  min-height:38px;
+  margin-top:auto;
+  padding:8px 3px 0;
+  font-size:10px;
+  line-height:1.2;
+  white-space:normal;
+  overflow-wrap:anywhere;
+ }
+}
+
+/* Mobile Guest Lite: use explicit grid rows so consent and buttons can never
+   sit on top of the scrollable limits list. The height override also beats the
+   legacy 78dvh cap still present in the base stylesheet. */
+@media(max-width:650px){
+ .worth-it-guest-overlay{
+  align-items:center!important;
+  justify-content:center!important;
+  padding:8px!important;
+  overflow-y:auto!important;
+ }
+ html:not([data-ui-scale]) .worth-it-guest-card,
+ html[data-ui-scale] .worth-it-guest-card{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr) auto auto auto!important;
+  width:min(100%,540px)!important;
+  height:min(94dvh,720px)!important;
+  max-height:calc(100dvh - 16px)!important;
+  min-height:0!important;
+  padding:14px!important;
+  overflow:hidden!important;
+  align-content:stretch!important;
+ }
+ .worth-it-guest-head{
+  min-width:0!important;
+  gap:9px!important;
+  padding-bottom:10px!important;
+ }
+ .worth-it-guest-head h2{font-size:20px!important;line-height:1.2!important}
+ .worth-it-guest-head p{font-size:11.5px!important;line-height:1.42!important;margin-top:7px!important}
+ .worth-it-guest-close{flex:0 0 34px!important;width:34px!important;height:34px!important}
+ .worth-it-guest-body{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-auto-rows:max-content!important;
+  align-content:start!important;
+  flex:none!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-height:none!important;
+  gap:9px!important;
+  padding:10px 1px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+ }
+ .worth-it-guest-list{
+  width:100%!important;
+  min-width:0!important;
+  padding:11px 12px!important;
+  flex:none!important;
+  box-sizing:border-box!important;
+ }
+ .worth-it-guest-list h3{font-size:12px!important;line-height:1.3!important;margin-bottom:7px!important}
+ .worth-it-guest-list ul{font-size:11px!important;line-height:1.42!important;gap:6px!important;padding-left:16px!important}
+ .worth-it-guest-consent{
+  position:static!important;
+  display:flex!important;
+  align-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:9px 10px!important;
+  gap:9px!important;
+  flex:none!important;
+  box-sizing:border-box!important;
+ }
+ .worth-it-guest-consent input{flex:0 0 18px!important;width:18px!important;height:18px!important;margin-top:2px!important}
+ .worth-it-guest-consent strong{font-size:11px!important;line-height:1.35!important}
+ .worth-it-guest-consent small{font-size:10px!important;line-height:1.35!important;margin-top:3px!important}
+ .worth-it-guest-consent-status{
+  min-height:0!important;
+  margin:5px 1px 7px!important;
+  font-size:10px!important;
+  line-height:1.35!important;
+ }
+ .worth-it-guest-actions{
+  display:flex!important;
+  position:static!important;
+  width:100%!important;
+  min-width:0!important;
+  flex:none!important;
+  flex-direction:column-reverse!important;
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  padding-top:9px!important;
+ }
+ .worth-it-guest-actions button{width:100%!important;min-height:40px!important;padding:9px 12px!important}
+}
+@media(max-width:650px) and (max-height:560px){
+ .worth-it-guest-card{height:calc(100dvh - 16px)!important}
+ .worth-it-guest-head{padding-bottom:7px!important}
+ .worth-it-guest-head h2{font-size:18px!important}
+ .worth-it-guest-body{padding-top:7px!important;padding-bottom:7px!important}
+ .worth-it-guest-list{padding:9px 10px!important}
+ .worth-it-guest-consent{padding:7px 9px!important}
+ .worth-it-guest-actions button{min-height:36px!important}
+}
+
+
+/* Loaded after section theme presets so the saved custom palette remains the active appearance. */
+html[data-worth-it-custom-theme]{
+    color-scheme:dark!important;
+    --bg:color-mix(in srgb,var(--primary) 7%,#070b14);
+    --bg2:color-mix(in srgb,var(--primary2) 9%,#0b1120);
+    --card:color-mix(in srgb,var(--primary) 5%,rgba(17,25,42,.96));
+    --card-solid:color-mix(in srgb,var(--primary) 7%,#11192a);
+    --card2:color-mix(in srgb,var(--primary2) 8%,#151f33);
+    --border:color-mix(in srgb,var(--worth-it-hover-glow) 24%,rgba(148,163,184,.2));
+    --text:#f7f8ff;--muted:#b6bfd1;--muted2:#8490a7;
+    --surface-soft:color-mix(in srgb,var(--primary) 9%,rgba(255,255,255,.045));
+}
+html[data-worth-it-custom-theme] body{
+    color-scheme:dark!important;color:var(--text)!important;
+    background:
+      radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--primary) 23%,transparent),transparent 36%),
+      radial-gradient(ellipse at 94% 8%,color-mix(in srgb,var(--primary2) 20%,transparent),transparent 34%),
+      linear-gradient(135deg,var(--bg),var(--bg2))!important;
+}
+html[data-worth-it-custom-theme] .nav,
+html[data-worth-it-custom-theme] .settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-panel,
+html[data-worth-it-custom-theme] .worth-it-settings-card,
+html[data-worth-it-custom-theme] .panel,
+html[data-worth-it-custom-theme] .stat,
+html[data-worth-it-custom-theme] .calc-card,
+html[data-worth-it-custom-theme] .metric,
+html[data-worth-it-custom-theme] .chart-card,
+html[data-worth-it-custom-theme] .faq-item,
+html[data-worth-it-custom-theme] .feedback-modal-card{
+    color:var(--text)!important;
+    background-color:var(--card-solid);
+    border-color:color-mix(in srgb,var(--worth-it-hover-glow) 28%,var(--border))!important;
+}
+html[data-worth-it-custom-theme] button:hover:not(:disabled),
+html[data-worth-it-custom-theme] button:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--worth-it-hover-glow) 50%,transparent),
+               0 0 18px color-mix(in srgb,var(--worth-it-hover-glow) 42%,transparent)!important;
+}
+html[data-worth-it-custom-theme] input:focus-visible,
+html[data-worth-it-custom-theme] select:focus-visible,
+html[data-worth-it-custom-theme] textarea:focus-visible{
+    border-color:var(--worth-it-hover-glow)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--worth-it-hover-glow) 28%,transparent)!important;
+}
+.worth-it-theme-field input[type="color"]{width:100%;min-height:42px;cursor:pointer}
+
+
+/* Custom appearance overrides the section-specific Dark/Light surface presets as well. */
+html[data-worth-it-custom-theme] #marketsSection,
+html[data-worth-it-custom-theme] #cryptoSection,
+html[data-worth-it-custom-theme] #waterLevelsSection,
+html[data-worth-it-custom-theme] #moneySection,
+html[data-worth-it-custom-theme] #carsSection,
+html[data-worth-it-custom-theme] #weatherSection,
+html[data-worth-it-custom-theme] #newsSection,
+html[data-worth-it-custom-theme] #shipTrackingSection,
+html[data-worth-it-custom-theme] #shopSection{
+    --wt-section-accent:var(--primary);
+    --wt-section-accent-strong:var(--primary2);
+    --wt-section-card:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--card-solid) 86%,var(--primary) 14%),
+        color-mix(in srgb,var(--card-solid) 92%,var(--primary2) 8%)
+    );
+    --wt-section-card-hover:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--card-solid) 78%,var(--primary) 22%),
+        color-mix(in srgb,var(--card-solid) 86%,var(--primary2) 14%)
+    );
+    --wt-section-soft:color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%);
+    --wt-section-control:color-mix(in srgb,var(--card-solid) 91%,var(--primary2) 9%);
+    --wt-section-border:color-mix(in srgb,var(--worth-it-hover-glow) 38%,var(--border));
+    --wt-section-shadow:0 11px 30px rgba(0,0,0,.23),inset 0 1px 0 rgba(255,255,255,.035);
+    --wt-section-hover-shadow:0 14px 32px rgba(0,0,0,.27),
+        0 0 0 1px color-mix(in srgb,var(--worth-it-hover-glow) 34%,transparent);
+    color:var(--text)!important;
+}
+html[data-worth-it-custom-theme] #marketsSection .market-card,
+html[data-worth-it-custom-theme] #cryptoSection .crypto-stat-card,
+html[data-worth-it-custom-theme] #cryptoSection .crypto-card,
+html[data-worth-it-custom-theme] #waterLevelsSection .water-level-card,
+html[data-worth-it-custom-theme] #moneySection .money-card,
+html[data-worth-it-custom-theme] #carsSection .car-card,
+html[data-worth-it-custom-theme] #weatherSection .weather-card,
+html[data-worth-it-custom-theme] #newsSection .news-card,
+html[data-worth-it-custom-theme] #shipTrackingSection .ship-card,
+html[data-worth-it-custom-theme] #shopSection .shop-card{
+    color:var(--text)!important;
+    border-color:var(--wt-section-border)!important;
+}
+html[data-worth-it-custom-theme] #marketsSection *,
+html[data-worth-it-custom-theme] #cryptoSection *,
+html[data-worth-it-custom-theme] #waterLevelsSection *,
+html[data-worth-it-custom-theme] #moneySection *,
+html[data-worth-it-custom-theme] #carsSection *,
+html[data-worth-it-custom-theme] #weatherSection *,
+html[data-worth-it-custom-theme] #newsSection *,
+html[data-worth-it-custom-theme] #shipTrackingSection *,
+html[data-worth-it-custom-theme] #shopSection *{
+    scrollbar-color:var(--worth-it-hover-glow) var(--card-solid);
+}
+
+
+
+/* Expanded Custom Theme designer controls. */
+.worth-it-theme-subhead{display:flex;align-items:center;justify-content:space-between;gap:12px}.worth-it-theme-subhead h4{margin:0}.worth-it-theme-subhead p{margin-top:4px}
+.worth-it-theme-small-action{min-height:32px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card-solid);color:var(--text);font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.worth-it-theme-small-action:hover{border-color:var(--primary);color:var(--primary)}
+.worth-it-theme-preset-section{display:grid;gap:10px}.worth-it-theme-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.worth-it-theme-preset{display:grid;gap:5px;min-width:0;padding:10px;text-align:left;border:1px solid var(--border);border-radius:12px;background:var(--card-solid);color:var(--text);cursor:pointer;transition:border-color .18s ease,transform .18s ease}
+.worth-it-theme-preset:hover{transform:translateY(-2px);border-color:var(--primary)}.worth-it-theme-preset.is-active{border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent)}
+.worth-it-theme-preset strong{font-size:12px}.worth-it-theme-preset small{color:var(--muted);font-size:10px}.worth-it-theme-preset-swatches{display:flex;gap:4px}.worth-it-theme-preset-swatches i{display:block;width:22px;height:22px;border:1px solid rgba(127,127,127,.2);border-radius:7px}
+.worth-it-theme-preview-switcher{display:flex;gap:6px;overflow-x:auto;padding:2px 1px 5px;scrollbar-width:thin}.worth-it-theme-preview-switcher button{flex:0 0 auto;min-height:32px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:var(--card-solid);color:var(--muted);font-size:11px;font-weight:800;cursor:pointer}
+.worth-it-theme-preview-switcher button.is-active{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 14%,var(--card-solid));color:var(--text)}
+.worth-it-theme-preview-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.worth-it-theme-preview-metrics>span{display:grid;gap:3px;padding:10px;border:1px solid var(--border);border-radius:var(--worth-it-theme-control-radius);background:var(--card2)}
+.worth-it-theme-preview-metrics small{color:var(--muted);font-size:10px}.worth-it-theme-preview-metrics strong{color:var(--worth-it-theme-heading-color);font-size:15px}
+.worth-it-theme-chat-bubble{justify-self:start;max-width:88%;padding:9px 11px;border:1px solid var(--border);border-radius:12px;background:var(--card2);font-size:12px}.worth-it-theme-chat-bubble.is-user{justify-self:end;background:color-mix(in srgb,var(--primary) 16%,var(--card2));border-color:color-mix(in srgb,var(--primary) 42%,var(--border))}
+.worth-it-theme-hex-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;margin-top:6px}.worth-it-theme-hex-input{width:100%;min-width:0;min-height:32px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--card-solid);color:var(--text);font:600 11px ui-monospace,monospace;text-transform:uppercase}
+.worth-it-theme-hex-input[aria-invalid="true"]{border-color:var(--danger)}.worth-it-theme-rgb{display:block;margin-top:4px;color:var(--muted);font-size:10px;font-weight:500}
+.worth-it-theme-recent{display:grid;gap:7px;padding-top:5px}.worth-it-theme-recent .worth-it-theme-subhead strong{font-size:12px}.worth-it-theme-recent .worth-it-theme-subhead small{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:500}
+.worth-it-theme-recent-swatches{display:flex;flex-wrap:wrap;gap:7px;min-height:27px;align-items:center}.worth-it-theme-recent-swatch{width:25px;height:25px;border:2px solid var(--card-solid);outline:1px solid var(--border);border-radius:50%;cursor:pointer}.worth-it-theme-recent-empty{color:var(--muted);font-size:10px}
+.worth-it-theme-section-actions{display:flex;justify-content:flex-end;margin-top:-3px}.worth-it-theme-contrast-audit{display:grid;gap:7px}
+.worth-it-theme-contrast-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--card-solid)}.worth-it-theme-contrast-row>span:first-child{display:grid;gap:3px}.worth-it-theme-contrast-row strong{font-size:11px;color:var(--text)}.worth-it-theme-contrast-row small{font-size:10px;color:var(--muted)}
+.worth-it-theme-contrast-status{flex:0 0 auto;padding:4px 7px;border-radius:7px;font-size:10px;font-weight:850}.worth-it-theme-contrast-status.is-pass{background:rgba(34,197,94,.12);color:#22C55E}.worth-it-theme-contrast-status.is-fallback{background:rgba(245,158,11,.13);color:#D97706}
+html[data-worth-it-custom-theme] body{font-size:var(--worth-it-theme-font-size,1rem)}
+html[data-worth-it-custom-theme] h1,html[data-worth-it-custom-theme] h2,html[data-worth-it-custom-theme] h3,html[data-worth-it-custom-theme] h4,html[data-worth-it-custom-theme] h5,html[data-worth-it-custom-theme] h6{font-size:calc(1em * var(--worth-it-theme-heading-scale,1))}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] .settings-option,html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] .menu-btn,html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] .calc-shop-nav,html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] .calc-wallet-nav{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] .settings-option,html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] .menu-btn,html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] .calc-shop-nav,html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] .calc-wallet-nav{transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s ease,border-color .32s ease,background .32s ease}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] .settings-option:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] .menu-btn:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] .calc-shop-nav:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] .calc-wallet-nav:hover:not(:disabled){transform:translateY(-2px)}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] .settings-option:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] .menu-btn:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] .calc-shop-nav:hover:not(:disabled),html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] .calc-wallet-nav:hover:not(:disabled){box-shadow:0 0 0 3px color-mix(in srgb,var(--worth-it-hover-glow) 22%,transparent),0 0 22px color-mix(in srgb,var(--worth-it-hover-glow) 36%,transparent)}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="soft"] .calc-card,html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="soft"] .worth-it-settings-control-group{box-shadow:0 8px 22px rgba(0,0,0,.12)}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="strong"] .calc-card,html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="strong"] .worth-it-settings-control-group{box-shadow:0 14px 34px rgba(0,0,0,.28)}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="none"] .calc-card,html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="none"] .worth-it-settings-control-group{box-shadow:none}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thick"] .calc-card,html[data-worth-it-custom-theme][data-worth-it-border-thickness="thick"] input,html[data-worth-it-custom-theme][data-worth-it-border-thickness="thick"] select{border-width:2px}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] .calc-card,html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] input,html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] select{border-width:1px}
+html[data-worth-it-custom-theme][data-worth-it-focus-appearance="subtle"] :focus-visible{outline:1px solid var(--primary);outline-offset:1px}
+html[data-worth-it-custom-theme][data-worth-it-focus-appearance="prominent"] :focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+@media(max-width:600px){.worth-it-theme-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.worth-it-theme-subhead{align-items:flex-start}.worth-it-theme-contrast-row{align-items:flex-start}.worth-it-theme-editor .worth-it-theme-actions button{flex:1 1 100%}.worth-it-theme-hex-row{grid-template-columns:minmax(0,1fr) auto}.worth-it-theme-hex-row .worth-it-theme-small-action:last-child{grid-column:2}}
+
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .settings-option,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .menu-btn,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-shop-nav,
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] .calc-wallet-nav{transition:none!important}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] button:hover:not(:disabled){transform:none!important;box-shadow:none!important;border-color:var(--border)!important}
+
+/* Additional theme preset collection: compact by default, expanded on demand. */
+.worth-it-theme-preset{min-height:82px;align-content:start}
+.worth-it-theme-preset-more{grid-column:1/-1;display:grid;gap:10px;padding:12px;border:1px solid var(--border);border-radius:13px;background:color-mix(in srgb,var(--card-solid) 82%,var(--primary) 5%)}
+.worth-it-theme-preset-more-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.worth-it-theme-preset-more-head>span{display:grid;gap:3px;min-width:0}
+.worth-it-theme-preset-more-head strong{font-size:12px;color:var(--text)}
+.worth-it-theme-preset-more-head small{font-size:10px;line-height:1.45;color:var(--muted)}
+.worth-it-theme-preset-more-toggle{flex:0 0 auto;white-space:nowrap}
+.worth-it-theme-preset-extra-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#worthItThemePresetMoreGrid[hidden]{display:none!important}
+.worth-it-theme-preset-extra-grid .worth-it-theme-preset{min-height:82px}
+.worth-it-theme-preset[aria-pressed="true"]{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 9%,var(--card-solid));box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent)}
+.worth-it-theme-preset:focus-visible,.worth-it-theme-preset-more-toggle:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+@media(max-width:600px){
+ .worth-it-theme-preset-more{padding:10px}
+ .worth-it-theme-preset-more-head{align-items:flex-start;flex-direction:column}
+ .worth-it-theme-preset-more-toggle{width:100%}
+ .worth-it-theme-preset-extra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Palette-aware text contrast for website controls. */
+html[data-worth-it-custom-theme] :is(
+ .btn-secondary,.nav-links button,.more-menu-btn,.settings-header button,
+ .close-btn,.nav-calculator-btn,.water-levels-back-up,.signout-nav-btn,
+ .auth-btn,.admin-panel-close,.admin-panel-back-button
+){color:var(--text)!important}
+html[data-worth-it-custom-theme] .nav-links button:hover{color:var(--text)!important}
+html[data-worth-it-custom-theme] :is(
+ .btn-primary,.hero-calculator-action .btn-secondary,.auth-modal-submit,
+ .shop-buy-button,.shop-deal-button,.worth-it-display-name-save,
+ .worth-it-report-submit,.water-levels-history-controls button.active,
+ .worth-it-theme-preview-primary
+){color:var(--worth-it-gradient-foreground)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+){color:var(--worth-it-gradient-foreground)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+){color:var(--worth-it-primary-readable)!important}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
+ .settings-option:not(.danger),.feedback-nav-btn
+){color:var(--worth-it-gradient-foreground)!important}
+
+/* Side drawer: state changes immediately; the open/close animation is intentionally removed. */
+@media(max-width:1000px){
+ #navLinks.nav-links{
+  display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+  top:64px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
+  max-width:calc(100vw - 18px)!important;height:calc(100dvh - 64px)!important;
+  max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0)!important;
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+  box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
+  transition:none!important;animation:none!important;will-change:auto;
+ }
+ #navLinks.nav-links.open{
+  display:flex!important;transform:translate3d(0,0,0)!important;opacity:1!important;
+  visibility:visible!important;pointer-events:auto!important;
+  transition:none!important;animation:none!important;
+ }
+}
+@media(min-width:1001px){
+ html[data-ui-scale="large"] #navLinks.nav-links,html[data-ui-scale="xl"] #navLinks.nav-links{
+  display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+  top:72px!important;bottom:0!important;width:min(390px,calc(100vw - 18px))!important;
+  max-width:calc(100vw - 18px)!important;height:calc(100dvh - 72px)!important;
+  max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;
+  border-radius:0 18px 18px 0!important;transform:translate3d(-105%,0,0)!important;
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+  box-shadow:0 0 0 100vmax rgba(3,7,18,.48),18px 0 42px rgba(0,0,0,.24)!important;
+  transition:none!important;animation:none!important;will-change:auto;
+ }
+ html[data-ui-scale="large"] #navLinks.nav-links.open,html[data-ui-scale="xl"] #navLinks.nav-links.open{
+  top:72px!important;height:calc(100dvh - 72px)!important;
+  transform:translate3d(0,0,0)!important;opacity:1!important;visibility:visible!important;
+  pointer-events:auto!important;transition:none!important;animation:none!important;
+ }
+}
+
+
+/* Detail-page UGC favourite is inline, unlike the floating catalogue-card star. */
+#ugcDetailFavorite{
+ position:static;
+ width:auto;
+ height:auto;
+ min-width:42px;
+ padding:7px 11px;
+ border-radius:10px;
+ font-size:18px;
+}
+#ugcDetailFavorite.is-favourite{
+ color:#fbbf24;
+ border-color:rgba(251,191,36,.48);
+ background:rgba(251,191,36,.10);
+}

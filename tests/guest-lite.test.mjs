@@ -5,12 +5,15 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const guest = readFileSync(new URL("../guest-mode.js", import.meta.url), "utf8");
+const guestApi = readFileSync(new URL("../functions/api/guest-calc.js", import.meta.url), "utf8");
+const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/function-syntax-check.yml", import.meta.url), "utf8");
 
 const restrictedSections = [
     ["Weather", "openWeather"],
     ["News", "openNews"],
     ["Shop", "openDiscounts"],
+    ["Web Shop", "openWebShop"],
     ["Compare cars", "openCars"],
     ["Markets", "openMarkets"],
     ["Currencies", "openMoney"],
@@ -23,25 +26,43 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
     assert.match(html, /id="worthItGuestLimitsOverlay"[^>]*hidden/);
     assert.match(html, /id="worthItGuestLimitsTitle">Continue with limited guest access/);
     assert.match(html, /id="worthItGuestConsentCheck"/);
-    assert.match(html, /I agree with these limitations and wish to continue, remind me again in 24 hours\./);
+    assert.match(html, /I agree to these Guest Lite limits and want to continue/);
     assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
     assert.match(guest, /if \(!checkbox\?\.checked\)/);
     assert.match(guest, /setNextPromptAt\(Date\.now\(\) \+ DAY_MS\)/);
 });
 
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
-    assert.match(html, /Use the built-in Worth It calculators configured by the site owner/);
-    assert.match(html, /Explore the default calculator catalogue, search and filter calculators/);
+    assert.match(html, /first 50 built-in Worth It calculators/);
+    assert.match(html, /first 50 built-in Worth It calculators/);
+    assert.match(html, /Each paid calculation costs 0\.1 CALC Lite/);
+    assert.match(html, /resets to exactly <strong>0\.5 CALC Lite each UTC day/);
+    assert.match(html, /Unused CALC Lite does not roll over or accumulate/);
     assert.match(guest, /const BUILT_IN_CALCULATORS = new Set/);
+    assert.match(guest, /GUEST_BILLABLE_CALCULATORS/);
+    assert.match(guest, /isBillableCalculator/);
     assert.match(guest, /BUILT_IN_CALCULATORS\.has\(key\)/);
+    assert.match(guest, /function guardGenericCalculatorSetup\(\)/);
+    assert.match(guest, /window\.setupGeneric = wrapped/);
+    assert.match(guest, /guestReturnFocus/);
     assert.match(guest, /User-created and community calculators require a Worth It account/);
+});
+
+test("the guest header clearly separates CALC Lite and gates both Web Shop entry points", () => {
+    assert.match(html, /id="worthItCalcWalletButton"[^>]*onclick="openWebShop\('currency'\)"/);
+    assert.match(html, /id="worthItWebShopButton"[^>]*onclick="openWebShop\('currency'\)"/);
+    assert.ok(guest.includes('["openWebShop"'));
+    assert.match(guest, /function showSignupForRestrictedFeature/);
+    assert.match(guest, /openAuthModal\("signup"\)/);
+    assert.match(html, /0\.5 CALC Lite per UTC day and no WIP/);
 });
 
 test("all requested website sections are account-gated", () => {
     for (const [label, opener] of restrictedSections) {
         assert.ok(guest.includes('["' + opener + '"'), label + " must be gated");
     }
-    assert.match(html, /Weather, News, Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking/);
+    assert.match(html, /Weather, News, Shop, Web Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking/);
+    assert.ok(guest.includes('/^\\/web-shop\\/?$/'));
     assert.match(guest, /RESTRICTED_PATHS/);
     assert.match(guest, /restoreHomeIfOnRestrictedPath/);
 });
@@ -79,11 +100,24 @@ test("the signup modal offers Guest Lite only in signup mode", () => {
 test("Guest Lite dialog is responsive, theme-aware and the CI checks the new script", () => {
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
+    assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
+    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
     assert.match(workflow, /guest-mode\.js/);
 });
 
+
+test("mobile calculator catalogue keeps three cards per row and Guest Lite consent never overlays the list", () => {
+    const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
+    assert.ok(communityCss.includes("grid-template-columns:repeat(3,minmax(0,1fr)) !important"));
+    assert.match(communityCss, /\.calc-favorite-icon\s*\{[^}]*translateY\(-2px\)/);
+    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto auto auto!important"));
+    assert.ok(communityCss.includes("html[data-ui-scale] .worth-it-guest-card"));
+    assert.ok(communityCss.includes("overflow-y:auto!important"));
+    assert.ok(communityCss.includes("position:static!important"));
+    assert.match(html, /community-features\.css\?v=hamburger-instant-20261105a/);
+    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+});
 
 test("Guest Lite modal stacks above the sticky header while open", () => {
     assert.match(guest, /document\.body\.classList\.add\("worth-it-guest-dialog-open"\)/);
@@ -113,4 +147,24 @@ test("unauthenticated chat refresh keeps /chat in the address bar while sign-in 
     const chatGuardReturn = guard.indexOf("return;", chatGuardIndex);
     assert.ok(chatGuardReturn > chatGuardIndex, "chat guard returns before home-reset logic");
     assert.ok(chatGuardReturn < guard.indexOf("window.history.replaceState"), "chat guard preserves the requested URL");
+});
+
+
+test("the guest client and D1 API share exactly the same 50 billable built-in calculator keys", () => {
+    const clientBlock = guest.match(/const BUILT_IN_CALCULATORS = new Set\(\[([\s\S]*?)\]\);/);
+    const serverBlock = guestApi.match(/const GUEST_CALCULATORS = new Set\(\[([\s\S]*?)\]\);/);
+    assert.ok(clientBlock && serverBlock, "both allowlists must exist");
+    const clientKeys = [...clientBlock[1].matchAll(/"([^"]+)"/g)].map(match => match[1]).filter(key => !["basic","advanced","scientific"].includes(key)).sort();
+    const serverKeys = [...serverBlock[1].matchAll(/"([^"]+)"/g)].map(match => match[1]).sort();
+    assert.equal(clientKeys.length, 50);
+    assert.deepEqual(serverKeys, clientKeys);
+});
+
+test("closing Guest Lite and authentication dialogs moves focus before hiding the active dialog", () => {
+    assert.match(guest, /overlay\.contains\(document\.activeElement\)[\s\S]*?document\.activeElement\.blur\(\)/);
+    assert.match(guest, /guestReturnFocus/);
+    assert.match(app, /overlay\.contains\(document\.activeElement\)[\s\S]*?document\.activeElement\.blur\(\)/);
+    assert.match(app, /authModalReturnFocus/);
+    assert.match(app, /function removeAuthTurnstile\(\)/);
+    assert.match(app, /window\.turnstile\.remove\(authTurnstileWidgetId\)/);
 });

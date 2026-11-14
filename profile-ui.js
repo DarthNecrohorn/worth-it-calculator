@@ -99,17 +99,19 @@ function setText(id,value){const n=$(id);if(n)n.textContent=value==null?"":Strin
 function setCount(id,value){const n=$(id);if(!n)return;const v=Number(value);n.textContent=Number.isFinite(v)&&v>=0?Math.trunc(v).toLocaleString():"—";}
 function setStatus(msg,isError){const n=$("worthItProfileStatus");if(!n)return;n.textContent=msg||"";n.hidden=!msg;n.classList.toggle("is-error",Boolean(msg&&isError));}
 function showProfileSection(){
+ if(typeof window.setWorthItCustomThemeSettingsOpen==="function")window.setWorthItCustomThemeSettingsOpen(false);
+ if(typeof window.setWorthItProfileThemeIsolation==="function")window.setWorthItProfileThemeIsolation(true);else document.documentElement.classList.add("worth-it-profile-theme-isolated");
  if(typeof window.hideCarsNavigationUi==="function")window.hideCarsNavigationUi();
  if(typeof window.hideWaterLevelsSection==="function")window.hideWaterLevelsSection();
  if(typeof window.hideShipTrackingSection==="function")window.hideShipTrackingSection();
- ["homePage","carsSection","weatherSection","newsSection","discountsSection","shopSection","marketsSection","moneySection","cryptoSection","waterLevelsSection","shipTrackingSection","settingsPanel"].forEach(id=>{const n=$(id);if(n)n.style.display="none";});
+ ["homePage","carsSection","weatherSection","newsSection","discountsSection","shopSection","marketsSection","moneySection","cryptoSection","waterLevelsSection","shipTrackingSection","settingsPanel","settingsPage"].forEach(id=>{const n=$(id);if(n)n.style.display="none";});
  document.querySelectorAll(".app").forEach(n=>{n.classList.remove("active");n.style.display="none";});
  $("accountPanel")?.classList.remove("open");$("accountPanel")?.setAttribute("aria-hidden","true");$("accountPageOverlay")?.classList.remove("open");
  const section=$("profileSection");if(section)section.style.display="block";
  const nav=$("navLinks");if(nav&&typeof window.closeNavMenuUnlessPreserved==="function")window.closeNavMenuUnlessPreserved(nav);else if(typeof window.closeMoreMenu==="function")window.closeMoreMenu();
  document.documentElement.classList.remove("settings-open");document.documentElement.style.overflowY="auto";document.body.style.overflowY="auto";window.scrollTo({top:0,behavior:"auto"});
 }
-window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);};
+window.hideWorthItProfileSection=function(){const n=$("profileSection");if(n)n.style.display="none";clearProfileBannerBackdrop(false);if(typeof window.setWorthItProfileThemeIsolation==="function")window.setWorthItProfileThemeIsolation(false);else document.documentElement.classList.remove("worth-it-profile-theme-isolated");};
 function fallbackAvatar(name){const n=document.createElement("div");n.className="worth-it-profile-avatar-fallback";n.textContent=String(name||"W").trim().charAt(0).toUpperCase()||"W";return n;}
 function safeAvatarUrl(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:"";}
 function renderAvatar(url,name,person){const host=$("worthItProfileAvatar");if(!host)return;host.replaceChildren();const safe=safeAvatarUrl(url);if(!safe)host.appendChild(fallbackAvatar(name));else{const img=document.createElement("img");img.className="worth-it-profile-avatar";img.alt="";img.referrerPolicy="no-referrer";img.src=safe;img.addEventListener("error",()=>{host.replaceChildren(fallbackAvatar(name));appendWorthItPresenceIndicator(host,person);},{once:true});host.appendChild(img);}appendWorthItPresenceIndicator(host,person);}
@@ -155,7 +157,20 @@ async function getOwnProfileRow(user,force){
  if(!force&&currentOwnProfile?.userId===user.id)return currentOwnProfile.profile;
  if(!force&&currentOwnProfileRequest?.userId===user.id)return currentOwnProfileRequest.promise;
  const sb=client();if(!sb)throw new Error("Auth not ready");
- const promise=(async()=>{let r=await sb.rpc("get_worth_it_own_profile");let profile=Array.isArray(r.data)?r.data[0]:r.data;if(r.error){const message=String(r.error.message||r.error);if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist/i.test(message))throw r.error;r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at,last_seen_at").eq("user_id",user.id).maybeSingle();if(r.error)throw r.error;profile=r.data;}if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;})();
+ const promise=(async()=>{
+  let r;
+  try{r=await sb.rpc("get_worth_it_own_profile");}catch(error){r={error};}
+  let profile=Array.isArray(r?.data)?r.data[0]:r?.data;
+  if(r?.error){
+   const message=String(r.error.message||r.error.details||r.error);
+   if(!/get_worth_it_own_profile|PGRST202|schema cache|could not find|does not exist|function .*not found/i.test(message))throw r.error;
+   r=await sb.from("worth_it_profiles").select("worth_it_id,username,display_name,avatar_url,banner_url,created_at").eq("user_id",user.id).maybeSingle();
+   if(r.error)throw r.error;
+   profile=r.data;
+  }
+  if(!profile||!profile.worth_it_id)throw new Error("Worth It ID has not been assigned");
+  currentUser=user;currentOwnProfile={userId:user.id,profile};syncHeaderAvatar(profile);touchWorthItPresence(true);return profile;
+ })();
  currentOwnProfileRequest={userId:user.id,promise};
  try{return await promise;}finally{if(currentOwnProfileRequest?.promise===promise)currentOwnProfileRequest=null;}
 }
@@ -169,17 +184,213 @@ async function refreshAccountPanelCounts(force){
 }
 function closeAccountDropdown(){const n=$("accountPanel");if(n){n.classList.remove("open");n.setAttribute("aria-hidden","true");}}
 async function openOwnProfile(){
- try{const user=await getCurrentUser();if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}const p=await getOwnProfileRow(user,true);window.openWorthItProfile(p.worth_it_id);}
- catch(e){console.error("Could not open Worth It profile.",e);if(typeof window.showToast==="function")window.showToast("Profile setup is not finished yet. Run the Worth It profile SQL setup in Supabase and try again.");}
+ try{
+  const user=await getCurrentUser();
+  if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}
+  const p=await getOwnProfileRow(user,true);
+  if(!p?.worth_it_id||typeof window.openWorthItProfile!=="function")throw new Error("Your Worth It profile is not ready yet.");
+  await window.openWorthItProfile(p.worth_it_id);
+ }catch(e){
+  console.error("Could not open Worth It profile.",e);
+  if(typeof window.showToast==="function")window.showToast(e?.message||"Could not open your profile. Please try again.");
+ }
 }
+window.openWorthItOwnProfile=openOwnProfile;
+window.openWorthItOwnProfileConnections=async function(category){
+ const type=String(category||"").toLowerCase();
+ if(!["friends","followers","following"].includes(type))return;
+ try{
+  const user=await getCurrentUser();
+  if(!user){if(typeof window.showToast==="function")window.showToast("Please sign in first.");return;}
+  const profile=await getOwnProfileRow(user,false);
+  if(!profile?.worth_it_id)throw new Error("Your Worth It profile is not ready yet.");
+  closeAccountDropdown();
+  await window.openWorthItProfileConnections(profile.worth_it_id,type);
+ }catch(error){
+  console.error("Could not open your profile connections.",error);
+  if(typeof window.showToast==="function")window.showToast(error?.message||"Could not open this list. Please try again.");
+ }
+};
 const oldOpenInfo=window.openAccountInfo;
 window.openAccountInfo=function(section){if(!section||section==="profile"){closeAccountDropdown();return openOwnProfile();}if(typeof oldOpenInfo==="function")return oldOpenInfo.apply(this,arguments);};
 const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
+
+const profileBadgesCache=new Map();
+function clearWorthItProfileBadgeCache(id){
+ if(id==null)profileBadgesCache.clear();else profileBadgesCache.delete(String(id));
+}
+async function getWorthItProfileBadgeInfo(worthItId){
+ const key=String(worthItId||"");
+ if(!key)return {badges:[],is_own_profile:false};
+ if(profileBadgesCache.has(key))return profileBadgesCache.get(key);
+ const promise=(async()=>{
+  const result=await client().rpc("get_worth_it_profile_badges",{p_worth_it_id:Number(worthItId)});
+  if(result.error)throw result.error;
+  const data=normalizeRpcObject(result.data)||{};
+  return {badges:Array.isArray(data.badges)?data.badges:[],is_own_profile:data.is_own_profile===true};
+ })();
+ profileBadgesCache.set(key,promise);
+ try{return await promise;}catch(error){profileBadgesCache.delete(key);throw error;}
+}
+function createWorthItBadgeNode(badge,compact){
+ const node=document.createElement("span");
+ node.className="worth-it-member-badge"+(compact?" is-compact":"");
+ node.dataset.badge=String(badge.key||"");
+ node.title=String(badge.description||badge.label||"");
+ const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
+ const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
+ node.append(icon,label);return node;
+}
+function renderWorthItBadgeStrip(host,badges){
+ if(!host)return;host.replaceChildren();
+ (badges||[]).filter(badge=>badge&&badge.earned===true&&badge.equipped===true).forEach(badge=>host.appendChild(createWorthItBadgeNode(badge,true)));
+}
+async function loadWorthItPublicBadges(worthItId,host){
+ if(!host)return;
+ host.replaceChildren();
+ try{
+  const info=await getWorthItProfileBadgeInfo(worthItId);
+  renderWorthItBadgeStrip(host,info.badges);
+ }catch(error){console.warn("Worth It member badges are unavailable:",error);}
+}
+window.loadWorthItPublicBadges=loadWorthItPublicBadges;
+window.refreshWorthItProfileBadges=function(worthItId){
+ clearWorthItProfileBadgeCache(worthItId);
+ if(currentDisplayedProfileId===Number(worthItId))void loadWorthItProfileBadges(Number(worthItId),currentDisplayedProfileIsOwn);
+ window.dispatchEvent(new Event("worthit-badges-updated"));
+};
+async function loadWorthItProfileBadges(worthItId,isOwn){
+ const section=$("worthItProfileBadgesSection"),display=$("worthItProfileBadgesDisplay"),manage=$("worthItProfileBadgesManage"),status=$("worthItProfileBadgesStatus"),nameHost=$("worthItProfileNameBadges");
+ if(section)section.hidden=false;
+ if(status)status.textContent="Loading badges…";
+ try{
+  const info=await getWorthItProfileBadgeInfo(worthItId),badges=info.badges||[];
+  renderWorthItBadgeStrip(nameHost,badges);
+  renderWorthItBadgeStrip(display,badges);
+  if(manage){
+   manage.replaceChildren();manage.hidden=!isOwn;
+   if(isOwn){
+    const heading=document.createElement("h3");heading.textContent="Your badge collection";manage.appendChild(heading);
+    if(!badges.length)manage.appendChild(textBadgeMessage("No badges unlocked yet. Membership badges unlock automatically as your account gets older."));
+    badges.forEach(badge=>{
+     const row=document.createElement("div");row.className="worth-it-badge-equip-row";
+     const copy=document.createElement("div");copy.appendChild(createWorthItBadgeNode({...badge,equipped:false},false));
+     const description=document.createElement("small");description.textContent=badge.description||"";copy.appendChild(description);
+     const toggle=document.createElement("button");toggle.type="button";toggle.className="worth-it-badge-equip-toggle";toggle.textContent=badge.equipped?"Unequip":"Equip";
+     toggle.addEventListener("click",async()=>{
+      toggle.disabled=true;
+      try{
+       const result=await client().rpc("set_worth_it_profile_badge_equipped",{p_badge_key:badge.key,p_equipped:!badge.equipped});
+       if(result.error)throw result.error;
+       clearWorthItProfileBadgeCache(worthItId);
+       await loadWorthItProfileBadges(worthItId,true);
+       window.dispatchEvent(new Event("worthit-badges-updated"));
+      }catch(error){
+       if(status)status.textContent=error?.message||"Could not update this badge.";
+       toggle.disabled=false;
+      }
+     });
+     row.append(copy,toggle);manage.appendChild(row);
+    });
+   }
+  }
+  if(status)status.textContent=badges.some(b=>b.equipped)?"Equipped badges are shown beside the display name and in chat.":isOwn?"Equip an unlocked badge to show it beside your display name and in chat.":"No public badges are equipped.";
+ }catch(error){
+  if(section)section.hidden=true;
+  if(nameHost)nameHost.replaceChildren();
+  if(status)status.textContent="Badge collection is not available until the profile badge migration is installed.";
+  console.warn("Worth It profile badge collection could not be loaded:",error);
+ }
+}
+function textBadgeMessage(message){const node=document.createElement("p");node.className="ugc-detail-status";node.textContent=message;return node;}
+const PROFILE_UGC_CATEGORY_LABELS={
+ cars:"Cars",money:"Money",technology:"Technology",home:"Home",other:"Other",
+ "car-ownership":"Car ownership","ev-ownership":"Electric vehicles","fuel-costs":"Fuel costs",
+ "vehicle-financing":"Car financing","car-insurance":"Insurance","car-maintenance":"Maintenance & repairs",
+ "depreciation-resale":"Depreciation & resale","vehicle-comparison":"Vehicle comparisons",
+ budgeting:"Budgeting",saving:"Saving",investing:"Investing","loans-debt":"Loans & debt",
+ mortgages:"Mortgages",taxes:"Taxes","income-salary":"Income & salary",retirement:"Retirement",
+ smartphones:"Smartphones",computers:"Computers",gaming:"Gaming","software-subscriptions":"Software & subscriptions",
+ "internet-connectivity":"Internet & connectivity","consumer-electronics":"Consumer electronics",
+ "tech-comparison":"Technology comparisons","utilities-energy":"Utilities & energy","rent-housing":"Rent & housing",
+ "home-buying":"Home buying","renovation-repairs":"Renovations & repairs","home-appliances":"Home appliances",
+ "home-maintenance":"Home maintenance","household-budget":"Household budget",travel:"Travel",
+ "education-career":"Education & career","health-fitness":"Health & fitness",
+ "food-groceries":"Food & groceries",business:"Business",lifestyle:"Lifestyle",
+ "general-comparison":"General comparisons"
+};
+function appendProfileUgcStat(host,icon,value,label){
+ const amount=Math.max(0,Number(value)||0);
+ const item=document.createElement("span");item.className="worth-it-profile-ugc-stat";
+ item.title=label+": "+amount;item.setAttribute("aria-label",label+": "+amount);
+ const glyph=document.createElement("span");glyph.className="worth-it-profile-ugc-stat-icon";glyph.setAttribute("aria-hidden","true");glyph.textContent=icon;
+ const count=document.createElement("strong");count.className="worth-it-profile-ugc-stat-count";count.textContent=String(amount);
+ item.append(glyph,count);host.appendChild(item);
+}
+async function loadWorthItProfileFavorites(worthItId){
+ const section=$("worthItProfileFavouritesSection"),host=$("worthItProfileFavouriteCalculators"),empty=$("worthItProfileFavouritesEmpty");
+ if(!section||!host)return;
+ host.replaceChildren();section.hidden=true;if(empty)empty.hidden=true;
+ try{
+  const result=await client().rpc("get_worth_it_profile_favorite_calculators",{p_worth_it_id:Number(worthItId)});
+  if(result.error)throw result.error;
+  const rows=Array.isArray(result.data)?result.data:[];
+  if(!rows.length){section.hidden=false;if(empty)empty.hidden=false;return;}
+  rows.forEach(item=>{
+   const card=document.createElement("article");card.className="worth-it-profile-favourite-card";
+   const head=document.createElement("div");head.className="worth-it-profile-favourite-head";
+   const number=Number(item.calculator_number);
+   if(Number.isSafeInteger(number)&&number>=51){
+    const idTag=document.createElement("span");idTag.className="worth-it-profile-favourite-number";idTag.textContent="#"+number;head.appendChild(idTag);
+   }
+   const category=document.createElement("span");category.className="worth-it-profile-favourite-category";
+   category.textContent=PROFILE_UGC_CATEGORY_LABELS[item.category]||"Other";head.appendChild(category);
+   const subcategories=Array.isArray(item.subcategories)?item.subcategories:[];
+   subcategories.slice(0,3).forEach(key=>{
+    const label=PROFILE_UGC_CATEGORY_LABELS[String(key)]||"";
+    if(!label)return;
+    const tag=document.createElement("span");tag.className="worth-it-profile-favourite-tag";tag.textContent=label;head.appendChild(tag);
+   });
+   card.appendChild(head);
+
+   const title=document.createElement("h3");title.className="worth-it-profile-favourite-title";
+   title.textContent=String(item.title||"Community calculator");card.appendChild(title);
+   const description=document.createElement("p");description.className="worth-it-profile-favourite-description";
+   description.textContent=String(item.description||"No description provided.");card.appendChild(description);
+   card.appendChild(textBadgeMessage("Open calculator to see all the info →")).classList.add("worth-it-profile-favourite-more");
+
+   const ownerUsername=String(item.owner_username||"").trim().replace(/^@+/,"");
+   const ownerLabel=ownerUsername?"Made by @"+ownerUsername:"Made by Worth It member";
+   const owner=document.createElement("a");owner.className="worth-it-profile-favourite-owner";
+   owner.textContent=ownerLabel;owner.setAttribute("aria-label",ownerLabel);
+   owner.href=item.owner_worth_it_id?"/profile/"+encodeURIComponent(String(item.owner_worth_it_id)):"#";
+   if(!item.owner_worth_it_id)owner.addEventListener("click",event=>event.preventDefault());
+   card.appendChild(owner);
+
+   const stats=document.createElement("div");stats.className="worth-it-profile-favourite-stats";
+   appendProfileUgcStat(stats,"👁",item.views,"Views");
+   appendProfileUgcStat(stats,"👍",item.likes,"Likes");
+   appendProfileUgcStat(stats,"★",item.favorites,"Favourites");
+   appendProfileUgcStat(stats,"👎",item.dislikes,"Dislikes");
+   card.appendChild(stats);
+
+   const open=document.createElement("a");open.className="worth-it-profile-favourite-open";
+   open.href="/calculator/ugc/"+encodeURIComponent(String(item.id||""));
+   open.textContent="Open calculator →";card.appendChild(open);
+   host.appendChild(card);
+  });
+  section.hidden=false;
+ }catch(error){
+  section.hidden=true;
+  console.warn("Favorite community calculators could not be loaded:",error);
+ }
+}
+
 function renderProfile(p,s,isOwn){
  const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);}
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
- renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");
+ renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");const premiumBadge=$("worthItProfilePremiumBadge");if(premiumBadge){premiumBadge.hidden=true;premiumBadge.textContent="";}
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;
  if(!isOwn)closeWorthItDisplayNameEditor();
  if(s.hidden){setText("worthItProfileFriends","Hidden");setText("worthItProfileFollowers","Hidden");setText("worthItProfileFollowing","Hidden");setText("worthItProfileFriendsMood","🔒");}else{setCount("worthItProfileFriends",s.friends);setCount("worthItProfileFollowers",s.followers);setCount("worthItProfileFollowing",s.following);setFriendMood(s.friends);}
@@ -189,6 +400,8 @@ function renderProfile(p,s,isOwn){
  hideAllAssetLimitNotices();
  currentDisplayedProfileId=id;currentDisplayedProfileIsOwn=Boolean(isOwn);
  renderProfileDescription(p.description,id,Boolean(isOwn));
+ void loadWorthItProfileBadges(id,Boolean(isOwn));
+ void loadWorthItProfileFavorites(id);
  const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=!isOwn;
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
@@ -567,9 +780,23 @@ function renderWorthItOtherNotifications(){
   const person=createWorthItNotificationPerson(notification);
   const body=document.createElement("div");body.className="worth-it-notification-event-body";
   const title=document.createElement("p");title.className="worth-it-notification-event-title";
+  const type=String(notification.type||"unfriended");
   const name=String(notification.display_name||notification.username||"A Worth It member");
-  title.append(document.createTextNode(String(notification.type||"unfriended")==="follow"?name+" started following you.":name+" unfriended you."));
-  const reason=String(notification.type||"unfriended")==="unfriended"?String(notification.reason||"").trim():"";
+  if(type==="ugc_published"){
+   title.append(document.createTextNode(name+" published a new public calculator: "));
+   const calculatorTitle=String(notification.calculator_title||"Untitled calculator");
+   const calculatorId=String(notification.ugc_calculator_id||"");
+   if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(calculatorId)){
+    const link=document.createElement("a");link.className="worth-it-notification-calculator-link";
+    link.href="/calculator/ugc/"+encodeURIComponent(calculatorId);
+    const calculatorNumber=Number(notification.calculator_number);
+    link.textContent=calculatorTitle+(Number.isSafeInteger(calculatorNumber)&&calculatorNumber>0?" (#"+calculatorNumber+")":"");
+    title.append(link);
+   }else title.append(document.createTextNode(calculatorTitle));
+  }else{
+   title.append(document.createTextNode(type==="follow"?name+" started following you.":name+" unfriended you."));
+  }
+  const reason=type==="unfriended"?String(notification.reason||"").trim():"";
   if(reason){const explanation=document.createElement("p");explanation.className="worth-it-notification-reason";explanation.textContent="Reason: "+reason;body.append(title,explanation);}
   else body.appendChild(title);
   const date=document.createElement("time");date.className="worth-it-notification-date";date.dateTime=String(notification.created_at||"");date.textContent=formatWorthItNotificationDate(notification.created_at);
@@ -708,6 +935,7 @@ window.performWorthItSocialAction = async function(action) {
    }
   }
   await window.openWorthItProfile(targetId, { refresh: true });
+  if (action === "follow") await refreshWorthItNotifications(false);
   if (typeof window.showToast === "function") window.showToast(action === "follow" ? (context.is_following ? "You unfollowed this user." : "You are now following this user.") : "Your friend connection was updated.");
  } catch (error) {
   if (typeof window.showToast === "function") window.showToast(error?.message || "The social action could not be completed.");
@@ -733,7 +961,10 @@ window.openWorthItProfileConnectionsForCurrent = function(category) {
 };
 window.openWorthItProfileConnectionsBack = function() {
  const id = Number(currentDisplayedProfileId);
- if (Number.isSafeInteger(id) && id > 0) return window.openWorthItProfile(id);
+ if (Number.isSafeInteger(id) && id > 0) {
+  if (typeof window.backFromWorthItRoute === "function") return window.backFromWorthItRoute("/profile/" + id);
+  return window.openWorthItProfile(id);
+ }
 };
 window.openWorthItProfileConnections = async function(idValue, categoryValue, options) {
  const id = Number(idValue);

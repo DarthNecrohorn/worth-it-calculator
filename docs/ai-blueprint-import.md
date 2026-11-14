@@ -1,0 +1,120 @@
+# AI Blueprint Import — provider-neutral repair contract
+
+**Status:** Draft implementation contract  
+**Branch:** feat/ai-blueprint-import-20261112
+
+## Purpose
+
+Allow a member to use an external AI assistant to design a calculator for any supported subject, then import its result as an editable local Manual Builder draft.
+
+The feature is provider-neutral. Worth It does not call ChatGPT, Gemini, Claude, DeepSeek, Groq or another model during blueprint import. The user chooses an external assistant, supplies the calculator requirements, copies the Worth It output contract and pastes the returned blueprint into Manual Builder.
+
+## What “any prompt” means
+
+The calculator request can be about any supported subject or use case. It can be short, detailed, technical or written in ordinary language. The copied instructions define one canonical output format; they do not prescribe a calculator topic.
+
+This does not mean every arbitrary response or every natural-language request can be reconstructed perfectly. The importer can repair structural omissions and mathematically provable inconsistencies. If a safe blueprint still has formula, unit, dependency or boundary validation errors, it opens the editable draft and shows the issues instead of rejecting the import. It cannot infer an unstated business rule, invent a missing scientific equation, perform an unprovided currency conversion or turn executable code into a safe formula.
+
+## Canonical blueprint version 1
+
+The external assistant is asked to return one object with these root properties:
+
+    {
+      "blueprintVersion": 1,
+      "title": "Calculator title",
+      "description": "Explain what it measures and its main assumptions.",
+      "category": "other",
+      "subcategories": [],
+      "assumptions": [],
+      "spec": {
+        "inputs": [],
+        "groups": [],
+        "results": [],
+        "scenarios": []
+      }
+    }
+
+Allowed root, spec, input, group, field, result and scenario properties are allowlisted by `ugc-blueprint-import.js`. Provider-specific executable fields, prototype-sensitive keys, unsupported properties, malformed JSON and invalid formulas are not executed or silently accepted.
+
+## Import and repair pipeline
+
+1. **Response extraction** accepts raw JSON, one JSON code block, or one unambiguous object surrounded by ordinary explanation. Multiple candidate objects and non-JSON code fences are rejected rather than guessed.
+2. **Structural preparation** fills missing descriptive metadata, input labels and keys, sensible numeric defaults/ranges/steps, group fields, scenario maps and other schema details when a deterministic fallback exists. Common field aliases such as `formula`, `variableKey`, `defaultValue` and `resultUnit` are normalised to the canonical names.
+3. **Key repair** generates unique lowercase keys and rewrites unambiguous formula references when a key is renamed. Dynamic group-field references are updated as qualified group/field pairs.
+4. **Formula repair** normalises common mathematical symbols and function-name casing, reorders results when their dependencies form a clear acyclic chain, and adds a zero-denominator guard only when the denominator can actually reach zero based on its declared range or expression.
+5. **Unit repair** analyses the formula's dimensional result and corrects a mismatched result display to the matching unit or currency when the formula makes that result unambiguous.
+6. **Quick Fix and validation** run a bounded sequence of deterministic repairs and re-run the same Manual Builder formula, unit, dependency, boundary and scenario validator used for manually created calculators.
+7. **Adaptive fallback** runs when the repaired blueprint still has validation errors or cannot be safely parsed. Creator classifies the original request and the parsed blueprint's title, description, category, inputs, groups and results, then selects the closest built-in Manual Builder template. A request explicitly marked random selects the Random calculator mode and randomly chooses a tested built-in template. A known topic such as smart LED lighting selects its dedicated template. If no topic template matches a parsed blueprint, Creator uses Advanced Formula Builder with the original title/category and a transparent starter description; if no blueprint or request context exists, it uses a random tested template. The fallback is a fresh, editable draft, not an attempt to execute or retain invalid formulas.
+8. **Draft and save gate** opens the editable draft only after either the imported blueprint or the selected fallback passes the shared validator. No fallback bypasses formula, unit, dependency, boundary or scenario validation. Nothing is saved or published automatically; the normal Save and Publish checks still apply.
+
+## Content language and regional formatting
+
+AI-generated calculator text (title, description, input labels and result labels) follows the language that is clearly identifiable in the user's prompt. If the prompt is language-neutral or its language is unclear, the generated text defaults to English. The visitor's country and `Accept-Language` header do not override a clear prompt language and are not used to select the prose language.
+
+Regional country information may suggest a currency, while `Accept-Language` may set the number-formatting locale. These are presentation defaults only and remain independent from the calculator text language. A user can therefore create an English calculator in Germany with EUR values and German number formatting, or a Serbian calculator in the United Kingdom with GBP values and Serbian number formatting. Currency suggestions never perform conversion.
+
+Manual Blueprint Import does not translate pasted content: it preserves the language and wording supplied in the blueprint. To obtain another language, the user must supply a blueprint already written in that language or explicitly request a translation from their external AI assistant before importing.
+
+## Original request coverage check
+
+The import panel may also receive the exact calculator request that the member gave to the external AI. This text is recommended and is used only in the browser for a lightweight keyword coverage check and adaptive fallback selection. It is not sent to an AI service, copied into the calculator or saved.
+
+The checker compares distinctive request terms with the calculator title, description, assumptions, input labels/keys, group labels/fields, result labels/formulas/explanations and scenario labels. It uses a small, explicit synonym map for common terms. When meaningful request terms are not found, it adds a review note to the editable draft.
+
+This is a heuristic warning, not natural-language understanding. It can miss synonyms, miss a mathematical feature expressed only in a formula, or flag a term that is represented differently. It never invents a formula, deletes a requested feature, blocks import, or declares the calculator fully complete. For fallback selection it also recognises explicit random intent, such as “random calculator”; in that case the Random calculator mode is selected. If the request field is blank, the importer infers the topic from the blueprint's own descriptive metadata and formula labels. The original request is never copied into the calculator definition, sent to an AI provider, submitted to the server or saved as part of the calculator.
+
+## What can be repaired automatically
+
+Examples include:
+- A missing label or variable key can be derived from an existing descriptive label.
+- A missing numeric minimum, maximum, default or step can be completed with a bounded, step-aligned fallback.
+- An optional dynamic group with a zero-valued placeholder can be changed to the Manual Builder's required one-row minimum.
+- A result that is marked as currency but mathematically evaluates to `EUR/month` can be corrected to a unit result with `EUR/month`.
+- A formula such as `data_size / transfer_hours` can have its unit corrected to `GB/hour` when the input units explicitly establish those dimensions.
+- Labels such as “wattage per bulb”, “price per kWh” and “daily usage per bulb” can be converted to coherent rate and quantity units when their meaning is explicit.
+- A clearly labeled dimming percentage in room-lighting dynamic rows can be incorporated into LED energy estimates as a bulb-count-weighted adjustment.
+- A result chain can be reordered only when all dependencies are identifiable and the dependency graph has a valid topological order.
+- A variable denominator is guarded only when its range or expression can include zero.
+
+If an entire result or formula is missing, the importer may create a clearly noted temporary passthrough result using the first available input. This is a placeholder, not a guessed calculation; the notice tells the member to replace it before publishing.
+
+## What remains strict
+
+The importer still rejects malformed or ambiguous JSON, unknown/unsafe properties, prototype-sensitive keys, executable code in unsupported fields, invalid schema shapes that cannot be represented safely, and payloads that exceed hard safety and size limits. Unsupported formulas are retained only as inert formula text; they are parsed by the restricted formula compiler and are never executed as JavaScript or another language.
+
+Formula, unit, dependency, boundary and scenario errors do not reject a safe parsing attempt, but an invalid repaired draft is not left as the final Creator draft. Adaptive fallback switches to the closest built-in template that passes the exact same shared validator. If the request is explicitly random, the Random calculator mode is selected. If the topic is unknown, Advanced Formula Builder is used as a clearly labeled starter; the system does not claim the original specialised formulas were reconstructed. The validator is not bypassed or weakened, and Save and Publish remain blocked for any draft that does not pass.
+
+Missing numeric assumptions use deterministic, bounded defaults only when a neutral fallback is safe; every material completion is listed in Quick Fix notes. The system does not generate random prices, market rates or exchange rates. If a required business assumption is genuinely unknown, it remains an editable input with a clearly marked neutral placeholder or a visible review item.
+
+A successful import means either (a) the supplied blueprint passed the shared formula, unit, dependency, boundary and scenario checks, or (b) Creator prepared a clearly identified built-in fallback draft that passed those checks. This does not certify the calculator's domain assumptions, vendor prices, scientific claims or suitability for publication; the user must still review the assumptions and test results.
+
+### Count-rate dimensions and range normalization
+
+The local repair engine can infer common count-based rates from clear labels, including prompts per user, tokens per prompt and monetary cost per token. It preserves the distinction between tokens and generic items, so a formula chain such as users × prompts/user × tokens/prompt has a coherent token-volume dimension and token-volume × currency/token produces a currency result. Result units are also checked against the semantic quantity named by the result label when the dimensional category allows an unambiguous match. It also recognises clearly labeled per-device quantities, time inputs and common data units/rates such as GB, TB and GB/hour. If a unit-bearing result formula uses one unambiguous positive decimal physical-rate coefficient, Quick Fix can replace that bare constant with a visible editable rate input while preserving its numeric default. Select options that explicitly contain a numeric rate such as `3 GB/hour` can be normalised to use the displayed rate as their numeric value, with scenario selections remapped to the same named option.
+
+When a numeric range has a positive but incompatible step, Quick Fix prefers a familiar 1/2/5 × 10^n common step no larger than the original step. It preserves the supplied minimum, maximum and default wherever a valid increment can be found, instead of replacing a meaningful step with an unexpectedly coarse greatest common divisor. Scenario values are then checked against the normalized input step.
+
+## Units and formulas
+
+The Manual Builder uses dimensional algebra. Common units and rates are recognised, including currency-per-time and physical compound units. Simple explicit products and quotients such as `GB/hour`, `GB/device`, `EUR/month` or `kWh/day` can be analysed. Data units such as B, KB, MB, GB, TB and PB share a data dimension so explicit scale conversion formulas can be checked dimensionally.
+
+Unknown unit atoms remain distinct dimensions. Combining them with explicit units is not assumed safe unless the unit system recognises each atom. There is no implicit currency exchange, unit conversion, or conversion between days, weeks, months and years.
+
+The formula language remains a restricted data-only expression grammar. `sum()` may aggregate either one field or a row-wise arithmetic expression using fields from one dynamic group, such as `sum(devices.data_per_device * devices.device_count)`. The row expression is evaluated independently for each row and checked dimensionally before summation. It does not execute JavaScript, Python, arbitrary functions, network access, callbacks or dynamic imports.
+
+## Safety and privacy
+
+- Import is local-only and does not send the pasted blueprint to an AI service.
+- No AI API request, CALC charge, AI daily quota use, automatic save or publish occurs during import.
+- Payload size, nesting depth, node count and supported item counts are bounded.
+- Prototype-sensitive properties are rejected before normalisation.
+- Unknown properties are rejected rather than silently discarded.
+- Imported text is parsed as data and rendered through existing safe UI paths.
+- Fatal parsing/schema-safety failures preserve the current unsaved draft. Validation-only issues open an editable local draft instead of discarding it.
+- Save/Publish continue to use the existing client- and server-side validation and account rules; Quick Fix does not bypass either validator.
+
+## Verification strategy
+
+Tests cover provider response styles, structural omissions, common field aliases, key rewriting, range/step completion, optional group placeholders, scenario bounds, formula dependency ordering, zero-denominator guards, custom compound units, rate-result display repair, draft-first import on unresolved validation errors, deterministic repair retries, malformed or unsafe data rejection, and the continued Save/Publish validation gate.
+
+PR #198 remains Draft until automated tests, Preview testing and manual verification with varied providers and calculator topics are complete. A successful test with one provider does not establish universal correctness for every AI response.

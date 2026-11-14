@@ -99,3 +99,22 @@ test("wallpaper avoids horizontal tiling and sizes its generated tile to the mes
     assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
 });
+
+test("Custom Theme accents are used for every generated chat wallpaper drawing", () => {
+    const make = loadWallpaperGenerator();
+    const custom = {
+        key: "custom-test-palette",
+        mode: "dark",
+        palette: ["#123456", "#ABCDEF", "#765432"]
+    };
+    const svg = make({ conversationType: "global", conversationId: "custom-theme-test" }, custom, 840);
+    const colours = [...svg.matchAll(/data-color="(#[A-F0-9]{6})"/g)].map(match => match[1]);
+    assert.ok(colours.length > 0, "custom wallpaper still contains its doodle layer");
+    assert.ok(colours.every(colour => custom.palette.includes(colour)), "all doodle strokes come from the selected Custom Theme");
+});
+
+test("changing a saved or previewed theme refreshes the wallpaper palette in an open chat", () => {
+    assert.match(calls, /window\.addEventListener\("worthit-theme-change", window\.refreshWorthItChatWallpaper\)/);
+    assert.match(calls, /getConversationWallpaperTheme\(\)/);
+    assert.match(calls, /attributeFilter: \["data-theme", "data-worth-it-custom-theme"\]/);
+});

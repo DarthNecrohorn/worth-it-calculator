@@ -55,6 +55,12 @@ function prepareWorthItSettingsPage() {
         return null;
     }
 
+    if (typeof window.hideWorthItProfileSection === "function") window.hideWorthItProfileSection();
+    const ugcDetail = document.getElementById("ugcDetailSection");
+    if (ugcDetail) ugcDetail.hidden = true;
+    if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(true);
+    if (typeof window.refreshWorthItCustomTheme === "function") void window.refreshWorthItCustomTheme();
+
     const homePage = document.getElementById("homePage");
     if (homePage) homePage.style.display = "none";
     document.querySelectorAll(".app").forEach(function (section) {
@@ -101,10 +107,26 @@ function renderWorthItSettingsView(sectionKey) {
 
     Object.entries(WORTH_IT_SETTINGS_SECTIONS).forEach(([key, config]) => {
         const panel = document.getElementById(config.panelId);
-        if (panel) panel.hidden = section ? key !== section : key !== "appearance";
+        if (panel) {
+            const shouldShow = section ? key === section : key === "appearance";
+            panel.hidden = !shouldShow;
+            panel.style.display = shouldShow ? "" : "none";
+        }
     });
 
     if (typeof window.updateSettingsUI === "function") window.updateSettingsUI();
+    if (typeof window.isWorthItCustomThemeActive === "function") {
+        const customActive = window.isWorthItCustomThemeActive();
+        ["themeDarkBtn","themeLightBtn","settingsPageThemeDarkBtn","settingsPageThemeLightBtn"].forEach(id => {
+            const button = document.getElementById(id);
+            if (!button) return;
+            button.disabled = customActive;
+            button.setAttribute("aria-disabled", String(customActive));
+            button.title = customActive
+                ? "Reset settings before switching to the standard Dark or Light appearance."
+                : "Choose the standard Dark or Light appearance.";
+        });
+    }
 
     if (section) {
         const loader = WORTH_IT_SETTINGS_SECTIONS[section].loader;
@@ -164,11 +186,19 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     }
 
     function setTheme(theme){
+        const root = document.documentElement;
         const value = theme === "light" ? "light" : "dark";
+        if (root?.hasAttribute("data-worth-it-custom-theme")) {
+            if (typeof window.showToast === "function") {
+                window.showToast("Custom theme is active. Use Reset settings before switching to Dark or Light.");
+            }
+            return false;
+        }
         document.documentElement.dataset.theme = value;
         localStorage.setItem(THEME_KEY, value);
         updateSettingsUI();
         notifySettingsChange();
+        return true;
     }
 
     /* Backwards-compatible no-op for any existing callers. */
@@ -196,12 +226,22 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
     window.setTheme = setTheme;
     window.setUIScale = setUIScale;
     window.updateSettingsUI = updateSettingsUI;
-    window.resetSettings = function(){
+    window.resetSettings = async function(){
+        // Wait for the account theme row to be removed before declaring the reset complete.
+        let customThemeReset = true;
+        if (typeof window.resetWorthItCustomTheme === "function") {
+            try { customThemeReset = await window.resetWorthItCustomTheme(); }
+            catch (_) { customThemeReset = false; }
+        }
         localStorage.removeItem(THEME_KEY);
         localStorage.removeItem(UI_SCALE_KEY);
+        document.documentElement?.removeAttribute("data-worth-it-custom-theme");
         setTheme("dark");
         setUIScale("normal");
-        showToast("Settings reset.");
+        showToast(customThemeReset
+            ? "Settings reset. Your original Dark appearance and Worth It colours have been restored."
+            : "Local settings were reset, but the saved custom theme could not be removed from your account. Reconnect and try again.");
+        return customThemeReset;
     };
 
     let accountUsernameStatus = null;

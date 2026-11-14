@@ -18,7 +18,7 @@ function mediaFile(bytes, name, type) {
     return new File([Uint8Array.from(bytes)], name, { type });
 }
 
-function makeMockFetch({ userId = "test-user", storageStatus = 200, permitted = true } = {}) {
+function makeMockFetch({ userId = "test-user", storageStatus = 200, permitted = true, limits = {tier:"free",image_bytes:5*1024*1024,gif_bytes:8*1024*1024,video_bytes:15*1024*1024} } = {}) {
     const calls = [];
     const storageUploads = [];
     const fetch = async (input, init = {}) => {
@@ -26,6 +26,12 @@ function makeMockFetch({ userId = "test-user", storageStatus = 200, permitted = 
         calls.push({ url, init });
         if (url.endsWith("/auth/v1/user")) {
             return new Response(JSON.stringify({ id: userId }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+        if (url.endsWith("/rest/v1/rpc/calc_chat_media_limits")) {
+            return new Response(JSON.stringify(limits), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
             });
@@ -81,7 +87,7 @@ test("chat video controls, accepted types, upload limits and cache key are wired
     assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
     assert.match(html, /accept="image\/png,image\/jpeg,image\/webp,image\/gif,video\/mp4,video\/webm"/);
     assert.match(client, /"video\/mp4":"video","video\/webm":"video"/);
-    assert.match(client, /50 \* 1024 \* 1024/);
+    assert.match(client, /getWorthItChatMediaLimits/);
     assert.match(client, /video\.controls = true/);
     assert.match(server, /const VIDEO_LIMIT = 50 \* 1024 \* 1024;/);
 });

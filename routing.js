@@ -25,6 +25,7 @@
         "/weather": "openWeather",
         "/news": "openNews",
         "/shop": "openDiscounts",
+        "/web-shop": "openWebShop",
         "/compare-cars": "openCars",
         "/markets": "openMarkets",
         "/currencies": "openMoney",
@@ -101,7 +102,12 @@
 
         originalFunctions[name] = original;
         window[name] = function () {
+            if (name !== "openWorthItUGCCalculator") {
+                const ugcDetail = document.getElementById("ugcDetailSection");
+                if (ugcDetail) ugcDetail.hidden = true;
+            }
             if (name !== "openFullSettings") {
+                if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
                 const settingsPage = document.getElementById("settingsPage");
                 if (settingsPage) settingsPage.style.display = "none";
             }
@@ -122,6 +128,12 @@
     patchRouteFunction("openWorthItProfile", function (worthItId) {
         const id = Number(worthItId);
         return Number.isSafeInteger(id) && id > 0 ? "/profile/" + id : null;
+    });
+    patchRouteFunction("openWorthItUGCCalculator", function (calculatorId) {
+        const id = String(calculatorId || "").toLowerCase();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
+            ? "/calculator/ugc/" + id
+            : null;
     });
 
     // Return to the exact route that opened this profile. Directly opened
@@ -268,6 +280,9 @@
             return null;
         }
 
+        const ugcCalculatorMatch = path.match(/^\/calculator\/ugc\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+        if (ugcCalculatorMatch) return { kind: "ugc-calculator", id: ugcCalculatorMatch[1].toLowerCase() };
+
         const calculatorMatch = path.match(/^\/calculator\/(\d+)$/);
         if (calculatorMatch) {
             const id = Number(calculatorMatch[1]);
@@ -290,6 +305,14 @@
 
         const route = resolveRoute(normalized);
         if (!route) return;
+
+        if (route.kind !== "ugc-calculator") {
+            const ugcDetail = document.getElementById("ugcDetailSection");
+            if (ugcDetail) ugcDetail.hidden = true;
+        }
+        if (typeof window.setWorthItCustomThemeSettingsOpen === "function") window.setWorthItCustomThemeSettingsOpen(false);
+        const settingsPage = document.getElementById("settingsPage");
+        if (settingsPage) settingsPage.style.display = "none";
 
         const rawPath = window.location.pathname;
         if (rawPath !== normalized && (options && options.initial)) {
@@ -318,6 +341,13 @@
                 return;
             }
 
+            if (route.kind === "ugc-calculator") {
+                if (typeof window.openWorthItUGCCalculator === "function") {
+                    window.openWorthItUGCCalculator(route.id, { fromUrl: true });
+                }
+                return;
+            }
+
             if (route.kind === "calculator") {
                 const openCalculator = originalFunctions.openCalculator || window.openCalculator;
                 if (typeof openCalculator === "function") openCalculator.call(window, route.type);
@@ -343,6 +373,51 @@
             applyingRoute = false;
         }
     }
+
+    // Return to the exact in-app route that opened the current page. Direct
+    // links without a recorded predecessor use the caller's safe fallback route.
+    window.backFromWorthItRoute = function (fallbackPath) {
+        const state = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        const previousRoute = typeof state.worthItRoutePrevious === "string"
+            ? state.worthItRoutePrevious
+            : "";
+        let previousPath = "";
+        try {
+            if (previousRoute.startsWith("/")) {
+                previousPath = normalizePath(new URL(previousRoute, window.location.origin).pathname);
+            }
+        } catch (_) {}
+
+        const currentPath = normalizePath(window.location.pathname);
+        if (previousPath && previousPath !== currentPath && window.history.length > 1) {
+            window.history.back();
+            return true;
+        }
+
+        const fallback = String(fallbackPath || "/");
+        let fallbackUrl;
+        try {
+            fallbackUrl = new URL(fallback, window.location.origin);
+        } catch (_) {
+            fallbackUrl = new URL("/", window.location.origin);
+        }
+        const target = normalizePath(fallbackUrl.pathname);
+        const targetUrl = target + fallbackUrl.search + fallbackUrl.hash;
+        window.history.replaceState({
+            worthItRoute: true,
+            worthItRoutePath: target,
+            worthItRoutePrevious: null
+        }, "", targetUrl);
+        applyRoute(target, { initial: false });
+        return false;
+    };
+
+    window.backFromWebShop = function () {
+        return window.backFromWorthItRoute("/");
+    };
+
 
     window.addEventListener("popstate", function () {
         applyRoute(window.location.pathname, { initial: false });

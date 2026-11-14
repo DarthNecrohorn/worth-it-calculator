@@ -1,0 +1,987 @@
+
+/* Worth It Custom Theme — final cross-site design system.
+   Loaded last so section-local styles cannot reintroduce unreadable fixed colours. */
+html[data-worth-it-custom-theme] {
+    color-scheme: var(--worth-it-theme-color-scheme, dark) !important;
+}
+html[data-worth-it-custom-theme] body {
+    color: var(--text) !important;
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    line-height: var(--worth-it-theme-body-line-height, 1.55);
+    letter-spacing: var(--worth-it-theme-body-letter-spacing, normal);
+}
+html[data-worth-it-custom-theme] body :is(h1,h2,h3,h4,h5,h6) {
+    color: var(--worth-it-theme-heading-color, var(--text)) !important;
+    font-family: var(--worth-it-theme-heading-font-family, var(--worth-it-theme-font-family)) !important;
+    font-weight: var(--worth-it-theme-heading-weight, 800);
+    letter-spacing: var(--worth-it-theme-heading-letter-spacing, normal);
+    text-transform: var(--worth-it-theme-heading-transform, none);
+}
+html[data-worth-it-custom-theme] body a:not(.logo):not([class*="button"]):not([class*="-btn"]) {
+    color: var(--worth-it-theme-link-color, var(--primary)) !important;
+}
+html[data-worth-it-custom-theme] body :is(input,select,textarea,[contenteditable="true"]) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea,[contenteditable="true"]) {
+    background-color: var(--card-solid) !important;
+}
+html[data-worth-it-custom-theme] body :is(input,textarea,[contenteditable="true"])::placeholder {
+    color: var(--muted) !important;
+    opacity: 1;
+}
+
+/* Every ordinary control inherits the chosen palette instead of carrying
+   hard-coded white, grey or dark text from its section stylesheet. */
+html[data-worth-it-custom-theme] body :is(
+    button,input[type="button"],input[type="submit"],.settings-option
+):not(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,.worth-it-chat-nav-btn,
+    .worth-it-chat-send-btn,.shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,.active,.is-active,
+    .calc-favorite-toggle,.worth-it-profile-avatar-remove,
+    .worth-it-chat-call-end,.worth-it-chat-call-reject,.worth-it-chat-manage-delete,
+    .worth-it-chat-manage-leave,.is-recording,[aria-pressed="true"],
+    [aria-selected="true"],[aria-expanded="true"],
+    [class*="danger"],[class*="delete"],[class*="remove"],[class*="reject"]
+) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--worth-it-theme-control-radius, 10px) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    button.active,button.is-active,button[aria-pressed="true"],
+    button[aria-selected="true"],button[aria-expanded="true"]
+) {
+    color: var(--worth-it-primary-readable) !important;
+    background: color-mix(in srgb, var(--primary) 18%, var(--card-solid)) !important;
+    border-color: var(--primary) !important;
+}
+
+/* Primary actions: the selected preset controls the button style AND the
+   foreground is computed for that exact solid/gradient background. */
+html[data-worth-it-custom-theme] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav
+) {
+    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    border-radius: var(--worth-it-theme-control-radius, 10px) !important;
+    border-color: transparent !important;
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: var(--worth-it-button-primary-background) !important;
+    border-color: var(--worth-it-button-primary-background) !important;
+    color: var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body :is(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,
+    .worth-it-chat-nav-btn,.worth-it-chat-send-btn,
+    .shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: transparent !important;
+    border: 1px solid var(--primary) !important;
+    color: var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] body :is(
+    .settings-option:not(.danger),.feedback-nav-btn,.settings-btn,.menu-btn
+) {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme] body :is(button,.settings-option):hover:not(:disabled) {
+    border-color: var(--worth-it-hover-glow, var(--primary)) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="none"] body :is(button,.settings-option) {
+    transition: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="subtle"] body :is(button,.settings-option) {
+    transition: transform .18s ease,background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-animation="smooth"] body :is(button,.settings-option) {
+    transition: transform .32s cubic-bezier(.2,.8,.2,1),background .32s ease,border-color .32s ease,color .32s ease,box-shadow .32s ease !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="lift"] body :is(button,.settings-option):hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="glow"] body :is(button,.settings-option):hover:not(:disabled) {
+    box-shadow: 0 0 0 2px color-mix(in srgb,var(--worth-it-hover-glow) 24%,transparent),
+                0 0 20px color-mix(in srgb,var(--worth-it-hover-glow) 34%,transparent);
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] body :is(button,.settings-option):hover:not(:disabled) {
+    transform: none !important;
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thick"] body :is(button,.settings-option,input,select,textarea) {
+    border-width: 2px !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-border-thickness="thin"] body :is(button,.settings-option,input,select,textarea) {
+    border-width: 1px !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="none"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="soft"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: 0 8px 24px color-mix(in srgb,var(--primary) 9%,transparent) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="strong"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-chat-window,.ai-chat-card) {
+    box-shadow: 0 16px 38px color-mix(in srgb,var(--primary) 20%,rgba(0,0,0,.22)) !important;
+}
+html[data-worth-it-custom-theme] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    border-color: var(--border) !important;
+    border-radius: var(--radius, 16px);
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="glass"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--card) !important;
+    backdrop-filter: blur(14px);
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="flat"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--surface-soft) !important;
+    box-shadow: none !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-card-style="solid"] body :is(.calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,.account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,.worth-it-report-card) {
+    background-color: var(--card-solid) !important;
+}
+html[data-worth-it-custom-theme] body :focus-visible {
+    outline-color: var(--primary) !important;
+}
+
+/* Header actions must use the current palette too. This includes AI Chat,
+   which used to keep a fixed white label on a light gradient. */
+html[data-worth-it-custom-theme] .nav {
+    background: var(--worth-it-header-background) !important;
+    color: var(--worth-it-header-foreground) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .nav .logo {
+    color: var(--worth-it-header-foreground) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links {
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links button {
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] #navLinks.nav-links button:hover {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--primary) 14%,var(--card-solid)) !important;
+    border-color: var(--primary) !important;
+}
+html[data-worth-it-custom-theme] .nav .ai-chat-nav-btn,
+html[data-worth-it-custom-theme] .nav .admin-panel-nav-btn {
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] .nav :is(.menu-btn,.feedback-nav-btn,.signout-nav-btn,.settings-btn,.auth-btn,.profile-nav-btn,.worth-it-chat-nav-btn) {
+    color: var(--worth-it-header-foreground) !important;
+    border-color: color-mix(in srgb,var(--worth-it-header-foreground) 28%,transparent) !important;
+    background: color-mix(in srgb,var(--worth-it-header-foreground) 9%,transparent) !important;
+}
+
+/* Apply saved presets to the Web Shop as well as the rest of Worth It.
+   The Shop's own Dark/Light toggle remains the fallback when no Custom Theme is active. */
+html[data-worth-it-custom-theme] #webShopSection {
+    --ws-bg: var(--bg);
+    --ws-panel: var(--card-solid);
+    --ws-card: var(--card);
+    --ws-card-hover: var(--card2);
+    --ws-text: var(--text);
+    --ws-muted: var(--muted);
+    --ws-border: var(--border);
+    --ws-accent: var(--primary);
+    --ws-accent2: var(--primary2);
+    --ws-shadow: var(--shadow);
+    color: var(--text) !important;
+    background:
+        radial-gradient(ellipse at 6% 0%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 38%),
+        radial-gradient(ellipse at 96% 10%,color-mix(in srgb,var(--primary2) 16%,transparent),transparent 32%),
+        linear-gradient(145deg,var(--bg),var(--bg2)) !important;
+}
+html[data-worth-it-custom-theme] #webShopSection .web-shop-back {
+    border-radius: var(--worth-it-theme-control-radius) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] #webShopSection .web-shop-back {
+    background: var(--worth-it-button-primary-background) !important;
+    border-color: var(--worth-it-button-primary-background) !important;
+    color: var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] #webShopSection .web-shop-back {
+    background: transparent !important;
+    border: 1px solid var(--primary) !important;
+    color: var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] #webShopSection .web-shop-back {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Full-site AI Chat inherits the preset in its launcher, panel, controls and copy. */
+html[data-worth-it-custom-theme] .ai-chat-card {
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-messages { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .ai-chat-input {
+    color: var(--text) !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-input::placeholder { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .ai-chat-send {
+    background: var(--worth-it-theme-gradient) !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Community Chat: panels, messages and composer follow the active theme;
+   the independently generated doodle tile keeps the same scattered artwork
+   but uses the selected preset's own accent colours. */
+html[data-worth-it-custom-theme] .worth-it-chat-window {
+    --chat-line: var(--border);
+    --chat-muted: var(--muted);
+    color: var(--text) !important;
+    background: var(--card-solid) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-sidebar {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-main {
+    color: var(--text) !important;
+    background:
+        radial-gradient(ellipse at 75% 0%,color-mix(in srgb,var(--primary) 13%,transparent),transparent 40%),
+        linear-gradient(160deg,var(--bg),color-mix(in srgb,var(--bg) 88%,var(--primary) 12%)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-header {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 86%,transparent) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header h2,.worth-it-chat-brand strong,
+    .worth-it-chat-side-item,.worth-it-chat-side-item strong
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header p,.worth-it-chat-brand small,
+    .worth-it-chat-side-item small,.worth-it-chat-sidebar-footer,
+    .worth-it-chat-muted,.worth-it-chat-compose-meta
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-side-item.is-active {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: var(--primary) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose-wrap {
+    background: color-mix(in srgb,var(--card-solid) 90%,transparent) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose {
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose textarea {
+    background: transparent !important;
+    color: var(--text) !important;
+    font-family: var(--worth-it-theme-font-family) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-compose textarea::placeholder {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-messages {
+    background-color: var(--bg) !important;
+    background-image:
+        linear-gradient(160deg,color-mix(in srgb,var(--primary) 6%,transparent),color-mix(in srgb,var(--primary2) 4%,transparent)),
+        var(--worthit-chat-wallpaper-image,none) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header-icon,.worth-it-chat-voice-icon,.worth-it-chat-control-icon,
+    .worth-it-chat-speaker-icon
+),html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-header-icon,.worth-it-chat-voice-icon,.worth-it-chat-control-icon,
+    .worth-it-chat-speaker-icon
+) * {
+    stroke: var(--primary) !important;
+    color: var(--primary) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-send-btn {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Preserve the uploaded profile banner as a real background layer while
+   allowing the preset's cards, statistics, typography and controls to remain. */
+html[data-worth-it-custom-theme].profile-banner-active body::before {
+    background: linear-gradient(
+        120deg,
+        color-mix(in srgb,var(--bg) 34%,transparent),
+        color-mix(in srgb,var(--bg) 24%,transparent) 48%,
+        color-mix(in srgb,var(--bg) 34%,transparent)
+    ) !important;
+}
+html[data-worth-it-custom-theme].profile-banner-active .nav {
+    background: var(--worth-it-header-background) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner {
+    background: transparent !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner::before {
+    background: linear-gradient(
+        110deg,
+        color-mix(in srgb,var(--card-solid) 70%,transparent),
+        color-mix(in srgb,var(--card-solid) 46%,transparent) 58%,
+        color-mix(in srgb,var(--card-solid) 32%,transparent)
+    ) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner .worth-it-profile-heading h1 {
+    color: var(--worth-it-theme-heading-color) !important;
+    text-shadow: 0 1px 4px color-mix(in srgb,var(--bg) 35%,transparent) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner :is(
+    .worth-it-profile-username,.worth-it-profile-email,.worth-it-profile-avatar-guidance
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-cover.has-banner .worth-it-profile-avatar-action {
+    background: var(--surface-soft) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-stat,.worth-it-profile-share,.worth-it-profile-status
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    border-color: var(--border) !important;
+    backdrop-filter: blur(13px);
+    -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-stat span,
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-id-note,
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-member-since {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-share-copy a {
+    color: var(--worth-it-theme-link-color) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner .worth-it-profile-status.is-error {
+    color: var(--danger) !important;
+}
+html[data-worth-it-custom-theme].profile-banner-active footer,
+html[data-worth-it-custom-theme].profile-banner-active footer :is(p,span,a,button) {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+@media (max-width: 1000px) {
+    #navLinks.nav-links {
+        display: flex !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: auto !important;
+        top: 88px !important;
+        bottom: 0 !important;
+        width: min(390px,calc(100vw - 12px)) !important;
+        max-width: calc(100vw - 12px) !important;
+        height: calc(100dvh - 88px) !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding: 12px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        border-radius: 0 18px 18px 0 !important;
+        background: var(--card-solid,var(--card)) !important;
+        box-shadow: 0 0 0 100vmax rgba(3,7,18,.46),18px 0 44px rgba(0,0,0,.27) !important;
+        transform: translate3d(-105%,0,0);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: none !important;
+        animation: none !important;
+        will-change: auto;
+    }
+    #navLinks.nav-links.open {
+        top: 88px !important;
+        height: calc(100dvh - 88px) !important;
+        transform: translate3d(0,0,0) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        transition: none !important;
+        animation: none !important;
+
+    }
+}
+@media (min-width: 901px) and (max-width: 1000px) {
+    #navLinks.nav-links {
+        top: 114px !important;
+        height: calc(100dvh - 114px) !important;
+    }
+    #navLinks.nav-links.open {
+        top: 114px !important;
+        height: calc(100dvh - 114px) !important;
+    }
+}
+@media (min-width: 1001px) {
+    html[data-ui-scale="large"] #navLinks.nav-links,
+    html[data-ui-scale="xl"] #navLinks.nav-links {
+        display: flex !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: auto !important;
+        top: 114px !important;
+        bottom: 0 !important;
+        width: min(390px,calc(100vw - 12px)) !important;
+        height: calc(100dvh - 114px) !important;
+        max-height: none !important;
+        overflow: auto !important;
+        border-radius: 0 18px 18px 0 !important;
+        background: var(--card-solid,var(--card)) !important;
+        box-shadow: 0 0 0 100vmax rgba(3,7,18,.46),18px 0 44px rgba(0,0,0,.27) !important;
+        transform: translate3d(-105%,0,0);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: none !important;
+        animation: none !important;
+    }
+    html[data-ui-scale="large"] #navLinks.nav-links.open,
+    html[data-ui-scale="xl"] #navLinks.nav-links.open {
+        visibility: visible !important;
+        pointer-events: auto !important;
+
+    }
+}
+
+
+/* Keep AI Chat message bubbles and private conversation messages in sync with the
+   selected palette. Preserve the difference between incoming and outgoing messages. */
+html[data-worth-it-custom-theme] .ai-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.assistant .ai-chat-bubble {
+    background: var(--surface-soft) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.user .ai-chat-bubble {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: color-mix(in srgb,var(--primary) 36%,var(--border)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-message.is-mine .worth-it-chat-bubble {
+    color: var(--worth-it-gradient-foreground) !important;
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] :is(.worth-it-chat-message-name,.worth-it-chat-message-time) {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-preview,.worth-it-chat-message-reply-quote
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--surface-soft) 86%,var(--primary) 14%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-copy strong,.worth-it-chat-message-reply-quote strong
+) { color: var(--worth-it-theme-heading-color) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-reply-copy span {
+    color: var(--muted) !important;
+}
+
+/* Other parts of the member profile use translucent theme surfaces too, so the
+   uploaded banner remains visible below content instead of being covered by
+   fixed dark or white cards. */
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description,
+    .worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,
+    .worth-it-profile-connection-card,
+    .worth-it-profile-share,
+    .worth-it-profile-status,
+    .worth-it-profile-stat
+) {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-description,
+    .worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,
+    .worth-it-profile-connection-card,
+    .worth-it-profile-share,
+    .worth-it-profile-status,
+    .worth-it-profile-stat
+) {
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    backdrop-filter: blur(13px);
+    -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-text,
+    .worth-it-profile-description-empty,
+    .worth-it-profile-connection-text strong,
+    .worth-it-profile-share-copy .worth-it-profile-overline,
+    .worth-it-profile-id-row strong,
+    .worth-it-profile-member-since
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-meta,
+    .worth-it-profile-description-status,
+    .worth-it-profile-connection-text small,
+    .worth-it-profile-id-note,
+    .worth-it-profile-stat span,
+    .worth-it-profile-presence-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-copy,
+    .worth-it-profile-social-button,
+    .worth-it-profile-display-name-edit,
+    .worth-it-profile-report-button,
+    .worth-it-profile-avatar-action
+) {
+    border-color: var(--border) !important;
+    background: var(--surface-soft) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-social-button.primary,
+    .worth-it-profile-description-save,
+    .worth-it-profile-copy
+) {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.secondary {
+    background: color-mix(in srgb,var(--primary2) 15%,var(--card-solid)) !important;
+    color: var(--worth-it-secondary-readable) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.quiet {
+    background: var(--surface-soft) !important;
+    color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-presence-text.is-online .worth-it-presence-label {
+    color: #16a34a !important;
+}
+
+/* For all supported hamburger widths, keep the left drawer attached to the
+   same header edge and animate both directions. */
+
+/* Inline text fragments inherit their themed parent. Muted, danger and warning
+   semantics are restored by the following token-specific rules. */
+html[data-worth-it-custom-theme] body :is(
+    p,span,small,strong,b,em,i,label,li,dt,dd,th,td,legend,summary,figcaption
+) { color: inherit !important; }
+html[data-worth-it-custom-theme] body :is(
+    .muted,.muted-text,.text-muted,[class*="muted"],
+    .worth-it-muted,.settings-note,.section-note,.helper-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .is-error,[class*="error"],[class*="danger"],[role="alert"]
+) { color: var(--danger, #dc2626) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .is-warning,[class*="warning"]
+) { color: var(--warning, #b45309) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.worth-it-settings-panel,.worth-it-settings-card,
+    .account-page-card,.account-panel,.panel,.stat,.metric,.chart-card,
+    .score-card,.faq-item,.worth-it-report-card,.worth-it-theme-editor,
+    .worth-it-profile-card,.worth-it-profile-description,
+    .worth-it-profile-connections-page
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card p,.panel p,.account-page-card p,.worth-it-settings-panel p,
+    .worth-it-profile-description-text,.worth-it-profile-connection-text
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] body :is(
+    .calc-card small,.calc-card .calc-description,.panel small,
+    .account-page-card small,.worth-it-settings-panel small,
+    .worth-it-profile-description-meta,.worth-it-profile-connection-text small
+) { color: var(--muted) !important; }
+
+/* AI Chat message bubbles and Community Chat messages also use the preset. */
+html[data-worth-it-custom-theme] .ai-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.assistant .ai-chat-bubble {
+    background: var(--surface-soft) !important;
+}
+html[data-worth-it-custom-theme] .ai-chat-message.user .ai-chat-bubble {
+    background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    border-color: color-mix(in srgb,var(--primary) 36%,var(--border)) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-bubble {
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    background: color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-chat-message.is-mine .worth-it-chat-bubble {
+    color: var(--worth-it-gradient-foreground) !important;
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+}
+html[data-worth-it-custom-theme] :is(.worth-it-chat-message-name,.worth-it-chat-message-time) {
+    color: var(--muted) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-preview,.worth-it-chat-message-reply-quote
+) {
+    color: var(--text) !important;
+    background: color-mix(in srgb,var(--surface-soft) 86%,var(--primary) 14%) !important;
+    border-color: var(--border) !important;
+}
+html[data-worth-it-custom-theme] :is(
+    .worth-it-chat-reply-copy strong,.worth-it-chat-message-reply-quote strong
+) { color: var(--worth-it-theme-heading-color) !important; }
+html[data-worth-it-custom-theme] .worth-it-chat-reply-copy span {
+    color: var(--muted) !important;
+}
+
+/* More profile surfaces remain translucent over the uploaded full-card banner. */
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description,.worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,.worth-it-profile-connection-card,
+    .worth-it-profile-share,.worth-it-profile-status,.worth-it-profile-stat
+) { color: var(--text) !important; border-color: var(--border) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section.has-banner :is(
+    .worth-it-profile-description,.worth-it-profile-connections-page,
+    .worth-it-profile-connections-status,.worth-it-profile-connection-card,
+    .worth-it-profile-share,.worth-it-profile-status,.worth-it-profile-stat
+) {
+    background: color-mix(in srgb,var(--card-solid) 72%,transparent) !important;
+    backdrop-filter: blur(13px); -webkit-backdrop-filter: blur(13px);
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-text,.worth-it-profile-description-empty,
+    .worth-it-profile-connection-text strong,.worth-it-profile-share-copy .worth-it-profile-overline,
+    .worth-it-profile-id-row strong,.worth-it-profile-member-since
+) { color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-description-meta,.worth-it-profile-description-status,
+    .worth-it-profile-connection-text small,.worth-it-profile-id-note,
+    .worth-it-profile-stat span,.worth-it-profile-presence-text
+) { color: var(--muted) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-copy,.worth-it-profile-social-button,
+    .worth-it-profile-display-name-edit,.worth-it-profile-report-button,
+    .worth-it-profile-avatar-action
+) { border-color: var(--border) !important; background: var(--surface-soft) !important; color: var(--text) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section :is(
+    .worth-it-profile-social-button.primary,.worth-it-profile-description-save,.worth-it-profile-copy
+) { background: var(--worth-it-theme-gradient) !important; border-color: transparent !important; color: var(--worth-it-gradient-foreground) !important; }
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.secondary {
+    background: color-mix(in srgb,var(--primary2) 15%,var(--card-solid)) !important;
+    color: var(--worth-it-secondary-readable) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-social-button.quiet {
+    background: var(--surface-soft) !important; color: var(--text) !important;
+}
+html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-presence-text.is-online .worth-it-presence-label {
+    color: #16a34a !important;
+}
+
+
+/* The compact header has two predictable left-side rows:
+   menu + brand above, Web Shop / CALC / WIP directly underneath.
+   Right-side actions retain their existing two-row placement. */
+@media (max-width: 1000px) {
+    .nav-inner {
+        position: relative !important;
+        display: block !important;
+        width: 100% !important;
+        height: 88px !important;
+        min-height: 88px !important;
+        padding: 0 16px !important;
+    }
+    .nav-inner > .menu-btn {
+        position: absolute !important;
+        left: 16px !important;
+        top: 6px !important;
+        display: inline-flex !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        z-index: 102 !important;
+        transition: background-color .2s ease, border-color .2s ease !important;
+    }
+    .nav-inner > .menu-btn[aria-expanded="true"] {
+        background: color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+        border-color: var(--primary) !important;
+    }
+    .nav-inner > .logo {
+        position: absolute !important;
+        left: 64px !important;
+        top: 4px !important;
+        height: 40px !important;
+        margin: 0 !important;
+        z-index: 102 !important;
+    }
+    .nav-inner > .calc-economy-nav {
+        position: absolute !important;
+        left: 64px !important;
+        top: 48px !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        width: max-content !important;
+        max-width: min(430px,calc(100vw - 250px)) !important;
+        height: 36px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+        z-index: 102 !important;
+    }
+    .nav-inner > .calc-economy-nav::-webkit-scrollbar { display: none !important; }
+    .nav-inner > .nav-right-stack {
+        position: absolute !important;
+        top: 4px !important;
+        right: 16px !important;
+        width: auto !important;
+        max-width: calc(100vw - 205px) !important;
+        margin: 0 !important;
+        z-index: 101 !important;
+    }
+    #navLinks.nav-links.open {
+        z-index: 2147483000 !important;
+    }
+}
+@media (min-width: 901px) and (max-width: 1000px) {
+    .nav-inner {
+        height: 114px !important;
+        min-height: 114px !important;
+    }
+    .nav-inner > .menu-btn { top: 10px !important; }
+    .nav-inner > .logo { top: 8px !important; }
+    .nav-inner > .calc-economy-nav { top: 63px !important; }
+    .nav-inner > .nav-right-stack { top: 8px !important; }
+}
+@media (min-width: 1001px) {
+    html[data-ui-scale="large"] .nav-inner,
+    html[data-ui-scale="xl"] .nav-inner {
+        position: relative !important;
+        display: block !important;
+        height: 114px !important;
+        min-height: 114px !important;
+        padding: 0 16px !important;
+    }
+    html[data-ui-scale="large"] .nav-inner > .menu-btn,
+    html[data-ui-scale="xl"] .nav-inner > .menu-btn {
+        position: absolute !important;
+        left: 16px !important;
+        top: 10px !important;
+        display: inline-flex !important;
+        width: 40px !important;
+        height: 40px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        z-index: 102 !important;
+    }
+    html[data-ui-scale="large"] .nav-inner > .logo,
+    html[data-ui-scale="xl"] .nav-inner > .logo {
+        position: absolute !important;
+        left: 66px !important;
+        top: 8px !important;
+        z-index: 102 !important;
+    }
+    html[data-ui-scale="large"] .nav-inner > .calc-economy-nav,
+    html[data-ui-scale="xl"] .nav-inner > .calc-economy-nav {
+        position: absolute !important;
+        left: 66px !important;
+        top: 63px !important;
+        display: flex !important;
+        width: max-content !important;
+        max-width: min(460px,calc(100vw - 270px)) !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        scrollbar-width: none !important;
+        z-index: 102 !important;
+    }
+    html[data-ui-scale="large"] .nav-inner > .nav-right-stack,
+    html[data-ui-scale="xl"] .nav-inner > .nav-right-stack {
+        position: absolute !important;
+        top: 8px !important;
+        right: 16px !important;
+        margin: 0 !important;
+        z-index: 101 !important;
+    }
+}
+
+/* Enlarge only the profile/avatar control, never the neighbouring header icons. */
+@media (min-width: 701px) and (max-width: 1000px) {
+    .nav-top-row .nav-actions > .auth-wrap {
+        width: 50px !important;
+        min-width: 50px !important;
+        max-width: 50px !important;
+        height: 48px !important;
+        flex: 0 0 50px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: 48px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        max-height: 48px !important;
+        flex: 0 0 48px !important;
+        padding: 3px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        max-width: 40px !important;
+        max-height: 40px !important;
+        flex: 0 0 40px !important;
+    }
+}
+@media (max-width: 700px) {
+    .nav-top-row .nav-actions > .auth-wrap {
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
+        height: 46px !important;
+        flex: 0 0 46px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        max-height: 44px !important;
+        flex: 0 0 44px !important;
+        padding: 3px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        max-width: 36px !important;
+        max-height: 36px !important;
+        flex: 0 0 36px !important;
+    }
+}
+@media (max-width: 380px) {
+    .nav-top-row .nav-actions > .auth-wrap {
+        width: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
+        flex-basis: 44px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        max-height: 42px !important;
+        flex-basis: 42px !important;
+    }
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn > #profileNavIcon,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar,
+    .nav-top-row .nav-actions > .auth-wrap > .profile-nav-btn .auth-avatar-fallback {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        flex-basis: 34px !important;
+    }
+}
+
+/* A lighter but still perceptible movement for users requesting reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+    .nav-inner > .menu-btn {
+        transition: background-color .12s ease, border-color .12s ease !important;
+    }
+}
+
+/* Shorter first screen: bring the actual calculator grid into view sooner. */
+#homePage .hero {
+    padding: 48px 0 24px !important;
+}
+#homePage .hero h1 {
+    font-size: clamp(42px,6.5vw,70px) !important;
+    letter-spacing: -2.5px !important;
+}
+#homePage .hero p {
+    margin-top: 14px !important;
+    font-size: 16px !important;
+    line-height: 1.45 !important;
+}
+#homePage .hero-actions {
+    margin-top: 18px !important;
+    gap: 10px !important;
+}
+#homePage .hero-calculator-action {
+    margin-top: 10px !important;
+}
+#homePage .hero-calculator-action .btn-secondary {
+    padding: 10px 18px !important;
+}
+@media (max-width: 700px) {
+    #homePage .hero {
+        padding: 34px 0 18px !important;
+    }
+    #homePage .hero h1 {
+        font-size: clamp(36px,10vw,52px) !important;
+        letter-spacing: -1.7px !important;
+    }
+    #homePage .hero p {
+        margin-top: 11px !important;
+        font-size: 14px !important;
+    }
+    #homePage .hero-actions {
+        margin-top: 14px !important;
+    }
+    #homePage .hero-calculator-action {
+        margin-top: 8px !important;
+    }
+}

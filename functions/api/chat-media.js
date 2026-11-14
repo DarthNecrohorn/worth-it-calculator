@@ -1,7 +1,7 @@
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const BUCKET = "worth-it-chat-media";
-const IMAGE_LIMIT = 15 * 1024 * 1024;
-const GIF_LIMIT = 20 * 1024 * 1024;
+const IMAGE_LIMIT = 25 * 1024 * 1024;
+const GIF_LIMIT = 35 * 1024 * 1024;
 const VIDEO_LIMIT = 50 * 1024 * 1024;
 const MAX_REQUEST_BYTES = VIDEO_LIMIT + 256 * 1024;
 const SIGNED_URL_SECONDS = 900;
@@ -88,6 +88,28 @@ async function authorizeRpc(config, token, functionName, payload) {
     }
     return result;
 }
+async function readRpc(config, token, functionName, payload) {
+    const response = await fetch(config.supabaseUrl + "/rest/v1/rpc/" + functionName, {
+        method: "POST",
+        headers: {
+            "apikey": config.publishableKey,
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify(payload || {}),
+        cache: "no-store"
+    });
+    if (!response.ok) {
+        const detail = await response.text().catch(function () { return ""; });
+        const error = new Error("Chat media tier RPC failed with HTTP " + response.status + ".");
+        error.status = response.status;
+        error.details = detail;
+        throw error;
+    }
+    return response.json();
+}
+
 function getObjectPath(raw) {
     const path = String(raw || "").trim();
     if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/[A-Za-z0-9._-]{1,255}$/.test(path) || path.includes("..")) return "";
@@ -183,7 +205,7 @@ export async function onRequest(context) {
     }
 
     const contentLength = Number(request.headers.get("Content-Length") || 0);
-    if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file is too large. Images are limited to 15 MB, GIFs to 20 MB and videos to 50 MB."}, 413, origin);
+    if (contentLength && contentLength > MAX_REQUEST_BYTES) return json({error:"This file exceeds the maximum supported upload size of 50 MB."}, 413, origin);
     let form;
     try { form = await request.formData(); } catch (_) { return json({error:"Choose a valid image, GIF or video file."}, 400, origin); }
     const conversationId = String(form.get("conversation_id") || "").trim();
@@ -195,9 +217,33 @@ export async function onRequest(context) {
     if (!file.size) return json({error:"This media file is empty."}, 400, origin);
     const claimedMime = String(file.type || "").toLowerCase();
     const video = claimedMime === "video/mp4" || claimedMime === "video/webm";
-    const maxBytes = claimedMime === "image/gif" ? GIF_LIMIT : video ? VIDEO_LIMIT : IMAGE_LIMIT;
-    if (file.size > maxBytes) return json({error:claimedMime === "image/gif" ? "GIFs must be 20 MB or smaller." : video ? "Videos must be 50 MB or smaller." : "Images must be 15 MB or smaller."}, 413, origin);
+    const gif = claimedMime === "image/gif";
     if (!["image/png","image/jpeg","image/webp","image/gif","video/mp4","video/webm"].includes(claimedMime)) return json({error:"Choose a PNG, JPG, WEBP, GIF, MP4 or WebM file."}, 415, origin);
+
+    let tierLimits;
+    try {
+        tierLimits = await readRpc(config, token, "calc_chat_media_limits", {});
+    } catch (tierError) {
+        if (/PGRST202|schema cache|calc_chat_media_limits.*does not exist/i.test(String(tierError && tierError.details || ""))) {
+            // During the rollout, use the strict Free limits until the SQL migration is applied.
+            tierLimits = {tier:"free",image_bytes:5 * 1024 * 1024,gif_bytes:8 * 1024 * 1024,video_bytes:15 * 1024 * 1024};
+        } else {
+            return json({error:"Could not verify your chat upload limit. Please try again."}, 503, origin);
+        }
+    }
+    const maxBytes = gif
+        ? Number(tierLimits && tierLimits.gif_bytes)
+        : video
+            ? Number(tierLimits && tierLimits.video_bytes)
+            : Number(tierLimits && tierLimits.image_bytes);
+    if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > VIDEO_LIMIT) {
+        return json({error:"Your chat upload limit is temporarily unavailable."}, 503, origin);
+    }
+    if (file.size > maxBytes) {
+        const maxMb = Math.round(maxBytes / (1024 * 1024));
+        const kind = gif ? "GIFs" : video ? "Videos" : "Images";
+        return json({error:kind + " are limited to " + maxMb + " MB on your current plan."}, 413, origin);
+    }
     let bytes;
     try { bytes = new Uint8Array(await file.slice(0,16).arrayBuffer()); } catch (_) { return json({error:"Could not read this file."}, 400, origin); }
     const detected = detectMedia(bytes);

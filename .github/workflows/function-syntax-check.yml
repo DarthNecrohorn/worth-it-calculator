@@ -13,6 +13,12 @@ on:
       - "app.js"
       - "index.html"
       - "settings.js"
+      - "community-features.js"
+      - "community-features.css"
+      - "style.css"
+      - "web-shop.css"
+      - "tests/community-features.test.mjs"
+      - "tests/settings-navigation.test.mjs"
       - "chat-ui.js"
       - "chat-enhancements.js"
       - "docs/chat-calls-turn-setup.md"
@@ -20,6 +26,43 @@ on:
       - "markets-ui.js"
       - "crypto-ui.js"
       - "shop.js"
+      - "calc-economy.js"
+      - "functions/api/guest-calc.js"
+      - "functions/api/ugc-maker.js"
+      - "ugc-calculators.js"
+      - "ugc-calculator-engine.js"
+      - "ugc-calculator-currency-data.js"
+      - "ugc-blueprint-import.js"
+      - "ugc-calculators.css"
+      - "tests/ugc-blueprint-import.test.mjs"
+      - "supabase/worth-it-ugc-badges.sql"
+      - "supabase/worth-it-ugc-maker-generation-refunds.sql"
+      - "supabase/worth-it-ugc-manual-builder-ai-costs.sql"
+      - "supabase/worth-it-ugc-composable-builder.sql"
+      - "supabase/worth-it-ugc-unique-views.sql"
+      - "supabase/worth-it-creator-leaderboards.sql"
+      - "supabase/worth-it-ugc-enhancements.sql"
+      - "supabase/worth-it-ugc-security-hardening.sql"
+      - "supabase/worth-it-ugc-pagination.sql"
+      - "supabase/worth-it-ugc-visibility-categories-drafts.sql"
+      - "supabase/worth-it-ugc-publish-notifications.sql"
+      - "supabase/worth-it-ugc-reaction-policy.sql"
+      - "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql"
+      - "supabase/worth-it-ugc-creator-earnings.sql"
+      - "supabase/worth-it-ugc-creator-earnings-price-cap.sql"
+      - "supabase/worth-it-ugc-pricing.sql"
+      - "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql"
+      - "supabase/worth-it-community-theme-hover.sql"
+      - "supabase/calc-economy-followup.sql"
+      - "tests/ugc-calculators.test.mjs"
+      - "tests/fixtures/ugc-badges-postgres-setup.sql"
+      - "tests/fixtures/ugc-creator-earnings-pre-migration.sql"
+      - "tests/fixtures/ugc-unique-views-pre-migration.sql"
+      - "tests/fixtures/ugc-badges-postgres-smoke.sql"
+      - "tests/guest-calc.test.mjs"
+      - "tests/guest-lite.test.mjs"
+      - "tests/calc-economy.test.mjs"
+      - "web-shop.css"
       - "routing.js"
       - "guest-mode.js"
       - "section-data-cache.js"
@@ -38,6 +81,21 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Run community features contract tests
+        run: node --test tests/community-features.test.mjs
+
+      - name: Run UGC calculator and badge contract tests
+        run: node --test tests/ugc-calculators.test.mjs
+
+      - name: Run deployment-specific Supabase configuration tests
+        run: node --test tests/runtime-config.test.mjs
+
+      - name: Run CALC economy contract tests
+        run: node --test tests/calc-economy.test.mjs
+
+      - name: Run Guest Lite D1 session tests
+        run: node --test tests/guest-calc.test.mjs
+
       - name: Run chat enhancement regression tests
         run: node --test tests/worth-it-chat-enhancements.test.mjs
 
@@ -49,7 +107,7 @@ jobs:
             echo "Checking $file"
             node --input-type=module --check < "$file"
           done < <(find functions -type f -name '*.js' -print0)
-          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js ship-tracking-ui.js app.js settings.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
+          for file in cars-ui.js markets-ui.js crypto-ui.js shop.js calc-economy.js community-features.js ugc-calculators.js ugc-calculator-engine.js ugc-blueprint-import.js ship-tracking-ui.js app.js settings.js admin-panel.js profile-ui.js chat-ui.js chat-enhancements.js routing.js guest-mode.js section-data-cache.js; do
             if [[ -f "$file" ]]; then
               echo "Checking $file"
               node --input-type=module --check < "$file"
@@ -75,7 +133,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-composable-builder.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -93,7 +151,7 @@ jobs:
           import re
           from collections import Counter
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-composable-builder.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               # Count each dollar-quote delimiter independently. Function definitions may
@@ -133,10 +191,48 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
+      - name: Prepare PostgreSQL client from service container
+        env:
+          POSTGRES_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          set -euo pipefail
+
+          if [[ -z "${POSTGRES_SERVICE_CONTAINER:-}" ]]; then
+            echo "::error::PostgreSQL service container ID is unavailable."
+            exit 1
+          fi
+
+          # The postgres:16 service image already includes psql and createdb.
+          # Use those binaries instead of downloading Ubuntu packages on the runner.
+          docker exec "$POSTGRES_SERVICE_CONTAINER" psql --version
+          docker exec "$POSTGRES_SERVICE_CONTAINER" createdb --version
+
+          # Copy the checked-out SQL fixtures/migrations into the isolated service
+          # container so psql can read its -f paths from the same workspace.
+          docker exec "$POSTGRES_SERVICE_CONTAINER" mkdir -p /tmp/worth-it-ci
+          docker cp "$GITHUB_WORKSPACE/." "$POSTGRES_SERVICE_CONTAINER:/tmp/worth-it-ci/"
+
+          client_bin="$RUNNER_TEMP/postgres-client-bin"
+          mkdir -p "$client_bin"
+
+          cat > "$client_bin/psql" <<'PSQL_WRAPPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${POSTGRES_SERVICE_CONTAINER:?Missing PostgreSQL service container ID}"
+          exec docker exec -w /tmp/worth-it-ci "$POSTGRES_SERVICE_CONTAINER" psql "$@"
+          PSQL_WRAPPER
+
+          cat > "$client_bin/createdb" <<'CREATEDB_WRAPPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${POSTGRES_SERVICE_CONTAINER:?Missing PostgreSQL service container ID}"
+          exec docker exec -w /tmp/worth-it-ci "$POSTGRES_SERVICE_CONTAINER" createdb "$@"
+          CREATEDB_WRAPPER
+
+          chmod +x "$client_bin/psql" "$client_bin/createdb"
+          echo "$client_bin" >> "$GITHUB_PATH"
+          echo "POSTGRES_SERVICE_CONTAINER=$POSTGRES_SERVICE_CONTAINER" >> "$GITHUB_ENV"
 
       - name: Create isolated baseline schema fixture
         env:
@@ -222,3 +318,95 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-private-media-post-actions.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-private-media.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-private-media-postgres-smoke.sql
+
+      - name: Create isolated database for community feature migration tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_community_features_test
+
+      - name: Apply, retry and smoke-test community features migration
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_community_features_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/community-features-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-extras.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-extras.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-hover.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-hover.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-header.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-header.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-design-system.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-design-system.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/community-features-postgres-smoke.sql
+
+      - name: Create isolated database for CALC economy tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_calc_economy_test
+
+      - name: Apply, retry and smoke-test CALC economy migration
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_calc_economy_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/calc-economy-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-premium-gate.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-community-theme-premium-gate.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-wallet-history.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-wallet-history.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy-followup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/calc-economy-followup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/calc-economy-postgres-smoke.sql
+
+
+      - name: Create isolated database for UGC calculators and member badges
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_ugc_badges_test
+
+      - name: Apply, retry and smoke-test UGC calculators and member badges migration
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_ugc_badges_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-badges-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-badges.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-maker-generation-refunds.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-maker-generation-refunds.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER TABLE private.worth_it_user_calculators ADD COLUMN IF NOT EXISTS usage_price_milli integer NOT NULL DEFAULT 100 CHECK (usage_price_milli BETWEEN 100 AND 500 AND usage_price_milli % 10 = 0);"
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-enhancements.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-enhancements.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-security-hardening.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-security-hardening.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pagination.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pagination.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-visibility-categories-drafts.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-visibility-categories-drafts.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-publish-notifications.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-publish-notifications.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-profile-cards.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-profile-cards.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pricing.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pricing.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy-owner-privacy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy-owner-privacy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy-owner-privacy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-reaction-policy-owner-privacy.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-creator-earnings-pre-migration.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings-price-cap.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-creator-earnings-price-cap.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-unique-views-pre-migration.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-unique-views.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-unique-views.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-creator-leaderboards.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-creator-leaderboards.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-manual-builder-ai-costs.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-manual-builder-ai-costs.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-composable-builder.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-composable-builder.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/ugc-badges-postgres-smoke.sql
