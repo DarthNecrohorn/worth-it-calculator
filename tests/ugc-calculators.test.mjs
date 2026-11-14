@@ -835,7 +835,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
 });
 
 test("UGC Maker expands provider output limits and exposes safe result-coverage diagnostics", () => {
-    assert.match(makerApi, /max_tokens:8192/);
+    assert.match(makerApi, /max_completion_tokens:typedV2\?16384:8192/);
     assert.match(makerApi, /maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
     assert.match(makerApi, /finishReason==="MAX_TOKENS"/);
     assert.match(makerApi, /generatedResultLabels:finalCoverageAttempt\.resultLabels/);
@@ -869,36 +869,12 @@ test("AI Maker requires a confirmed account and emits restricted declarative cal
         }
         calls++;
         const body = JSON.parse(options.body);
-        assert.equal(body.response_format.type, "json_schema");
-        assert.equal(body.response_format.json_schema.strict, true);
+        assert.equal(body.response_format.type, "json_object");
+        assert.equal(body.max_completion_tokens,8192);
         assert.equal(body.reasoning_effort, "high");
         assert.equal(body.reasoning_format, "hidden", "Groq structured JSON output must use a JSON-compatible reasoning format");
         assert.doesNotMatch(body.messages[0].content,/Regional defaults: currency|regional currency suggestion [A-Z]{3}/);
         assert.match(body.messages[1].content,/Regional defaults: currency [A-Z]{3}/);
-        assert.equal(body.response_format.json_schema.schema.type,"object");
-        const classificationSchema=body.response_format.json_schema.schema.properties.classification;
-        assert.equal(classificationSchema.type,"object");
-        assert.deepEqual(classificationSchema.properties.category.enum,["cars","money","technology","home","other"]);
-        assert.equal(classificationSchema.properties.subcategories.type,"array");
-        const subcategoryEnum=classificationSchema.properties.subcategories.items.enum;
-        assert.ok(subcategoryEnum.includes("fuel-costs"));
-        assert.ok(subcategoryEnum.includes("budgeting"));
-        assert.ok(!Object.hasOwn(classificationSchema,"anyOf"),"Groq schema must not use ambiguous anyOf branches");
-        assert.deepEqual(classificationSchema.required,["category","subcategories"]);
-        assert.equal(classificationSchema.additionalProperties,false);
-        const rootSchema=body.response_format.json_schema.schema;
-        assert.ok(rootSchema.required.includes("classification"));
-        assert.ok(rootSchema.required.includes("groups"));
-        assert.ok(rootSchema.required.includes("scenarios"));
-        assert.equal(rootSchema.properties.inputs.maxItems,24);
-        const inputSchema=rootSchema.properties.inputs.items;
-        assert.deepEqual(inputSchema.properties.control.enum,["number","slider","select","toggle"]);
-        assert.ok(inputSchema.required.includes("choices"));
-        assert.equal(rootSchema.properties.groups.maxItems,4);
-        assert.equal(rootSchema.properties.results.maxItems,20);
-        assert.ok(rootSchema.properties.results.items.required.includes("key"));
-        assert.equal(rootSchema.properties.scenarios.maxItems,3);
-        assert.equal(rootSchema.additionalProperties,false);
         assert.match(body.messages[0].content,/classification object/);
         assert.match(body.messages[0].content,/restricted arithmetic parser/);
         assert.match(body.messages[0].content,/dynamic groups/);
@@ -969,17 +945,16 @@ test("AI Maker rejects unauthenticated, cross-origin and executable formula requ
     assert.doesNotMatch(makerApi, /\beval\s*\(/);
     assert.doesNotMatch(makerApi, /new\s+Function\s*\(/);
     assert.match(makerApi, /email_confirmed_at/);
-    assert.match(makerApi, /response_format:typedV2\?\{type:"json_object"\}:\{type:"json_schema"/);
+    assert.match(makerApi,/response_format:\{type:"json_object"\}/);
     assert.match(makerApi, /reasoning_effort:\s*"high"/);
     assert.match(makerApi, /const GEMINI_MODEL = "gemini-3\.8-flash"/);
     assert.match(makerApi, /thinkingConfig:\s*\{thinkingLevel:\s*"high"\}/);
     assert.match(makerApi, /requireAllInputsUsed:mode==="create"/);
-    assert.match(makerApi, /classification:\s*\{\s*type:\s*"object"/);
-    assert.match(makerApi, /subcategories:\s*\{\s*type:\s*"array"/);
-    assert.doesNotMatch(makerApi, /classification:\s*\{\s*anyOf:/);
+    assert.match(makerApi, /classification object must contain exactly category and subcategories/);
+    assert.match(makerApi, /subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only/);
     assert.match(makerApi, /parsed\.category=classification\.category/);
     assert.match(makerApi, /Array\.isArray\(classification\.subcategories\)/);
-    assert.match(makerApi, /trying strict Groq fallback/);
+    assert.match(makerApi, /trying validated Groq fallback/);
     assert.match(makerApi, /trying targeted Groq regeneration/);
     const options = await onRequestOptions({ request: new Request(previewOrigin + "/api/ugc-maker", { method: "OPTIONS", headers: { Origin: previewOrigin } }) });
     assert.equal(options.status, 204);
@@ -1043,8 +1018,7 @@ test("AI Maker uses Gemini first and Groq as a fallback, with a server-side dail
         }
         assert.match(String(url), /api\.groq\.com\/openai\/v1\/chat\/completions/);
         const body = JSON.parse(options.body);
-        assert.equal(body.response_format.type, "json_schema");
-        assert.equal(body.response_format.json_schema.strict, true);
+        assert.equal(body.response_format.type, "json_object");
         return new Response(JSON.stringify({
             model: "openai/gpt-oss-120b",
             choices: [{ message: { content: JSON.stringify(validDefinition), finish_reason: "stop" } }],
@@ -1135,15 +1109,8 @@ test("AI Maker falls back to strict Groq when Gemini returns mismatched communit
         if(path.includes("api.groq.com/openai/v1/chat/completions")){
             requested.push("groq");
             const body=JSON.parse(options.body);
-            assert.equal(body.response_format.type,"json_schema");
-            assert.equal(body.response_format.json_schema.strict,true);
+            assert.equal(body.response_format.type,"json_object");
             assert.match(body.messages[0].content,/root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios/);
-            const classificationSchema=body.response_format.json_schema.schema.properties.classification;
-            assert.deepEqual(classificationSchema.properties.category.enum,["cars","money","technology","home","other"]);
-            const subcategoryEnum=classificationSchema.properties.subcategories.items.enum;
-            assert.ok(subcategoryEnum.includes("budgeting"));
-            assert.ok(subcategoryEnum.includes("fuel-costs"));
-            assert.ok(!Object.hasOwn(classificationSchema,"anyOf"));
             assert.match(body.messages[0].content,/subcategories must be an array containing 1 to 3 valid lowercase IDs from the selected category only/);
             const groqDefinition=structuredClone(validDefinition);
             delete groqDefinition.category;
@@ -1249,8 +1216,7 @@ test("AI Maker runs one targeted Groq coverage repair when Groq is already the G
             groqCalls++;
             requested.push("groq-"+groqCalls);
             const body=JSON.parse(options.body);
-            assert.equal(body.response_format.type,"json_schema");
-            assert.equal(body.response_format.json_schema.strict,true);
+            assert.equal(body.response_format.type,"json_object");
             if(groqCalls===1){
                 assert.match(body.messages[1].content,/User request:/);
                 return new Response(JSON.stringify({
@@ -1365,8 +1331,8 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         }
         if (path.includes("api.groq.com/openai/v1/chat/completions")) {
             const body = JSON.parse(options.body);
-            assert.equal(body.response_format.type, "json_schema");
-            assert.equal(body.response_format.json_schema.strict, true);
+            assert.equal(body.response_format.type, "json_object");
+                assert.equal(body.max_completion_tokens,8192);
             return new Response(JSON.stringify({ error: { code: "json_validate_failed" } }), { status: 400 });
         }
         throw new Error("Unexpected request in provider-failure test: " + path);
@@ -1385,7 +1351,7 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         assert.equal(result.code, "AI_PROVIDER_UNAVAILABLE");
         assert.match(result.error, /reserved CALC charge and AI allowance were returned/i);
         assert.equal(result.aiUsage.attempts[0].failureCode,"HTTP_503");
-        assert.equal(result.aiUsage.attempts[1].failureCode,"HTTP_400");
+        assert.equal(result.aiUsage.attempts[1].failureCode,"PROVIDER_JSON_VALIDATE_FAILED");
         assert.equal(quotaEvents.refunds, 1);
         assert.equal(quotaEvents.settlements || 0, 0);
     }, quotaEvents);
@@ -3084,10 +3050,8 @@ test("AI Creator API returns dynamic groups, result chains, percentage rates, dr
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    providerCalls++;
    const body=JSON.parse(options.body);
-   const schema=body.response_format.json_schema.schema;
-   assert.equal(schema.properties.groups.maxItems,4);
-   assert.equal(schema.properties.results.maxItems,20);
-   assert.equal(schema.properties.scenarios.maxItems,3);
+   assert.equal(body.response_format.type,"json_object");
+   assert.equal(body.max_completion_tokens,8192);
    assert.match(body.messages[0].content,/sum\(group_key\.field_key\)/);
    assert.match(body.messages[0].content,/comparison scenario/);
    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
