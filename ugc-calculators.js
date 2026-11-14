@@ -322,13 +322,6 @@ function renderCatalog(rows){
   });
   if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
   if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
-  const source=String(item.creation_source||"");
-  if(source==="manual"||source==="ai"){
-   const originTag=text("span","ugc-origin-tag "+(source==="manual"?"is-manual":"is-ai-made"),source==="manual"?"MANUAL":"AI MADE");
-   originTag.title=source==="manual"?"Created manually without AI.":"Originally created with Worth It AI.";
-   originTag.setAttribute("aria-label",source==="manual"?"Created manually without AI":"Originally created with Worth It AI");
-   head.appendChild(originTag);
-  }
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
   const fullDescription=String(item.description||"").trim();
@@ -2421,9 +2414,9 @@ function createManualDraft(templateKey){
 function setMakerModeUI(){
  const manualControls=$("ugcManualControls");
  const kicker=$("ugcMakerKicker"),heading=$("ugcMakerTitleHeading"),intro=$("ugcMakerIntro");
- if(kicker)kicker.textContent="WORTH IT MANUAL BUILDER";
- if(heading)heading.textContent=state.editingId?"Edit calculator manually":"Create a calculator manually";
- if(intro)intro.textContent="Build a safe calculator with formulas, inputs and currencies. Manual Builder uses no AI and costs no CALC.";
+ if(kicker)kicker.textContent="WORTH IT UGC CALCULATOR BUILDER";
+ if(heading)heading.textContent=state.editingId?"Edit UGC calculator":"Create a UGC calculator";
+ if(intro)intro.textContent="Build a safe community calculator with formulas, inputs and currencies. No Worth It AI request or CALC charge is used.";
  if(manualControls)manualControls.hidden=false;
  const modeHelp=$("ugcManualModeHelp");
  if(modeHelp){
