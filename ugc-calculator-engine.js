@@ -602,7 +602,7 @@ function normalizeTypedValue(definition,rawValue){
   if(typeof rawValue==="number")value=rawValue;
   else if(typeof rawValue==="string"){
    const numericText=rawValue.trim();
-   if(!numericText||! /^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/.test(numericText))return fail("Enter a numeric value.");
+   if(!numericText||! /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\\d+)?$/.test(numericText))return fail("Enter a numeric value.");
    value=Number(numericText);
   }else return fail("Enter a numeric value.");
   const min=definition.min,max=definition.max,step=definition.step;
