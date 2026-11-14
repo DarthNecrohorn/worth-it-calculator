@@ -3260,7 +3260,10 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
    assert.equal(body.include_reasoning,false,"GPT-OSS supports include_reasoning, not reasoning_format");
    assert.equal(Object.hasOwn(body,"reasoning_format"),false,"GPT-OSS does not support reasoning_format");
    assert.equal(body.max_completion_tokens,16384);
+   assert.equal(body.messages.length,1,"GPT-OSS V2 uses one user message rather than a system message");
+   assert.equal(body.messages[0].role,"user");
    assert.match(body.messages[0].content,/canonical root blueprintVersion 2/i);
+   assert.match(body.messages[0].content,/Calculator request:/i);
    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
   }
   throw new Error("Unexpected typed V2 AI Creator API request: "+path);
