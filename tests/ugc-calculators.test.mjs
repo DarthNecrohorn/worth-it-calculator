@@ -3506,5 +3506,5 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
  assert.equal(values.future,121);
  assert.ok(Math.abs(values.present-100/1.21)<1e-12);
  assert.ok(Math.abs(values.payment-(100*0.1/(1-Math.pow(1.1,-2))))<1e-12);
- assert.throws(()=>engine.compileV2Expression("median(items.value, 2)",new Map(["principal","rate","periods"]),new Map([["items",{fields:[{key:"value",type:"number",unit:"EUR"}]}]])),/invalid number of arguments/i);
+ assert.throws(()=>engine.compileV2Expression("median(items.value, 2)",new Set(["principal","rate","periods"]),new Map([["items",{fields:[{key:"value",type:"number",unit:"EUR"}]}]])),/invalid number of arguments/i);
 });
