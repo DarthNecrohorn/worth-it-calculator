@@ -499,7 +499,7 @@ begin
     if v_user_id is null then raise exception 'Authentication required.' using errcode='28000'; end if;
     if p_request_id is null then raise exception 'Request ID is required.' using errcode='22023'; end if;
     if p_operation not in ('generation','improvement') then raise exception 'Unsupported UGC AI operation.' using errcode='22023'; end if;
-    if p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
+    if p_schema_version is null or p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
     if p_operation='improvement' and p_schema_version<>1 then raise exception 'AI improvement of saved V2 calculators is not yet supported.' using errcode='22023'; end if;
     select lower(coalesce(email,'')) into v_email from auth.users
      where id=v_user_id and email_confirmed_at is not null;
@@ -592,7 +592,7 @@ declare
     v_quota jsonb;
     v_charge jsonb;
 begin
-    if p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
+    if p_schema_version is null or p_schema_version not in (1,2) then raise exception 'Unsupported UGC calculator schema version.' using errcode='22023'; end if;
     if p_mode='create' then
         v_quota := public.reserve_worth_it_ugc_maker_generation_v2(p_request_id);
     elsif p_mode='refine' and p_calculator_id is not null and p_schema_version=1 then
