@@ -142,6 +142,22 @@ Example:
 sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, "fixed")))
 ```
 
+### Statistical and financial functions
+
+The V2 function registry also supports bounded, deterministic statistical and financial calculations:
+
+- `median(group.numericExpression)` returns the middle value, or the arithmetic mean of the two middle values for an even row count.
+- `variance(group.numericExpression)` returns population variance (division by N); `stddev(...)` returns its square root.
+- `percentile(group.numericExpression, p)` accepts a literal percentile from 0 to 100 and uses linear interpolation between sorted observations.
+- `weighted_avg(valueExpression, weightExpression)` requires numeric expressions from the same group and dimensionless, non-negative weights. A zero total weight is a runtime error.
+- `compound_interest(amount, rate, periods)` computes `amount × (1 + rate)^periods`.
+- `present_value(futureAmount, rate, periods)` discounts a future amount by `(1 + rate)^periods`.
+- `loan_payment(principal, rate, periods)` computes the fixed periodic payment; a zero rate uses principal divided by periods.
+
+Rates are decimal fractions (for example, 0.05 means 5%), not percentage-point values. Periods must be positive at runtime. Financial functions preserve the first amount's unit; rates and period counts must be dimensionless. They do not infer compounding frequency, annualization, fees, taxes or a real-world APR convention: those must be represented explicitly by the calculator's inputs and assumptions.
+
+Statistical aggregates must reference fields from exactly one dynamic group. Weighted-average values and weights must both belong to that same group. These functions do not introduce arbitrary row callbacks or cross-group joins.
+
 ### Result boundary and rollout
 
 Result rows still produce finite numeric values and use the existing number, currency, percent or unit formats. Boolean, enum and date expressions can be used as intermediate values, comparisons and conditions, but direct boolean/date/enum result display is not part of this implementation.
