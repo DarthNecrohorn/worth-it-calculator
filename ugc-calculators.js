@@ -353,7 +353,7 @@ function renderCatalog(rows){
    const select=document.createElement("select");select.className="ugc-publish-visibility";select.setAttribute("aria-label","Visibility when publishing this draft");
    [["private","Private — only you can see it"],["public","Public — anyone can discover it"]].forEach(([value,title])=>{const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);});
    label.appendChild(select);
-   actions.append(button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
+   actions.append(button("Edit calculator","ugc-action-secondary",()=>editCalculatorManually(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
    card.appendChild(actions);
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
