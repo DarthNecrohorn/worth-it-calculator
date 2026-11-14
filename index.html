@@ -433,7 +433,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </section>
         </div>
 
-,        <div class="auth-wrap" id="authWrap">
+,<button class="ai-chat-nav-btn" id="aiChatNavBtn" onclick="openAIChat()" title="Worth It AI Chat">
+            🤖 <span>AI Chat</span>
+        </button>
+
+                <div class="auth-wrap" id="authWrap">
             <button class="auth-btn" id="authBtn" onclick="handleAuthButton()" title="Sign in or create a Worth It account">
                 <span id="authIcon">🔐</span>
                 <span class="auth-label" id="authLabel">Sign in</span>
@@ -1124,7 +1128,37 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
 </div>
 
-,<main id="app">
+,<div class="ai-chat-overlay" id="aiChatOverlay" role="dialog" aria-modal="true" aria-labelledby="aiChatTitle">
+    <div class="ai-chat-card">
+        <div class="ai-chat-head">
+            <div>
+                <h3 id="aiChatTitle">🤖 Worth It AI</h3>
+                <p>Ask about Worth It, its calculators, costs, savings and comparisons.</p>
+            </div>
+            <button type="button" class="ai-chat-close" onclick="closeAIChat()" aria-label="Close AI Chat">✕</button>
+        </div>
+
+        <div class="ai-chat-login" id="aiChatLoginView" style="display:none">
+            <div class="ai-chat-login-icon">🤖</div>
+            <h4>Sign in to use Worth It AI</h4>
+            <p>Worth It AI is available to signed-in users. Sign in or create a Worth It account to ask questions about the website, calculators and calculations.</p>
+            <button type="button" class="btn btn-primary" onclick="signInForAIChat()">Sign in to Worth It →</button>
+        </div>
+
+        <div id="aiChatAppView" style="display:none;flex:1;min-height:0;flex-direction:column">
+            <div class="ai-chat-messages" id="aiChatMessages">
+                <div class="ai-chat-empty" id="aiChatEmpty">Ask me about a Worth It calculator, a calculation, a cost comparison, savings, or another feature of this website.</div>
+            </div>
+            <div class="ai-chat-status" id="aiChatStatus"></div>
+            <div class="ai-chat-composer">
+                <textarea class="ai-chat-input" id="aiChatInput" maxlength="1200" rows="1" placeholder="Ask Worth It AI..." aria-label="Message Worth It AI"></textarea>
+                <button type="button" class="ai-chat-send" id="aiChatSendBtn" onclick="sendAIChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<main id="app">
 
 <section id="homePage">
 
@@ -1370,14 +1404,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="ugc-community-heading-copy">
             <span class="ugc-community-kicker">WORTH IT COMMUNITY</span>
             <h2>Community calculators</h2>
-            <p>Discover community calculators and create your own manually or with the AI calculator builder.</p>
+            <p>Discover community calculators and create your own with the Manual Builder.</p>
           </div>
           <div class="ugc-community-header-actions">
             <button type="button" id="ugcBackToBasicButton" class="ugc-action-secondary">← Go back to regular calculators</button>
             <div class="ugc-community-header-primary-actions">
               <button type="button" id="ugcOpenDiscoveryButton" class="ugc-open-discovery-button">🌐 Community Discovery →</button>
               <button type="button" id="ugcCreateManualButton" class="ugc-action-secondary">＋ Create manually</button>
-              <button type="button" id="ugcCreateButton" class="ugc-primary-button">✦ Create with AI</button>
             </div>
           </div>
         </header>
@@ -1537,9 +1570,9 @@ html[data-theme="light"].worth-it-initial-paint::before {
       <section id="ugcMakerOverlay" class="ugc-maker-card">
         <header class="ugc-maker-head">
           <div>
-            <span class="ugc-community-kicker" id="ugcMakerKicker">WORTH IT CALCULATOR CREATOR</span>
-            <h2 id="ugcMakerTitleHeading">Create a calculator</h2>
-            <p id="ugcMakerIntro">Choose AI-assisted generation or build a calculator yourself.</p>
+            <span class="ugc-community-kicker" id="ugcMakerKicker">WORTH IT MANUAL BUILDER</span>
+            <h2 id="ugcMakerTitleHeading">Create a calculator manually</h2>
+            <p id="ugcMakerIntro">Build a safe, editable calculator with inputs, formulas and locally tested results.</p>
             <div id="ugcManualModeHelp" class="ugc-manual-mode-help" hidden aria-label="Manual Builder modes">
               <article class="ugc-manual-mode-card" data-manual-mode-info="quick">
                 <strong>Quick Builder</strong>
@@ -1601,7 +1634,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
             </select>
           </label>
           <p class="ugc-maker-status">Manual Builder uses no AI and costs no CALC. You can add inputs and results, edit every formula, and test calculations locally before saving.</p>
-          <button type="button" id="ugcManualAiImproveButton" class="ugc-action-secondary" hidden>✦ Improve this saved calculator with AI</button>
         </div>
         <section id="ugcBlueprintImportPanel" class="ugc-blueprint-import" hidden aria-labelledby="ugcBlueprintImportHeading">
           <div class="ugc-blueprint-import-head">
@@ -1633,22 +1665,6 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <p id="ugcBlueprintImportStatus" class="ugc-maker-status" role="status" aria-live="polite"></p>
           <p class="ugc-blueprint-import-note">Import is local only: no Worth It AI request, no CALC charge, no AI quota use, and no automatic save or publish. Quick Fix first tries to preserve and repair the blueprint. If the result still cannot pass shared checks, Creator automatically switches to the closest safe Manual Builder mode/template (or Random calculator when the request is random) and prepares a usable editable draft. Save and Publish remain subject to the normal checks.</p>
         </section>
-        <div id="ugcMakerAiPromptWrap">
-          <label for="ugcMakerPrompt">What should your calculator calculate?</label>
-          <textarea id="ugcMakerPrompt" name="prompt" maxlength="5000" rows="5" placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance."></textarea>
-          <label id="ugcMakerTargetSchemaVersionWrap" for="ugcMakerTargetSchemaVersion">Calculator schema
-            <select id="ugcMakerTargetSchemaVersion">
-              <option value="1" selected>Version 1 · current</option>
-              <option value="2">Version 2 · typed (experimental)</option>
-            </select>
-          </label>
-          <p class="ugc-maker-status">AI generation and AI improvement use CALC and have separate daily limits. Testing remains free and runs locally in your browser. Typed V2 generation also uses the normal AI charge, but its draft is only editable and locally testable; saving and publishing are disabled.</p>
-          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note"><strong>Version 1:</strong> AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance.</p>
-          <p class="ugc-maker-status" role="note"><strong>Limited AI capacity:</strong> Worth It AI depends on external model token, context and request limits. Long or highly detailed prompts and complex calculator definitions can consume substantially more capacity, so generation may be temporarily unavailable or fail. Keep requests focused; failed operations are refunded.</p>
-          <div class="ugc-maker-actions">
-            <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
-          </div>
-        </div>
         <p id="ugcMakerStatus" class="ugc-maker-status" role="status" aria-live="polite">Describe your calculator in at least 10 characters.</p>
         <p id="ugcMakerGenerationQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's AI generation allowance loads when the maker opens.</p>
         <p id="ugcMakerQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's new calculator save allowance loads when the maker opens.</p>
@@ -1665,8 +1681,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
           <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
         </div>
-        <p class="ugc-maker-status">There is no lifetime limit on saved community calculators. Guest and Guest Lite members cannot create or improve community UGC calculators. Each UTC day, Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3. This allowance applies only to new manual saves; AI-generated calculators do not use it. AI generation and AI improvement each have separate daily limits: Guest 0, Free 1, Premium Lite 2 and Premium 3. Version 1 AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Version 2 typed AI generation costs 4 CALC, 8 CALC and 12 CALC respectively; V2 saved-calculator improvements are not enabled yet. Failed operations refund both the CALC charge and daily AI allowance. AI improvements preserve the existing calculator's original subject and purpose. Saved calculators can be published publicly or kept private. Published calculators use restricted formulas; arbitrary JavaScript is never executed.</p>
-        <p class="ugc-maker-status" id="ugcMakerEditQuotaStatus" role="status" aria-live="polite" hidden></p>
+        <p class="ugc-maker-status">There is no lifetime limit on saved community calculators. Guest and Guest Lite members cannot create or edit community UGC calculators. New manual calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3. This allowance applies only when you create and save a new calculator; editing an existing calculator does not consume another new-save slot. Saved calculators can be published publicly or kept private. Published calculators use restricted formulas; arbitrary JavaScript is never executed.</p>
       </section>
     </div>
 
@@ -3445,7 +3460,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <section id="webShopSubscriptionsPanel" role="tabpanel" hidden>
             <div class="web-shop-category-heading">
-                <div><h3>Subscriptions</h3><p>Compare free access with the additional benefits and UGC creation limits in Premium Lite and Premium.</p></div>
+                <div><h3>Subscriptions</h3><p>Compare free access with the additional benefits and manual community-calculator save limits in Premium Lite and Premium.</p></div>
             </div>
             <div class="web-shop-grid">
                 <article class="web-shop-card web-shop-card-free">
@@ -3456,12 +3471,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <p class="web-shop-price">Free <small>· no purchase required</small></p>
                     <ul class="web-shop-feature-list">
                         <li>1 CALC and 1 WIP daily reward</li>
-                        <li>1 new AI-generated UGC calculator per UTC day</li>
-                        <li>1 AI improvement to an existing UGC calculator per UTC day</li>
-                        <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
-                        <li>Version 1 AI generation or improvement costs 2 CALC per successful operation</li>
-                        <li>Version 2 typed AI generation costs 4 CALC per successful operation</li>
-                        <li>Create, edit, save and publish calculators publicly or privately</li>
+                                                                        <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
+                                                                        <li>Create, edit, save and publish calculators publicly or privately</li>
                         <li>Standard profile, chat and media limits</li>
                     </ul>
                     <p class="web-shop-footnote">Free is the default membership. This card is informational only and cannot be purchased.</p>
@@ -3475,12 +3486,8 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <ul class="web-shop-feature-list">
                         <li>No ads while active</li>
                         <li>1.5 CALC and 1 WIP daily reward</li>
-                        <li>2 new AI-generated UGC calculators per UTC day</li>
-                        <li>2 AI improvements to existing UGC calculators per UTC day</li>
-                        <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                        <li>Version 1 AI generation or improvement costs 4 CALC per successful operation</li>
-                        <li>Version 2 typed AI generation costs 8 CALC per successful operation</li>
-                        <li>Premium Lite profile and chat badge</li>
+                                                                        <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                                                                        <li>Premium Lite profile and chat badge</li>
                         <li>Higher image, GIF and video upload limits</li>
                         <li>Extra profile and chat customisation</li>
                     </ul>
@@ -3495,19 +3502,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
                     <ul class="web-shop-feature-list">
                         <li>No ads while active</li>
                         <li>3 CALC and 1 WIP daily reward</li>
-                        <li>3 new AI-generated UGC calculators per UTC day</li>
-                        <li>3 AI improvements to existing UGC calculators per UTC day</li>
-                        <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
-                        <li>Version 1 AI generation or improvement costs 6 CALC per successful operation</li>
-                        <li>Version 2 typed AI generation costs 12 CALC per successful operation</li>
-                        <li>Exclusive Premium profile and chat badge</li>
+                                                                        <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                                                                        <li>Exclusive Premium profile and chat badge</li>
                         <li>Highest image, GIF and video upload limits</li>
                         <li>More personalisation and future member features</li>
                     </ul>
                     <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
                 </article>
             </div>
-            <p class="web-shop-footnote">New manual (non-AI) calculator saves are limited to 1 per UTC day for Free, 2 for Premium Lite and 3 for Premium. New AI calculator generations have a separate 1/2/3 daily limit, and AI improvements have a separate 1/2/3 daily limit. Version 1 AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Version 2 typed AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium; saved-calculator V2 improvements are not enabled yet. Failed AI operations refund the CALC charge and daily AI allowance. Large prompts and complex outputs are limited by external AI token, context and request capacity. There is no lifetime limit on saved calculators. Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+            <p class="web-shop-footnote">New manual calculator saves are limited to 1 per UTC day for Free, 2 for Premium Lite and 3 for Premium. Editing an existing calculator does not consume another new-save slot. There is no lifetime limit on saved calculators. Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
         </section>
 
         <section class="web-shop-history" id="webShopHistory" hidden aria-labelledby="webShopHistoryTitle">
@@ -3878,6 +3881,7 @@ try{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="/api/runtime-config"></script>
 <script src="app.js?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a&drawer=hamburger-slide-drawer-20261105a"></script>
+<script src="/ai-ui.js?v=worthit-ai-chat-restored-20261114a"></script>
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 ,<script src="calculators.js"></script>
 <script src="calc-economy.js?v=calc-premium-lite-history-purchases-20261104c"></script>
