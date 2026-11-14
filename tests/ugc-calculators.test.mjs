@@ -3223,7 +3223,9 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
   if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"typed-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
   if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
    reservations++;
-   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,2);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:4,price_milli:4000,plan:"free"}),{status:200});
   }
   if(path.endsWith("/rest/v1/rpc/refund_worth_it_ugc_ai_operation"))return new Response(JSON.stringify({ok:true}),{status:200});
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
@@ -3247,6 +3249,8 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
   assert.equal(response.status,200,JSON.stringify(body));
   assert.equal(body.success,true);
   assert.equal(body.mode,"create");
+  assert.equal(body.billing.price,4);
+  assert.equal(body.billing.price_milli,4000);
   const spec=body.calculator.spec;
   assert.equal(spec.schemaVersion,2);
   assert.equal(spec.engineVersion,2);
@@ -3331,7 +3335,9 @@ test("AI Creator accepts canonical Gemini typed V2 blueprints and validates them
   if(path.endsWith("/auth/v1/user"))return new Response(JSON.stringify({id:"gemini-v2-user",email_confirmed_at:"2026-01-01T00:00:00Z"}),{status:200});
   if(path.endsWith("/rest/v1/rpc/reserve_worth_it_ugc_ai_operation")){
    reservations++;
-   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:2,price_milli:2000,plan:"free"}),{status:200});
+   const reservation=JSON.parse(options.body);
+   assert.equal(reservation.p_schema_version,2);
+   return new Response(JSON.stringify({ok:true,requests_used:1,daily_limit:1,price:4,price_milli:4000,plan:"free"}),{status:200});
   }
   if(path.includes("generativelanguage.googleapis.com")){
    providerCalls++;
@@ -3360,6 +3366,8 @@ test("AI Creator accepts canonical Gemini typed V2 blueprints and validates them
   assert.equal(body.success,true);
   assert.equal(body.calculator.spec.schemaVersion,2);
   assert.equal(body.calculator.spec.engineVersion,2);
+  assert.equal(body.billing.price,4);
+  assert.equal(body.billing.price_milli,4000);
   assert.equal(body.calculator.spec.inputs.find(item=>item.key==="enabled").default,true);
   assert.equal(body.calculator.spec.inputs.find(item=>item.key==="plan").default,"pro");
   assert.equal(body.calculator.spec.inputs.find(item=>item.key==="start_date").default,"2026-01-31");
