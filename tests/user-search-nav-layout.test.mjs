@@ -51,17 +51,13 @@ test("header utility controls keep Search to the immediate left of Notifications
 
     for (const id of [
         "worthItChatNavBtn",
-        "profileNavBtn",
-        "aiChatNavBtn"
+        "profileNavBtn"
     ]) {
         assert.ok(topRow.includes('id="' + id + '"'), id + " stays in the top row");
     }
-    const aiPosition = topRow.indexOf('id="aiChatNavBtn"');
-    const profilePosition = topRow.indexOf('id="profileNavBtn"');
-    assert.ok(aiPosition >= 0 && profilePosition > aiPosition, "AI Chat appears before the profile on the top row");
+    assert.ok(!topRow.includes('id="aiChatNavBtn"'), "the removed AI Chat control is absent from the top row");
     assert.match(css, /\.nav-top-row \.nav-actions > \.worth-it-user-search-btn\s*\{\s*order:\s*-1 !important;/);
     assert.match(css, /\.nav-top-row \.nav-actions > \.worth-it-notification-wrap\s*\{\s*order:\s*0 !important;/);
-    assert.match(css, /\.nav-top-row \.nav-actions > \.ai-chat-nav-btn\s*\{\s*order:\s*2 !important;/);
     assert.match(css, /\.nav-top-row \.nav-actions > \.auth-wrap\s*\{\s*order:\s*3 !important;/);
 
     const secondaryRow = nav.slice(secondStart);
