@@ -94,7 +94,8 @@ begin
     if v_detail->>'is_owner'<>'true'
        or v_detail->'spec'->>'schemaVersion'<>'2'
        or v_detail->'spec'->>'engineVersion'<>'2'
-       or jsonb_array_length(v_detail->'spec'->'assumptions')<>2 then
+       or jsonb_array_length(v_detail->'spec'->'assumptions')<>2
+       or (v_detail->>'require_test_before_reaction')::boolean is distinct from true then
         raise exception 'The persisted V2 calculator could not be read back with its typed schema and assumptions: %',v_detail;
     end if;
 

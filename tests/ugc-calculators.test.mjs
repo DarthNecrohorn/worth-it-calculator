@@ -3132,6 +3132,7 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(v2RuntimeSql,/public\.get_worth_it_ugc_runtime_spec/);
  assert.match(v2RuntimeSql,/grant execute on function public\.get_worth_it_ugc_runtime_spec\(uuid, uuid\)\s+to service_role/);
  assert.match(v2RuntimeSql,/result_item - 'expression'/);
+ assert.match(v2RuntimeSql,/require_test_before_reaction/);
  assert.match(maker,/if\(typedV2&&state\.v2PersistenceAvailable!==true\)/);
  assert.match(maker,/typedV2\?validateManualDraftSpec\(specToSave\):validateMakerSpec\(specToSave\)/);
  assert.match(maker,/if\(Number\(calculator\.spec\?\.schemaVersion\)===2\)\{await editCalculatorManually\(id\);return;\}/);

@@ -67,7 +67,12 @@ begin
             select r.reaction from private.worth_it_calculator_reactions r
              where r.calculator_id = c.id and r.user_id = v_user_id
         )
-    )
+    ) ||
+    case when c.owner_user_id = v_user_id then
+        jsonb_build_object('require_test_before_reaction', c.require_test_before_reaction)
+    else
+        '{}'::jsonb
+    end
       into v_result
       from private.worth_it_user_calculators c
       join public.worth_it_profiles p on p.user_id = c.owner_user_id
