@@ -608,7 +608,7 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
                 response_format:typedV2?{type:"json_object"}:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
                 // Groq's GPT-OSS guidance recommends putting instructions in the user message, not a system message.
                 messages:typedV2
-                    ?[{role:"user",content:groqSystem+"\\n\\nCalculator request:\\n"+prompt}]
+                    ?[{role:"user",content:[groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
                     :[{role:"system",content:groqSystem},{role:"user",content:prompt}]
             })
         });
