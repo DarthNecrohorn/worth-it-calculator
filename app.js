@@ -125,7 +125,6 @@ window.supabaseClient.auth.onAuthStateChange((event, session) => {
         setTimeout(() => ensureMfaVerificationIfNeeded(window.supabaseClient.auth), 0);
     }
 
-    if (typeof updateAIChatView === "function") updateAIChatView();
 });
 
 async function ensureMfaVerificationIfNeeded(authClient, options) {
