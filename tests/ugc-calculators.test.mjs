@@ -4026,7 +4026,7 @@ test("V1 annual petrol fuel cost uses total annual distance and dimensional EUR/
    request:request({
     mode:"create",
     schema_version:1,
-    prompt:"Create a Version 1 Annual Petrol Fuel Cost calculator in EUR. Model the total annual distance, petrol consumption in L/100 km and petrol price per litre. Show Annual petrol fuel cost (EUR)."
+    prompt:"Create a Version 1 Annual Petrol Fuel Cost calculator in EUR. Use annual driving distance, petrol consumption in L/100 km and petrol price per litre. Show annual petrol fuel cost (EUR)."
    },{token:"valid-token"}),
    env:{
     SUPABASE_URL:"https://supabase.example",
