@@ -705,7 +705,8 @@ function compileV2Expression(source,symbols,groups){
     :name==="and"||name==="or"?length>=2&&length<=12
     :name==="hypot"?length>=2&&length<=8
     :name==="round"||name==="log"?length>=1&&length<=2
-    :name==="percentile"||name==="weighted_avg"||name==="compound_interest"||name==="present_value"||name==="loan_payment"?length===3&&name!=="percentile"&&name!=="weighted_avg"||length===2
+    :name==="percentile"||name==="weighted_avg"?length===2
+    :name==="compound_interest"||name==="present_value"||name==="loan_payment"?length===3
     :name==="median"||name==="variance"||name==="stddev"?length===1
     :false;
    if(!valid)throw new Error(name+"() has an invalid number of arguments.");
