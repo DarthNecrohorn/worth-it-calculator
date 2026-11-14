@@ -13,6 +13,7 @@ const guest = read("guest-mode.js");
 const maker = read("ugc-calculators.js");
 const calculatorEngineSource = read("ugc-calculator-engine.js");
 const makerApi = read("functions/api/ugc-maker.js");
+const profileAvatarApi = read("functions/api/profile-avatar.js");
 const profile = read("profile-ui.js");
 const chat = read("chat-ui.js");
 const community = read("community-features.js");
@@ -368,6 +369,7 @@ test("Manual UGC Builder remains independent of AI and keeps separate daily save
     assert.match(html, /id="ugcBlueprintImportPanel"/);
     assert.match(html, /id="ugcMakerVisibilityWrap"/);
     assert.match(maker, /const MANUAL_TEMPLATES=/);
+    assert.match(maker, /creationSource:"manual"/);
     assert.match(maker, /function editCalculatorManually/);
     assert.match(maker, /p_source:"manual"/);
     assert.match(maker, /p_ai_request_id:null/);
@@ -378,6 +380,19 @@ test("Manual UGC Builder remains independent of AI and keeps separate daily save
     assert.match(manualBuilderSql, /when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
     assert.match(ugcAiDisableSql, /revoke all on function public\.reserve_worth_it_ugc_ai_operation\(uuid, text, uuid, integer\) from public, anon, authenticated/i);
     assert.match(ugcAiDisableSql, /revoke all on function public\.reserve_worth_it_ugc_maker_generation_v2\(uuid\) from public, anon, authenticated/i);
+});
+
+test("internal Gemini profile image and banner moderation stays independent of user CALC billing", () => {
+    const start=profileAvatarApi.indexOf("async function moderateAsset(");
+    const end=profileAvatarApi.indexOf("\nfunction userFriendlyError",start);
+    assert.ok(start>=0 && end>start,"server-side profile asset moderation exists");
+    const moderation=profileAvatarApi.slice(start,end);
+    assert.match(moderation,/generativelanguage\.googleapis\.com\/v1beta\/models/);
+    assert.match(moderation,/You are a strict safety moderator/);
+    assert.match(moderation,/decision must be 'allow' or 'reject'/);
+    assert.match(profile,/Images and GIF frames are sent to Google Gemini for automated safety screening/);
+    assert.match(profile,/Banners receive the same automatic safety checks as profile pictures/);
+    assert.doesNotMatch(moderation,/calc_wallet_|ugc_ai_operation|ugc_maker_generation|reserve_worth_it_ugc/);
 });
 
 test("UGC calculator cards show verified original creation source", () => {
