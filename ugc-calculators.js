@@ -2472,6 +2472,16 @@ function createManualDraft(templateKey){
    inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),
    groups:JSON.parse(JSON.stringify(template.groups||[])),scenarios:JSON.parse(JSON.stringify(template.scenarios||[]))}};
 }
+function updateMakerBillingNotice(){
+ const costNote=$("ugcMakerBillingNotice");
+ if(!costNote)return;
+ const schemaVersion=state.editingId?1:Number($("ugcMakerTargetSchemaVersion")?.value||1);
+ if(schemaVersion===2){
+  costNote.innerHTML="<strong>Version 2 · typed:</strong> AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance. V2 saved-calculator AI improvement is not enabled yet.";
+  return;
+ }
+ costNote.innerHTML="<strong>Version 1:</strong> AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance.";
+}
 function setMakerModeUI(){
  const manual=state.creationSource==="manual";
  const manualControls=$("ugcManualControls"),aiWrap=$("ugcMakerAiPromptWrap"),aiButton=$("ugcMakerGenerate");
@@ -2497,8 +2507,7 @@ function setMakerModeUI(){
    card.setAttribute("aria-current",active?"true":"false");
   });
  }
- const costNote=$("ugcMakerBillingNotice");
- if(costNote)costNote.textContent="AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations are refunded.";
+ updateMakerBillingNotice();
  const manualAiImprove=$("ugcManualAiImproveButton");
  if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
  const blueprintImportPanel=$("ugcBlueprintImportPanel");
@@ -3942,6 +3951,7 @@ async function init(){
  $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcCreateManualButton")?.addEventListener("click",openManualCalculatorMaker);
  $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
+ $("ugcMakerTargetSchemaVersion")?.addEventListener("change",updateMakerBillingNotice);
  $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
  $("ugcManualAiImproveButton")?.addEventListener("click",switchManualDraftToAI);
  $("ugcBlueprintCopyPrompt")?.addEventListener("click",()=>void copyBlueprintPrompt());
