@@ -342,7 +342,7 @@ function renderCatalog(rows){
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    actions.append(
     button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)),
-    button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),
+    button("Edit calculator","ugc-action-secondary",()=>editCalculatorManually(item.id)),
     button(item.visibility==="public"?"Make private":"Make public","ugc-action-secondary",()=>setCalculatorVisibility(item.id,item.visibility==="public"?"private":"public"))
    );
    card.appendChild(actions);
@@ -1359,7 +1359,7 @@ async function refreshCreationQuota(){
   if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
    throw new Error("The account creation allowance response was incomplete.");
   }
-  host.textContent="Manual (non-AI) calculator saves today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
+  host.textContent="New UGC calculator saves today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
  }catch(error){
   host.textContent="Today's save/publish allowance could not be loaded. The server still checks your account limit securely when you save.";
   console.warn("UGC creation quota could not be loaded:",error);
@@ -1862,7 +1862,7 @@ async function editCalculator(id){
 async function editCalculatorManually(id){
  if(!requireAccount()||!verifyConfirmed())return;
  const result=await sb().rpc("get_worth_it_ugc_calculator",{p_id:id});
- if(result.error){status("Could not load this calculator for manual editing.",true);return;}
+ if(result.error){status("Could not load this calculator for editing.",true);return;}
  const calculator=normalizeObject(result.data);
  if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
  state.creationSource="manual";state.aiOperationId="";
@@ -1873,7 +1873,7 @@ async function editCalculatorManually(id){
  const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
  state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,subcategories:calculator.subcategories||[],spec:JSON.parse(JSON.stringify(calculator.spec||{}))};
  renderMakerPreview(state.aiDraft);setMakerModeUI();
- makerStatus("Edit the calculator directly. Manual edits do not use AI, cost CALC or consume a new-calculator save allowance.");
+ makerStatus("Edit the calculator directly. Editing does not use Worth It AI, cost CALC or consume a new UGC calculator save allowance.");
 }
 async function publishCalculator(id,visibility){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -2445,7 +2445,7 @@ function loadManualTemplate(templateKey){
  setMakerModeUI();renderMakerPreview(state.aiDraft);
  makerStatus(templateKey==="random"
   ?"Random calculator draft ready: "+state.aiDraft.title+". Its title, description, inputs and formulas are matched to the selected topic. Edit and test it locally before saving."
-  :"Manual calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
+  :"UGC calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
 }
 function changeManualMode(mode){
  state.manualMode=["quick","template","advanced","random"].includes(mode)?mode:"quick";
@@ -3330,7 +3330,7 @@ function renderMakerPreview(definition){
   categorySelect.value=definition.category||"other";categorySelect.disabled=Boolean(state.editingId);
   categorySelect.addEventListener("change",()=>{definition.category=categorySelect.value;definition.spec.subcategories=[];});
   categoryLabel.appendChild(categorySelect);host.appendChild(categoryLabel);
-  host.appendChild(text("p","ugc-maker-schema-summary","Manual Builder does not use AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved manual calculator uses the separate 1/2/3 daily save allowance."));
+  host.appendChild(text("p","ugc-maker-schema-summary","The UGC Calculator Builder does not use Worth It AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved UGC calculator uses the separate 1/2/3 daily save allowance."));
   renderManualSchemaVersionControl(host,definition);
  }else{
   const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
