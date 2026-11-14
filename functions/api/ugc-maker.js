@@ -115,17 +115,17 @@ const GROQ_TYPED_V2_BLUEPRINT_SCHEMA={
 };
 
 const COUNTRY_DEFAULTS = {
- US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
- CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
- CZ:["CZK","cs-CZ"],HU:["HUF","hu-HU"],SE:["SEK","sv-SE"],NO:["NOK","nb-NO"],DK:["DKK","da-DK"],
- IS:["ISK","is-IS"],TR:["TRY","tr-TR"],BR:["BRL","pt-BR"],MX:["MXN","es-MX"],ZA:["ZAR","en-ZA"],
- SG:["SGD","en-SG"],HK:["HKD","zh-HK"],KR:["KRW","ko-KR"],AE:["AED","ar-AE"],SA:["SAR","ar-SA"],
- BG:["EUR","bg-BG"],RS:["RSD","sr-Latn-RS"],ME:["EUR","sr-Latn-ME"],XK:["EUR","sq-XK"],
- AT:["EUR","de-AT"],BE:["EUR","nl-BE"],CY:["EUR","el-CY"],EE:["EUR","et-EE"],FI:["EUR","fi-FI"],
- FR:["EUR","fr-FR"],DE:["EUR","de-DE"],GR:["EUR","el-GR"],HR:["EUR","hr-HR"],IE:["EUR","en-IE"],
- IT:["EUR","it-IT"],LV:["EUR","lv-LV"],LT:["EUR","lt-LT"],LU:["EUR","fr-LU"],MT:["EUR","mt-MT"],
- NL:["EUR","nl-NL"],PT:["EUR","pt-PT"],SK:["EUR","sk-SK"],SI:["EUR","sl-SI"],ES:["EUR","es-ES"],
- AD:["EUR","ca-AD"],MC:["EUR","fr-MC"],SM:["EUR","it-SM"],VA:["EUR","it-VA"]
+ US:"USD",GB:"GBP",CA:"CAD",AU:"AUD",NZ:"NZD",
+ CH:"CHF",JP:"JPY",CN:"CNY",IN:"INR",PL:"PLN",
+ CZ:"CZK",HU:"HUF",SE:"SEK",NO:"NOK",DK:"DKK",
+ IS:"ISK",TR:"TRY",BR:"BRL",MX:"MXN",ZA:"ZAR",
+ SG:"SGD",HK:"HKD",KR:"KRW",AE:"AED",SA:"SAR",
+ BG:"EUR",RS:"RSD",ME:"EUR",XK:"EUR",
+ AT:"EUR",BE:"EUR",CY:"EUR",EE:"EUR",FI:"EUR",
+ FR:"EUR",DE:"EUR",GR:"EUR",HR:"EUR",IE:"EUR",
+ IT:"EUR",LV:"EUR",LT:"EUR",LU:"EUR",MT:"EUR",
+ NL:"EUR",PT:"EUR",SK:"EUR",SI:"EUR",ES:"EUR",
+ AD:"EUR",MC:"EUR",SM:"EUR",VA:"EUR"
 };
 const EXPLICIT_CURRENCY_RULES=[
  ["EUR",/\b(?:eur|euros?)\b/i],
@@ -222,19 +222,12 @@ export function resolvePromptCountry(prompt){
 export function resolveRegionalDefaults(request,prompt=""){
  const promptCountry=resolvePromptCountry(prompt);
  const country=promptCountry||String(request?.cf?.country||"").trim().toUpperCase().slice(0,2);
- const regional=COUNTRY_DEFAULTS[country];
+ const regionalCurrency=COUNTRY_DEFAULTS[country]||"";
  const continent=String(request?.cf?.continent||"").trim().toUpperCase();
  const fallbackCurrency=continent==="EU"?"EUR":"USD";
- const header=String(request?.headers?.get?.("Accept-Language")||"");
- const candidates=header.split(",").map((part,index)=>{
-  const pieces=part.trim().split(";"),tag=pieces[0].trim();
-  const quality=Number((pieces[1]||"").match(/q=([0-9.]+)/)?.[1]||1);
-  return {tag,quality,index};
- }).filter(item=>/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(item.tag)&&Number.isFinite(item.quality))
-  .sort((a,b)=>b.quality-a.quality||a.index-b.index);
- let acceptedLocale="";
- for(const item of candidates){try{acceptedLocale=Intl.getCanonicalLocales(item.tag)[0]||"";if(acceptedLocale)break;}catch(_){}}
- return {country:country||null,currency:regional?.[0]||fallbackCurrency,locale:acceptedLocale||regional?.[1]||"en-US",currencySource:promptCountry?"prompt-country":regional?"country":continent==="EU"?"continent-default":"global-default"};
+ // Worth It is English-only. Neither Cloudflare country metadata nor Accept-Language
+ // is permitted to select or alter the interface language or number-format locale.
+ return {country:country||null,currency:regionalCurrency||fallbackCurrency,locale:"en-US",currencySource:promptCountry?"prompt-country":regionalCurrency?"country":continent==="EU"?"continent-default":"global-default"};
 }
 
 function json(data,status,origin){
