@@ -1,4 +1,4 @@
-/* Worth It UGC calculators: AI-generated declarative formulas, catalogue, profiles and billing. */
+/* Worth It UGC calculators: manual calculator builder, declarative formulas, catalogue and profiles. */
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
@@ -44,7 +44,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,blueprintImportActive:false,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -3317,7 +3317,7 @@ function renderMakerPreview(definition){
  }
  const descriptionHelp=text("p","ugc-maker-schema-summary",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
-  :"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
+  :"Write a short explanation of what the calculator measures and its key assumptions. Use 24–500 characters.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
  const typedV2=Number(definition.spec?.schemaVersion)===2;
  if(manual||typedV2){
@@ -3341,7 +3341,7 @@ function renderMakerPreview(definition){
   renderManualSchemaVersionControl(host,definition);
  }else{
   const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
-  selected.appendChild(text("strong","","AI-selected categories"));
+  selected.appendChild(text("strong","","Calculator categories"));
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
@@ -3349,7 +3349,6 @@ function renderMakerPreview(definition){
   ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · typed value, formula and dimensional checks"
   :(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · restricted formula language");
  host.appendChild(summary);
- if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
  if(typedV2){renderManualV2Preview(host,definition);return;}
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
  (definition.spec?.inputs||[]).forEach((item,index)=>{
