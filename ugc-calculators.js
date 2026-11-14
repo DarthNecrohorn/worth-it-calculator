@@ -1,4 +1,4 @@
-/* Worth It UGC calculators: AI-generated declarative formulas, catalogue, profiles and billing. */
+/* Worth It UGC calculators: manual calculator builder, declarative formulas, catalogue and profiles. */
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
@@ -44,7 +44,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,blueprintImportActive:false,creationSource:"ai",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,makerLocale:"",editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -64,6 +64,46 @@ async function getSession(){
  state.session=result?.data?.session||null;
  state.userId=state.session?.user?.id||"";
  return state.session;
+}
+function updateV2PersistenceControls(){
+ if(Number(state.aiDraft?.spec?.schemaVersion)!==2)return;
+ const enabled=state.v2PersistenceAvailable===true;
+ const save=$("ugcMakerSave"),publish=$("ugcMakerPublish");
+ if(save)save.disabled=!enabled;
+ if(publish)publish.disabled=!enabled;
+ const note=$("ugcMakerV2PersistenceNote");
+ if(note)note.textContent=enabled
+  ?"V2 save and publish are enabled in this database. The PostgreSQL validator and server calculation runtime are both available."
+  :"V2 remains local-only in this database. Save and Publish stay disabled until both the V2 persistence and server runtime migrations are installed.";
+}
+async function refreshUGCSchemaCapabilities(){
+ const request=++state.v2CapabilitiesRequest;
+ state.v2PersistenceAvailable=false;
+ state.v2CapabilitiesChecked=false;
+ if(!state.userId||!sb()){
+  state.v2CapabilitiesChecked=true;
+  updateV2PersistenceControls();
+  return false;
+ }
+ try{
+  const response=await sb().rpc("get_worth_it_ugc_schema_capabilities");
+  if(response.error)throw response.error;
+  if(request!==state.v2CapabilitiesRequest)return state.v2PersistenceAvailable;
+  const payload=normalizeObject(response.data);
+  const versions=Array.isArray(payload?.supported_schema_versions)?payload.supported_schema_versions:[];
+  state.v2PersistenceAvailable=payload?.v2_persistence===true&&payload?.v2_server_runtime===true&&versions.includes(2);
+ }catch(error){
+  if(request===state.v2CapabilitiesRequest){
+   state.v2PersistenceAvailable=false;
+   console.info("Typed V2 persistence is not available in this database yet.",error?.message||error);
+  }
+ }finally{
+  if(request===state.v2CapabilitiesRequest){
+   state.v2CapabilitiesChecked=true;
+   updateV2PersistenceControls();
+  }
+ }
+ return state.v2PersistenceAvailable;
 }
 function requireAccount(){
  if(state.userId)return true;
@@ -282,13 +322,6 @@ function renderCatalog(rows){
   });
   if(state.sort==="mine")head.appendChild(text("span","ugc-state",item.visibility==="public"?"Public":"Private"));
   if(state.sort==="my-drafts")head.appendChild(text("span","ugc-state","Draft"));
-  const source=String(item.creation_source||"");
-  if(source==="manual"||source==="ai"){
-   const originTag=text("span","ugc-origin-tag "+(source==="manual"?"is-manual":"is-ai-made"),source==="manual"?"MANUAL":"AI MADE");
-   originTag.title=source==="manual"?"Created manually without AI.":"Originally created with Worth It AI.";
-   originTag.setAttribute("aria-label",source==="manual"?"Created manually without AI":"Originally created with Worth It AI");
-   head.appendChild(originTag);
-  }
   card.appendChild(head);
   card.appendChild(text("h3","ugc-card-title",item.title||"Untitled calculator"));
   const fullDescription=String(item.description||"").trim();
@@ -309,8 +342,7 @@ function renderCatalog(rows){
    const actions=document.createElement("div");actions.className="ugc-card-actions";
    actions.append(
     button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)),
-    button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),
-    button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),
+    button("Edit calculator","ugc-action-secondary",()=>editCalculatorManually(item.id)),
     button(item.visibility==="public"?"Make private":"Make public","ugc-action-secondary",()=>setCalculatorVisibility(item.id,item.visibility==="public"?"private":"public"))
    );
    card.appendChild(actions);
@@ -321,7 +353,7 @@ function renderCatalog(rows){
    const select=document.createElement("select");select.className="ugc-publish-visibility";select.setAttribute("aria-label","Visibility when publishing this draft");
    [["private","Private — only you can see it"],["public","Public — anyone can discover it"]].forEach(([value,title])=>{const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);});
    label.appendChild(select);
-   actions.append(button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
+   actions.append(button("Edit calculator","ugc-action-secondary",()=>editCalculatorManually(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
    card.appendChild(actions);
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
@@ -438,7 +470,9 @@ if(!calculatorEngine)throw new Error("The shared Worth It calculator engine coul
 const {
  compileExpression,formulaGroupFieldReferences,evaluate,groupMapForSpec,defaultGroupValues,
  unitDescriptor,constantFormulaValue,analyseFormulaUnit,unitVectorKey,ensureResultCurrency,
- validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors
+ validateFormulaResultUnit,evaluateFormulaResults,validateMakerSpec,sameUnitDescriptor,combineUnitDescriptors,
+ resolveCalculatorVersions,validateVersionedSpec,normalizeTypedValue,createDefaultTypedValues,
+ createDefaultTypedGroupValues,normalizeTypedGroupValues,evaluateV2TypedResults
 }=calculatorEngine;
 
 function collectDynamicGroupValues(root,spec){
@@ -505,6 +539,73 @@ function appendDynamicGroupControls(host,group,initialRows){
  });
  section.append(rowsHost,add);refreshButtons();host.appendChild(section);
  return section;
+}
+function appendV2RuntimeGroupControls(host,group){
+ const section=document.createElement("fieldset");section.className="ugc-dynamic-group";section.dataset.ugcGroupKey=group.key;
+ section.appendChild(text("legend","",group.label||group.key));
+ section.appendChild(text("p","ugc-dynamic-group-note","Add or remove "+String(group.itemLabel||"item").toLowerCase()+" rows. Each row is included in the group formulas."));
+ const rowsHost=document.createElement("div");rowsHost.className="ugc-dynamic-group-rows";
+ const min=Math.max(1,Number(group.minItems)||1),max=Math.max(min,Math.min(20,Number(group.maxItems)||20));
+ const notify=()=>rowsHost.dispatchEvent(new Event("input",{bubbles:true}));
+ let add=null;
+ const refresh=()=>{
+  Array.from(rowsHost.children).forEach(row=>{
+   const remove=row.querySelector("button");if(remove)remove.disabled=rowsHost.children.length<=min;
+  });
+  if(add)add.disabled=rowsHost.children.length>=max;
+ };
+ const addRow=(values={})=>{
+  if(rowsHost.children.length>=max)return;
+  const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcGroupRow="";
+  const fields=document.createElement("div");fields.className="ugc-dynamic-group-fields";
+  (group.fields||[]).forEach(field=>{
+   const label=document.createElement("label");label.textContent=field.label||field.key;
+   const value=Object.prototype.hasOwnProperty.call(values,field.key)?values[field.key]:typedDefaultForField(field);
+   const control=createTypedEditorControl(field,value);control.name=field.key;control.required=true;control.dataset.ugcGroupField=field.key;
+   control.addEventListener("input",notify);control.addEventListener("change",notify);
+   label.appendChild(control);if(field.unit)label.appendChild(text("small","",field.unit));
+   fields.appendChild(label);
+  });
+  const remove=button("Remove "+String(group.itemLabel||"item").toLowerCase(),"ugc-manual-remove",()=>{
+   if(rowsHost.children.length<=min)return;
+   row.remove();refresh();notify();
+  });
+  row.append(fields,remove);rowsHost.appendChild(row);refresh();
+ };
+ for(let i=0;i<min;i++)addRow({});
+ add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>addRow({}));
+ section.append(rowsHost,add);refresh();host.appendChild(section);return section;
+}
+function collectV2RuntimeValues(root,spec){
+ const values={},rawGroups={};
+ (spec.inputs||[]).forEach(field=>{
+  const control=root?.querySelector?.('[name="'+CSS.escape(field.key)+'"]');
+  if(!control)throw new Error("The "+String(field.label||field.key)+" input is unavailable.");
+  const normalized=normalizeTypedValue(field,typedEditorValue(field,control));
+  control.setAttribute("aria-invalid",String(normalized.valid!==true));
+  if(!normalized.valid)throw new Error(String(field.label||field.key)+": "+normalized.error);
+  values[field.key]=normalized.value;
+ });
+ (spec.groups||[]).forEach(group=>{
+  const section=root?.querySelector?.('[data-ugc-group-key="'+CSS.escape(group.key)+'"]');
+  rawGroups[group.key]=Array.from(section?.querySelectorAll("[data-ugc-group-row]")||[]).map(row=>{
+   const raw={};
+   (group.fields||[]).forEach(field=>{
+    const control=row.querySelector('[data-ugc-group-field="'+CSS.escape(field.key)+'"]');
+    if(!control)throw new Error("The "+String(field.label||field.key)+" field is unavailable.");
+    raw[field.key]=typedEditorValue(field,control);
+   });
+   return raw;
+  });
+ });
+ const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ if(normalizedGroups.valid!==true)throw new Error((normalizedGroups.errors||[]).slice(0,3).join(" "));
+ return {values,groups:normalizedGroups.groups};
+}
+function executableV2Spec(spec){
+ const executable={...spec};
+ delete executable.assumptions;delete executable.subcategories;
+ return executable;
 }
 function unitLabelFromDescriptor(unit){
  const defaults={time:"days",length:"km",area:"m²",volume:"L",mass:"kg",energy:"kWh",power:"W",count:"items"};
@@ -1208,7 +1309,7 @@ function refreshMakerValidationNote(){
  const host=$("ugcMakerPreview"),spec=state.aiDraft?.spec;
  if(!host||!spec)return;
  host.querySelector("#ugcMakerValidationNote")?.remove();
- const validation=validateMakerSpec(spec),currencyWarnings=makerCurrencyWarnings(spec),notes=[];
+ const validation=validateManualDraftSpec(spec),currencyWarnings=Number(spec.schemaVersion)===2?[]:makerCurrencyWarnings(spec),notes=[];
  if(validation.errors.length){
   const summary=validation.errors.slice(0,5).join(" ");
   notes.push(state.blueprintImportActive
@@ -1217,7 +1318,9 @@ function refreshMakerValidationNote(){
  }else if(state.blueprintImportActive){
   notes.push("Quick Fix checks now pass. The calculator is still an editable draft; review assumptions and test values before saving or publishing.");
  }else{
-  notes.push("Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
+  notes.push(Number(spec.schemaVersion)===2
+   ?"Typed V2 schema and default formulas pass the local validator. This experimental draft cannot be saved or published yet."
+   :"Input ranges and formulas pass the default and boundary checks. Each currency remains editable; mismatched currencies are not automatically converted.");
  }
  if(currencyWarnings.length)notes.push("Currency consistency warning ("+currencyWarnings.join(", ")+"). Currency selectors only change display; they do not convert amounts. Add an explicit exchange-rate input and use it in the formula when conversion is intended.");
 
@@ -1244,22 +1347,6 @@ function formatResult(item,value,locale){
  if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
  return prefix+format({maximumFractionDigits:4})+suffix;
 }
-async function refreshAiEditQuota(){
- const host=$("ugcMakerEditQuotaStatus");
- if(!host||!state.userId)return;
- host.textContent="Checking today's AI improvement allowance…";
- try{
-  const result=await sb().rpc("get_worth_it_ugc_ai_edit_quota");
-  if(result.error)throw result.error;
-  const quota=normalizeObject(result.data);
-  const limit=Number(quota?.daily_limit),used=Number(quota?.edits_used),remaining=Number(quota?.remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0)throw new Error("The AI edit quota response was incomplete.");
-  host.textContent="AI improvements today: "+used+"/"+limit+" used · "+remaining+" remaining. Free 1 / Premium Lite 2 / Premium 3. Resets at 00:00 UTC.";
- }catch(error){
-  host.textContent="Today's AI improvement allowance could not be loaded. The server still checks your tier and limit before each AI edit.";
-  console.warn("UGC AI edit quota could not be loaded:",error);
- }
-}
 async function refreshCreationQuota(){
  const host=$("ugcMakerQuotaStatus");
  if(!host||!state.userId)return;
@@ -1272,28 +1359,10 @@ async function refreshCreationQuota(){
   if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
    throw new Error("The account creation allowance response was incomplete.");
   }
-  host.textContent="Manual (non-AI) calculator saves today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
+  host.textContent="New UGC calculator saves today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
  }catch(error){
   host.textContent="Today's save/publish allowance could not be loaded. The server still checks your account limit securely when you save.";
   console.warn("UGC creation quota could not be loaded:",error);
- }
-}
-async function refreshMakerGenerationQuota(){
- const host=$("ugcMakerGenerationQuotaStatus");
- if(!host||!state.userId)return;
- host.textContent="Checking today's AI generation allowance…";
- try{
-  const result=await sb().rpc("get_worth_it_ugc_maker_generation_quota");
-  if(result.error)throw result.error;
-  const quota=normalizeObject(result.data);
-  const limit=Number(quota?.daily_limit),used=Number(quota?.requests_used),remaining=Number(quota?.remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
-   throw new Error("The AI generation allowance response was incomplete.");
-  }
-  host.textContent="AI generations today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
- }catch(error){
-  host.textContent="Today's AI generation allowance could not be loaded. The server still checks your plan and internal capacity before every request.";
-  console.warn("UGC Maker generation quota could not be loaded:",error);
  }
 }
 function formatCalcPrice(usagePriceMilli){
@@ -1305,6 +1374,24 @@ function renderCalculatorForm(calculator){
  host.replaceChildren();
  const spec=calculator.spec||{};
  if(!Array.isArray(spec.inputs)||!Array.isArray(spec.results)){detailStatus("This calculator definition is unavailable.",true);return;}
+ if(Number(spec.schemaVersion)===2){
+  if(Array.isArray(spec.assumptions)&&spec.assumptions.length){
+   const assumptions=text("p","ugc-maker-schema-summary","Assumptions: "+spec.assumptions.join(" "));
+   assumptions.classList.add("ugc-v2-detail-assumptions");host.appendChild(assumptions);
+  }
+  spec.inputs.forEach(input=>{
+   const wrap=text("label","ugc-input-field",input.label||input.key);
+   const control=createTypedEditorControl(input,typedDefaultForField(input));
+   control.name=input.key;control.required=true;
+   wrap.appendChild(control);
+   if(input.unit)wrap.appendChild(text("small","",input.unit));
+   host.appendChild(wrap);
+  });
+  (Array.isArray(spec.groups)?spec.groups:[]).forEach(group=>appendV2RuntimeGroupControls(host,group));
+  const priceLabel=formatCalcPrice(Math.min(500,Math.max(100,Number(calculator.usage_price_milli)||100)));
+  host.appendChild(button("Calculate · "+priceLabel+" CALC","ugc-action-primary ugc-calculate-button",()=>runCalculation(calculator)));
+  return;
+ }
  spec.inputs.forEach(input=>{
   const wrap=text("label","ugc-input-field",input.label||input.key);
   const controlType=input.control||"number";
@@ -1336,20 +1423,69 @@ function renderCalculatorForm(calculator){
 async function runCalculation(calculator){
  if(!requireAccount())return;
  const form=$("ugcDetailCalculatorForm");if(!form)return;
- const inputs=calculator.spec.inputs||[],values={};
- for(const item of inputs){
-  const control=form.querySelector('[name="'+CSS.escape(item.key)+'"]');
-  const value=control?.type==="checkbox"?(control.checked?1:0):Number(control?.value);
-  if(!Number.isFinite(value)||value<Number(item.min)||value>Number(item.max)){
-   detailStatus("Enter a valid value for "+item.label+".",true);control?.focus();return;
-  }
-  values[item.key]=value;
- }
+ const spec=calculator.spec||{},typedV2=Number(spec.schemaVersion)===2;
+ const inputs=spec.inputs||[],values={};
  let groupValues;
- try{groupValues=collectDynamicGroupValues(form,calculator.spec);}
- catch(error){detailStatus(error?.message||"Check the repeated input rows.",true);return;}
+ try{
+  if(typedV2){
+   const collected=collectV2RuntimeValues(form,spec);
+   Object.assign(values,collected.values);groupValues=collected.groups;
+  }else{
+   for(const item of inputs){
+    const control=form.querySelector('[name="'+CSS.escape(item.key)+'"]');
+    const value=control?.type==="checkbox"?(control.checked?1:0):Number(control?.value);
+    if(!Number.isFinite(value)||value<Number(item.min)||value>Number(item.max)){
+     detailStatus("Enter a valid value for "+item.label+".",true);control?.focus();return;
+    }
+    values[item.key]=value;
+   }
+   groupValues=collectDynamicGroupValues(form,spec);
+  }
+ }catch(error){detailStatus(error?.message||"Check the calculator inputs and repeated rows.",true);return;}
  const button=form.querySelector(".ugc-calculate-button");if(button)button.disabled=true;
  detailStatus("Calculating…");
+
+ if(typedV2){
+  try{
+   let session=state.session;
+   if(!session?.access_token)session=await getSession();
+   if(!session?.access_token)throw new Error("Sign in to calculate.");
+   const response=await fetch("/api/ugc-calculator-run",{
+    method:"POST",
+    headers:{
+     "Content-Type":"application/json",
+     "Authorization":"Bearer "+session.access_token,
+     "Accept":"application/json"
+    },
+    body:JSON.stringify({calculator_id:calculator.id,values,groups:groupValues}),
+    cache:"no-store"
+   });
+   const payload=await response.json().catch(()=>null);
+   if(!response.ok||payload?.success!==true)throw new Error(String(payload?.error||"The server could not complete this calculation."));
+   const displayRows=items=>(Array.isArray(items)?items:[]).map(result=>{
+    const definition=(spec.results||[]).find(item=>String(item.key||"")===String(result.key||""))||{};
+    return{
+     label:String(result.label||definition.label||"Result"),
+     value:formatResult(definition,result.value),
+     explanation:String(result.explanation||definition.explanation||"")
+    };
+   });
+   const results=displayRows(payload.results);
+   const scenarioComparisons=(Array.isArray(payload.scenario_comparisons)?payload.scenario_comparisons:[]).map(scenario=>({
+    label:String(scenario.label||"Alternative"),
+    results:displayRows(scenario.results)
+   }));
+   clearReactionNote();
+   renderCalculationResults(results,scenarioComparisons);
+   const chargedMilli=Math.min(500,Math.max(100,Number(payload.usage_price_milli)||Number(calculator.usage_price_milli)||100));
+   detailStatus("Calculation complete. "+formatCalcPrice(chargedMilli)+" CALC was charged.",false);
+   await refreshCalcWallet();
+  }catch(error){
+   detailStatus(error?.message||"Could not calculate. Please try again.",true);
+  }finally{if(button)button.disabled=false;}
+  return;
+ }
+
  const requestId=crypto.randomUUID();
  let reserved=false;
  try{
@@ -1365,20 +1501,16 @@ async function runCalculation(calculator){
   }
   priceLabel=formatCalcPrice(Number(reserve.data.usage_price_milli)||usagePriceMilli);
   reserved=true;
-  const results=evaluateFormulaResults(calculator.spec,values,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
-  const scenarioComparisons=(Array.isArray(calculator.spec.scenarios)?calculator.spec.scenarios:[]).map(scenario=>{
+  const results=evaluateFormulaResults(spec,values,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+  const scenarioComparisons=(Array.isArray(spec.scenarios)?spec.scenarios:[]).map(scenario=>{
    const scenarioValues={...values,...(scenario.values||{})};
-   const scenarioResults=evaluateFormulaResults(calculator.spec,scenarioValues,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
+   const scenarioResults=evaluateFormulaResults(spec,scenarioValues,groupValues).map(item=>({label:item.label,value:formatResult(item.item||{},item.value),explanation:String(item.explanation||"")}));
    return{label:String(scenario.label||"Alternative"),results:scenarioResults};
   });
   const settle=await sb().rpc("calc_wallet_settle",{p_request_id:requestId});
   if(settle.error||!settle.data?.ok)throw new Error("The calculation finished, but its CALC transaction could not be confirmed.");
   reserved=false;
-  // calc_wallet_settle records successful public UGC use atomically with the
-  // completed CALC transaction. Clear any previous rating gate message.
-  if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id)){
-   clearReactionNote();
-  }
+  if(state.activeCalculator&&String(state.activeCalculator.id)===String(calculator.id))clearReactionNote();
   renderCalculationResults(results,scenarioComparisons);
   detailStatus("Calculation complete. "+priceLabel+" CALC was charged.",false);
   await refreshCalcWallet();
@@ -1725,25 +1857,12 @@ async function saveDescription(){
  }
 }
 async function editCalculator(id){
- if(!requireAccount()||!verifyConfirmed())return;
- const result=await sb().rpc("get_worth_it_ugc_calculator",{p_id:id});
- if(result.error){status("Could not load this calculator for editing.",true);return;}
- const calculator=normalizeObject(result.data);
- if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
- state.creationSource="ai";state.aiOperationId="";
- state.editingId=id;state.editingVisibility=calculator.visibility||"private";state.editingStatus=calculator.status||"draft";
- openMaker();
- const modal=$("ugcMakerModal");
- modal.querySelector("[name=prompt]").value="";
- $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator (for example: make the cost assumptions more precise or improve the formulas). Its subject and purpose cannot be changed.";
- state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,subcategories:calculator.subcategories||[],spec:calculator.spec};
- renderMakerPreview(state.aiDraft);setMakerModeUI();
- makerStatus("Your calculator's subject, title, category and description stay fixed. Ask AI to improve its inputs and formulas.");
+ await editCalculatorManually(id);
 }
 async function editCalculatorManually(id){
  if(!requireAccount()||!verifyConfirmed())return;
  const result=await sb().rpc("get_worth_it_ugc_calculator",{p_id:id});
- if(result.error){status("Could not load this calculator for manual editing.",true);return;}
+ if(result.error){status("Could not load this calculator for editing.",true);return;}
  const calculator=normalizeObject(result.data);
  if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
  state.creationSource="manual";state.aiOperationId="";
@@ -1754,7 +1873,7 @@ async function editCalculatorManually(id){
  const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
  state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,subcategories:calculator.subcategories||[],spec:JSON.parse(JSON.stringify(calculator.spec||{}))};
  renderMakerPreview(state.aiDraft);setMakerModeUI();
- makerStatus("Edit the calculator directly. Manual edits do not use AI, cost CALC or consume a new-calculator save allowance.");
+ makerStatus("Edit the calculator directly. Editing does not use Worth It AI, cost CALC or consume a new UGC calculator save allowance.");
 }
 async function publishCalculator(id,visibility){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -1788,22 +1907,17 @@ async function setCalculatorVisibility(id,visibility){
 function openMaker(){
  if(!requireAccount()||!verifyConfirmed())return;
  const modal=$("ugcMakerModal");if(!modal)return;
+ state.creationSource="manual";
  modal.hidden=false;modal.setAttribute("aria-hidden","false");
  document.body.classList.add("ugc-maker-open");
- const manual=state.creationSource==="manual",editing=Boolean(state.editingId);
- if(editing&&!manual)void refreshAiEditQuota();
+ const editing=Boolean(state.editingId);
  if(!editing)void refreshCreationQuota();
- if(!manual&&!editing)void refreshMakerGenerationQuota();
- const editQuota=$("ugcMakerEditQuotaStatus"),createQuota=$("ugcMakerQuotaStatus");
- const generationQuota=$("ugcMakerGenerationQuotaStatus");
- if(editQuota)editQuota.hidden=!(editing&&!manual);
+ const createQuota=$("ugcMakerQuotaStatus");
  if(createQuota)createQuota.hidden=editing;
- if(generationQuota)generationQuota.hidden=manual||editing;
  const visibilityWrap=$("ugcMakerVisibilityWrap");
  if(visibilityWrap)visibilityWrap.hidden=editing;
  setMakerModeUI();
- if(!editing)makerStatus(manual?"Choose a builder mode and customize your calculator.":"Describe your calculator in at least 10 characters.");
- if(!manual)$("ugcMakerPrompt")?.focus();
+ if(!editing)makerStatus("Choose a builder mode and customize your calculator.");
 }
 function closeMaker(){
  const modal=$("ugcMakerModal");if(modal){modal.hidden=true;modal.setAttribute("aria-hidden","true");}
@@ -1821,6 +1935,7 @@ function numericControlValue(control){
  return Number.isFinite(value)?value:NaN;
 }
 function renderMakerTestPanel(preserveValues){
+ if(Number(state.aiDraft?.spec?.schemaVersion)===2){renderMakerV2TestPanel(preserveValues);return;}
  const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
  if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
  const previous=new Map();
@@ -1888,6 +2003,7 @@ function renderMakerTestPanel(preserveValues){
  updateMakerTestResults(panel);
 }
 function updateMakerTestResults(panel){
+ if(Number(state.aiDraft?.spec?.schemaVersion)===2){updateMakerV2TestResults(panel);return;}
  const spec=state.aiDraft?.spec;
  if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
  const controls=Array.from(panel.querySelectorAll("[data-ugc-maker-test-key]")),values={};
@@ -2296,36 +2412,27 @@ function createManualDraft(templateKey){
    groups:JSON.parse(JSON.stringify(template.groups||[])),scenarios:JSON.parse(JSON.stringify(template.scenarios||[]))}};
 }
 function setMakerModeUI(){
- const manual=state.creationSource==="manual";
- const manualControls=$("ugcManualControls"),aiWrap=$("ugcMakerAiPromptWrap"),aiButton=$("ugcMakerGenerate");
- if(manualControls)manualControls.hidden=!manual;
- if(aiWrap)aiWrap.hidden=manual;
- if(aiButton)aiButton.textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
+ const manualControls=$("ugcManualControls");
  const kicker=$("ugcMakerKicker"),heading=$("ugcMakerTitleHeading"),intro=$("ugcMakerIntro");
- if(kicker)kicker.textContent=manual?"WORTH IT MANUAL BUILDER":"WORTH IT AI";
- if(heading)heading.textContent=state.editingId?(manual?"Edit calculator manually":"Improve your calculator with AI"):(manual?"Create a calculator manually":"Create a calculator with AI");
- if(intro)intro.textContent=manual
-  ?"Build a safe calculator with formulas, inputs and currencies. No AI request or CALC charge is used."
-  :"Describe the decision or calculation. AI creates a safe, editable calculator draft.";
+ if(kicker)kicker.textContent="WORTH IT UGC CALCULATOR BUILDER";
+ if(heading)heading.textContent=state.editingId?"Edit UGC calculator":"Create a UGC calculator";
+ if(intro)intro.textContent="Build a safe community calculator with formulas, inputs and currencies. No Worth It AI request or CALC charge is used.";
+ if(manualControls)manualControls.hidden=false;
  const modeHelp=$("ugcManualModeHelp");
  if(modeHelp){
-  modeHelp.hidden=!manual;
+  modeHelp.hidden=false;
   modeHelp.querySelectorAll("[data-manual-mode-info]").forEach(card=>{
    const active=card.dataset.manualModeInfo===(state.manualMode||"quick");
    card.classList.toggle("is-active",active);
    card.setAttribute("aria-current",active?"true":"false");
   });
  }
- const costNote=$("ugcMakerBillingNotice");
- if(costNote)costNote.textContent="AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations are refunded.";
- const manualAiImprove=$("ugcManualAiImproveButton");
- if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
  const blueprintImportPanel=$("ugcBlueprintImportPanel");
- if(blueprintImportPanel)blueprintImportPanel.hidden=!manual||Boolean(state.editingId);
+ if(blueprintImportPanel)blueprintImportPanel.hidden=Boolean(state.editingId);
  const templateWrap=$("ugcManualTemplateWrap");
- if(templateWrap)templateWrap.hidden=!manual||Boolean(state.editingId)||state.manualMode!=="template";
+ if(templateWrap)templateWrap.hidden=Boolean(state.editingId)||state.manualMode!=="template";
  const modeSelect=$("ugcManualMode");
- if(modeSelect&&manual)modeSelect.value=state.manualMode||"quick";
+ if(modeSelect)modeSelect.value=state.manualMode||"quick";
 }
 function loadManualTemplate(templateKey){
  const selectedKey=templateKey==="random"?pickRandomManualTemplateKey():templateKey;
@@ -2338,7 +2445,7 @@ function loadManualTemplate(templateKey){
  setMakerModeUI();renderMakerPreview(state.aiDraft);
  makerStatus(templateKey==="random"
   ?"Random calculator draft ready: "+state.aiDraft.title+". Its title, description, inputs and formulas are matched to the selected topic. Edit and test it locally before saving."
-  :"Manual calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
+  :"UGC calculator draft ready. Edit the inputs, formulas, units and currency, then test it locally before saving.");
 }
 function changeManualMode(mode){
  state.manualMode=["quick","template","advanced","random"].includes(mode)?mode:"quick";
@@ -2351,7 +2458,8 @@ function changeManualMode(mode){
 }
 async function copyBlueprintPrompt(){
  const statusNode=$("ugcBlueprintImportStatus");
- const prompt=window.WorthItBlueprintImport?.buildPrompt?.();
+ const targetVersion=Number($("ugcBlueprintTargetVersion")?.value||1);
+ const prompt=window.WorthItBlueprintImport?.buildPrompt?.(targetVersion);
  if(!prompt){if(statusNode)statusNode.textContent="Blueprint instructions are unavailable. Reload Manual Builder.";return;}
  try{
   if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(prompt);
@@ -2361,7 +2469,7 @@ async function copyBlueprintPrompt(){
    temporary.select();const copied=document.execCommand("copy");temporary.remove();
    if(!copied)throw new Error("Clipboard access is unavailable in this browser.");
   }
-  if(statusNode)statusNode.textContent="Instructions copied. Paste them into an external AI assistant; Worth It will not contact an AI service.";
+  if(statusNode)statusNode.textContent="Version "+targetVersion+" blueprint instructions copied. Paste them into an external AI assistant; Worth It will not contact an AI service.";
  }catch(error){
   if(statusNode)statusNode.textContent=error?.message||"Could not copy the instructions. You can select and copy them manually.";
  }
@@ -2418,10 +2526,10 @@ async function importManualBlueprint(){
  try{
   const originalRequest=String($("ugcBlueprintOriginalRequest")?.value||"").trim();
   const importer=window.WorthItBlueprintImport;
-  let definition=null,importError=null;
+  let definition=null,importError=null,typedV2=false;
   try{
    if(!importer?.parseBlueprint)throw new Error("Blueprint import is unavailable. Reload Manual Builder.");
-   definition=importer.parseBlueprint(raw,validateMakerSpec,originalRequest);
+   definition=importer.parseBlueprint(raw,validateManualDraftSpec,originalRequest);
   }catch(error){importError=error;}
   let importNotes=[];
   let validationIssueCount=0;
@@ -2429,7 +2537,8 @@ async function importManualBlueprint(){
   if(definition){
    importNotes=Array.isArray(definition.importNotes)?definition.importNotes.slice(0,6):[];
    validationIssueCount=Number(definition.importValidationIssueCount)||0;
-   const sharedValidation=validateMakerSpec(definition.spec);
+   typedV2=Number(definition.spec?.schemaVersion)===2;
+   const sharedValidation=validateManualDraftSpec(definition.spec);
    const sharedErrors=Array.isArray(sharedValidation?.errors)?sharedValidation.errors:[];
    validationIssueCount=Math.max(validationIssueCount,sharedErrors.length);
    validationSummary=sharedErrors.slice(0,4).join(" ");
@@ -2444,7 +2553,7 @@ async function importManualBlueprint(){
   }
   state.regionalDefaults=null;
   state.makerLocale="auto";
-  if(!definition||validationIssueCount>0){
+  if(!definition||(validationIssueCount>0&&!typedV2)){
    const reason=importError?.message||(validationSummary||validationIssueCount+" validation item(s) remained after Quick Fix.");
    const fallback=applyAdaptiveManualFallback(originalRequest,definition,reason,statusNode);
    const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
@@ -2464,8 +2573,14 @@ async function importManualBlueprint(){
    setMakerModeUI();
    renderMakerPreview(state.aiDraft);
    const adjustmentText=importNotes.length?" Quick Fix notes: "+importNotes.join(" "):"";
-   makerStatus("Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged."+adjustmentText);
-   if(statusNode)statusNode.textContent="Quick Fix complete. Your editable calculator draft is ready; nothing was saved or published."+adjustmentText;
+   const completionMessage=typedV2
+    ?(validationIssueCount>0
+      ?"Typed V2 blueprint imported as an editable local draft, but "+validationIssueCount+" validation item(s) still need review. "+validationSummary
+      :"Typed V2 blueprint passed the schema, formula, unit and default-value checks.")
+      +" Review and test it locally. V2 Save and Publish remain disabled; nothing was saved, published, sent to an AI service or charged."
+    :"Quick Fix complete. The blueprint passed the formula, unit and boundary checks. Review and test it locally; nothing was saved, published, sent to an AI service or charged.";
+   makerStatus(completionMessage+adjustmentText);
+   if(statusNode)statusNode.textContent=completionMessage+adjustmentText;
    $("ugcMakerPreview")?.scrollIntoView?.({behavior:"smooth",block:"start"});
   }
  }catch(error){
@@ -2619,6 +2734,559 @@ function renderManualScenarioEditor(host,definition){
  });
  add.disabled=spec.scenarios.length>=3;section.appendChild(add);host.appendChild(section);
 }
+
+function cloneCalculatorData(value){
+ return JSON.parse(JSON.stringify(value??{}));
+}
+function convertManualDraftToV2(definition){
+ const next=cloneCalculatorData(definition);
+ const spec=next.spec||{};
+ spec.schemaVersion=2;spec.engineVersion=2;
+ spec.inputs=(Array.isArray(spec.inputs)?spec.inputs:[]).map(item=>{
+  const control=String(item.control||"number");
+  if(control==="toggle"){
+   const converted={key:item.key,label:item.label,type:"boolean",default:Number(item.default)>=0.5,control:"toggle"};
+   return converted;
+  }
+  return{
+   key:item.key,label:item.label,type:"number",
+   min:Number(item.min),max:Number(item.max),default:Number(item.default),step:Number(item.step)||1,
+   unit:String(item.unit||""),control:["number","slider","select"].includes(control)?control:"number",
+   ...(control==="select"&&Array.isArray(item.choices)?{choices:cloneCalculatorData(item.choices)}:{})
+  };
+ });
+ spec.groups=(Array.isArray(spec.groups)?spec.groups:[]).map(group=>({
+  key:group.key,label:group.label,itemLabel:group.itemLabel||"Item",
+  minItems:Number(group.minItems)||1,maxItems:Number(group.maxItems)||10,
+  fields:(Array.isArray(group.fields)?group.fields:[]).map(field=>({
+   key:field.key,label:field.label,type:"number",
+   min:Number(field.min),max:Number(field.max),default:Number(field.default),step:Number(field.step)||1,
+   unit:String(field.unit||"")
+  }))
+ }));
+ spec.scenarios=(Array.isArray(spec.scenarios)?spec.scenarios:[]).map(scenario=>{
+  const values={};
+  spec.inputs.forEach(input=>{
+   const previous=scenario.values?.[input.key];
+   values[input.key]=input.type==="boolean"?Boolean(previous):Number(previous??input.default);
+  });
+  return{label:scenario.label,values};
+ });
+ next.spec=spec;
+ return next;
+}
+function changeManualSchemaVersion(definition,version){
+ if(!definition?.spec)return;
+ if(Number(version)===2){
+  if(Number(definition.spec.schemaVersion)===2)return;
+  if(state.editingId){makerStatus("Saved calculators remain on V1 until the V2 save and publish paths are complete.","error");return;}
+  state.aiDraft=convertManualDraftToV2(definition);
+  makerStatus("Typed V2 draft created. Boolean controls were converted to strict true/false values; review the formulas and test the draft locally. Saving and publishing are not enabled.","generating");
+  renderMakerPreview(state.aiDraft);
+  return;
+ }
+ if(Number(definition.spec.schemaVersion)===2){
+  makerStatus("A typed V2 draft cannot be downgraded automatically because enum and date values would be lost. Start a separate V1 draft to use the current save flow.","error");
+  renderMakerPreview(definition);
+ }
+}
+function validateManualDraftSpec(spec){
+ if(Number(spec?.schemaVersion)!==2)return validateMakerSpec(spec);
+ const errors=[];
+ const engineSpec=cloneCalculatorData(spec);
+ // These are Manual Builder presentation metadata, not executable schema fields.
+ delete engineSpec.assumptions;delete engineSpec.subcategories;
+ let validation;
+ try{validation=validateVersionedSpec(engineSpec);}catch(error){return{errors:[String(error?.message||"V2 validation failed.")]};}
+ if(!Array.isArray(validation?.errors))return{errors:["The V2 validator returned an invalid response."]};
+ errors.push(...validation.errors.map(String));
+ if(errors.length)return{errors};
+ try{
+  const inputs=createDefaultTypedValues(engineSpec),groups=createDefaultTypedGroupValues(engineSpec);
+  if(inputs?.valid!==true)errors.push(...(Array.isArray(inputs?.errors)?inputs.errors.map(String):["V2 input defaults are invalid."]));
+  if(groups?.valid!==true)errors.push(...(Array.isArray(groups?.errors)?groups.errors.map(String):["V2 dynamic-group defaults are invalid."]));
+  if(!errors.length)evaluateV2TypedResults(engineSpec,inputs.values,groups.groups);
+ }catch(error){errors.push(String(error?.message||"The V2 default-value test failed."));}
+ return{errors};
+}
+validateManualDraftSpec.repairBlueprintSpec=validateMakerSpec.repairBlueprintSpec;
+function renderManualSchemaVersionControl(host,definition){
+ const label=document.createElement("label");label.className="ugc-maker-schema-version-field";
+ label.appendChild(text("span","","Calculator schema"));
+ const select=document.createElement("select");select.id="ugcManualSchemaVersion";
+ [["1","Version 1 · current"],["2","Version 2 · typed draft (experimental)"]].forEach(([value,title])=>{
+  const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);
+ });
+ const current=Number(definition.spec?.schemaVersion)===2?2:1;
+ select.value=String(current);select.disabled=Boolean(state.editingId);
+ select.addEventListener("change",()=>changeManualSchemaVersion(definition,select.value));
+ label.appendChild(select);host.appendChild(label);
+ if(current===2)host.appendChild(text("p","ugc-maker-schema-summary","Typed V2 supports number, boolean, enum and date values. Preview and testing run locally; saving and publishing remain disabled until all server and database paths support V2."));
+}
+function createTypedEditorControl(field,value){
+ let control;
+ if(field.type==="boolean"){
+  control=document.createElement("input");control.type="checkbox";control.checked=Boolean(value);
+ }else if(field.type==="enum"){
+  control=document.createElement("select");
+  (Array.isArray(field.choices)?field.choices:[]).forEach(choice=>{
+   const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);
+  });
+  control.value=String(value??field.default??"");
+ }else if(field.type==="date"){
+  control=document.createElement("input");control.type="date";control.value=String(value??field.default??"");
+  if(field.minDate)control.min=String(field.minDate);
+  if(field.maxDate)control.max=String(field.maxDate);
+ }else if(field.control==="select"&&Array.isArray(field.choices)&&field.choices.length>=2){
+  control=document.createElement("select");
+  field.choices.forEach(choice=>{
+   const option=document.createElement("option");option.value=String(choice.value);option.textContent=String(choice.label);control.appendChild(option);
+  });
+  control.value=String(value??field.default??"");
+ }else{
+  control=document.createElement("input");control.type=field.control==="slider"?"range":"number";
+  if(field.min!==undefined)control.min=String(field.min);
+  if(field.max!==undefined)control.max=String(field.max);
+  control.step=String(field.step||"any");control.value=String(value??field.default??"");
+ }
+ return control;
+}
+function typedEditorValue(field,control){
+ if(field.type==="boolean")return control.checked===true;
+ if(field.type==="enum"||field.type==="date")return String(control.value||"");
+ const value=Number(control.value);
+ return Number.isFinite(value)?value:NaN;
+}
+function typedDefaultForField(field){
+ if(field.type==="boolean")return Boolean(field.default);
+ if(field.type==="enum"||field.type==="date")return String(field.default??"");
+ return Number(field.default);
+}
+function parseTypedChoices(raw,type){
+ const lines=String(raw||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+ const choices=[];
+ for(const line of lines){
+  const at=line.lastIndexOf("=");
+  if(at<1)return{valid:false,choices:[],error:"Use one choice per line in the format Label = value."};
+  const label=line.slice(0,at).trim(),valueText=line.slice(at+1).trim();
+  if(!label||label.length>50)return{valid:false,choices:[],error:"Choice labels must contain 1–50 characters."};
+  const value=type==="enum"?valueText:Number(valueText);
+  if(type==="enum"&&(!valueText||valueText.length>64))return{valid:false,choices:[],error:"Enum values must contain 1–64 characters."};
+  if(type==="number"&&(!valueText||!Number.isFinite(value)||Math.abs(value)>1000000000000))return{valid:false,choices:[],error:"Numeric choices must contain finite numeric values."};
+  choices.push({label,value});
+ }
+ if(choices.length<2||choices.length>12)return{valid:false,choices:[],error:"Add between 2 and 12 choices."};
+ if(new Set(choices.map(choice=>choice.label.toLowerCase())).size!==choices.length)return{valid:false,choices:[],error:"Choice labels must be unique."};
+ if(new Set(choices.map(choice=>String(choice.value))).size!==choices.length)return{valid:false,choices:[],error:"Choice values must be unique."};
+ return{valid:true,choices,error:""};
+}
+function updateV2IdentifierReferences(spec,oldKey,newKey,scope){
+ if(oldKey===newKey)return;
+ const expressionPattern=new RegExp("\\b"+oldKey+"\\b","g");
+ (Array.isArray(spec.results)?spec.results:[]).forEach(result=>{result.expression=String(result.expression||"").replace(expressionPattern,newKey);});
+ if(scope==="input"){
+  (Array.isArray(spec.scenarios)?spec.scenarios:[]).forEach(scenario=>{
+   if(Object.prototype.hasOwnProperty.call(scenario.values||{},oldKey)){scenario.values[newKey]=scenario.values[oldKey];delete scenario.values[oldKey];}
+  });
+ }
+}
+function renderManualV2InputEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");
+ section.className="ugc-maker-v2-input-editor";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed calculator inputs"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Choose a strict value type for every input. Boolean values are true/false, enum values must match a declared option, and dates use calendar dates without time zones. Up to 24 fixed inputs."));
+ spec.inputs.forEach((item,index)=>{
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group";
+  card.appendChild(text("legend","","Input "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=60)=>{
+   const label=document.createElement("label");label.textContent=name;
+   const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");
+   input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   label.appendChild(input);grid.appendChild(label);return input;
+  };
+  const oldKey=String(item.key||"");
+  const keyInput=addText("Variable key",oldKey,()=>{},32);keyInput.pattern="[a-z][a-z0-9_]{0,31}";
+  keyInput.addEventListener("change",()=>{
+   const next=String(keyInput.value||"").trim();
+   const collision=spec.inputs.some((other,i)=>i!==index&&other.key===next)
+    ||spec.results.some(result=>result.key===next)
+    ||spec.groups.some(group=>group.key===next||(group.fields||[]).some(field=>field.key===next));
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){keyInput.value=item.key;makerStatus("Input keys must be unique lowercase identifiers.","error");return;}
+   updateV2IdentifierReferences(spec,oldKey,next,"input");item.key=next;renderMakerPreview(definition);
+  });
+  addText("Input label",item.label,value=>{item.label=String(value).slice(0,60);});
+  const typeLabel=document.createElement("label");typeLabel.appendChild(text("span","","Value type"));
+  const typeSelect=document.createElement("select");
+  [["number","Number"],["boolean","Boolean (on/off)"],["enum","Enum (fixed options)"],["date","Date"]].forEach(([value,label])=>{
+   const option=document.createElement("option");option.value=value;option.textContent=label;typeSelect.appendChild(option);
+  });
+  typeSelect.value=item.type||"number";
+  typeSelect.addEventListener("change",()=>{
+   const nextType=typeSelect.value,key=item.key,label=item.label;
+   let replacement;
+   if(nextType==="boolean")replacement={key,label,type:"boolean",default:false,control:"toggle"};
+   else if(nextType==="enum")replacement={key,label,type:"enum",default:"option_1",control:"select",choices:[{label:"Option 1",value:"option_1"},{label:"Option 2",value:"option_2"}]};
+   else if(nextType==="date")replacement={key,label,type:"date",default:"2026-01-01",control:"date"};
+   else replacement={key,label,type:"number",min:0,max:100,default:0,step:1,unit:"",control:"number"};
+   Object.keys(item).forEach(property=>delete item[property]);Object.assign(item,replacement);
+   renderMakerPreview(definition);
+  });
+  typeLabel.appendChild(typeSelect);grid.appendChild(typeLabel);
+  if(item.type==="number"){
+   const addNumber=(name,value,onChange,step="any")=>{
+    const label=document.createElement("label");label.textContent=name;
+    const input=document.createElement("input");input.type="number";input.step=step;input.value=String(value??"");
+    input.addEventListener("input",()=>{if(input.value!==""&&Number.isFinite(Number(input.value)))onChange(Number(input.value));refreshMakerTestIfOpen();refreshMakerValidationNote();});
+    label.appendChild(input);grid.appendChild(label);
+   };
+   addNumber("Default",item.default,value=>{item.default=value;});
+   addNumber("Minimum",item.min,value=>{item.min=value;});
+   addNumber("Maximum",item.max,value=>{item.max=value;});
+   addNumber("Step",item.step,value=>{item.step=value;});
+   addText("Unit",item.unit||"",value=>{item.unit=String(value).slice(0,16);},16);
+   const controlLabel=document.createElement("label");controlLabel.appendChild(text("span","","Control"));
+   const control=document.createElement("select");
+   [["number","Number field"],["slider","Slider"],["select","Numeric dropdown"]].forEach(([value,label])=>{
+    const option=document.createElement("option");option.value=value;option.textContent=label;control.appendChild(option);
+   });
+   control.value=["number","slider","select"].includes(item.control)?item.control:"number";
+   control.addEventListener("change",()=>{item.control=control.value;if(control.value!=="select")delete item.choices;else if(!Array.isArray(item.choices)||item.choices.length<2)item.choices=[{label:"Lower",value:Number(item.min)},{label:"Upper",value:Number(item.max)}];renderMakerPreview(definition);});
+   controlLabel.appendChild(control);grid.appendChild(controlLabel);
+   if(item.control==="select"){
+    const choices=document.createElement("label");choices.className="ugc-maker-choice-editor";choices.appendChild(text("span","","Numeric options · Label = number"));
+    const textarea=document.createElement("textarea");textarea.rows=4;textarea.value=(item.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+    textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"number");if(!parsed.valid){makerStatus(parsed.error,"error");return;}
+     item.choices=parsed.choices;const values=parsed.choices.map(choice=>choice.value);item.min=Math.min(...values);item.max=Math.max(...values);
+     if(!values.includes(Number(item.default)))item.default=values[0];renderMakerPreview(definition);
+    });
+    choices.appendChild(textarea);grid.appendChild(choices);
+   }
+  }else if(item.type==="boolean"){
+   const label=document.createElement("label");label.className="ugc-maker-v2-boolean-default";
+   const input=document.createElement("input");input.type="checkbox";input.checked=item.default===true;
+   input.addEventListener("change",()=>{item.default=input.checked;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   label.append(input,text("span","","Default enabled"));grid.appendChild(label);
+  }else if(item.type==="enum"){
+   const choices=document.createElement("label");choices.className="ugc-maker-choice-editor";choices.appendChild(text("span","","Enum options · Label = value"));
+   const textarea=document.createElement("textarea");textarea.rows=4;textarea.value=(item.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+   textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"enum");if(!parsed.valid){makerStatus(parsed.error,"error");return;}
+    item.choices=parsed.choices;if(!parsed.choices.some(choice=>choice.value===item.default))item.default=parsed.choices[0].value;renderMakerPreview(definition);
+   });
+   choices.appendChild(textarea);grid.appendChild(choices);
+   addText("Default enum value",item.default,value=>{item.default=value;});
+  }else{
+   const date=document.createElement("label");date.textContent="Default date";
+   const input=document.createElement("input");input.type="date";input.value=String(item.default||"2026-01-01");
+   input.addEventListener("change",()=>{item.default=input.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   date.appendChild(input);grid.appendChild(date);
+   const minDate=document.createElement("label");minDate.textContent="Minimum date (optional)";
+   const min=document.createElement("input");min.type="date";min.value=String(item.minDate||"");
+   min.addEventListener("change",()=>{if(min.value)item.minDate=min.value;else delete item.minDate;refreshMakerValidationNote();});
+   minDate.appendChild(min);grid.appendChild(minDate);
+   const maxDate=document.createElement("label");maxDate.textContent="Maximum date (optional)";
+   const max=document.createElement("input");max.type="date";max.value=String(item.maxDate||"");
+   max.addEventListener("change",()=>{if(max.value)item.maxDate=max.value;else delete item.maxDate;refreshMakerValidationNote();});
+   maxDate.appendChild(max);grid.appendChild(maxDate);
+  }
+  const remove=button("Remove input","ugc-manual-remove",()=>{if(spec.inputs.length<=1)return;
+   const key=item.key;spec.inputs.splice(index,1);(spec.scenarios||[]).forEach(scenario=>{if(scenario.values)delete scenario.values[key];});renderMakerPreview(definition);
+  });
+  remove.disabled=spec.inputs.length<=1;grid.appendChild(remove);
+  card.appendChild(grid);section.appendChild(card);
+ });
+ const add=button("＋ Add typed input","ugc-action-secondary",()=>{
+  if(spec.inputs.length>=24)return;
+  let n=1,key="input_"+n;while(spec.inputs.some(item=>item.key===key)||spec.results.some(result=>result.key===key))key="input_"+(++n);
+  const item={key,label:"New input",type:"number",min:0,max:100,default:0,step:1,unit:"",control:"number"};
+  spec.inputs.push(item);(spec.scenarios||[]).forEach(scenario=>{scenario.values= scenario.values||{};scenario.values[key]=item.default;});renderMakerPreview(definition);
+ });
+ add.disabled=spec.inputs.length>=24;section.appendChild(add);host.appendChild(section);
+}
+function renderManualV2GroupEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-groups";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed dynamic groups"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Repeated rows may contain number, boolean, enum or date fields. Formulas can aggregate numeric fields and use typed row values in sum_if/count_if conditions. Up to 4 groups, 20 rows and 6 fields per group."));
+ spec.groups.forEach((group,index)=>{
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group ugc-maker-dynamic-group-editor";
+  card.appendChild(text("legend","","Group "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=60)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});label.appendChild(input);grid.appendChild(label);return input;};
+  const oldKey=group.key;const key=addText("Group key",group.key,()=>{},32);key.pattern="[a-z][a-z0-9_]{0,31}";
+  key.addEventListener("change",()=>{const next=key.value.trim();
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||spec.groups.some((other,i)=>i!==index&&other.key===next)||spec.inputs.some(item=>item.key===next)||spec.results.some(item=>item.key===next)){key.value=group.key;makerStatus("Group keys must be unique lowercase identifiers.","error");return;}
+   if(next!==oldKey){spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(new RegExp("\\b"+oldKey+"\\.","g"),next+".");});group.key=next;renderMakerPreview(definition);}
+  });
+  addText("Group label",group.label,value=>{group.label=value.slice(0,60);});
+  addText("Row label",group.itemLabel||"Item",value=>{group.itemLabel=value.slice(0,40);},40);
+  [["Minimum rows","minItems",1],["Maximum rows","maxItems",20]].forEach(([label,key,maximum])=>{
+   const wrapper=document.createElement("label");wrapper.textContent=label;const input=document.createElement("input");input.type="number";input.min=key==="minItems"?"1":String(group.minItems||1);input.max="20";input.step="1";input.value=String(group[key]??(key==="minItems"?1:10));
+   input.addEventListener("input",()=>{if(Number.isInteger(Number(input.value)))group[key]=Number(input.value);refreshMakerValidationNote();});wrapper.appendChild(input);grid.appendChild(wrapper);
+  });
+  card.appendChild(grid);
+  group.fields.forEach((field,fieldIndex)=>{
+   const fieldCard=document.createElement("fieldset");fieldCard.className="ugc-maker-dynamic-field-editor";
+   fieldCard.appendChild(text("legend","","Field "+(fieldIndex+1)));
+   const fieldGrid=document.createElement("div");fieldGrid.className="ugc-maker-input-grid";
+   const addFieldText=(name,value,onChange,max=60)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});label.appendChild(input);fieldGrid.appendChild(label);return input;};
+   const oldFieldKey=field.key;const fieldKey=addFieldText("Field key",field.key,()=>{},32);fieldKey.pattern="[a-z][a-z0-9_]{0,31}";
+   fieldKey.addEventListener("change",()=>{const next=fieldKey.value.trim();
+    const collision=group.fields.some((other,i)=>i!==fieldIndex&&other.key===next)||spec.inputs.some(item=>item.key===next)||spec.results.some(item=>item.key===next)||spec.groups.some((other,i)=>i!==index&&other.key===next);
+    if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){fieldKey.value=field.key;makerStatus("Dynamic field keys must be unique lowercase identifiers.","error");return;}
+    if(next!==oldFieldKey){const pattern=new RegExp("\\b"+group.key+"\\."+oldFieldKey+"\\b","g");spec.results.forEach(result=>{result.expression=String(result.expression||"").replace(pattern,group.key+"."+next);});field.key=next;renderMakerPreview(definition);}
+   });
+   addFieldText("Field label",field.label,value=>{field.label=value.slice(0,60);});
+   const typeLabel=document.createElement("label");typeLabel.appendChild(text("span","","Field type"));const type=document.createElement("select");
+   [["number","Number"],["boolean","Boolean"],["enum","Enum"],["date","Date"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;type.appendChild(option);});
+   type.value=field.type||"number";
+   type.addEventListener("change",()=>{const key=field.key,label=field.label,next=type.value;let replacement;
+    if(next==="boolean")replacement={key,label,type:"boolean",default:false};
+    else if(next==="enum")replacement={key,label,type:"enum",default:"option_1",choices:[{label:"Option 1",value:"option_1"},{label:"Option 2",value:"option_2"}]};
+    else if(next==="date")replacement={key,label,type:"date",default:"2026-01-01"};
+    else replacement={key,label,type:"number",min:0,max:100,default:0,step:1,unit:""};
+    Object.keys(field).forEach(property=>delete field[property]);Object.assign(field,replacement);renderMakerPreview(definition);
+   });
+   typeLabel.appendChild(type);fieldGrid.appendChild(typeLabel);
+   if(field.type==="number"){
+    [["Default","default"],["Minimum","min"],["Maximum","max"],["Step","step"]].forEach(([label,key])=>{const wrapper=document.createElement("label");wrapper.textContent=label;const input=document.createElement("input");input.type="number";input.step="any";input.value=String(field[key]??0);input.addEventListener("input",()=>{if(input.value!==""&&Number.isFinite(Number(input.value)))field[key]=Number(input.value);refreshMakerValidationNote();refreshMakerTestIfOpen();});wrapper.appendChild(input);fieldGrid.appendChild(wrapper);});
+    addFieldText("Unit",field.unit||"",value=>{field.unit=value.slice(0,16);},16);
+   }else if(field.type==="boolean"){
+    const wrapper=document.createElement("label"),input=document.createElement("input");input.type="checkbox";input.checked=field.default===true;input.addEventListener("change",()=>{field.default=input.checked;refreshMakerValidationNote();});wrapper.append(input,text("span","","Default enabled"));fieldGrid.appendChild(wrapper);
+   }else if(field.type==="enum"){
+    const wrapper=document.createElement("label");wrapper.appendChild(text("span","","Enum options · Label = value"));const textarea=document.createElement("textarea");textarea.rows=3;textarea.value=(field.choices||[]).map(choice=>choice.label+" = "+choice.value).join("\n");
+    textarea.addEventListener("change",()=>{const parsed=parseTypedChoices(textarea.value,"enum");if(!parsed.valid){makerStatus(parsed.error,"error");return;}field.choices=parsed.choices;if(!parsed.choices.some(choice=>choice.value===field.default))field.default=parsed.choices[0].value;renderMakerPreview(definition);});
+    wrapper.appendChild(textarea);fieldGrid.appendChild(wrapper);addFieldText("Default enum value",field.default,value=>{field.default=value;});
+   }else{
+    const wrapper=document.createElement("label");wrapper.textContent="Default date";const input=document.createElement("input");input.type="date";input.value=field.default||"2026-01-01";input.addEventListener("change",()=>{field.default=input.value;refreshMakerValidationNote();refreshMakerTestIfOpen();});wrapper.appendChild(input);fieldGrid.appendChild(wrapper);
+    [["Minimum date","minDate"],["Maximum date","maxDate"]].forEach(([label,key])=>{const w=document.createElement("label");w.textContent=label;const d=document.createElement("input");d.type="date";d.value=field[key]||"";d.addEventListener("change",()=>{if(d.value)field[key]=d.value;else delete field[key];refreshMakerValidationNote();});w.appendChild(d);fieldGrid.appendChild(w);});
+   }
+   const remove=button("Remove field","ugc-manual-remove",()=>{if(group.fields.length<=1)return;group.fields.splice(fieldIndex,1);renderMakerPreview(definition);});remove.disabled=group.fields.length<=1;fieldGrid.appendChild(remove);
+   fieldCard.appendChild(fieldGrid);card.appendChild(fieldCard);
+  });
+  const addField=button("＋ Add field","ugc-action-secondary",()=>{if(group.fields.length>=6)return;let n=1,key="field_"+n;while(group.fields.some(field=>field.key===key))key="field_"+(++n);group.fields.push({key,label:"New field",type:"number",min:0,max:100,default:0,step:1,unit:""});renderMakerPreview(definition);});
+  addField.disabled=group.fields.length>=6;card.appendChild(addField);
+  card.appendChild(button("Remove group","ugc-manual-remove",()=>{spec.groups.splice(index,1);renderMakerPreview(definition);}));
+  section.appendChild(card);
+ });
+ const addGroup=button("＋ Add typed group","ugc-action-secondary",()=>{if(spec.groups.length>=4)return;let n=1,key="items_"+n;while(spec.groups.some(group=>group.key===key))key="items_"+(++n);spec.groups.push({key,label:"Items",itemLabel:"Item",minItems:1,maxItems:10,fields:[{key:"amount",label:"Amount",type:"number",min:0,max:100,default:0,step:1,unit:""}]});renderMakerPreview(definition);});
+ addGroup.disabled=spec.groups.length>=4;section.appendChild(addGroup);host.appendChild(section);
+}
+function renderManualV2ScenarioEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-scenarios";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Typed what-if scenarios"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Scenarios override fixed typed inputs and recompute every numeric result. Up to three alternatives."));
+ spec.scenarios.forEach((scenario,index)=>{
+  if(!scenario.values||typeof scenario.values!=="object")scenario.values={};
+  const card=document.createElement("fieldset");card.className="ugc-maker-scenario-editor";card.appendChild(text("legend","","Scenario "+(index+1)));
+  const name=document.createElement("input");name.type="text";name.maxLength=50;name.value=String(scenario.label||"Alternative "+(index+1));
+  const nameLabel=document.createElement("label");nameLabel.textContent="Scenario name";name.addEventListener("input",()=>{scenario.label=name.value.slice(0,50);refreshMakerValidationNote();});nameLabel.appendChild(name);card.appendChild(nameLabel);
+  const grid=document.createElement("div");grid.className="ugc-maker-scenario-grid";
+  spec.inputs.forEach(input=>{
+   if(!Object.prototype.hasOwnProperty.call(scenario.values,input.key))scenario.values[input.key]=typedDefaultForField(input);
+   const label=document.createElement("label");label.appendChild(text("span","",input.label||input.key));
+   const control=createTypedEditorControl(input,scenario.values[input.key]);control.addEventListener("change",()=>{scenario.values[input.key]=typedEditorValue(input,control);refreshMakerTestIfOpen();refreshMakerValidationNote();});
+   control.addEventListener("input",()=>{scenario.values[input.key]=typedEditorValue(input,control);refreshMakerTestIfOpen();});
+   label.appendChild(control);grid.appendChild(label);
+  });
+  card.appendChild(grid);card.appendChild(button("Remove scenario","ugc-manual-remove",()=>{spec.scenarios.splice(index,1);renderMakerPreview(definition);}));
+  section.appendChild(card);
+ });
+ const add=button("＋ Add scenario","ugc-action-secondary",()=>{
+  if(spec.scenarios.length>=3)return;
+  spec.scenarios.push({label:"Alternative "+(spec.scenarios.length+1),values:Object.fromEntries(spec.inputs.map(input=>[input.key,typedDefaultForField(input)]))});
+  renderMakerPreview(definition);
+ });
+ add.disabled=spec.scenarios.length>=3;section.appendChild(add);host.appendChild(section);
+}
+function renderManualV2ResultEditor(host,definition){
+ const spec=definition.spec,section=document.createElement("section");section.className="ugc-maker-v2-results";
+ section.appendChild(text("h3","ugc-maker-schema-heading","Numeric calculator results"));
+ section.appendChild(text("p","ugc-maker-schema-summary","Final results must be finite numbers. Boolean, enum and date values can be used in conditions and intermediate formulas, but are not direct result display types."));
+ spec.results.forEach((item,index)=>{
+  if(!item.key)item.key="result_"+(index+1);
+  const card=document.createElement("fieldset");card.className="ugc-maker-schema-group";card.appendChild(text("legend","","Result "+(index+1)));
+  const grid=document.createElement("div");grid.className="ugc-maker-input-grid";
+  const addText=(name,value,onChange,max=280)=>{const label=document.createElement("label");label.textContent=name;const input=document.createElement("input");input.type="text";input.maxLength=max;input.value=String(value??"");input.addEventListener("input",()=>{onChange(input.value);refreshMakerTestIfOpen();refreshMakerValidationNote();});label.appendChild(input);grid.appendChild(label);return input;};
+  const oldKey=item.key,key=addText("Result variable key",oldKey,()=>{},32);key.pattern="[a-z][a-z0-9_]{0,31}";
+  key.addEventListener("change",()=>{const next=key.value.trim(),collision=spec.inputs.some(input=>input.key===next)||spec.groups.some(group=>group.key===next||(group.fields||[]).some(field=>field.key===next))||spec.results.some((other,i)=>i!==index&&other.key===next);
+   if(!/^[a-z][a-z0-9_]{0,31}$/.test(next)||collision){key.value=item.key;makerStatus("Result keys must be unique lowercase identifiers.","error");return;}
+   if(next!==oldKey){const pattern=new RegExp("\\b"+oldKey+"\\b","g");spec.results.forEach((result,i)=>{if(i>index)result.expression=String(result.expression||"").replace(pattern,next);});item.key=next;renderMakerPreview(definition);}
+  });
+  addText("Result label",item.label,value=>{item.label=value.slice(0,70);},70);
+  const formula=document.createElement("label");formula.appendChild(text("span","","Typed formula"));
+  const expression=document.createElement("textarea");expression.rows=3;expression.maxLength=500;expression.value=String(item.expression||"");expression.placeholder='Example: if(and(include_tax, eq(plan, "pro")), base_cost * 0.2, 0)';
+  expression.addEventListener("input",()=>{item.expression=expression.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});
+  formula.appendChild(expression);formula.appendChild(createV2FormulaHelp(expression));grid.appendChild(formula);
+  const explanation=document.createElement("label");explanation.appendChild(text("span","","What does this result mean?"));
+  const detail=document.createElement("textarea");detail.rows=2;detail.maxLength=280;detail.value=String(item.explanation||"");detail.addEventListener("input",()=>{item.explanation=detail.value;});
+  explanation.appendChild(detail);grid.appendChild(explanation);
+  const formatLabel=document.createElement("label");formatLabel.textContent="Display format";const format=document.createElement("select");
+  [["number","Number"],["currency","Currency"],["percent","Percent"],["unit","Number with unit"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;format.appendChild(option);});
+  format.value=item.format||"number";format.addEventListener("change",()=>{item.format=format.value;refreshMakerTestIfOpen();refreshMakerValidationNote();});formatLabel.appendChild(format);grid.appendChild(formatLabel);
+  addText("Currency",item.currency||"EUR",value=>{item.currency=value.toUpperCase().replace(/[^A-Z]/g,"").slice(0,3);},3);
+  addText("Result unit",item.unit||"",value=>{item.unit=value.slice(0,20);},20);
+  addText("Prefix",item.prefix||"",value=>{item.prefix=value.slice(0,12);},12);
+  addText("Suffix",item.suffix||"",value=>{item.suffix=value.slice(0,16);},16);
+  const actions=document.createElement("div");actions.className="ugc-maker-result-actions";
+  actions.appendChild(button("Move up","ugc-manual-remove",()=>{if(index>0){[spec.results[index-1],spec.results[index]]=[spec.results[index],spec.results[index-1]];renderMakerPreview(definition);}}));
+  actions.appendChild(button("Move down","ugc-manual-remove",()=>{if(index<spec.results.length-1){[spec.results[index+1],spec.results[index]]=[spec.results[index],spec.results[index+1]];renderMakerPreview(definition);}}));
+  const remove=button("Remove result","ugc-manual-remove",()=>{if(spec.results.length<=1)return;spec.results.splice(index,1);renderMakerPreview(definition);});remove.disabled=spec.results.length<=1;actions.appendChild(remove);
+  grid.appendChild(actions);card.appendChild(grid);section.appendChild(card);
+ });
+ const add=button("＋ Add result","ugc-action-secondary",()=>{if(spec.results.length>=20)return;let n=spec.results.length+1,key="result_"+n;while(spec.results.some(item=>item.key===key))key="result_"+(++n);spec.results.push({key,label:"New result",expression:String(spec.inputs[0]?.key||"1"),format:"number",explanation:""});renderMakerPreview(definition);});
+ add.disabled=spec.results.length>=20;section.appendChild(add);host.appendChild(section);
+}
+function appendV2TestGroup(panel,group){
+ const section=document.createElement("fieldset");section.className="ugc-dynamic-group";section.dataset.ugcV2GroupKey=group.key;section.appendChild(text("legend","",group.label||group.key));
+ const rows=document.createElement("div");rows.className="ugc-dynamic-group-rows";
+ const min=Math.max(1,Number(group.minItems)||1),max=Math.max(min,Math.min(20,Number(group.maxItems)||20));
+ const notify=()=>updateMakerV2TestResults(panel);
+ const refresh=()=>{Array.from(rows.children).forEach(row=>{const remove=row.querySelector("button");if(remove)remove.disabled=rows.children.length<=min;});add.disabled=rows.children.length>=max;};
+ const addRow=(values={})=>{
+  if(rows.children.length>=max)return;
+  const row=document.createElement("div");row.className="ugc-dynamic-group-row";row.dataset.ugcV2GroupRow="";
+  const fields=document.createElement("div");fields.className="ugc-dynamic-group-fields";
+  group.fields.forEach(field=>{
+   const label=document.createElement("label");label.textContent=field.label||field.key;
+   const control=createTypedEditorControl(field,values[field.key]??typedDefaultForField(field));
+   control.dataset.ugcV2GroupField=field.key;
+   control.addEventListener("input",notify);control.addEventListener("change",notify);
+   label.appendChild(control);fields.appendChild(label);
+  });
+  const remove=button("Remove "+String(group.itemLabel||"item").toLowerCase(),"ugc-manual-remove",()=>{if(rows.children.length<=min)return;row.remove();refresh();notify();});
+  row.append(fields,remove);rows.appendChild(row);refresh();
+ };
+ for(let i=0;i<min;i++)addRow({});
+ const add=button("＋ Add "+String(group.itemLabel||"item").toLowerCase(),"ugc-action-secondary",()=>{if(rows.children.length<max)addRow({});});
+ section.append(rows,add);refresh();panel.appendChild(section);return section;
+}
+function renderMakerV2TestPanel(preserveValues){
+ const panel=$("ugcMakerTestPanel"),spec=state.aiDraft?.spec;
+ if(!panel||!Array.isArray(spec?.inputs)||!Array.isArray(spec?.results))return;
+ const previous=new Map();
+ if(preserveValues)panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{previous.set(control.dataset.ugcMakerTestKey,typedEditorValue(spec.inputs.find(item=>item.key===control.dataset.ugcMakerTestKey)||{},control));});
+ panel.replaceChildren();
+ const heading=document.createElement("div");heading.className="ugc-maker-test-head";
+ const intro=document.createElement("div");intro.append(text("h4","","Try typed V2 calculator"),text("p","","Change number, boolean, enum and date inputs. Formulas run locally in this browser; no request or CALC charge is made."));
+ const reset=button("Reset values","ugc-maker-test-reset",()=>renderMakerV2TestPanel(false));heading.append(intro,reset);panel.appendChild(heading);
+ const inputGrid=document.createElement("div");inputGrid.className="ugc-maker-test-inputs";
+ spec.inputs.forEach(item=>{
+  const label=document.createElement("label");label.className="ugc-maker-test-input";label.appendChild(text("span","",item.label||item.key));
+  const control=createTypedEditorControl(item,previous.has(item.key)?previous.get(item.key):typedDefaultForField(item));
+  control.dataset.ugcMakerTestKey=item.key;control.addEventListener("input",()=>updateMakerV2TestResults(panel));control.addEventListener("change",()=>updateMakerV2TestResults(panel));
+  label.appendChild(control);if(item.unit)label.appendChild(text("small","",item.unit));inputGrid.appendChild(label);
+ });
+ panel.appendChild(inputGrid);
+ (spec.groups||[]).forEach(group=>appendV2TestGroup(panel,group));
+ panel.appendChild(text("h4","ugc-maker-test-results-heading","Live results"));
+ const results=document.createElement("div");results.className="ugc-maker-test-results-grid";results.setAttribute("aria-live","polite");panel.appendChild(results);
+ const status=text("p","ugc-maker-test-status","");status.setAttribute("role","status");status.setAttribute("aria-live","polite");panel.appendChild(status);
+ panel.appendChild(text("p","ugc-maker-test-note","Free local test · No CALC is charged, no AI request is sent, and nothing is saved. V2 save/publish remains disabled."));
+ updateMakerV2TestResults(panel);
+}
+function updateMakerV2TestResults(panel){
+ const spec=state.aiDraft?.spec;if(!panel||Number(spec?.schemaVersion)!==2)return;
+ const rawValues={};let invalidControl=null;
+ panel.querySelectorAll("[data-ugc-maker-test-key]").forEach(control=>{
+  const field=spec.inputs.find(item=>item.key===control.dataset.ugcMakerTestKey);
+  if(!field)return;
+  const value=typedEditorValue(field,control),normalized=normalizeTypedValue(field,value);
+  if(!normalized.valid){control.setAttribute("aria-invalid","true");if(!invalidControl)invalidControl=control;}
+  else{control.setAttribute("aria-invalid","false");rawValues[field.key]=normalized.value;}
+ });
+ const output=panel.querySelector(".ugc-maker-test-results-grid"),status=panel.querySelector(".ugc-maker-test-status");
+ if(!output||!status)return;output.replaceChildren();
+ if(invalidControl){status.textContent="Enter valid typed values within the allowed bounds and choices.";return;}
+ const rawGroups={};
+ (spec.groups||[]).forEach(group=>{
+  const section=panel.querySelector('[data-ugc-v2-group-key="'+CSS.escape(group.key)+'"]');
+  rawGroups[group.key]=Array.from(section?.querySelectorAll("[data-ugc-v2-group-row]")||[]).map(row=>{
+   const value={};
+   group.fields.forEach(field=>{
+    const control=row.querySelector('[data-ugc-v2-group-field="'+CSS.escape(field.key)+'"]');
+    value[field.key]=control?typedEditorValue(field,control):typedDefaultForField(field);
+   });
+   return value;
+  });
+ });
+ const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ if(normalizedGroups.valid!==true){status.textContent=normalizedGroups.errors.slice(0,3).join(" ");return;}
+ let formulaErrors=0;
+ const render=(host,values,compact)=>{
+  host.replaceChildren();
+  try{
+   evaluateV2TypedResults(spec,values,normalizedGroups.groups).results.forEach(result=>{
+    const card=document.createElement(compact?"div":"article");card.className=compact?"ugc-maker-scenario-result":"ugc-maker-test-result";
+    card.append(text("span","",result.label||"Result"),text(compact?"b":"strong","",formatResult(result.item||{},result.value,state.makerLocale==="auto"?"":(state.makerLocale||state.regionalDefaults?.locale||""))));
+    if(!compact&&result.explanation)card.appendChild(text("small","ugc-result-explanation",result.explanation));host.appendChild(card);
+   });
+  }catch(error){formulaErrors++;const card=text(compact?"div":"article",compact?"ugc-maker-scenario-result is-error":"ugc-maker-test-result is-error","");card.append(text("span","","Calculation error"),text(compact?"b":"strong","","Cannot calculate"),text("small","",error?.message||"Check the formula."));host.appendChild(card);}
+ };
+ render(output,rawValues,false);
+ panel.querySelector(".ugc-maker-scenario-comparisons")?.remove();
+ if(spec.scenarios?.length){
+  const section=document.createElement("section");section.className="ugc-maker-scenario-comparisons";section.appendChild(text("h4","ugc-maker-test-results-heading","Compare scenarios"));
+  [{label:"Current test values",values:rawValues},...spec.scenarios.map(item=>({label:item.label,values:{...rawValues,...item.values}}))].forEach(scenario=>{
+   const group=document.createElement("article");group.className="ugc-maker-scenario-result-group";group.appendChild(text("strong","",scenario.label||"Alternative"));
+   const grid=document.createElement("div");grid.className="ugc-maker-scenario-result-grid";render(grid,scenario.values,true);group.appendChild(grid);section.appendChild(group);
+  });
+  panel.insertBefore(section,status);
+ }
+ const validation=validateManualDraftSpec(spec);
+ status.textContent=formulaErrors?"One or more formulas could not be evaluated. Check the highlighted results."
+  :validation.errors.length?"Local calculation ran, but validation needs attention: "+validation.errors.slice(0,2).join(" ")
+  :"Typed values, formulas, unit compatibility and default boundaries passed local checks.";
+}
+function createV2FormulaHelp(textarea){
+ const details=document.createElement("details");details.className="ugc-v2-formula-help";
+ details.appendChild(text("summary","","Formula autocomplete & function reference"));
+ const list=document.createElement("div");list.className="ugc-v2-formula-suggestions";
+ const functions=calculatorEngine.getV2FunctionHelp();
+ functions.forEach(item=>{
+  const entry=document.createElement("div");entry.className="ugc-v2-formula-suggestion";
+  const insert=button(item.name+"()","ugc-v2-formula-insert",()=>{
+   const start=Number.isInteger(textarea.selectionStart)?textarea.selectionStart:textarea.value.length;
+   const end=Number.isInteger(textarea.selectionEnd)?textarea.selectionEnd:start;
+   const snippet=item.name+"(";
+   const value=textarea.value;
+   textarea.value=value.slice(0,start)+snippet+value.slice(end);
+   const caret=start+snippet.length;
+   textarea.focus();textarea.setSelectionRange(caret,caret);
+   textarea.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  insert.title=item.signature+" — "+item.description;
+  const meta=text("span","ugc-v2-formula-signature",item.signature);
+  const description=text("span","ugc-v2-formula-description",item.description);
+  entry.append(insert,meta,description);list.appendChild(entry);
+ });
+ details.appendChild(list);
+ const note=text("p","ugc-v2-formula-note","Select a function to insert its name at the cursor, then complete the arguments. Function help is shared with the V2 engine registry.");
+ details.appendChild(note);
+ return details;
+}
+function renderManualV2Preview(host,definition){
+ const spec=definition.spec;
+ host.appendChild(text("h3","ugc-maker-schema-heading","Typed V2 definition"));
+ host.appendChild(text("p","ugc-maker-schema-summary","Typed V2 supports number, boolean, enum and date values, typed repeated groups, conditional formulas and what-if scenarios. The connected database is checked separately before V2 Save or Publish can be enabled."));
+ const persistenceNote=text("p","ugc-maker-schema-summary",state.v2PersistenceAvailable
+  ?"V2 save and publish are enabled in this database. The independent PostgreSQL validator checks every save and publish operation."
+  :"V2 remains local-only in this database. Save and Publish stay disabled until the V2 persistence migration is installed.");
+ persistenceNote.id="ugcMakerV2PersistenceNote";host.appendChild(persistenceNote);
+ renderManualV2InputEditor(host,definition);
+ renderManualV2GroupEditor(host,definition);
+ renderManualV2ScenarioEditor(host,definition);
+ renderManualV2ResultEditor(host,definition);
+ const testPanel=document.createElement("section");testPanel.id="ugcMakerTestPanel";testPanel.className="ugc-maker-test-panel";testPanel.hidden=true;
+ const toggle=button("▶ Test typed V2 calculator","ugc-maker-test-toggle",()=>{
+  testPanel.hidden=!testPanel.hidden;toggle.setAttribute("aria-expanded",String(!testPanel.hidden));toggle.textContent=testPanel.hidden?"▶ Test typed V2 calculator":"▾ Hide test";
+  if(!testPanel.hidden)renderMakerV2TestPanel(false);
+ });
+ toggle.setAttribute("aria-expanded","false");host.append(toggle,testPanel);
+ host.appendChild(text("p","ugc-maker-schema-summary","Allowed V2 formulas include strict boolean logic, typed enum/date comparisons, calendar functions, same-group statistical aggregation, financial functions and dimensional numeric formulas. Use Formula autocomplete for signatures and examples. Arbitrary JavaScript is never executed."));
+ refreshMakerValidationNote();
+ updateV2PersistenceControls();
+}
+
 function renderMakerPreview(definition){
  const host=$("ugcMakerPreview");if(!host)return;
  host.replaceChildren();if(!definition){host.hidden=true;return;}host.hidden=false;
@@ -2642,9 +3310,10 @@ function renderMakerPreview(definition){
  }
  const descriptionHelp=text("p","ugc-maker-schema-summary",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
-  :"Write a short explanation of what the calculator measures and its key assumptions. 24–500 characters. The AI follows the language of your prompt; you can edit this description before saving.");
+  :"Write a short explanation of what the calculator measures and its key assumptions. Use 24–500 characters.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
- if(manual){
+ const typedV2=Number(definition.spec?.schemaVersion)===2;
+ if(manual||typedV2){
   const assumptionsLabel=document.createElement("label");assumptionsLabel.textContent="Assumptions (optional, up to 5,000 characters)";
   const assumptionsInput=document.createElement("textarea");assumptionsInput.id="ugcMakerAssumptions";assumptionsInput.maxLength=5000;assumptionsInput.rows=5;
   assumptionsInput.value=(Array.isArray(definition.spec?.assumptions)?definition.spec.assumptions:[]).join("\n");
@@ -2661,18 +3330,19 @@ function renderMakerPreview(definition){
   categorySelect.value=definition.category||"other";categorySelect.disabled=Boolean(state.editingId);
   categorySelect.addEventListener("change",()=>{definition.category=categorySelect.value;definition.spec.subcategories=[];});
   categoryLabel.appendChild(categorySelect);host.appendChild(categoryLabel);
-  host.appendChild(text("p","ugc-maker-schema-summary","Manual Builder does not use AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved manual calculator uses the separate 1/2/3 daily save allowance."));
+  host.appendChild(text("p","ugc-maker-schema-summary","The UGC Calculator Builder does not use Worth It AI, does not charge CALC and does not consume an AI daily allowance. Only a new saved UGC calculator uses the separate 1/2/3 daily save allowance."));
+  renderManualSchemaVersionControl(host,definition);
  }else{
   const selected=document.createElement("div");selected.className="ugc-maker-ai-categories";
-  selected.appendChild(text("strong","","AI-selected categories"));
+  selected.appendChild(text("strong","","Calculator categories"));
   getCategoryLabels({category:definition.category,subcategories:definition.spec?.subcategories||definition.subcategories||[]}).forEach(label=>selected.appendChild(text("span","ugc-subcategory-chip",label)));
   host.appendChild(selected);
  }
- const summary=text("p","ugc-maker-schema-summary",manual
-  ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · dimensional unit checks and a restricted formula language"
+ const summary=text("p","ugc-maker-schema-summary",manual||typedV2
+  ?(definition.spec?.inputs?.length||0)+" / 24 fixed inputs · "+(definition.spec?.groups?.length||0)+" / 4 dynamic groups · "+(definition.spec?.results?.length||0)+" / 20 results · typed value, formula and dimensional checks"
   :(definition.spec?.inputs?.length||0)+" / 16 inputs · "+(definition.spec?.results?.length||0)+" / 10 results · restricted formula language");
  host.appendChild(summary);
- if(state.editingId&&!manual)host.appendChild(text("p","ugc-maker-schema-summary","This is an AI improvement of your existing calculator. Its title, category, purpose and description are locked."));
+ if(typedV2){renderManualV2Preview(host,definition);return;}
  host.appendChild(text("h3","ugc-maker-schema-heading","Calculator inputs"));
  (definition.spec?.inputs||[]).forEach((item,index)=>{
   const group=document.createElement("fieldset");group.className="ugc-maker-schema-group";
@@ -2812,6 +3482,7 @@ function renderMakerPreview(definition){
   addInput("Result label","text",item.label,value=>{item.label=String(value).trim().slice(0,70);});
   const formulaInput=addInput("Formula","textarea",item.expression,value=>{item.expression=String(value).trim().slice(0,500);});
   formulaInput.placeholder="Use input keys and earlier result keys; e.g. subtotal * tax_rate / 100 or sum(expenses.amount).";
+  formulaInput.parentElement?.appendChild(createV2FormulaHelp(formulaInput));
   const explanationLabel=document.createElement("label");explanationLabel.className="ugc-maker-result-explanation";
   explanationLabel.appendChild(text("span","","What does this result mean?"));
   const explanation=document.createElement("textarea");explanation.rows=2;explanation.maxLength=280;explanation.value=String(item.explanation||"");
@@ -2876,38 +3547,6 @@ function renderMakerPreview(definition){
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;if(publishButton)publishButton.disabled=false;
 }
-async function generateWithAI(){
- if(!requireAccount()||!verifyConfirmed())return;
- state.blueprintImportActive=false;
- state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
- const prompt=String($("ugcMakerPrompt")?.value||"").trim();
- if(prompt.length<10||prompt.length>1000){makerStatus("Describe the requested changes in 10 to 1000 characters.","error");return;}
- const button=$("ugcMakerGenerate");button.disabled=true;
- makerStatus(state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…","generating");
- $("ugcMakerPreview").hidden=true;
- try{
-  const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt};
-  const response=await fetch("/api/ugc-maker",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+state.session.access_token,"Accept":"application/json"},body:JSON.stringify(payload)});
-  const data=await response.json().catch(()=>null);
-  if(!response.ok||!data?.success)throw new Error(data?.error||"The AI calculator maker is unavailable.");
-  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(data.operation_id||""))){
-   throw new Error("The AI operation could not be verified. No calculator draft was accepted.");
-  }
-  state.aiOperationId=String(data.operation_id);
-  state.aiDraft=data.calculator;
-  state.regionalDefaults=data.regionalDefaults||null;
-  state.makerLocale=state.regionalDefaults?.locale||"auto";
-  renderMakerPreview(state.aiDraft);
-  makerStatus(state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
- }catch(error){makerStatus(error?.message||"Could not generate a calculator.","error");}
- finally{
-  button.disabled=false;
-  if(!state.editingId){
-   void refreshCreationQuota();
-   void refreshMakerGenerationQuota();
-  }
- }
-}
 function describeResultFormula(item,inputs){
  const expression=String(item?.expression||"").trim();
  const used=(Array.isArray(inputs)?inputs:[]).filter(input=>new RegExp("(^|[^A-Za-z0-9_])"+String(input.key||"")+"($|[^A-Za-z0-9_])").test(expression));
@@ -2916,9 +3555,16 @@ function describeResultFormula(item,inputs){
  return (source+"Formula: "+expression+".").slice(0,280);
 }
 async function saveMakerDraft(publish){
+ const typedV2=Number(state.aiDraft?.spec?.schemaVersion)===2;
  if(!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
+ if(typedV2&&state.v2PersistenceAvailable!==true){
+  if(!await refreshUGCSchemaCapabilities()){
+   makerStatus("Typed V2 is still local-only in the connected database. Its V2 persistence migration has not been detected, so nothing was saved or published.","error");
+   return;
+  }
+ }
  const title=String($("ugcMakerTitle")?.value||"").trim();
- const description=state.editingId&&state.creationSource!=="manual"?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
+ const description=String($("ugcMakerDescription")?.value||"").trim();
  const category=String(state.aiDraft.category||"other");
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
@@ -2940,7 +3586,7 @@ async function saveMakerDraft(publish){
   if(normalized.format==="currency")ensureResultCurrency(normalized,state.regionalDefaults?.currency||"EUR");
   return normalized;
  });
- const validation=validateMakerSpec(specToSave);
+ const validation=typedV2?validateManualDraftSpec(specToSave):validateMakerSpec(specToSave);
  if(validation.errors.length){makerStatus("Please fix the calculator validation issues before saving: "+validation.errors.slice(0,3).join(" "),"error");return;}
  if(!Array.isArray(specToSave.subcategories)&&Array.isArray(state.aiDraft.subcategories)){
   specToSave.subcategories=[...state.aiDraft.subcategories];
@@ -2951,11 +3597,10 @@ async function saveMakerDraft(publish){
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
  let savedIdAfterWrite="";
  try{
-  if(state.creationSource==="ai"&&!state.aiOperationId)throw new Error("Run a successful AI generation or improvement before saving this AI draft.");
   const saved=await sb().rpc("save_worth_it_ugc_calculator",{
    p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:specToSave,
-   p_source:state.creationSource==="manual"?"manual":"ai",
-   p_ai_request_id:state.creationSource==="manual"?null:state.aiOperationId
+   p_source:"manual",
+   p_ai_request_id:null
   });
   if(saved.error)throw saved.error;
   const payload=normalizeObject(saved.data),id=payload?.id;
@@ -2967,21 +3612,9 @@ async function saveMakerDraft(publish){
    state.editingId=id;
    state.editingVisibility=visibility;
    state.editingStatus="draft";
-   $("ugcMakerGenerate").textContent="✦ Improve with AI";
-   $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
    const visibilityWrap=$("ugcMakerVisibilityWrap");if(visibilityWrap)visibilityWrap.hidden=true;
-   const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus"),generationQuota=$("ugcMakerGenerationQuotaStatus");
+   const createQuota=$("ugcMakerQuotaStatus");
    if(createQuota)createQuota.hidden=true;
-   if(generationQuota)generationQuota.hidden=true;
-   if(editQuota)editQuota.hidden=true;
-   // Once the AI draft is first saved, future changes are ordinary manual
-   // edits. The generation has already consumed its AI slot and CALC charge.
-   if(state.creationSource==="ai"){
-    state.creationSource="manual";state.aiOperationId="";state.manualMode="advanced";
-    const mode=$("ugcManualMode");if(mode)mode.value="advanced";
-    const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
-    renderMakerPreview(state.aiDraft);
-   }
    setMakerModeUI();
    void refreshCreationQuota();
   }
@@ -2991,7 +3624,7 @@ async function saveMakerDraft(publish){
    const publication=normalizeObject(result.data);
    if(publication?.success!==true||publication.visibility!==visibility)throw new Error("The calculator was saved, but publication was not confirmed.");
   }
-  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerGenerate").textContent="✦ Generate calculator";$("ugcMakerTitleHeading").textContent="Create a calculator with AI";$("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
+  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerTitleHeading").textContent="Create a UGC calculator";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
   const publicNumber=Number(payload?.calculator_number);
   const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
@@ -3118,16 +3751,6 @@ function refreshCreatorDiscoveryWhenVisible(){
 window.addEventListener("focus",()=>{reconcileExplorePanels();refreshCreatorDiscoveryWhenVisible();});
 window.addEventListener("popstate",()=>window.setTimeout(refreshCreatorDiscoveryWhenVisible,0));
 window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
-function openNewCalculatorMaker(){
- state.creationSource="ai";state.aiOperationId="";state.manualMode="quick";
- state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";openMaker();
- $("ugcMakerVisibility").value="private";
- $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
- $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerVisibility").value="private";
- $("ugcMakerGenerate").textContent="✦ Generate calculator";
- $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
- makerStatus("Describe what you want to calculate.");
-}
 function openManualCalculatorMaker(){
  state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";state.manualTemplateKey="simple-cost";
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";
@@ -3136,19 +3759,8 @@ function openManualCalculatorMaker(){
  const template=$("ugcManualTemplate");if(template)template.value="simple-cost";
  $("ugcMakerVisibility").value="private";
  openMaker();
- $("ugcMakerPrompt").value="";
  $("ugcMakerPreview").hidden=false;
  loadManualTemplate("simple-cost");
-}
-function switchManualDraftToAI(){
- if(!state.editingId||!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
- state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
- void refreshAiEditQuota();
- const editQuota=$("ugcMakerEditQuotaStatus");if(editQuota)editQuota.hidden=false;
- $("ugcMakerPrompt").value="";
- $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator. Its subject and purpose cannot be changed.";
- makerStatus("Ask AI to improve the formulas or calculation detail. This uses your AI improvement allowance and costs 2/4/6 CALC for your active membership.");
- $("ugcMakerPrompt")?.focus();
 }
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
@@ -3171,15 +3783,12 @@ async function init(){
  $("ugcPageInput")?.addEventListener("change",event=>goToCatalogPage(event.target.value));
  $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
- $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcCreateManualButton")?.addEventListener("click",openManualCalculatorMaker);
  $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
  $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
- $("ugcManualAiImproveButton")?.addEventListener("click",switchManualDraftToAI);
  $("ugcBlueprintCopyPrompt")?.addEventListener("click",()=>void copyBlueprintPrompt());
  $("ugcBlueprintImportButton")?.addEventListener("click",importManualBlueprint);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
- $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
  $("ugcDetailBack")?.addEventListener("click",()=>window.closeWorthItUGCCalculator());
@@ -3204,10 +3813,14 @@ async function init(){
   const navActions=$("ugcNavigationActions");
   if(navActions)navActions.hidden=!state.userId;
   state.catalogRequest++;
-  if(state.userId){void loadCatalog();void loadCreatorLeaderboards();}
-  else{state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");state.creatorRequest++;state.creatorData=null;renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
+  if(state.userId){void loadCatalog();void loadCreatorLeaderboards();void refreshUGCSchemaCapabilities();}
+  else{
+   state.v2PersistenceAvailable=false;state.v2CapabilitiesChecked=true;state.v2CapabilitiesRequest++;
+   updateV2PersistenceControls();
+   state.catalog=[];renderCatalog([]);status("Sign in to browse, create and use community calculators.");state.creatorRequest++;state.creatorData=null;renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");
+  }
  });
- if(state.userId)await Promise.all([loadCatalog(),loadCreatorLeaderboards()]);else{status("Sign in to browse, create and use community calculators.");renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
+ if(state.userId)await Promise.all([loadCatalog(),loadCreatorLeaderboards(),refreshUGCSchemaCapabilities()]);else{status("Sign in to browse, create and use community calculators.");renderCreatorLeaderboards(null,"Sign in to discover creators and other community members.");}
 }
 window.loadWorthItUGCCatalog=loadCatalog;
 window.recordWorthItUgcView=async id=>{

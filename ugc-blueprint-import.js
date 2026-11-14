@@ -128,7 +128,8 @@ function prepareBlueprintShape(source){
  Object.keys(raw).forEach(key=>{if(!allowedRoot.has(key))fail("Blueprint contains unsupported property \""+key+"\".");});
  const rootAlias=(preferred,alias)=>raw[preferred]!==undefined?raw[preferred]:raw[alias];
  const version=raw.blueprintVersion===undefined?1:raw.blueprintVersion;
- if(version!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1.");
+ if(version===2)return{blueprint:raw,notes};
+ if(version!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1 or 2.");
  let title=typeof rootAlias("title","name")==="string"?rootAlias("title","name").trim():"";
  if(title.length<3){title="Imported Calculator";notes.push("Added a generic title because the blueprint did not provide a usable title.");}
  if(title.length>70){title=title.slice(0,70).trim();notes.push("Shortened the calculator title to the supported 70-character limit.");}
@@ -426,13 +427,229 @@ function promptCoverageNote(requestText,definition){
  const extra=missing.length>shown.length?" and "+(missing.length-shown.length)+" more":"";
  return "Prompt coverage review: these request keywords were not found in the calculator's title, description, assumptions or input/group/result labels: "+shown.join(", ")+extra+". This local keyword check cannot reliably detect synonyms or prove formula coverage; compare the editable calculator with your original request before saving or publishing.";
 }
+
+function isBlueprintIsoDate(value){
+ if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+ const [year,month,day]=value.split("-").map(Number);
+ const date=new Date(Date.UTC(year,month-1,day));
+ return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
+}
+function normalizeTypedV2Blueprint(root,validateSpec,requestText,notes){
+ const allowedRoot=new Set(["blueprintVersion","title","description","category","subcategories","assumptions","spec"]);
+ rejectUnknownKeys(root,allowedRoot,"Blueprint");
+ if(root.blueprintVersion!==2)fail("V2 blueprints must declare blueprintVersion 2.");
+ const title=requireString(root.title,"Calculator title",3,70);
+ const description=requireString(root.description,"Calculator description",24,500);
+ const category=String(root.category||"");
+ if(!CATEGORIES.has(category))fail("Choose one supported primary category: cars, money, technology, home or other.");
+ const subcategories=root.subcategories===undefined?[]:requireArray(root.subcategories,"Subcategories",12).map((item,index)=>requireString(item,"Subcategory "+(index+1),1,40));
+ if(new Set(subcategories).size!==subcategories.length)fail("Subcategories must be unique.");
+ const assumptions=root.assumptions===undefined?[]:requireArray(root.assumptions,"Assumptions",50).map((item,index)=>requireString(item,"Assumption "+(index+1),1,MAX_ASSUMPTIONS_CHARS));
+ if(assumptions.join("\n").length>MAX_ASSUMPTIONS_CHARS)fail("Assumptions can contain up to 5,000 characters in total.");
+ const rawSpec=requireObject(root.spec,"spec");
+ rejectUnknownKeys(rawSpec,new Set(["schemaVersion","engineVersion","inputs","groups","results","scenarios"]),"spec");
+ if(rawSpec.schemaVersion!==2||rawSpec.engineVersion!==2)fail("A V2 blueprint must declare schemaVersion 2 and engineVersion 2 in spec.");
+ const inputsRaw=requireArray(rawSpec.inputs,"Inputs",24);
+ if(inputsRaw.length<1)fail("A V2 blueprint needs at least one fixed input.");
+ const groupsRaw=rawSpec.groups===undefined?[]:requireArray(rawSpec.groups,"Dynamic groups",4);
+ const resultsRaw=requireArray(rawSpec.results,"Results",20);
+ if(resultsRaw.length<1)fail("A V2 blueprint needs at least one result.");
+ const scenariosRaw=rawSpec.scenarios===undefined?[]:requireArray(rawSpec.scenarios,"Scenarios",3);
+ const executionSpec={schemaVersion:2,engineVersion:2,inputs:[],groups:[],results:[],scenarios:[]};
+ const allKeys=new Set();
+ const registerKey=(value,label)=>{
+  const key=requireString(value,label,1,32);
+  if(!/^[a-z][a-z0-9_]{0,31}$/.test(key))fail(label+" must be a lowercase identifier beginning with a letter.");
+  if(allKeys.has(key))fail(label+" must be unique across the complete blueprint.");
+  allKeys.add(key);
+  return key;
+ };
+ const normalizeChoices=(raw,label,valueType)=>{
+  const choicesRaw=requireArray(raw,label,12);
+  if(choicesRaw.length<2)fail(label+" needs 2–12 choices.");
+  const labels=new Set(),values=new Set();
+  const choices=choicesRaw.map((entry,index)=>{
+   const choice=requireObject(entry,label+" choice "+(index+1));
+   rejectUnknownKeys(choice,CHOICE_KEYS,label+" choice "+(index+1));
+   const choiceLabel=requireString(choice.label,label+" choice label",1,50);
+   const value=valueType==="number"?requireNumber(choice.value,label+" numeric choice value"):requireString(choice.value,label+" enum choice value",1,64);
+   const valueKey=String(value);
+   if(labels.has(choiceLabel.toLowerCase()))fail(label+" choice labels must be unique.");
+   if(values.has(valueKey))fail(label+" choice values must be unique.");
+   labels.add(choiceLabel.toLowerCase());values.add(valueKey);
+   return{label:choiceLabel,value};
+  });
+  return choices;
+ };
+ const normalizeTypedDefinition=(raw,label,kind)=>{
+  const item=requireObject(raw,label);
+  const allowed=kind==="input"
+   ?new Set(["key","label","type","control","min","max","default","step","unit","choices","minDate","maxDate"])
+   :new Set(["key","label","type","min","max","default","step","unit","choices","minDate","maxDate"]);
+  rejectUnknownKeys(item,allowed,label);
+  const key=registerKey(item.key,label+" key");
+  const fieldLabel=requireString(item.label,label+" label",1,60);
+  const type=item.type;
+  if(!["number","boolean","enum","date"].includes(type))fail(label+" must declare type number, boolean, enum or date.");
+  const result={key,label:fieldLabel,type};
+  if(type==="number"){
+   const min=requireNumber(item.min,label+" minimum"),max=requireNumber(item.max,label+" maximum");
+   const value=requireNumber(item.default,label+" default"),step=requireNumber(item.step,label+" step");
+   if(min>value||value>max||max-min>1e12||step<=0)fail(label+" has invalid numeric minimum, maximum, default or step values.");
+   if(!blueprintAligned(value,min,step)||max>min&&!blueprintAligned(max,min,step))fail(label+" default and maximum values must align with its positive step.");
+   result.min=min;result.max=max;result.default=value;result.step=step;
+   if(typeof item.unit!=="string"||item.unit.length>16)fail(label+" must declare a text unit of up to 16 characters (use an empty string when dimensionless).");
+   result.unit=item.unit;
+   if(kind==="input"){
+    if(!["number","slider","select"].includes(item.control))fail(label+" number inputs must use number, slider or select control.");
+    result.control=item.control;
+    if(item.control==="select"){
+     result.choices=normalizeChoices(item.choices,label+" numeric choices","number");
+     const values=result.choices.map(choice=>choice.value);
+     if(!values.includes(value)||Math.min(...values)!==min||Math.max(...values)!==max)fail(label+" numeric choices must contain the default and match its minimum and maximum.");
+     result.choices.forEach((choice,index)=>{
+      if(choice.value<min||choice.value>max||!blueprintAligned(choice.value,min,step))fail(label+" choice "+(index+1)+" is outside the numeric range or step.");
+     });
+    }else if(item.choices!==undefined)fail(label+" can include choices only with the select control.");
+   }else if(item.control!==undefined||item.choices!==undefined)fail(label+" dynamic fields cannot declare input controls or choices.");
+   return result;
+  }
+  if(item.unit!==undefined&&item.unit!=="")fail(label+" non-numeric values cannot declare measurement units.");
+  if(type==="boolean"){
+   if(typeof item.default!=="boolean")fail(label+" boolean default must be true or false.");
+   if(kind==="input"&&item.control!=="toggle")fail(label+" boolean inputs must use the toggle control.");
+   if(kind==="field"&&item.control!==undefined)fail(label+" dynamic fields cannot declare a UI control.");
+   if(["min","max","step","choices","minDate","maxDate"].some(key=>item[key]!==undefined))fail(label+" boolean values cannot declare numeric ranges, choices or date bounds.");
+   result.default=item.default;
+   if(kind==="input")result.control="toggle";
+   if(item.unit!==undefined)result.unit=item.unit;
+   return result;
+  }
+  if(type==="enum"){
+   if(typeof item.default!=="string"||!item.default.trim())fail(label+" enum default must be a non-empty string.");
+   if(kind==="input"&&item.control!=="select")fail(label+" enum inputs must use the select control.");
+   if(kind==="field"&&item.control!==undefined)fail(label+" dynamic fields cannot declare a UI control.");
+   if(["min","max","step","minDate","maxDate"].some(key=>item[key]!==undefined))fail(label+" enum values cannot declare numeric ranges or date bounds.");
+   result.default=item.default;
+   result.choices=normalizeChoices(item.choices,label+" enum choices","enum");
+   if(!result.choices.some(choice=>choice.value===result.default))fail(label+" enum choices must include its default.");
+   if(kind==="input")result.control="select";
+   if(item.unit!==undefined)result.unit=item.unit;
+   return result;
+  }
+  if(type==="date"){
+   if(!isBlueprintIsoDate(item.default))fail(label+" date default must be a real YYYY-MM-DD calendar date.");
+   if(kind==="input"&&item.control!=="date")fail(label+" date inputs must use the date control.");
+   if(kind==="field"&&item.control!==undefined)fail(label+" dynamic fields cannot declare a UI control.");
+   if(["min","max","step","choices"].some(key=>item[key]!==undefined))fail(label+" date values cannot declare numeric ranges or choices.");
+   if(item.minDate!==undefined&&!isBlueprintIsoDate(item.minDate))fail(label+" minimum date must be a real YYYY-MM-DD date.");
+   if(item.maxDate!==undefined&&!isBlueprintIsoDate(item.maxDate))fail(label+" maximum date must be a real YYYY-MM-DD date.");
+   if(item.minDate&&item.maxDate&&item.minDate>item.maxDate)fail(label+" minimum date cannot be later than its maximum date.");
+   if(item.minDate&&item.default<item.minDate)fail(label+" default date is earlier than its minimum.");
+   if(item.maxDate&&item.default>item.maxDate)fail(label+" default date is later than its maximum.");
+   result.default=item.default;
+   if(item.minDate!==undefined)result.minDate=item.minDate;
+   if(item.maxDate!==undefined)result.maxDate=item.maxDate;
+   if(kind==="input")result.control="date";
+   if(item.unit!==undefined)result.unit=item.unit;
+   return result;
+  }
+  return result;
+ };
+ inputsRaw.forEach((raw,index)=>executionSpec.inputs.push(normalizeTypedDefinition(raw,"Input "+(index+1),"input")));
+ groupsRaw.forEach((raw,index)=>{
+  const label="Dynamic group "+(index+1),group=requireObject(raw,label);
+  rejectUnknownKeys(group,GROUP_KEYS,label);
+  const key=registerKey(group.key,label+" key");
+  const groupLabel=requireString(group.label,label+" label",1,60);
+  const itemLabel=group.itemLabel===undefined?"Item":requireString(group.itemLabel,label+" row label",1,40);
+  const minItems=group.minItems===undefined?1:requireNumber(group.minItems,label+" minimum rows");
+  const maxItems=group.maxItems===undefined?10:requireNumber(group.maxItems,label+" maximum rows");
+  if(!Number.isInteger(minItems)||!Number.isInteger(maxItems)||minItems<1||maxItems>20||maxItems<minItems)fail(label+" must allow between 1 and 20 rows.");
+  const fieldsRaw=requireArray(group.fields,label+" fields",6);
+  if(fieldsRaw.length<1)fail(label+" needs 1–6 typed fields.");
+  const fields=fieldsRaw.map((field,index)=>normalizeTypedDefinition(field,label+" field "+(index+1),"field"));
+  executionSpec.groups.push({key,label:groupLabel,itemLabel,minItems,maxItems,fields});
+ });
+ resultsRaw.forEach((raw,index)=>{
+  const label="Result "+(index+1),item=requireObject(raw,label);
+  rejectUnknownKeys(item,RESULT_KEYS,label);
+  const key=registerKey(item.key,label+" key");
+  const resultLabel=requireString(item.label,label+" label",1,70);
+  const expression=requireString(item.expression,label+" formula",1,500);
+  const format=item.format===undefined?"number":item.format;
+  if(!["number","currency","percent","unit"].includes(format))fail(label+" has an unsupported result format.");
+  const result={key,label:resultLabel,expression,format};
+  if(item.explanation!==undefined)result.explanation=requireString(item.explanation,label+" explanation",0,280);
+  if(item.prefix!==undefined)result.prefix=requireString(item.prefix,label+" prefix",0,16);
+  if(item.suffix!==undefined)result.suffix=requireString(item.suffix,label+" suffix",0,16);
+  if(format==="currency"){
+   const currency=requireString(item.currency,label+" currency",3,3).toUpperCase();
+   if(!/^[A-Z]{3}$/.test(currency))fail(label+" must use a three-letter ISO currency code.");
+   result.currency=currency;
+  }else if(format==="unit"){
+   result.unit=requireString(item.unit,label+" unit",1,20);
+  }else if(item.currency!==undefined||item.unit!==undefined)fail(label+" cannot include currency or unit metadata for its selected display format.");
+  executionSpec.results.push(result);
+ });
+ const inputByKey=new Map(executionSpec.inputs.map(item=>[item.key,item]));
+ scenariosRaw.forEach((raw,index)=>{
+  const label="Scenario "+(index+1),scenario=requireObject(raw,label);
+  rejectUnknownKeys(scenario,SCENARIO_KEYS,label);
+  const scenarioLabel=requireString(scenario.label,label+" label",2,50);
+  const valuesRaw=requireObject(scenario.values,label+" values");
+  if(!Object.keys(valuesRaw).length)fail(label+" needs at least one typed input override.");
+  const values={};
+  Object.keys(valuesRaw).forEach(key=>{
+   if(!inputByKey.has(key))fail(label+" references an unknown input: "+key+".");
+   const input=inputByKey.get(key),value=valuesRaw[key];
+   if(input.type==="number")values[key]=requireNumber(value,label+" value for "+key);
+   else if(input.type==="boolean"){
+    if(typeof value!=="boolean")fail(label+" value for "+key+" must be true or false.");
+    values[key]=value;
+   }else if(input.type==="enum"){
+    if(typeof value!=="string"||!input.choices.some(choice=>choice.value===value))fail(label+" value for "+key+" must match a declared enum choice.");
+    values[key]=value;
+   }else{
+    if(!isBlueprintIsoDate(value))fail(label+" value for "+key+" must be a real YYYY-MM-DD calendar date.");
+    if(input.minDate&&value<input.minDate||input.maxDate&&value>input.maxDate)fail(label+" value for "+key+" is outside its date bounds.");
+    values[key]=value;
+   }
+  });
+  executionSpec.scenarios.push({label:scenarioLabel,values});
+ });
+ if(typeof validateSpec!=="function")fail("The calculator validator is unavailable. Please reload Manual Builder.");
+ let validation={errors:[]};
+ try{
+  const checked=validateSpec(executionSpec);
+  validation={errors:Array.isArray(checked?.errors)?checked.errors.map(String):["The typed V2 validator returned an invalid response."]};
+ }catch(error){
+  validation={errors:["The typed V2 validator could not complete: "+String(error?.message||"unknown validation error.")]};
+ }
+ const spec={...executionSpec,subcategories,assumptions};
+ const definition={title,description,category,spec};
+ const originalRequest=typeof requestText==="string"?requestText.trim():"";
+ const coverageNote=promptCoverageNote(originalRequest,definition);
+ if(coverageNote)notes.unshift(coverageNote);
+ if(!validation.errors.length){
+  notes.unshift("Typed V2 Quick Check passed: the strict schema, formula types, units and the configured validator's default-value checks passed. Review the imported assumptions and run the local typed test before using the calculator.");
+ }else{
+  definition.importValidationIssues=validation.errors.slice(0,20);
+  definition.importValidationIssueCount=validation.errors.length;
+  notes.unshift("Typed V2 blueprint imported as an editable local draft. "+validation.errors.length+" validation item(s) need review. Original formula text and typed values were preserved; V2 Save and Publish remain disabled.");
+ }
+ if(notes.length)definition.importNotes=notes.slice(0,20);
+ return definition;
+}
+
 function normalizeBlueprint(source,validateSpec,requestText){
  const prepared=prepareBlueprintShape(source);
  source=prepared.blueprint;
  const compatibilityNotes=prepared.notes.slice();
  const rootValue=requireObject(source,"Blueprint");
  rejectUnknownKeys(rootValue,new Set(["blueprintVersion","title","description","category","subcategories","spec","assumptions"]),"Blueprint");
- if(rootValue.blueprintVersion!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1.");
+ if(rootValue.blueprintVersion===2)return normalizeTypedV2Blueprint(rootValue,validateSpec,requestText,compatibilityNotes);
+ if(rootValue.blueprintVersion!==1)fail("Unsupported blueprint version. Please use blueprintVersion 1 or 2.");
  const title=requireString(rootValue.title,"Calculator title",3,70);
  let description=requireString(rootValue.description,"Calculator description",24,500);
  const category=String(rootValue.category||"");
@@ -820,7 +1037,55 @@ function parseBlueprint(text,validateSpec,requestText){
  if(originalRequest.length>5000)fail("The original calculator request can contain up to 5,000 characters.");
  return normalizeBlueprint(parsed,validateSpec,originalRequest);
 }
-function buildPrompt(){
+function buildTypedV2Prompt(){
+ return [
+  "You are producing a data-only, safe Worth It Calculator Engine V2 blueprint.",
+  "Return exactly one valid JSON object with no Markdown fences, headings, comments, or explanatory text before or after it. Use ordinary JSON syntax, finite JSON numbers, and no trailing commas.",
+  "The root must use blueprintVersion 2 and contain only these keys: blueprintVersion, title, description, category, subcategories, assumptions, spec.",
+  JSON.stringify({
+   blueprintVersion:2,
+   title:"Calculator title",
+   description:"Explain what the calculator measures and its key assumptions in at least 24 characters.",
+   category:"other",
+   subcategories:["general-comparison"],
+   assumptions:["State important assumptions, exclusions and limitations as plain text."],
+   spec:{
+    schemaVersion:2,engineVersion:2,
+    inputs:[
+     {key:"amount",label:"Amount",type:"number",control:"number",min:0,max:1000,default:100,step:1,unit:"EUR"},
+     {key:"enabled",label:"Enabled",type:"boolean",control:"toggle",default:true},
+     {key:"plan",label:"Plan",type:"enum",control:"select",default:"basic",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+     {key:"start_date",label:"Start date",type:"date",control:"date",default:"2026-01-01"}
+    ],
+    groups:[],
+    results:[{key:"total",label:"Total",expression:"if(enabled, amount, 0)",format:"currency",currency:"EUR",explanation:"Explain the numeric result."}],
+    scenarios:[{label:"Alternative",values:{enabled:false,plan:"basic"}}]
+   }
+  },null,2),
+  "The spec object contains only schemaVersion, engineVersion, inputs, groups, results and scenarios. It must declare schemaVersion 2 and engineVersion 2 exactly. The top-level blueprintVersion must be 2. Do not mix V1 and V2 schemas.",
+  "Limits: title 3–70 characters; description 24–500 characters; subcategories 1–3 unique IDs from the selected primary category; assumptions up to 50 text entries and 5,000 characters total; 1–24 inputs; up to 4 groups; 1–20 results; up to 3 scenarios; formula text up to 500 characters.",
+  "Use unique lowercase variable keys matching ^[a-z][a-z0-9_]{0,31}$ across all inputs, group names, group fields and results. Never use reserved function names as keys. Every fixed input and every dynamic group field must be referenced by at least one result formula, including values used only inside a condition.",
+  "Every input has key, label, type and control. Supported types are number, boolean, enum and date. Number inputs use control number, slider or select and require finite min, max, default, positive step and a unit string (use an empty string for dimensionless). Require min <= default <= max; default and maximum must align with step. A numeric select uses 2–12 unique label/value choices, min/max equal the extreme values, and default equal one choice.",
+  "Boolean inputs use type boolean, control toggle and a true/false default. They must not have numeric range, unit, choice or date-bound properties.",
+  "Enum inputs use type enum, control select, a non-empty string default, and 2–12 choices with unique labels and unique non-empty string values. The default must exactly match a declared choice. Do not use numeric enum values.",
+  "Date inputs use type date, control date and a real calendar date in YYYY-MM-DD format. Optional minDate and maxDate use the same format and must contain the default date. Do not add time, timezone, timestamp, numeric ranges or units.",
+  "Groups use only key, label, itemLabel, minItems, maxItems and fields. Each group must have 1–20 rows and 1–6 fields. Each field uses a typed definition: number fields require finite min/max/default/positive step and an explicit unit string; boolean fields require a strict true/false default; enum fields require a string default and 2–12 declared choices; date fields require a real YYYY-MM-DD default. Group fields do not declare UI controls. Non-numeric fields must not declare numeric units or ranges.",
+  "Scenarios use only label and values. Each scenario must override at least one existing fixed input. Preserve primitive types exactly: number as JSON number, boolean as JSON true/false, enum as one declared string choice, and date as a real YYYY-MM-DD string within any declared date bounds. Scenarios do not override dynamic group rows or result values.",
+  "Results use only key, label, expression, format, currency, unit, prefix, suffix and explanation. Use 1–20 results. Every result must be a finite numeric expression; boolean, enum and date values may be used in conditions and intermediate expressions but never as a final result. Results run top to bottom and can reference inputs, dynamic group fields and only earlier result keys. Currency results must declare a three-letter ISO currency code; unit results must declare the exact resulting unit; do not add currency/unit fields to unrelated formats.",
+  "V2 formulas are declarative only. Supported operators are +, -, *, /, ^, parentheses and unary signs. Supported numeric functions include min, max, abs, round, floor, ceil, sqrt, pow, clamp, avg, sum, count, mod, trunc, sign, hypot, log, ln, exp, sin, cos, tan, asin, acos and atan. Use ordinary * for multiplication.",
+  "Typed logic and comparison functions: if, gt, gte, lt, lte, eq, neq, and, or, not. if() requires a boolean condition and matching result branch types. Comparisons never coerce booleans, enum values, dates or numeric strings. Enum string literals must match the declared choices exactly. Ordered comparisons support compatible numbers or calendar dates.",
+  "Calendar functions: date_diff_days, add_days, add_months, days_in_month, calendar_year, calendar_month and weekday. Dates are calendar-only values with no timezone or instant semantics. add_days/add_months offsets must be whole numbers when written as constants; dynamic offsets must use the matching day/days or month/months unit.",
+  "Dynamic group aggregations: sum(group.field), avg(group.field), min(group.field), max(group.field), count(group), sum_if(value_expression, boolean_predicate) and count_if(boolean_predicate). sum_if/count_if must reference fields from exactly one group, and sum_if's value and predicate must refer to the same group. Do not mix group references.",
+  "Unit algebra is strict. Addition/subtraction and comparisons require compatible units. Multiplication multiplies dimensions; division divides them. Numeric constants do not inherit units through multiplication or division. Currency codes are not interchangeable. Unknown unit atoms are opaque and must match exactly. Never invent conversions or exchange rates.",
+  "Use finite bounded defaults and guard all divisions whose denominator may be zero. Do not rely on hidden constants for market prices, rates or exchange rates. State conservative assumptions and exclusions explicitly.",
+  "Security: never return JavaScript, Python, SQL, HTML, CSS, callbacks, URLs, network instructions, files, scripts, loops, recursion, arbitrary code, custom functions or external-service instructions. Only the supported declarative schema and formula grammar are allowed.",
+  "Before returning, validate every type, primitive, key, choice, bound, date, scenario and formula reference. Confirm formulas are statically type-safe, units match outputs, dependencies point backwards, and every default input/group combination produces finite numeric results.",
+  "Follow the user's actual request, not the example above. Preserve all supported requirements and do not silently omit important features. Do not invent prices, live data, external sources, conversion rates or guarantees. If a requested capability cannot be represented, implement the supported parts and state the limitation in assumptions."
+ ].join("\n\n")+"\n\nUSER'S ACTUAL CALCULATOR REQUEST:\n";
+}
+
+function buildPrompt(version){
+ if(Number(version)===2)return buildTypedV2Prompt();
  return [
   "You are designing a data-only calculator blueprint for Worth It Manual Builder.",
   "GOAL: Turn the user's actual calculator request into a complete, correct and useful calculator. The subject may be any domain. These instructions define the output format and safety limits; they do not prescribe a calculator topic.",

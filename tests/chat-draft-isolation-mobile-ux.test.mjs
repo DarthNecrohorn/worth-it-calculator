@@ -5,7 +5,6 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const chat = readFileSync(new URL("../chat-ui.js", import.meta.url), "utf8");
 const calls = readFileSync(new URL("../chat-enhancements.js", import.meta.url), "utf8");
-const ai = readFileSync(new URL("../ai-ui.js", import.meta.url), "utf8");
 const polish = readFileSync(new URL("../chat-ux-polish.css", import.meta.url), "utf8");
 const enhancementCss = readFileSync(new URL("../chat-enhancements.css", import.meta.url), "utf8");
 const baseChatCss = readFileSync(new URL("../style.css", import.meta.url), "utf8");
@@ -95,16 +94,6 @@ test("emoji selections keep the unified media picker open unless a picker action
     assert.match(chat, /function closeWorthItChatPickers\(\)\s*\{[\s\S]*?const picker = \$\("worthItChatMediaPicker"\);[\s\S]*?if \(picker\) picker\.hidden = true;/);
     assert.doesNotMatch(chat, /worthItChatPlusMenu|Only the transient attachment menu closes/);
     assert.match(chat, /\$\("worthItChatMediaClose"\)\?\.addEventListener\("click", closeWorthItChatPickers\)/);
-});
-
-test("Worth It AI closes only through explicit close actions, not backdrop clicks", () => {
-    const start = ai.indexOf('$("aiChatOverlay")?.addEventListener');
-    const end = ai.indexOf("document.addEventListener", start);
-    const handler = ai.slice(start, end);
-    assert.match(handler, /event\.target === event\.currentTarget/);
-    assert.doesNotMatch(handler, /closeAIChat\(\)/);
-    assert.match(ai, /function closeAIChat\(\)/);
-    assert.match(html, /class="ai-chat-close" onclick="closeAIChat\(\)"/);
 });
 
 test("received message bubbles hug short text and wrap long text within the chat width", () => {
@@ -209,17 +198,16 @@ test("chat wallpaper uses collision-safe random placement, varied sizes and scat
     assert.match(polish, /\.worth-it-chat-reply-close\s*\{\s*transform: translateY\(-1px\)/);
 });
 
-test("the broken audioOnly reference is removed and asset caches point to the new builds", () => {
+test("the broken audioOnly reference is removed, chat assets remain current and AI Chat is restored", () => {
     assert.doesNotMatch(calls, /audioOnly/);
     assert.match(html, /chat-ui\.js\?v=chat-private-media-signed-access-20261030a/);
     assert.match(html, /chat-enhancements\.js\?v=chat-wallpaper-collision-packed-20261030a/);
     assert.match(html, /chat-enhancements\.css\?v=chat-safety-note-wallpaper-density-20261029a/);
     assert.match(enhancementCss, /background-repeat:no-repeat,repeat-y!important/);
     assert.match(html, /chat-ux-polish\.css\?v=chat-message-profile-hit-targets-20261029a/);
-    assert.match(html, /ai-ui\.js\?v=worthit-ai-overlay-20261029b/);
-    assert.match(polish, /#aiChatOverlay \.ai-chat-close\s*\{\s*transform: translateY\(2px\)/);
-    assert.match(polish, /#aiChatNavBtn\.ai-chat-nav-btn\s*\{[\s\S]*?width: 42px/);
-    assert.match(polish, /#aiChatOverlay \.ai-chat-close/);
+    assert.match(html, /ai-ui\.js\?v=worthit-ai-chat-restored-20261114a/);
+    assert.match(html, /id="aiChatOverlay"/);
+    assert.match(html, /id="aiChatNavBtn"/);
 });
 
 

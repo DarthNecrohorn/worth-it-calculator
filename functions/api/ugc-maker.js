@@ -1,10 +1,15 @@
 import "../../ugc-calculator-currency-data.js";
 import "../../ugc-calculator-engine.js";
+import "../../ugc-blueprint-import.js";
+import { validateCalculatorForServer } from "../lib/ugc-calculator-validation.js";
 
 const SITE_ORIGIN = "https://worth-it-calculator.pages.dev";
 const GROQ_MODEL = "openai/gpt-oss-120b";
+const GROQ_TOKEN_LIMIT_FALLBACK_MODEL = "llama-3.3-70b-versatile";
 const GEMINI_MODEL = "gemini-3.8-flash";
-const MAX_PROMPT_CHARS = 1000;
+const GEMINI_THINKING_LEVEL = "medium";
+const GROQ_REASONING_EFFORT = "low";
+const MAX_PROMPT_CHARS = 5000;
 const UGC_MAKER_DIAGNOSTIC_VERSION = "2026-11-11-autonomous-quality-v3";
 const serverCurrencyData=globalThis.WorthItCalculatorCurrencyData;
 const serverEngineApi=globalThis.WorthItCalculatorEngine;
@@ -23,151 +28,92 @@ const ALLOWED_SUBCATEGORIES = {
  home:new Set(["utilities-energy","rent-housing","home-buying","renovation-repairs","home-appliances","home-maintenance","household-budget"]),
  other:new Set(["travel","education-career","health-fitness","food-groceries","business","lifestyle","general-comparison"])
 };
-const GROQ_CALCULATOR_RESPONSE_SCHEMA = {
-    name: "worth_it_calculator",
-    strict: true,
-    schema: {
-        type: "object",
-        properties: {
-            title: { type: "string" },
-            description: { type: "string" },
-            classification: {
-                type: "object",
-                properties: {
-                    category: { type: "string", enum: [...ALLOWED_CATEGORIES] },
-                    subcategories: {
-                        type: "array",
-                        minItems: 1,
-                        maxItems: 3,
-                        items: {
-                            type: "string",
-                            enum: [...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]
-                        }
-                    }
+const V2_VALUE_SCHEMA={
+    anyOf:[{type:"number"},{type:"boolean"},{type:"string"}]
+};
+const V2_CHOICE_SCHEMA={
+    type:"object",
+    properties:{label:{type:"string"},value:{anyOf:[{type:"number"},{type:"string"}]}},
+    required:["label","value"],
+    additionalProperties:false
+};
+const V2_TYPED_DEFINITION_SCHEMA={
+    type:"object",
+    properties:{
+        key:{type:"string"},label:{type:"string"},
+        type:{type:"string",enum:["number","boolean","enum","date"]},
+        control:{type:["string","null"],enum:["number","slider","select","toggle","date",null]},
+        min:{type:["number","null"]},max:{type:["number","null"]},default:V2_VALUE_SCHEMA,
+        step:{type:["number","null"]},unit:{type:["string","null"]},
+        choices:{type:"array",maxItems:12,items:V2_CHOICE_SCHEMA},
+        minDate:{type:["string","null"]},maxDate:{type:["string","null"]}
+    },
+    required:["key","label","type","control","min","max","default","step","unit","choices","minDate","maxDate"],
+    additionalProperties:false
+};
+const V2_TYPED_FIELD_SCHEMA={
+    type:"object",
+    properties:{
+        key:{type:"string"},label:{type:"string"},
+        type:{type:"string",enum:["number","boolean","enum","date"]},
+        min:{type:["number","null"]},max:{type:["number","null"]},default:V2_VALUE_SCHEMA,
+        step:{type:["number","null"]},unit:{type:["string","null"]},
+        choices:{type:"array",maxItems:12,items:V2_CHOICE_SCHEMA},
+        minDate:{type:["string","null"]},maxDate:{type:["string","null"]}
+    },
+    required:["key","label","type","min","max","default","step","unit","choices","minDate","maxDate"],
+    additionalProperties:false
+};
+const GROQ_TYPED_V2_BLUEPRINT_SCHEMA={
+    name:"worth_it_typed_v2_calculator",strict:true,
+    schema:{
+        type:"object",
+        properties:{
+            blueprintVersion:{type:"integer",enum:[2]},title:{type:"string"},description:{type:"string"},
+            category:{type:"string",enum:[...ALLOWED_CATEGORIES]},
+            subcategories:{type:"array",minItems:1,maxItems:3,items:{type:"string",enum:[...new Set(Object.values(ALLOWED_SUBCATEGORIES).flatMap(values=>[...values]))]}},
+            assumptions:{type:"array",maxItems:50,items:{type:"string"}},
+            spec:{
+                type:"object",
+                properties:{
+                    schemaVersion:{type:"integer",enum:[2]},engineVersion:{type:"integer",enum:[2]},
+                    inputs:{type:"array",minItems:1,maxItems:24,items:V2_TYPED_DEFINITION_SCHEMA},
+                    groups:{type:"array",maxItems:4,items:{
+                        type:"object",
+                        properties:{
+                            key:{type:"string"},label:{type:"string"},itemLabel:{type:"string"},
+                            minItems:{type:"integer"},maxItems:{type:"integer"},
+                            fields:{type:"array",minItems:1,maxItems:6,items:V2_TYPED_FIELD_SCHEMA}
+                        },
+                        required:["key","label","itemLabel","minItems","maxItems","fields"],additionalProperties:false
+                    }},
+                    results:{type:"array",minItems:1,maxItems:20,items:{
+                        type:"object",
+                        properties:{
+                            key:{type:"string"},label:{type:"string"},expression:{type:"string"},
+                            format:{type:"string",enum:["number","currency","percent","unit"]},
+                            currency:{type:["string","null"]},unit:{type:["string","null"]},
+                            prefix:{type:"string"},suffix:{type:"string"},explanation:{type:"string"}
+                        },
+                        required:["key","label","expression","format","currency","unit","prefix","suffix","explanation"],
+                        additionalProperties:false
+                    }},
+                    scenarios:{type:"array",maxItems:3,items:{
+                        type:"object",
+                        properties:{label:{type:"string"},overrides:{type:"array",minItems:1,maxItems:24,items:{
+                            type:"object",properties:{key:{type:"string"},value:V2_VALUE_SCHEMA},
+                            required:["key","value"],additionalProperties:false
+                        }}},
+                        required:["label","overrides"],additionalProperties:false
+                    }}
                 },
-                required: ["category","subcategories"],
-                additionalProperties: false
-            },
-            inputs: {
-                type: "array",
-                minItems: 1,
-                maxItems: 24,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        min: { type: "number" },
-                        max: { type: "number" },
-                        default: { type: "number" },
-                        step: { type: "number" },
-                        unit: { type: "string" },
-                        control: { type: "string", enum: ["number","slider","select","toggle"] },
-                        choices: {
-                            type: "array",
-                            maxItems: 12,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    label: { type: "string" },
-                                    value: { type: "number" }
-                                },
-                                required: ["label","value"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["key","label","min","max","default","step","unit","control","choices"],
-                    additionalProperties: false
-                }
-            },
-            groups: {
-                type: "array",
-                maxItems: 4,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        itemLabel: { type: "string" },
-                        minItems: { type: "integer" },
-                        maxItems: { type: "integer" },
-                        fields: {
-                            type: "array",
-                            minItems: 1,
-                            maxItems: 6,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    key: { type: "string" },
-                                    label: { type: "string" },
-                                    min: { type: "number" },
-                                    max: { type: "number" },
-                                    default: { type: "number" },
-                                    step: { type: "number" },
-                                    unit: { type: "string" }
-                                },
-                                required: ["key","label","min","max","default","step","unit"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["key","label","itemLabel","minItems","maxItems","fields"],
-                    additionalProperties: false
-                }
-            },
-            results: {
-                type: "array",
-                minItems: 1,
-                maxItems: 20,
-                items: {
-                    type: "object",
-                    properties: {
-                        key: { type: "string" },
-                        label: { type: "string" },
-                        expression: { type: "string" },
-                        format: { type: "string", enum: ["number","currency","percent","unit"] },
-                        currency: { type: "string" },
-                        unit: { type: "string" },
-                        prefix: { type: "string" },
-                        suffix: { type: "string" },
-                        explanation: { type: "string" }
-                    },
-                    required: ["key","label","expression","format","currency","unit","prefix","suffix","explanation"],
-                    additionalProperties: false
-                }
-            },
-            scenarios: {
-                type: "array",
-                maxItems: 3,
-                items: {
-                    type: "object",
-                    properties: {
-                        label: { type: "string" },
-                        overrides: {
-                            type: "array",
-                            minItems: 1,
-                            maxItems: 24,
-                            items: {
-                                type: "object",
-                                properties: {
-                                    key: { type: "string" },
-                                    value: { type: "number" }
-                                },
-                                required: ["key","value"],
-                                additionalProperties: false
-                            }
-                        }
-                    },
-                    required: ["label","overrides"],
-                    additionalProperties: false
-                }
+                required:["schemaVersion","engineVersion","inputs","groups","results","scenarios"],additionalProperties:false
             }
         },
-        required: ["title","description","classification","inputs","groups","results","scenarios"],
-        additionalProperties: false
+        required:["blueprintVersion","title","description","category","subcategories","assumptions","spec"],additionalProperties:false
     }
 };
+
 const COUNTRY_DEFAULTS = {
  US:["USD","en-US"],GB:["GBP","en-GB"],CA:["CAD","en-CA"],AU:["AUD","en-AU"],NZ:["NZD","en-NZ"],
  CH:["CHF","de-CH"],JP:["JPY","ja-JP"],CN:["CNY","zh-CN"],IN:["INR","en-IN"],PL:["PLN","pl-PL"],
@@ -312,6 +258,21 @@ function nullableUsageNumber(value){
 export function createAiUsageCollector(){
     return {attempts:[]};
 }
+function providerFailureCode(error,provider){
+    const message=String(error?.message||"");
+    const status=message.match(new RegExp(provider+" calculator generation failed \\((\\d{3})\\)","i"));
+    if(status){
+        if(status[1]==="400"){
+            const detailCode=message.match(/"code"\s*:\s*"([a-z0-9_-]{1,48})"/i)?.[1];
+            if(detailCode)return "PROVIDER_"+detailCode.replace(/[^a-z0-9]+/gi,"_").toUpperCase();
+        }
+        return "HTTP_"+status[1];
+    }
+    if(/token limit|truncated/i.test(message))return "OUTPUT_TOKEN_LIMIT";
+    if(/empty calculator definition/i.test(message))return "EMPTY_RESPONSE";
+    if(/timeout|aborted|network|fetch failed/i.test(message))return "NETWORK_ERROR";
+    return "PROVIDER_ERROR";
+}
 export function recordAiUsageAttempt(collector,attempt){
     if(!collector||!Array.isArray(collector.attempts))return;
     const inputTokens=nullableUsageNumber(attempt.inputTokens);
@@ -334,7 +295,8 @@ export function recordAiUsageAttempt(collector,attempt){
             ?Number((boundedCachedInputTokens/inputTokens*100).toFixed(2))
             :cacheUsageKnown?0:null,
         finishReason:typeof attempt.finishReason==="string"?attempt.finishReason:null,
-        httpStatus:nullableUsageNumber(attempt.httpStatus)
+        httpStatus:nullableUsageNumber(attempt.httpStatus),
+        failureCode:typeof attempt.failureCode==="string"?attempt.failureCode:null
     });
 }
 export function summarizeAiUsage(collector){
@@ -375,6 +337,48 @@ function jsonWithAiUsage(data,status,origin,collector){
     const aiUsage=summarizeAiUsage(collector);
     return json(aiUsage.attemptCount?{...data,aiUsage}:data,status,origin);
 }
+export function summarizeAiCandidateForDiagnostics(candidate,schemaVersion=1){
+    if(!candidate||typeof candidate!=="object"||Array.isArray(candidate))return null;
+    const spec=candidate.spec&&typeof candidate.spec==="object"?candidate.spec:candidate;
+    const boundedString=(value,max=500)=>String(value??"").trim().slice(0,max);
+    const inputs=Array.isArray(spec.inputs)?spec.inputs.slice(0,24).map(item=>({
+        key:boundedString(item?.key,32),
+        label:boundedString(item?.label,60),
+        type:boundedString(item?.type||"number",16),
+        control:boundedString(item?.control||"number",16),
+        unit:boundedString(item?.unit,24),
+        min:Number.isFinite(Number(item?.min))?Number(item.min):null,
+        max:Number.isFinite(Number(item?.max))?Number(item.max):null,
+        step:Number.isFinite(Number(item?.step))?Number(item.step):null
+    })):[];
+    const groups=Array.isArray(spec.groups)?spec.groups.slice(0,4).map(group=>({
+        key:boundedString(group?.key,32),
+        label:boundedString(group?.label,60),
+        fields:Array.isArray(group?.fields)?group.fields.slice(0,6).map(field=>({
+            key:boundedString(field?.key,32),
+            label:boundedString(field?.label,60),
+            type:boundedString(field?.type||"number",16),
+            unit:boundedString(field?.unit,24)
+        })):[]
+    })):[];
+    const results=Array.isArray(spec.results)?spec.results.slice(0,20).map(item=>({
+        key:boundedString(item?.key,32),
+        label:boundedString(item?.label,70),
+        expression:boundedString(item?.expression,500),
+        format:boundedString(item?.format,16),
+        currency:boundedString(item?.currency,3),
+        unit:boundedString(item?.unit,24)
+    })):[];
+    return {
+        schemaVersion:Number(schemaVersion)===2?2:1,
+        title:boundedString(candidate.title,70),
+        category:boundedString(candidate.category||candidate.classification?.category,24),
+        inputs,
+        groups,
+        results,
+        scenarioCount:Array.isArray(spec.scenarios)?Math.min(3,spec.scenarios.length):0
+    };
+}
 function allowedOrigin(request){
     const origin=request.headers.get("Origin")||new URL(request.url).origin;
     if(origin===SITE_ORIGIN)return origin;
@@ -388,9 +392,9 @@ function tokenFrom(request){
     const header=request.headers.get("Authorization")||"";
     return header.startsWith("Bearer ")?header.slice(7).trim():"";
 }
-async function reserveAiOperation(env,token,requestId,mode,calculatorId){
+async function reserveAiOperation(env,token,requestId,mode,calculatorId,schemaVersion=1){
     return normalizeRpcObject(await userRpc(env,token,"reserve_worth_it_ugc_ai_operation",{
-        p_request_id:requestId,p_mode:mode,p_calculator_id:calculatorId||null
+        p_request_id:requestId,p_mode:mode,p_calculator_id:calculatorId||null,p_schema_version:schemaVersion
     }));
 }
 async function refundAiOperationReservation(env,token,requestId,mode){
@@ -403,10 +407,10 @@ async function settleAiOperationReservation(env,token,requestId,mode){
         p_request_id:requestId,p_mode:mode
     }));
 }
-async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="initial-generation"){
+async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
-    const record=(success)=>{
+    const record=(success,error=null)=>{
         if(recorded)return;
         const usage=data?.usageMetadata||{};
         recordAiUsageAttempt(usageCollector,{
@@ -421,7 +425,8 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
             totalTokens:usage.totalTokenCount,
             cachedInputTokens:usage.cachedContentTokenCount,
             finishReason:data?.candidates?.[0]?.finishReason||null,
-            httpStatus
+            httpStatus,
+            failureCode:success?null:providerFailureCode(error,"Gemini")
         });
         recorded=true;
     };
@@ -434,7 +439,7 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
                 body:JSON.stringify({
                     systemInstruction:{parts:[{text:system}]},
                     contents:[{role:"user",parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:"high"}}
+                    generationConfig:{maxOutputTokens:Number(schemaVersion)===2?16384:8192,responseMimeType:"application/json",thinkingConfig:{thinkingLevel:GEMINI_THINKING_LEVEL}}
                 })
             }
         );
@@ -451,19 +456,19 @@ async function generateWithGemini(apiKey,system,prompt,usageCollector,stage="ini
         record(true);
         return content;
     }catch(error){
-        record(false);
+        record(false,error);
         throw error;
     }
 }
-async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation"){
+async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1,model=GROQ_MODEL){
     const startedAt=Date.now();
     let data=null,httpStatus=null,recorded=false;
-    const record=(success)=>{
+    const record=(success,error=null)=>{
         if(recorded)return;
         const usage=data?.usage||{};
         recordAiUsageAttempt(usageCollector,{
             provider:"groq",
-            model:data?.model||GROQ_MODEL,
+            model:data?.model||model,
             stage,
             success,
             durationMs:Date.now()-startedAt,
@@ -473,12 +478,25 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             totalTokens:usage.total_tokens,
             cachedInputTokens:usage.prompt_tokens_details?.cached_tokens,
             finishReason:data?.choices?.[0]?.finish_reason||null,
-            httpStatus
+            httpStatus,
+            failureCode:success?null:providerFailureCode(error,"Groq")
         });
         recorded=true;
     };
     try{
-        const groqSystem=[
+        const typedV2=Number(schemaVersion)===2;
+        const jsonOutputRule="Output contract: return ONLY one complete JSON object. Do not return Markdown fences, prose, explanations, comments or any text before or after the JSON object. Use valid JSON strings and escape all quotation marks and newlines correctly.";
+        const groqSystem=typedV2?[
+            jsonOutputRule,
+            system,
+            "For this provider use the canonical Blueprint V2 root: blueprintVersion, title, description, category, subcategories, assumptions, spec. Never use classification or the V1 numeric schema.",
+            "spec must contain schemaVersion 2, engineVersion 2, inputs, groups, results and scenarios.",
+            "Every typed input includes key, label, type, control, min, max, default, step, unit, choices, minDate and maxDate. Set irrelevant optional values to null and unused choice arrays to []. Use strict number, boolean, enum and date types. Numeric controls are number, slider or select; boolean uses toggle; enum uses select; date uses date.",
+            "Every dynamic group field uses the typed field shape without a control property. Number fields require finite bounds/default/step and a unit string. Boolean defaults are JSON booleans, enum values are strings and dates are YYYY-MM-DD.",
+            "Provider-specific scenario shape: scenarios contain label and overrides arrays of {key,value}. The server converts these into canonical spec.scenarios[].values. Preserve primitive types exactly.",
+            "For monetary numeric values without an explicit prompt amount, use number controls and zero defaults. Never put monetary amounts in enum or boolean values.",
+            "All values must obey the full V2 contract in the system instructions. Null is only a placeholder for irrelevant optional schema properties, never a calculator value."
+        ].join(" "):[
             system,
             "For this provider, the root JSON object must have exactly these keys: title, description, classification, inputs, groups, results and scenarios. This provider-specific root shape overrides the shared prompt's generic category/subcategories root-field instruction.",
             "Put the primary category and its subcategories together inside the root field named classification.",
@@ -486,17 +504,25 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
             "Never use an empty subcategories array, never mix subcategories from different categories, and never put category or subcategory fields at the root level.",
             "Keep title, description, inputs, groups, results and scenarios as root fields. Use empty arrays when no dynamic groups or comparison scenarios are needed. The server converts classification into the calculator's saved category fields."
         ].join(" ");
+        const providerRequest={
+            model,
+            temperature:0.15,
+            max_completion_tokens:typedV2?16384:8192,
+            messages:[{role:"user",content:[jsonOutputRule,groqSystem,"Calculator request:",prompt].join(String.fromCharCode(10))}]
+        };
+        if(model===GROQ_MODEL){
+            providerRequest.reasoning_effort=GROQ_REASONING_EFFORT;
+            // GPT-OSS uses include_reasoning; reasoning_format is not supported by this model.
+            providerRequest.include_reasoning=false;
+        }else if(model===GROQ_TOKEN_LIMIT_FALLBACK_MODEL){
+            // This non-reasoning recovery model supports JSON Object Mode. Server-side
+            // V1/V2 parsing and validation still remain authoritative.
+            providerRequest.response_format={type:"json_object"};
+        }
         const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
             method:"POST",
             headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
-            body:JSON.stringify({
-                model:GROQ_MODEL,
-                temperature:0.15,
-                max_tokens:8192,
-                reasoning_effort:"high",
-                response_format:{type:"json_schema",json_schema:GROQ_CALCULATOR_RESPONSE_SCHEMA},
-                messages:[{role:"system",content:groqSystem},{role:"user",content:prompt}]
-            })
+            body:JSON.stringify(providerRequest)
         });
         httpStatus=response.status;
         if(!response.ok){
@@ -526,8 +552,20 @@ async function generateWithGroq(apiKey,system,prompt,usageCollector,stage="initi
         record(true);
         return normalized;
     }catch(error){
-        record(false);
+        record(false,error);
         throw error;
+    }
+}
+async function generateWithGroqWithTokenRecovery(apiKey,system,prompt,usageCollector,stage="initial-generation",schemaVersion=1){
+    try{
+        return await generateWithGroq(apiKey,system,prompt,usageCollector,stage,schemaVersion);
+    }catch(error){
+        if(providerFailureCode(error,"Groq")!=="OUTPUT_TOKEN_LIMIT")throw error;
+        console.warn("Groq GPT-OSS exhausted its completion-token budget; retrying once with the non-reasoning JSON model.");
+        return generateWithGroq(
+            apiKey,system,prompt,usageCollector,"token-limit-recovery",schemaVersion,
+            GROQ_TOKEN_LIMIT_FALLBACK_MODEL
+        );
     }
 }
 async function verifyUser(env,token){
@@ -609,40 +647,13 @@ function findMissingRequestedCoverage(prompt,raw){
  return [...new Set(missing)];
 }
 export async function onRequestGet(context){
- const request=context.request;
- const origin=allowedOrigin(request);
- if(!origin)return json({success:false,error:"This Preview diagnostic is available only from a Worth It Pages origin."},403,SITE_ORIGIN);
- const url=new URL(request.url);
- if(url.searchParams.get("diagnostic")!=="coverage")return json({success:false,error:"Use diagnostic=coverage."},405,origin);
- const prompt=url.searchParams.get("prompt")||"";
- if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Provide the calculator prompt (up to 1000 characters)."},400,origin);
- const requestedResultItems=extractRequestedResultItems(prompt);
- let suppliedLabels=[];
- const rawLabels=url.searchParams.get("labels");
- if(rawLabels){
-  try{
-   const parsed=JSON.parse(rawLabels);
-   if(Array.isArray(parsed))suppliedLabels=parsed.map(value=>String(value||"").trim()).filter(Boolean).slice(0,12);
-  }catch(_){return json({success:false,error:"The labels parameter must be a JSON array of result labels."},400,origin);}
- }
- const labelsToTest=suppliedLabels.length?suppliedLabels:requestedResultItems;
- const sampleInputs=[
-  {key:"monthly_distance",label:"Monthly distance driven"},
-  {key:"fuel_consumption",label:"Fuel consumption"},
-  {key:"fuel_price",label:"Fuel price per liter"},
-  {key:"parking",label:"Monthly parking"}
- ];
- const missingCoverage=findMissingRequestedCoverage(prompt,{inputs:sampleInputs,results:labelsToTest.map(label=>({label}))});
- return json({
-  success:true,
-  diagnostic:"ugc-maker-output-coverage",
-  build:UGC_MAKER_DIAGNOSTIC_VERSION,
-  promptLength:prompt.length,
-  requestedResultItems,
-  testedResultLabels:labelsToTest,
-  missingCoverage,
-  passed:missingCoverage.length===0
- },200,origin);
+    const origin=allowedOrigin(context.request);
+    if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
+    return json({
+        success:false,
+        code:"AI_UGC_CREATOR_DISABLED",
+        error:"AI generation and AI improvement for community calculators have been removed. Use the Manual Builder instead."
+    },410,origin);
 }
 const MONETARY_CURRENCY_CODES = new Set([
     ...EXPLICIT_CURRENCY_RULES.map(([code])=>code),
@@ -701,7 +712,7 @@ function explicitAmountContextMatchesInput(input,context){
     if(!semantic)return false;
     const tokens=semantic.split(/\s+/).filter(Boolean);
     const generic=new Set([
-        "per","price","prices","cost","costs","amount","amounts","fee","fees","rate","rates","tariff","tariffs",
+        "per","price","prices","cost","costs","amount","amounts","expense","expenses","fee","fees","rate","rates","tariff","tariffs",
         "charge","charges","fixed","monthly","month","annual","annually","yearly","year","weekly","week","daily","day",
         "total","average","the","and","for","from","with","of","in","on","by","input","value","currency"
     ]);
@@ -745,13 +756,15 @@ function explicitAmountMatchesInput(input,amounts,allInputs){
     });
 }
 function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
-    if(!candidate||(!Array.isArray(candidate.inputs)&&!Array.isArray(candidate.groups)))return false;
+    const typedV2=Number(candidate?.blueprintVersion)===2&&candidate?.spec&&typeof candidate.spec==="object";
+    const root=typedV2?candidate.spec:candidate;
+    if(!root||(!Array.isArray(root.inputs)&&!Array.isArray(root.groups)))return false;
     const explicitAmounts=extractExplicitMonetaryAmounts(prompt);
     let changed=false;
     const fallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
     const allFields=[
-        ...(Array.isArray(candidate.inputs)?candidate.inputs:[]),
-        ...(Array.isArray(candidate.groups)?candidate.groups.flatMap(group=>Array.isArray(group?.fields)?group.fields:[]):[])
+        ...(Array.isArray(root.inputs)?root.inputs:[]),
+        ...(Array.isArray(root.groups)?root.groups.flatMap(group=>Array.isArray(group?.fields)?group.fields:[]):[])
     ];
     for(const input of allFields){
         if(!input||typeof input!=="object")continue;
@@ -761,7 +774,7 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
         const hasCurrencyUnit=MONETARY_CURRENCY_CODES.has(unit)||MONETARY_CURRENCY_CODES.has(unitCurrencyPrefix);
         const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
         const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin)\s+rates?\b|\bpercentage\b/.test(semantic);
-        const moneyInput=input.control!=="toggle"&&!percentageUnit&&!(percentageRate&&!hasCurrencyUnit)&&
+        const moneyInput=(!typedV2||input.type==="number")&&input.control!=="toggle"&&!percentageUnit&&!(percentageRate&&!hasCurrencyUnit)&&
             (hasCurrencyUnit||/\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic));
         if(!moneyInput||explicitAmountMatchesInput(input,explicitAmounts,allFields))continue;
         if(!hasCurrencyUnit)input.unit=fallback;
@@ -786,7 +799,195 @@ function applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency){
     }
     return changed;
 }
+function stripNullTypedBlueprintProperties(item,keys){
+    if(!item||typeof item!=="object")return;
+    keys.forEach(key=>{if(item[key]===null)delete item[key];});
+}
+function prepareTypedV2ProviderCandidate(raw,defaultCurrency){
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))throw new Error("The AI did not return a V2 blueprint object.");
+    const candidate=JSON.parse(JSON.stringify(raw));
+    if(candidate.blueprintVersion!==2||candidate.spec?.schemaVersion!==2||candidate.spec?.engineVersion!==2){
+        throw new Error("The AI response must use blueprintVersion 2, schemaVersion 2 and engineVersion 2.");
+    }
+    const spec=candidate.spec;
+    if(!Array.isArray(spec.inputs)||!Array.isArray(spec.groups)||!Array.isArray(spec.results)||!Array.isArray(spec.scenarios)){
+        throw new Error("The AI returned an incomplete typed V2 structure.");
+    }
+    const normalizeTypedDefinition=(item,isInput)=>{
+        if(!item||typeof item!=="object"||Array.isArray(item))return;
+        stripNullTypedBlueprintProperties(item,["min","max","step","unit","control","minDate","maxDate"]);
+        if(item.type==="number"){
+            if(item.unit===undefined)item.unit="";
+            if(item.control!=="select"&&Array.isArray(item.choices)&&item.choices.length===0)delete item.choices;
+            delete item.minDate;delete item.maxDate;
+        }else if(item.type==="boolean"){
+            ["min","max","step","choices","minDate","maxDate"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }else if(item.type==="enum"){
+            ["min","max","step","minDate","maxDate"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }else if(item.type==="date"){
+            ["min","max","step","choices"].forEach(key=>delete item[key]);
+            if(item.unit==="")delete item.unit;
+            if(!isInput)delete item.control;
+        }
+    };
+    spec.inputs.forEach(item=>normalizeTypedDefinition(item,true));
+    spec.groups.forEach(group=>(Array.isArray(group?.fields)?group.fields:[]).forEach(item=>normalizeTypedDefinition(item,false)));
+    spec.results.forEach(item=>{
+        if(!item||typeof item!=="object"||Array.isArray(item))return;
+        stripNullTypedBlueprintProperties(item,["currency","unit"]);
+        if(item.format==="currency"){
+            if(typeof item.currency!=="string"||!item.currency.trim())item.currency=String(defaultCurrency||"EUR").toUpperCase();
+            delete item.unit;
+        }else if(item.format==="unit"){
+            delete item.currency;
+        }else{
+            delete item.currency;delete item.unit;
+        }
+    });
+    spec.scenarios=spec.scenarios.map((scenario,index)=>{
+        if(!scenario||typeof scenario!=="object"||Array.isArray(scenario))return scenario;
+        if(Array.isArray(scenario.overrides)){
+            const values={};
+            scenario.overrides.forEach(override=>{
+                if(!override||typeof override!=="object"||Array.isArray(override)||typeof override.key!=="string")throw new Error("Scenario "+(index+1)+" contains an invalid typed override.");
+                if(Object.prototype.hasOwnProperty.call(values,override.key))throw new Error("Scenario "+(index+1)+" repeats an input override.");
+                values[override.key]=override.value;
+            });
+            scenario.values=values;delete scenario.overrides;
+        }
+        return scenario;
+    });
+    return candidate;
+}
+function normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,forceCurrency){
+    const candidate=JSON.parse(JSON.stringify(raw));
+    const fallback=SERVER_SUPPORTED_CURRENCY_CODES.has(String(defaultCurrency||"").toUpperCase())
+        ?String(defaultCurrency).toUpperCase():"USD";
+    const forced=SERVER_SUPPORTED_CURRENCY_CODES.has(String(forceCurrency||"").toUpperCase())
+        ?String(forceCurrency).toUpperCase():"";
+    const normalizeField=field=>{
+        if(!field||typeof field!=="object"||field.type!=="number")return;
+        const semantic=normalizeMonetaryPromptText(String(field.label||"")+" "+String(field.key||""));
+        const unit=String(field.unit||"").trim();
+        const upperUnit=unit.toUpperCase();
+        const currencyPrefix=upperUnit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+        const hasCurrencyUnit=SERVER_SUPPORTED_CURRENCY_CODES.has(upperUnit)
+            ||SERVER_SUPPORTED_CURRENCY_CODES.has(currencyPrefix);
+        const percentageUnit=["%","percent","percentage"].includes(unit.toLowerCase());
+        const percentageRate=/\b(?:tax|interest|discount|growth|inflation|commission|margin|processing|marketplace)\s+(?:fee\s+)?(?:rates?|percentages?)\b/.test(semantic);
+        const exchangeRate=/\b(?:exchange|conversion)\s+rates?\b/.test(semantic);
+        const monetary=!percentageUnit&&!exchangeRate&&!(percentageRate&&!hasCurrencyUnit)&&(
+            hasCurrencyUnit
+            ||/\b(?:price|cost|amount|fees?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription|revenue|profit|turnover)\b/.test(semantic)
+        );
+        if(!monetary)return;
+        const basisMatch=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hours?|days?|units?|items?|packs?|products?)\b/i);
+        const rawBasis=basisMatch?.[1]||"";
+        const basis=/^kwh$/i.test(rawBasis)?"kWh":
+            /^(?:m3|m³)$/i.test(rawBasis)?"m3":
+            /^(?:litres?|liters?|l)$/i.test(rawBasis)?"L":
+            /^(?:kilometres?|kilometers?|km)$/i.test(rawBasis)?"km":
+            /^(?:kg)$/i.test(rawBasis)?"kg":
+            /^(?:g)$/i.test(rawBasis)?"g":
+            /^hours?$/i.test(rawBasis)?"hour":
+            /^days?$/i.test(rawBasis)?"day":
+            /^items?$/i.test(rawBasis)?"item":
+            /^packs?$/i.test(rawBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rawBasis)?"unit":"";
+        const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
+        let normalizedUnit=unit;
+        if(forced){
+            normalizedUnit=existingRate?forced+"/"+existingRate[1]:forced;
+        }else if(!hasCurrencyUnit){
+            normalizedUnit=fallback;
+        }
+        if(basis&&/^[A-Z]{3}$/.test(normalizedUnit))normalizedUnit+="/"+basis;
+        field.unit=normalizedUnit;
+    };
+    (Array.isArray(candidate?.spec?.inputs)?candidate.spec.inputs:[]).forEach(normalizeField);
+    (Array.isArray(candidate?.spec?.groups)?candidate.spec.groups:[]).forEach(group=>{
+        (Array.isArray(group?.fields)?group.fields:[]).forEach(normalizeField);
+    });
+    (Array.isArray(candidate?.spec?.results)?candidate.spec.results:[]).forEach(result=>{
+        if(!result||typeof result!=="object")return;
+        if(result.format==="currency"){
+            result.currency=forced||(
+                SERVER_SUPPORTED_CURRENCY_CODES.has(String(result.currency||"").toUpperCase())
+                    ?String(result.currency).toUpperCase():fallback
+            );
+            delete result.unit;
+        }else if(result.format==="unit"){
+            const unit=String(result.unit||"").trim();
+            const prefix=unit.match(/^([A-Z]{3})(?:\s*\/|$)/)?.[1]||"";
+            if(forced&&SERVER_SUPPORTED_CURRENCY_CODES.has(prefix))result.unit=forced+unit.slice(3);
+            delete result.currency;
+        }else{
+            delete result.currency;
+            delete result.unit;
+        }
+    });
+    return candidate;
+}
+function normalizeTypedV2Definition(raw,defaultCurrency,options={}){
+    const candidate=normalizeTypedV2CurrencyPolicy(raw,defaultCurrency,options?.forceCurrency);
+    const importer=globalThis.WorthItBlueprintImport;
+    if(typeof importer?.parseBlueprint!=="function")throw new Error("The shared strict Blueprint V2 importer is unavailable.");
+    const category=String(candidate?.category||"");
+    const subcategories=Array.isArray(candidate?.subcategories)?candidate.subcategories:[];
+    const allowed=ALLOWED_SUBCATEGORIES[category];
+    if(!allowed||subcategories.length<1||subcategories.length>3||new Set(subcategories).size!==subcategories.length||
+       subcategories.some(value=>typeof value!=="string"||!allowed.has(value))){
+        throw new Error("The AI-selected V2 categories are invalid or do not belong to the selected primary category.");
+    }
+    const normalized=importer.parseBlueprint(JSON.stringify(candidate),spec=>{
+        const result=validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec);
+        return {errors:Array.isArray(result?.errors)?result.errors.map(String):["The server V2 validator returned an invalid response."]};
+    });
+    const remaining=Number(normalized?.importValidationIssueCount)||0;
+    if(remaining>0){
+        const issues=Array.isArray(normalized.importValidationIssues)?normalized.importValidationIssues.slice(0,4).join(" "):"";
+        throw new Error("The AI-generated V2 calculator did not pass server formula, unit or default-value validation. "+issues);
+    }
+    if(!normalized?.spec||normalized.spec.schemaVersion!==2||normalized.spec.engineVersion!==2){
+        throw new Error("The AI-generated calculator did not preserve the typed V2 schema.");
+    }
+    normalized.spec.subcategories=[...subcategories];
+    normalized.spec.assumptions=Array.isArray(candidate.assumptions)?[...candidate.assumptions]:[];
+    normalized.spec.results.forEach(item=>{
+        if(item.format==="currency"&&!SERVER_SUPPORTED_CURRENCY_CODES.has(String(item.currency||"").toUpperCase())){
+            throw new Error("A currency result uses an unsupported ISO currency code.");
+        }
+    });
+    // Match the V1 contract: every fixed input and dynamic field must affect
+    // at least one result, including typed values used only in conditions.
+    const engineSpec={...normalized.spec};
+    delete engineSpec.assumptions;delete engineSpec.subcategories;
+    const availableKeys=new Set((engineSpec.inputs||[]).map(item=>item.key));
+    const referencedInputs=new Set();
+    const groupDefinitions=new Map((engineSpec.groups||[]).map(group=>[group.key,group]));
+    const referencedGroupFields=new Map((engineSpec.groups||[]).map(group=>[group.key,new Set()]));
+    (engineSpec.results||[]).forEach(result=>{
+        const ast=SERVER_CALCULATOR_ENGINE.compileV2Expression(result.expression,availableKeys,groupDefinitions);
+        SERVER_CALCULATOR_ENGINE.typedFormulaInputReferences(ast,referencedInputs);
+        SERVER_CALCULATOR_ENGINE.typedFormulaGroupReferences(ast).forEach(reference=>{
+            if(referencedGroupFields.has(reference.group))referencedGroupFields.get(reference.group).add(reference.field);
+        });
+        if(result.key)availableKeys.add(result.key);
+    });
+    const unusedInputs=(engineSpec.inputs||[]).filter(item=>!referencedInputs.has(item.key)).map(item=>item.label||item.key);
+    const unusedFields=(engineSpec.groups||[]).flatMap(group=>(group.fields||[]).filter(field=>!referencedGroupFields.get(group.key)?.has(field.key)).map(field=>group.label+": "+(field.label||field.key)));
+    if(unusedInputs.length||unusedFields.length){
+        throw new Error("The generated V2 calculator contains unused inputs or group fields: "+[...unusedInputs,...unusedFields].join(", ")+". Use them in a result formula or remove them.");
+    }
+    return normalized.spec;
+}
+
 export function normalizeDefinition(raw,defaultCurrency,options={}){
+    if(Number(raw?.blueprintVersion)===2)return normalizeTypedV2Definition(raw,defaultCurrency,options);
     const previousSpec=options?.previousSpec&&typeof options.previousSpec==="object"?options.previousSpec:null;
     const forceCurrency=/^[A-Z]{3}$/.test(String(options?.forceCurrency||"").toUpperCase())?String(options.forceCurrency).toUpperCase():"";
     const currencyFallback=/^[A-Z]{3}$/.test(String(defaultCurrency||"").toUpperCase())?String(defaultCurrency).toUpperCase():"USD";
@@ -837,7 +1038,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
         const monetaryInput=control!=="toggle"&&!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
             /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
             ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
-        const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+        const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days|units?|items?|packs?|products?)\b/i)?.[1]||"";
         const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
             /^(?:m3|m³)$/i.test(rateBasis)?"m3":
             /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
@@ -845,7 +1046,10 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             /^(?:kg)$/i.test(rateBasis)?"kg":
             /^(?:g)$/i.test(rateBasis)?"g":
             /^(?:hours?)$/i.test(rateBasis)?"hour":
-            /^(?:days?)$/i.test(rateBasis)?"day":"";
+            /^(?:days?)$/i.test(rateBasis)?"day":
+            /^(?:items?)$/i.test(rateBasis)?"item":
+            /^(?:packs?)$/i.test(rateBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rateBasis)?"unit":"";
         if(forceCurrency&&monetaryInput){
             const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
             unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
@@ -900,7 +1104,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
             const monetaryField=!percentageUnit&&!(percentageRate&&!SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix))&&(
                 /\b(?:price|cost|amount|fees?|rates?|tariffs?|charges?|salary|income|budget|rent|payment|saving|savings|deposit|expense|spend|wage|tax|insurance|maintenance|parking|tolls?|loan|lease|repair|subscription)\b/.test(semantic)
                 ||SERVER_SUPPORTED_CURRENCY_CODES.has(unitCurrencyPrefix));
-            const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days)\b/i)?.[1]||"";
+            const rateBasis=semantic.match(/\bper\s+(kwh|m3|m³|litres?|liters?|l|km|kilometres?|kilometers?|kg|g|hour|hours|day|days|units?|items?|packs?|products?)\b/i)?.[1]||"";
             const normalizedRateBasis=/^(?:kwh)$/i.test(rateBasis)?"kWh":
                 /^(?:m3|m³)$/i.test(rateBasis)?"m3":
                 /^(?:litres?|liters?|l)$/i.test(rateBasis)?"L":
@@ -908,7 +1112,10 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
                 /^(?:kg)$/i.test(rateBasis)?"kg":
                 /^(?:g)$/i.test(rateBasis)?"g":
                 /^(?:hours?)$/i.test(rateBasis)?"hour":
-                /^(?:days?)$/i.test(rateBasis)?"day":"";
+                /^(?:days?)$/i.test(rateBasis)?"day":
+            /^(?:items?)$/i.test(rateBasis)?"item":
+            /^(?:packs?)$/i.test(rateBasis)?"pack":
+            /^(?:units?|products?)$/i.test(rateBasis)?"unit":"";
             if(forceCurrency&&monetaryField){
                 const existingRate=unit.match(/^[A-Z]{3}\s*\/\s*(.+)$/);
                 unit=existingRate?forceCurrency+"/"+existingRate[1]:forceCurrency;
@@ -973,7 +1180,7 @@ export function normalizeDefinition(raw,defaultCurrency,options={}){
     if(scenarios.length>3)throw new Error("A calculator can contain up to 3 comparison scenarios.");
 
     const spec={version:1,subcategories,inputs,groups,results,scenarios};
-    const validation=SERVER_CALCULATOR_ENGINE.validateMakerSpec(spec);
+    const validation=validateCalculatorForServer(SERVER_CALCULATOR_ENGINE,spec);
     const validationErrors=Array.isArray(validation?.errors)?validation.errors:[];
     if(validationErrors.length){
         const firstError=String(validationErrors[0]||"");
@@ -1044,454 +1251,11 @@ function sameArray(left,right){
 }
 
 export async function onRequestPost(context){
-    const request=context.request,env=context.env,origin=allowedOrigin(request);
-    const aiUsageCollector=createAiUsageCollector();
-    let aiOperationRequestId="";
-    let aiOperationMode="";
-    let aiOperationReserved=false;
-    let aiOperationSettled=false;
-    let aiOperationRefunded=false;
-    let aiBilling=null;
-    const token=tokenFrom(request);
-    const refundAiOperation=async()=>{
-        if(!aiOperationRequestId||!aiOperationMode||aiOperationSettled||aiOperationRefunded)return false;
-        try{
-            const result=await refundAiOperationReservation(env,token,aiOperationRequestId,aiOperationMode);
-            if(result?.ok===true){aiOperationRefunded=true;aiOperationReserved=false;return true;}
-            console.error("Could not refund a failed UGC AI operation:",result?.code||result);
-            return false;
-        }catch(error){
-            console.error("Could not refund a failed UGC AI operation:",error);
-            return false;
-        }
-    };
-    const settleAiOperation=async()=>{
-        if(!aiOperationRequestId||!aiOperationMode||!aiOperationReserved||aiOperationSettled)return;
-        const result=await settleAiOperationReservation(env,token,aiOperationRequestId,aiOperationMode);
-        if(result?.ok!==true)throw new Error("The AI operation and CALC reservation could not be finalized.");
-        aiOperationSettled=true;
-        aiOperationReserved=false;
-    };
-    try{
-        if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
-        if(!token)return json({success:false,code:"AUTH_REQUIRED",error:"Sign in to create or improve a community calculator."},401,origin);
-
-        const user=await verifyUser(env,token);
-        if(!user)return json({success:false,code:"AUTH_REQUIRED",error:"Your session has expired. Please sign in again."},401,origin);
-        if(!user.email_confirmed_at&&!user.confirmed_at)return json({success:false,code:"EMAIL_VERIFICATION_REQUIRED",error:"Verify your email before creating or improving community calculators."},403,origin);
-
-        let body;
-        try{body=await request.json();}catch(_){return json({success:false,error:"A valid JSON request is required."},400,origin);}
-        const mode=body?.mode==="refine"?"refine":"create";
-        const prompt=typeof body?.prompt==="string"?body.prompt.trim():"";
-        const regionalDefaults=resolveRegionalDefaults(request,prompt);
-        if(!prompt||prompt.length>MAX_PROMPT_CHARS)return json({success:false,error:"Describe the requested calculator or improvement in 10 to 1000 characters."},400,origin);
-        const requestedCurrencies=resolveExplicitCurrencies(prompt);
-        const requestedCurrency=requestedCurrencies.length===1?requestedCurrencies[0]:null;
-        const defaultCurrency=requestedCurrency||regionalDefaults.currency;
-        const forceCurrency=requestedCurrencies.length>1?"":(requestedCurrency||(mode==="create"?regionalDefaults.currency:""));
-
-        const geminiKey=String(env.GEMINI_API_KEY||"").trim();
-        const groqKey=String(env.GROQ_API_KEY||"").trim();
-        if(!geminiKey&&!groqKey)return json({success:false,code:"AI_PROVIDER_UNAVAILABLE",error:"Worth It AI is temporarily unavailable. No calculator was changed."},503,origin);
-
-        let existingCalculator=null;
-        if(mode==="refine"){
-            const calculatorId=String(body?.calculator_id||"").trim().toLowerCase();
-            if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(calculatorId)){
-                return json({success:false,code:"INVALID_CALCULATOR",error:"Choose a valid saved community calculator to improve."},400,origin);
-            }
-            let current;
-            try{current=normalizeRpcObject(await userRpc(env,token,"get_worth_it_ugc_calculator",{p_id:calculatorId}));}
-            catch(error){
-                console.warn("UGC AI edit could not load the saved calculator:",error);
-                return json({success:false,code:"CALCULATOR_UNAVAILABLE",error:"This calculator could not be loaded. Only your own saved calculators can be improved."},404,origin);
-            }
-            if(!current?.id||current.is_owner!==true){
-                return json({success:false,code:"NOT_CALCULATOR_OWNER",error:"Only the owner of a saved community calculator can improve it with AI."},403,origin);
-            }
-            if(!current.spec||!Array.isArray(current.spec.inputs)||!Array.isArray(current.spec.results)){
-                return json({success:false,code:"INVALID_CALCULATOR",error:"This calculator definition cannot be safely improved."},422,origin);
-            }
-            existingCalculator=current;
-            aiOperationRequestId=crypto.randomUUID();
-            aiOperationMode="refine";
-            let reservation;
-            try{
-                reservation=await reserveAiOperation(env,token,aiOperationRequestId,"refine",calculatorId);
-            }catch(error){
-                await refundAiOperation();
-                aiOperationRequestId="";
-                console.error("UGC AI edit and CALC reservation failed:",error);
-                return json({success:false,code:"AI_OPERATION_UNAVAILABLE",error:"The AI improvement allowance and CALC charge could not be authorised. No AI request was sent."},503,origin);
-            }
-            if(reservation?.ok!==true){
-                const code=reservation?.code||"EDIT_QUOTA_UNAVAILABLE";
-                aiOperationRequestId="";
-                if(code==="DAILY_LIMIT"){
-                    return json({success:false,code:"DAILY_AI_EDIT_LIMIT",daily_limit:reservation.daily_limit,edits_used:reservation.edits_used,remaining:0,
-                        error:"You have used all your AI improvements for today. Free accounts can improve 1 saved calculator per UTC day, Premium Lite 2 and Premium 3."},429,origin);
-                }
-                if(code==="INSUFFICIENT_CALC"){
-                    const price=Number(reservation.required)||Number(reservation.required_milli)/1000||2;
-                    return json({success:false,code:"INSUFFICIENT_CALC",required:price,plan:reservation.plan||"free",
-                        error:"Not enough CALC. This AI improvement costs "+price+" CALC for your current membership. No AI request was sent."},402,origin);
-                }
-                return json({success:false,code,error:"The AI improvement could not be reserved. Please try again."},code==="GLOBAL_DAILY_LIMIT"?429:503,origin);
-            }
-            aiOperationReserved=true;
-            aiBilling={plan:reservation.plan||"free",price:Number(reservation.price)||0,price_milli:Number(reservation.price_milli)||0,owner_exempt:reservation.owner_exempt===true};
-        }else{
-            aiOperationRequestId=crypto.randomUUID();
-            aiOperationMode="create";
-            let usage;
-            try{usage=await reserveAiOperation(env,token,aiOperationRequestId,"create",null);}
-            catch(error){
-                await refundAiOperation();
-                aiOperationRequestId="";
-                console.error("UGC Maker generation and CALC reservation failed:",error);
-                return json({success:false,code:"AI_OPERATION_UNAVAILABLE",error:"The AI generation allowance and CALC charge could not be authorised. No AI request was sent."},503,origin);
-            }
-            if(usage?.ok!==true){
-                const code=usage?.code||"USAGE_LIMIT_UNAVAILABLE";
-                aiOperationRequestId="";
-                if(code==="DAILY_LIMIT"){
-                    const dailyLimit=Math.max(1,Number(usage.daily_limit)||1);
-                    return json({success:false,code:"DAILY_AI_LIMIT",error:"You have used your "+dailyLimit+" AI calculator generation"+(dailyLimit===1?"":"s")+" for today on your current plan. Your allowance resets at 00:00 UTC.",daily_limit:dailyLimit,requests_used:Number(usage.requests_used)||dailyLimit},429,origin);
-                }
-                if(code==="GLOBAL_DAILY_LIMIT"){
-                    return json({success:false,code:"GLOBAL_DAILY_AI_LIMIT",error:"Worth It has reached its internal AI generation capacity for today. The shared allowance resets at 00:00 UTC.",global_daily_limit:100,global_requests_used:Number(usage.global_requests_used)||100},429,origin);
-                }
-                if(code==="INSUFFICIENT_CALC"){
-                    const price=Number(usage.required)||Number(usage.required_milli)/1000||2;
-                    return json({success:false,code:"INSUFFICIENT_CALC",required:price,plan:usage.plan||"free",
-                        error:"Not enough CALC. This AI generation costs "+price+" CALC for your current membership. No AI request was sent."},402,origin);
-                }
-                return json({success:false,code,error:"The AI calculator generation could not be reserved. Please try again."},503,origin);
-            }
-            aiOperationReserved=true;
-            aiBilling={plan:usage.plan||"free",price:Number(usage.price)||0,price_milli:Number(usage.price_milli)||0,owner_exempt:usage.owner_exempt===true};
-        }
-
-        const commonRules=[
-            "Return only one valid JSON object with keys title, description, category, subcategories, inputs, groups, results and scenarios. Use empty arrays for groups and scenarios when they are not needed.",
-            "Never return HTML, Markdown, JavaScript, SQL, code, scripts, event handlers, URLs or executable content.",
-            "The result is a declarative calculator schema only. Formula expressions are evaluated by a restricted arithmetic parser.",
-            "Choose exactly one primary category: cars, money, technology, home, or other. AI must choose it; users do not choose or override it.",
-            "Choose 1 to 3 relevant subcategories from the selected primary category only. Do not invent tags or choose unrelated categories.",
-            "cars subcategories: car-ownership, ev-ownership, fuel-costs, vehicle-financing, car-insurance, car-maintenance, depreciation-resale, vehicle-comparison.",
-            "money subcategories: budgeting, saving, investing, loans-debt, mortgages, taxes, income-salary, retirement.",
-            "technology subcategories: smartphones, computers, gaming, software-subscriptions, internet-connectivity, consumer-electronics, tech-comparison.",
-            "home subcategories: utilities-energy, rent-housing, home-buying, renovation-repairs, home-appliances, home-maintenance, household-budget.",
-            "other subcategories: travel, education-career, health-fitness, food-groceries, business, lifestyle, general-comparison.",
-            "Category compatibility is mandatory: every selected subcategory must come from the exact list belonging to the chosen primary category. Never mix subcategories between categories. If the calculator is mainly about a car, vehicle or fuel, choose cars; if mainly about personal money, budgeting, saving, debt or investing, choose money; if mainly about devices, software or connectivity, choose technology; if mainly about housing, utilities or appliances, choose home; use other only when none of those categories fits.",
-            "Before returning JSON, verify that category and all subcategories are a valid combination from the same category list. Do not translate category IDs or invent labels; use the exact lowercase IDs shown above.",
-            "Each fixed input has key, label, min, max, default, step, unit, control and choices. Keys must match ^[a-z][a-z0-9_]{0,31}$ and be unique. Use control number or slider for ordinary numeric values, toggle for a strict 0/1 Boolean-style choice, and select for a closed list of 2 to 12 numeric choices. For non-select controls, set choices to an empty array. For select, choices must contain unique label/value pairs and include the default value.",
-            "For monetary inputs, set unit to the relevant ISO 4217 currency code. Common choices include EUR, USD, GBP, RSD, CHF, CAD, AUD, JPY, CNY, PLN and CZK.",
-            "Each result may use its own ISO 4217 currency code. Currency selection controls formatting only; never imply that different currencies have been converted.",
-            "Only calculate currency conversion when an exchange rate is supplied as an explicit numeric input and used in the formula. Never invent or fetch exchange rates.",
-            "All numeric values must be finite and min <= default <= max. Keep input ranges realistic and bounded.",
-            "Use no more than 24 fixed inputs, 4 dynamic groups, 6 numeric fields per group, 20 rows per group, 20 results and 3 comparison scenarios. Prefer fewer when they answer the user's request clearly.",
-            "Each dynamic group has key, label, itemLabel, minItems, maxItems and fields. Each field has key, label, min, max, default, step and unit. Use groups for repeated user-entered rows such as expenses, appliances, products, rooms, trips or devices; do not imitate repeated rows with many fixed inputs.",
-            "Each comparison scenario has a label and an overrides array of {key,value} entries. Overrides may refer only to known fixed numeric inputs and must stay within their ranges. Use scenarios only for meaningful alternatives such as low/base/high demand or different household sizes; omit unnecessary scenarios.",
-            "A result may use the key of an earlier result to create a calculation chain. Declare each result key once and place dependent results after the result they use. Do not create circular dependencies.",
-            "For dynamic groups, use sum(group_key.field_key) to total one numeric field across that group and count(group_key) to count its rows. Do not use a sum expression across more than one group in a single sum() call.",
-            "Think through the user's actual question before designing the schema: identify the main quantity or decision, the variables that materially affect it, the comparison baseline, and the time period. Build the calculator around that question rather than a generic collection of fields.",
-            "Every input must have a clear purpose and must be used by at least one result formula. Do not add redundant fields, duplicate the same cost under different names, or create inputs that do not affect any result.",
-            "Maintain dimensional and unit consistency in every formula. Make input labels state the relevant unit or rate basis (for example, kWh per month, RSD per kWh, m3 per month, litres per 100 km, or currency per month). A price per unit must be multiplied by the matching quantity; do not multiply or compare incompatible units.",
-            "Set rate input units explicitly: a rate in currency per physical unit must use a compound unit such as RSD/kWh, RSD/m3, EUR/L or EUR/km, so multiplying it by the matching quantity produces a currency amount. Do not label such a rate with the bare currency code.",
-            "Choose result formatting from the formula's actual dimensions. Use format currency only for currency amounts, format unit for dimensioned rates such as EUR/km or RSD/kWh (and include result.unit), format percent for dimensionless ratios, and number for other dimensionless values. Do not label a currency-per-distance result as a plain currency amount.",
-            "A period count used only as a multiplier (for example, number of months, years, weeks, trips or billing cycles) is a count: use an empty unit string for that input, keep the period in its label, and multiply by the count in the formula. Use a time unit only when the formula genuinely needs a dimensional duration or rate conversion.",
-            "Keep time bases consistent. Distinguish daily, weekly, monthly, annual, one-time and per-unit amounts. Convert between periods explicitly and consistently; do not treat a month as exactly four weeks. Do not add a one-time purchase cost to a monthly recurring cost unless it is deliberately spread across a clearly defined comparison period.",
-            "For comparisons, model both options symmetrically and on the same usage level, service level and time period. Show the important result for each option and a direct difference or savings result when useful. Make the direction of any difference clear in its label so users know which option is cheaper or better.",
-            "For vehicle energy comparisons, use the same distance and period for both options; calculate fuel use from distance times litres per 100 km divided by 100, and electricity use from distance times kWh per 100 km divided by 100. Multiply each by its own editable per-unit price. Do not claim to calculate full vehicle ownership unless insurance, maintenance, depreciation, financing and other relevant costs are actually modeled.",
-            "For household utility comparisons, calculate each utility using its own physical unit and matching rate (for example, kWh multiplied by currency per kWh, or m3 multiplied by currency per m3). Do not compare raw kWh and m3 as interchangeable quantities. Add fixed charges, taxes or tariff tiers only when supplied or represented by explicit editable inputs. If the user enters one blended rate, describe it as an average effective rate; do not claim that tiered or seasonal tariffs are calculated unless separate tiers are represented by inputs and formulas.",
-            "Avoid double-counting overlapping costs. Include a cost component only once, distinguish optional from required costs, and do not label a partial-cost estimate as total ownership or total cost when important components are not modeled.",
-            "Use practical, editable defaults for non-monetary quantities, but describe them as illustrative starting estimates rather than typical national averages unless source-backed values are supplied. Never invent current tariffs, fuel prices, exchange rates, taxes, interest rates, product prices, fixed fees, maintenance bills or personal monetary costs. Only a monetary input that can be unambiguously matched to a concrete amount in the user prompt may keep a non-zero default. Every other monetary input must have default 0 and minimum 0, even when the prompt supplies a price for a different input. Explicitly say in the description that any remaining unspecified prices and costs must be entered before relying on totals. Do not fabricate non-zero monetary examples for Serbia or any other region.",
-            "When monetary defaults are zero, keep formulas valid at zero. For a ratio or percentage whose denominator can be zero, use max(denominator,1) so the result remains finite and represents zero share when no cost has been entered.",
-            "Use ranges and steps that fit the real-world scale of each input. Avoid absurd maxima, overly precise steps, unexplained constants and arbitrary default values. Keep optional fees at zero by default unless the user supplies a value.",
-            "Prioritize a small number of non-redundant results that answer the main question: the primary per-period amounts, a useful combined or total figure when relevant, and a clear comparison or difference when it adds value. Do not fill the result limit with decorative or repetitive metrics.",
-            "Before returning the schema, silently audit it as a calculator designer: verify that every input is needed, every requested output is present, every formula follows from the labels and units, all options use the same basis, no component is counted twice, and the default and boundary values produce plausible finite results. Correct any issue before returning JSON.",
-            "Each result has a unique lowercase key, label, expression, format, currency, unit, prefix, suffix and explanation. Result keys use ^[a-z][a-z0-9_]{0,31}$ and can be referenced by later result formulas. Keep results in dependency order: inputs and group fields first, then earlier result keys.",
-            "Use the shared v1 formula language: numeric constants, pi, e, + - * / ^, unary signs, parentheses, and functions min,max,abs,round,floor,ceil,sqrt,pow,clamp,avg,sum,count,mod,trunc,sign,hypot,log,ln,exp,sin,cos,tan,asin,acos,atan,if,gt,gte,lt,lte,eq,neq,and,or,not. You may reference fixed input keys, dynamic group fields using group_key.field_key, and earlier result keys. sum(group.field) aggregates a numeric field from one dynamic group; count(group) counts its rows. Keep formulas within the shared engine limits and never use unsupported syntax.",
-            "Do not use assignment, JavaScript, strings, arbitrary property access, object syntax, arrays, loops, external calls, or any function outside the shared formula registry. The only permitted dotted references are a declared dynamic group key followed by one of that group's declared field keys.",
-            "For percent values, express percentages in their ordinary human scale (e.g. 5 means 5 percent) and divide by 100 in the formula.",
-            "For currency outputs, set format to currency and use a valid ISO 4217 code. If the user names a currency, use it; otherwise use the regional currency suggestion supplied separately in the user request.",
-            "For monetary inputs, use the same requested or suggested currency code in unit; never silently mix currencies.",
-            "Write the title, description, input labels and result labels in the same language as the user's prompt when that language is clearly identifiable. If the prompt has no clear language or is language-neutral/ambiguous, use English. Do not use the visitor's country, region or Accept-Language header to choose the language of calculator text. Accept-Language and regional settings are for number formatting and currency defaults only; they must not override a clear prompt language.",
-            "For a new calculator, write a genuinely informative description in the user's language, normally 2 or 3 concise sentences and ideally 140 to 380 characters (hard limit 24 to 500). In the first sentence, explain the practical question or quantity being estimated, not merely repeat the title. In the next sentence, summarize the main input factors or included costs and explain what the key result or comparison period represents; state useful time-basis conversions or consistency assumptions when relevant (for example, monthly-to-weekly or yearly calculations). Add a final sentence only when a material assumption, estimate limitation or important exclusion is clear from the user's request and generated inputs/results; say clearly what is not separately modeled, but never invent exclusions, data sources, prices, rates, guarantees or unsupported claims. Make the description understandable without seeing the input form. Avoid filler, generic marketing language, vague claims such as accurate or complete, and simply listing every input or result. During refinement, preserve the existing description exactly, even if it is shorter. Do not add marketing claims or unsupported facts.",
-            "Cover every requested output and time period. If the user asks for weekly, monthly and yearly figures, include a separate clearly labelled result row for each requested period. Apply the word total only to the specific period/output item where the user requested a total; never infer a total weekly result from a separate total monthly or total yearly request. An average weekly result is not a total weekly result. Do not treat a monthly or annual figure as a substitute for a separately requested weekly or yearly result. Do not silently omit requested inputs or output periods.",
-            "Use positive minimums for quantities that cannot logically be zero, such as working days, commute distance and fuel consumption. Use whole-number steps for counts of days or people. Zero is acceptable for optional charges such as parking or fees.",
-            "Check every formula at default values, all-minimum values, all-maximum values, and each input's individual minimum and maximum. Avoid divisions by zero, invalid square roots, overflow and non-finite results across the entire allowed input range.",
-            "Keep the title within 70 characters and description within 500 characters."
-        ];
-        const requestedResultItems=extractRequestedResultItems(prompt);
-        let system;
-        let userPrompt=[
-            "Regional presentation suggestions are defaults only, not verified prices, tariffs, exchange rates or market data.",
-            "Keep currency selection separate from conversion: regional suggestions affect default units and formatting only.",
-            "Use an explicitly requested currency in preference to regional suggestions.",
-            "Regional defaults: currency "+regionalDefaults.currency+"; number locale "+regionalDefaults.locale+".",
-            "Explicitly requested currencies: "+(requestedCurrencies.length?requestedCurrencies.join(", "):"none detected")+". If exactly one is specified, it overrides regional suggestions for all monetary inputs and outputs. If multiple currencies are explicitly requested, preserve the requested multi-currency comparison.",
-            "User request:",
-            prompt
-        ].join("\n") + (requestedResultItems.length
-            ? "\n\nExplicit result checklist from the user's Results section. Every listed item requires its own separate result row; do not invent extra rows:\n- " + requestedResultItems.join("\n- ")
-            : "");
-        if(mode==="refine"){
-            system=[
-                "You are improving a saved Worth It community calculator. This is an edit, not a new calculator.",
-                "Preserve the exact title, category, description, subcategories, underlying subject, comparison and purpose from the existing calculator.",
-                "Preserve every existing fixed input key and its order, every dynamic group key and field key, every result key and label, and every scenario name. Do not add, remove, rename or repurpose structural keys during refinement.",
-                "Preserve the exact number, order, keys and labels of all result rows. Preserve group and scenario structure. Improve only labels, numeric bounds/defaults/steps/units and formulas where useful.",
-                "Never turn the saved calculator into a different calculator, even if the user asks you to. Reject unrelated requests by returning the original definition unchanged.",
-                "Keep all assumptions explicit and do not invent factual prices, interest rates, tariffs or current market values.",
-                "When improving an existing calculator, preserve its existing currency codes and monetary input units unless the user explicitly requests a currency or unit change.",
-                ...commonRules
-            ].join(" ");
-            userPrompt=[
-                "Existing saved calculator (its identity and structure must remain fixed):",
-                JSON.stringify({
-                    title:existingCalculator.title,
-                    description:existingCalculator.description||"",
-                    category:existingCalculator.category,
-                    subcategories:existingCalculator.subcategories||existingCalculator.spec.subcategories||[],
-                    inputs:existingCalculator.spec.inputs,
-                    groups:existingCalculator.spec.groups||[],
-                    results:existingCalculator.spec.results,
-                    scenarios:existingCalculator.spec.scenarios||[]
-                }),
-                "Requested improvement:",
-                prompt,
-                "Return the improved full calculator definition including inputs, groups, results and scenarios. Keep title, description, category, subcategories, all fixed input keys, all group and field keys, result keys and result labels exactly unchanged."
-            ].join("\n");
-        }else{
-            system=[
-                "You design new calculator definitions for the Worth It website.",
-                "Create a useful calculator that directly matches the user's described decision or calculation.",
-                "Treat short topic descriptions as intentional requests for you to design the calculator, not as incomplete forms that require the user to specify fields, formulas or result rows. Examples include a few words naming a comparison or household topic.",
-                "Approach the task as an experienced subject-matter analyst and calculator designer: infer the real-world scenario, identify the key drivers, choose an appropriate calculation method, then translate it into a compact and understandable form.",
-                "Infer a sensible, practical calculator structure from the subject and any stated context. Choose the smallest useful set of inputs and result rows; do not add fields merely to make the form look comprehensive. Prefer clear, editable user inputs for values that vary by household, location, provider or time.",
-                "Do not merely rename a generic template to match the topic. The inputs, formulas, units and outputs must specifically fit the subject the user named. For a comparison, explicitly represent the relevant variables for each option and make the comparison fair.",
-                "When details are missing, make conservative structural assumptions that are ordinary for the subject, express them through editable inputs and sensible defaults, and make material assumptions clear in labels or the description. Do not present assumptions as verified facts.",
-                "Use regional context only for presentation defaults such as currency and locale. Never invent current prices, tariffs, exchange rates, tax rates, market data or provider-specific values. If a current or personal value is needed and was not supplied, make it an editable input rather than guessing.",
-                "For comparison topics, make the options comparable on the same basis and time period. Include useful totals or differences only when they follow directly from the available inputs and formulas.",
-                "Do not reject or overcomplicate a request merely because the user did not provide a detailed specification. Generate a sensible first version whenever the topic can be represented as a valid numeric calculator. Ask for clarification only when the subject is genuinely impossible to interpret or cannot be calculated safely within the supported schema.",
-                "Create the smallest useful set of fixed numeric inputs, normally 2 to 8 (minimum 1, maximum 24). Use dynamic groups for repeated rows instead of creating many fixed inputs. Include a separate result row for every output explicitly requested by the user; do not omit or combine requested results to fit a preferred row count. Support up to 20 result rows, 4 dynamic groups and 3 comparison scenarios when they add real value.",
-                ...commonRules
-            ].join(" ");
-        }
-
-        let content="";
-        let contentProvider="";
-        // Keep the reusable system instructions and provider schema stable and ahead
-        // of user-specific content so supported providers can reuse cached prefixes.
-        if(geminiKey){
-            try{
-                content=await generateWithGemini(geminiKey,system,userPrompt,aiUsageCollector,"initial-generation");
-                if(content)contentProvider="gemini";
-            }catch(error){console.warn("Gemini UGC calculator request failed:",error);}
-        }
-        if(!content&&groqKey){
-            try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"provider-fallback");
-                if(content)contentProvider="groq";
-            }catch(error){console.error("Groq UGC calculator request failed:",error);}
-        }
-        if(!content){
-            await refundAiOperation();
-            const error="Worth It AI could not complete this request right now. No calculator was changed; any reserved CALC charge and AI allowance were returned.";
-            return jsonWithAiUsage({success:false,code:"AI_PROVIDER_UNAVAILABLE",error},503,origin,aiUsageCollector);
-        }
-        let parsed;
-        let definition;
-        let validationError=null;
-        const parseAndValidate=generatedContent=>{
-            const candidate=JSON.parse(generatedContent);
-            if(mode==="create")applyUnspecifiedMonetaryDefaults(candidate,prompt,defaultCurrency);
-            const normalized=normalizeDefinition(candidate,defaultCurrency,{previousSpec:existingCalculator?.spec,requireDescription:mode!=="refine",forceCurrency,requireAllInputsUsed:mode==="create"});
-            return {candidate,normalized};
-        };
-        try{
-            const validated=parseAndValidate(content);
-            parsed=validated.candidate;
-            definition=validated.normalized;
-        }catch(error){
-            validationError=error;
-        }
-
-        // Gemini's JSON mode guarantees JSON syntax, not category/subcategory compatibility.
-        // Retry a rejected Gemini draft with Groq's category-specific strict schema once,
-        // keeping the same Maker reservation for this generation request.
-        if(validationError&&mode==="create"&&contentProvider==="gemini"&&groqKey){
-            console.warn("Gemini UGC calculator output failed validation; trying strict Groq fallback:",validationError);
-            try{
-                content=await generateWithGroq(groqKey,system,userPrompt,aiUsageCollector,"validation-fallback");
-                contentProvider="groq";
-                const validated=parseAndValidate(content);
-                parsed=validated.candidate;
-                definition=validated.normalized;
-                validationError=null;
-            }catch(error){
-                validationError=error;
-                console.error("Groq UGC calculator validation fallback failed:",error);
-            }
-        }
-        if(validationError){
-            await refundAiOperation();
-            const invalidJson=validationError instanceof SyntaxError;
-            return jsonWithAiUsage({
-                success:false,
-                code:invalidJson?"INVALID_AI_JSON":"INVALID_AI_CALCULATOR",
-                error:validationError?.message||"The AI returned an invalid calculator definition."
-            },invalidJson?502:422,origin,aiUsageCollector);
-        }
-
-        if(mode==="refine"){
-            const originalKeys=existingCalculator.spec.inputs.map(item=>String(item.key));
-            const refinedKeys=definition.inputs.map(item=>String(item.key));
-            const groupStructure=spec=> (Array.isArray(spec?.groups)?spec.groups:[]).map(group=>({
-                key:String(group.key||""),
-                fields:(Array.isArray(group.fields)?group.fields:[]).map(field=>String(field.key||""))
-            }));
-            const originalGroups=groupStructure(existingCalculator.spec);
-            const refinedGroups=groupStructure(definition);
-            const originalResultKeys=existingCalculator.spec.results.map(item=>String(item.key||""));
-            const refinedResultKeys=definition.results.map(item=>String(item.key||""));
-            const resultKeysPreserved=originalResultKeys.length===refinedResultKeys.length&&
-                originalResultKeys.every((key,index)=>!key||key===refinedResultKeys[index]);
-            const originalLabels=existingCalculator.spec.results.map(item=>String(item.label));
-            const refinedLabels=definition.results.map(item=>String(item.label));
-            const originalScenarios=(existingCalculator.spec.scenarios||[]).map(item=>String(item.label||""));
-            const refinedScenarios=(definition.scenarios||[]).map(item=>String(item.label||""));
-            const originalSubcategories=existingCalculator.subcategories||existingCalculator.spec.subcategories||[];
-            const identityIsPreserved=
-                String(parsed.title||"").trim()===String(existingCalculator.title||"").trim()&&
-                String(parsed.description||"").trim()===String(existingCalculator.description||"").trim()&&
-                String(parsed.category||"").toLowerCase()===String(existingCalculator.category||"").toLowerCase()&&
-                sameArray(definition.subcategories,originalSubcategories)&&
-                sameArray(refinedKeys,originalKeys)&&sameArray(refinedGroups.map(group=>group.key),originalGroups.map(group=>group.key))&&
-                sameArray(refinedGroups.map(group=>group.fields.join("|")),originalGroups.map(group=>group.fields.join("|")))&&
-                resultKeysPreserved&&sameArray(refinedLabels,originalLabels)&&
-                sameArray(refinedScenarios,originalScenarios);
-            if(!identityIsPreserved){
-                await refundAiOperation();
-                return jsonWithAiUsage({success:false,code:"CALCULATOR_IDENTITY_CHANGED",
-                    error:"Worth It AI tried to change the calculator's identity. That update was rejected; your saved calculator is unchanged and the AI edit was refunded."},422,origin,aiUsageCollector);
-            }
-            try{await settleAiOperation();}
-            catch(error){
-                console.error("Could not settle the UGC AI improvement and CALC charge:",error);
-                await refundAiOperation();
-                return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The AI improvement could not be confirmed. Your saved calculator was not changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
-            }
-            return jsonWithAiUsage({success:true,mode:"refine",regionalDefaults,billing:aiBilling,operation_id:aiOperationRequestId,calculator:{
-                title:existingCalculator.title,
-                description:existingCalculator.description||"",
-                category:existingCalculator.category,
-                spec:definition
-            }},200,origin,aiUsageCollector);
-        }
-
-        let missingCoverage=findMissingRequestedCoverage(prompt,parsed);
-        const coverageAttempts=[{
-            provider:contentProvider,
-            resultLabels:(Array.isArray(parsed?.results)?parsed.results:[]).map(item=>String(item?.label||"")),
-            missingCoverage:[...missingCoverage]
-        }];
-        // A first Groq response may itself be the Gemini fallback. If it is valid but
-        // incomplete, allow one additional, targeted Groq repair call. This is the
-        // only extra provider call and is made only when explicit requested coverage
-        // is missing; the original valid draft is retained if repair fails.
-        if(missingCoverage.length&&mode==="create"&&groqKey){
-            const missingBeforeRepair=[...missingCoverage];
-            console.warn("UGC calculator omitted requested coverage; trying targeted Groq regeneration (one attempt):",{
-                missingCoverage:missingBeforeRepair,
-                initialProvider:contentProvider
-            });
-            try{
-                const coverageRepairPrompt=[
-                    "Original user request:",
-                    prompt,
-                    "",
-                    "The previous draft was rejected because it omitted these explicitly requested items:",
-                    ...missingBeforeRepair.map(item=>"- "+item),
-                    "The complete original result checklist is:",
-                    ...requestedResultItems.map(item=>"- "+item),
-                    "",
-                    "Generate a complete replacement calculator definition. Do not merely explain the missing items.",
-                    "The replacement MUST contain a separate result row for EVERY missing item listed above.",
-                    "For weekly result, add a real formula row whose label contains Weekly or per week.",
-                    "For yearly result, add a real formula row whose label contains Yearly, Annual or per year.",
-                    "For total weekly, the matching weekly row label MUST contain the word total.",
-                    "For total yearly, the matching yearly row label MUST contain the word total.",
-                    "Use the original inputs and their keys. Do not invent new inputs unless absolutely required by the requested calculation.",
-                    "Keep all original requested assumptions, comparisons, and other requested outputs. Do not silently omit any requirement."
-                ].join("\n");
-                const repairedContent=await generateWithGroq(groqKey,system,coverageRepairPrompt,aiUsageCollector,"coverage-repair");
-                const repaired= parseAndValidate(repairedContent);
-                const repairedMissing=findMissingRequestedCoverage(prompt,repaired.candidate);
-                coverageAttempts.push({
-                    provider:"groq-repair",
-                    resultLabels:(Array.isArray(repaired.candidate?.results)?repaired.candidate.results:[]).map(item=>String(item?.label||"")),
-                    missingCoverage:[...repairedMissing]
-                });
-                if(repairedMissing.length){
-                    missingCoverage=repairedMissing;
-                    console.warn("Groq UGC coverage repair remained incomplete:",repairedMissing);
-                }else{
-                    content=repairedContent;
-                    contentProvider="groq";
-                    parsed=repaired.candidate;
-                    definition=repaired.normalized;
-                    missingCoverage=[];
-                }
-            }catch(error){
-                console.error("Groq UGC calculator coverage repair failed; retaining the original incomplete draft:",error);
-            }
-        }
-        if(validationError){
-            await refundAiOperation();
-            const invalidJson=validationError instanceof SyntaxError;
-            return json({
-                success:false,
-                code:invalidJson?"INVALID_AI_JSON":"INVALID_AI_CALCULATOR",
-                error:validationError?.message||"The AI returned an invalid calculator definition."
-            },invalidJson?502:422,origin);
-        }
-        if(missingCoverage.length){
-            const finalCoverageAttempt=coverageAttempts[coverageAttempts.length-1]||{resultLabels:[],missingCoverage};
-            const diagnostics={
-                build:UGC_MAKER_DIAGNOSTIC_VERSION,
-                provider:contentProvider,
-                requestedResultItems,
-                generatedResultLabels:finalCoverageAttempt.resultLabels,
-                generatedResultCount:finalCoverageAttempt.resultLabels.length,
-                missingCoverage:[...missingCoverage],
-                attempts:coverageAttempts
-            };
-            console.warn("UGC calculator coverage diagnostics:",diagnostics);
-            await refundAiOperation();
-            return jsonWithAiUsage({success:false,code:"INCOMPLETE_CALCULATOR",
-                error:"The generated calculator is missing requested coverage: "+missingCoverage.join(", ")+". Please generate it again with those items included.",
-                diagnostics
-            },422,origin,aiUsageCollector);
-        }
-        try{await settleAiOperation();}
-        catch(error){
-            console.error("Could not settle the UGC Maker generation and CALC charge:",error);
-            await refundAiOperation();
-            return jsonWithAiUsage({success:false,code:"AI_OPERATION_SETTLEMENT_FAILED",error:"The generated calculator could not be finalized. No calculator was changed; any reserved CALC and AI allowance were returned."},503,origin,aiUsageCollector);
-        }
-        return jsonWithAiUsage({success:true,mode:"create",regionalDefaults,billing:aiBilling,operation_id:aiOperationRequestId,calculator:{
-            title:String(parsed.title).trim().slice(0,70),
-            description:String(parsed.description||"").trim().slice(0,500),
-            category:String(parsed.category).toLowerCase(),
-            spec:definition
-        }},200,origin,aiUsageCollector);
-    }catch(error){
-        await refundAiOperation();
-        console.error("UGC calculator request failed:",error);
-        return jsonWithAiUsage({success:false,error:"The AI calculator service is temporarily unavailable. Please try again."},503,origin||SITE_ORIGIN,aiUsageCollector);
-    }
+    const origin=allowedOrigin(context.request);
+    if(!origin)return json({success:false,error:"Forbidden origin."},403,SITE_ORIGIN);
+    return json({
+        success:false,
+        code:"AI_UGC_CREATOR_DISABLED",
+        error:"AI generation and AI improvement for community calculators have been removed. Use the Manual Builder instead."
+    },410,origin);
 }
