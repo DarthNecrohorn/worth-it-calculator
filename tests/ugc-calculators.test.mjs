@@ -652,9 +652,11 @@ test("UGC currency choices match the current ISO 4217 list and preserve historic
 test("Manual Builder converts compatible V1 drafts to typed V2 and preserves safe local-only behavior",()=>{
  const start=maker.indexOf("function cloneCalculatorData(value){");
  const end=maker.indexOf("function changeManualSchemaVersion(definition,version){",start);
- assert.ok(start>=0&&end>start,"The isolated V2 conversion helpers must be present.");
+ const executionStart=maker.indexOf("function toV2ExecutionSpec(spec){");
+ const executionEnd=maker.indexOf("\nfunction validateManualDraftSpec(spec){",executionStart);
+ assert.ok(start>=0&&end>start&&executionStart>=0&&executionEnd>executionStart,"The isolated V2 conversion and execution-schema helpers must be present.");
  const sandbox={};
- runInNewContext(maker.slice(start,end)+"\nglobalThis.convertManualDraftToV2=convertManualDraftToV2;",sandbox);
+ runInNewContext(maker.slice(start,end)+maker.slice(executionStart,executionEnd)+"\nglobalThis.convertManualDraftToV2=convertManualDraftToV2;globalThis.toV2ExecutionSpec=toV2ExecutionSpec;",sandbox);
  const converted=sandbox.convertManualDraftToV2({
   title:"Typed migration test",
   description:"A test definition converted from the current numeric manual schema.",
@@ -682,8 +684,9 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
  assert.equal(converted.spec.groups[0].fields[0].type,"number");
  assert.equal(converted.spec.scenarios[0].values.enabled,false);
  const engine=createCalculatorEngine();
- const executionSpec=JSON.parse(JSON.stringify(converted.spec));
- delete executionSpec.assumptions;delete executionSpec.subcategories;
+ const executionSpec=sandbox.toV2ExecutionSpec(converted.spec);
+ assert.equal("assumptions" in executionSpec,false);
+ assert.equal("subcategories" in executionSpec,false);
  assert.deepEqual(JSON.parse(JSON.stringify(engine.validateVersionedSpec(executionSpec).errors)),[]);
  assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.assumptions)),["Test assumption"]);
  assert.deepEqual(JSON.parse(JSON.stringify(converted.spec.subcategories)),["household-budget"]);
@@ -697,8 +700,13 @@ test("Manual Builder converts compatible V1 drafts to typed V2 and preserves saf
  assert.match(maker,/function renderManualV2GroupEditor/);
  assert.match(maker,/function renderManualV2ScenarioEditor/);
  assert.match(maker,/function renderManualV2ResultEditor/);
- assert.match(maker,/function updateMakerV2TestResults/);
- assert.match(maker,/evaluateV2TypedResults\(spec,values,normalizedGroups\.groups\)/);
+ const localEvaluatorStart=maker.indexOf("function updateMakerV2TestResults(panel){");
+ const localEvaluatorEnd=maker.indexOf("\nfunction createV2FormulaHelp",localEvaluatorStart);
+ const localEvaluator=maker.slice(localEvaluatorStart,localEvaluatorEnd);
+ assert.ok(localEvaluatorStart>=0&&localEvaluatorEnd>localEvaluatorStart);
+ assert.ok(localEvaluator.includes("const executionSpec=toV2ExecutionSpec(spec)"));
+ assert.ok(localEvaluator.includes("normalizeTypedGroupValues(executionSpec,rawGroups)"));
+ assert.ok(localEvaluator.includes("evaluateV2TypedResults(executionSpec,values,normalizedGroups.groups)"));
 });
 
 test("Manual Builder loads the extracted shared v1 engine before its UI adapter",()=>{
