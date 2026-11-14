@@ -14,7 +14,9 @@ const creatorEarnings = read("supabase/worth-it-ugc-creator-earnings.sql");
 const creatorPriceCap = read("supabase/worth-it-ugc-creator-earnings-price-cap.sql");
 const ugc = read("ugc-calculators.js");
 const aiMaker = read("functions/api/ugc-maker.js");
-const removedAIChatEndpoint = new URL("../functions/api/ai-chat.js", import.meta.url);
+const aiChatApi = read("functions/api/ai-chat.js");
+const aiChatUi = read("ai-ui.js");
+const aiUgcDisable = read("supabase/worth-it-ugc-ai-creator-disable.sql");
 const mediaApi = read("functions/api/chat-media.js");
 const chat = read("chat-ui.js");
 const profile = read("profile-ui.js");
@@ -179,12 +181,24 @@ test("Custom Theme persistence is restricted to active Premium Lite/Premium at t
     assert.ok(setup.includes("enable row level security"));
 });
 
-test("AI Chat endpoint is removed while UGC AI operations retain independent CALC reservation and refunds", () => {
-    assert.equal(existsSync(removedAIChatEndpoint), false, "the standalone AI Chat Worker endpoint must not be deployed");
-    assert.match(aiMaker, /reserve_worth_it_ugc_ai_operation/);
-    assert.match(aiMaker, /settle_worth_it_ugc_ai_operation/);
-    assert.match(aiMaker, /refund_worth_it_ugc_ai_operation/);
-    assert.match(aiMaker, /outputSchemaVersion/);
+test("AI Chat is restored independently while user-facing AI UGC creation and billing are disabled", () => {
+    assert.match(aiChatApi, /export async function onRequestPost\(context\)/);
+    assert.match(aiChatApi, /isAllowedAIChatOrigin\(origin\)/);
+    assert.match(aiChatApi, /Please sign in to use Worth It AI/);
+    assert.match(aiChatApi, /streamGemini/);
+    assert.match(aiChatApi, /streamGroq/);
+    assert.match(aiChatUi, /\/api\/ai-chat/);
+    assert.match(aiChatUi, /function openAIChat/);
+    assert.match(html, /id="aiChatNavBtn"/);
+    assert.match(html, /id="aiChatOverlay"/);
+
+    assert.match(aiMaker, /AI_UGC_CREATOR_DISABLED/);
+    assert.match(aiMaker, /AI generation and AI improvement for community calculators have been removed/);
+    assert.match(aiUgcDisable, /revoke all on function public\.reserve_worth_it_ugc_ai_operation/);
+    assert.match(aiUgcDisable, /revoke all on function public\.reserve_worth_it_ugc_maker_generation_v2/);
+    assert.doesNotMatch(ugc, /generateWithAI|switchManualDraftToAI|Improve with AI/);
+    assert.match(ugc, /p_source:"manual"/);
+    assert.match(ugc, /p_ai_request_id:null/);
 });
 
 test("chat media limits are enforced server-side and dynamically validated in the composer", () => {
