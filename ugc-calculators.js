@@ -350,7 +350,6 @@ function renderCatalog(rows){
    actions.append(
     button("Open calculator →","ugc-action-primary",()=>window.openWorthItUGCCalculator(item.id)),
     button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),
-    button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),
     button(item.visibility==="public"?"Make private":"Make public","ugc-action-secondary",()=>setCalculatorVisibility(item.id,item.visibility==="public"?"private":"public"))
    );
    card.appendChild(actions);
@@ -361,7 +360,7 @@ function renderCatalog(rows){
    const select=document.createElement("select");select.className="ugc-publish-visibility";select.setAttribute("aria-label","Visibility when publishing this draft");
    [["private","Private — only you can see it"],["public","Public — anyone can discover it"]].forEach(([value,title])=>{const option=document.createElement("option");option.value=value;option.textContent=title;select.appendChild(option);});
    label.appendChild(select);
-   actions.append(button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),button("Improve with AI","ugc-action-secondary",()=>editCalculator(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
+   actions.append(button("Edit manually","ugc-action-secondary",()=>editCalculatorManually(item.id)),label,button("Publish","ugc-action-primary",()=>publishCalculator(item.id,select.value)));
    card.appendChild(actions);
   }else{
    const stats=document.createElement("div");stats.className="ugc-card-stats";
@@ -1355,22 +1354,6 @@ function formatResult(item,value,locale){
  if(item.format==="unit")return prefix+format({maximumFractionDigits:4})+(item.unit?" "+String(item.unit):"")+suffix;
  return prefix+format({maximumFractionDigits:4})+suffix;
 }
-async function refreshAiEditQuota(){
- const host=$("ugcMakerEditQuotaStatus");
- if(!host||!state.userId)return;
- host.textContent="Checking today's AI improvement allowance…";
- try{
-  const result=await sb().rpc("get_worth_it_ugc_ai_edit_quota");
-  if(result.error)throw result.error;
-  const quota=normalizeObject(result.data);
-  const limit=Number(quota?.daily_limit),used=Number(quota?.edits_used),remaining=Number(quota?.remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0)throw new Error("The AI edit quota response was incomplete.");
-  host.textContent="AI improvements today: "+used+"/"+limit+" used · "+remaining+" remaining. Free 1 / Premium Lite 2 / Premium 3. Resets at 00:00 UTC.";
- }catch(error){
-  host.textContent="Today's AI improvement allowance could not be loaded. The server still checks your tier and limit before each AI edit.";
-  console.warn("UGC AI edit quota could not be loaded:",error);
- }
-}
 async function refreshCreationQuota(){
  const host=$("ugcMakerQuotaStatus");
  if(!host||!state.userId)return;
@@ -1387,24 +1370,6 @@ async function refreshCreationQuota(){
  }catch(error){
   host.textContent="Today's save/publish allowance could not be loaded. The server still checks your account limit securely when you save.";
   console.warn("UGC creation quota could not be loaded:",error);
- }
-}
-async function refreshMakerGenerationQuota(){
- const host=$("ugcMakerGenerationQuotaStatus");
- if(!host||!state.userId)return;
- host.textContent="Checking today's AI generation allowance…";
- try{
-  const result=await sb().rpc("get_worth_it_ugc_maker_generation_quota");
-  if(result.error)throw result.error;
-  const quota=normalizeObject(result.data);
-  const limit=Number(quota?.daily_limit),used=Number(quota?.requests_used),remaining=Number(quota?.remaining);
-  if(!Number.isInteger(limit)||!Number.isInteger(used)||!Number.isInteger(remaining)||limit<1||used<0||remaining<0){
-   throw new Error("The AI generation allowance response was incomplete.");
-  }
-  host.textContent="AI generations today: "+used+"/"+limit+" used · "+remaining+" remaining. Resets at 00:00 UTC.";
- }catch(error){
-  host.textContent="Today's AI generation allowance could not be loaded. The server still checks your plan and internal capacity before every request.";
-  console.warn("UGC Maker generation quota could not be loaded:",error);
  }
 }
 function formatCalcPrice(usagePriceMilli){
@@ -1899,21 +1864,7 @@ async function saveDescription(){
  }
 }
 async function editCalculator(id){
- if(!requireAccount()||!verifyConfirmed())return;
- const result=await sb().rpc("get_worth_it_ugc_calculator",{p_id:id});
- if(result.error){status("Could not load this calculator for editing.",true);return;}
- const calculator=normalizeObject(result.data);
- if(!calculator||calculator.is_owner!==true){status("You can edit only your own calculators.",true);return;}
- if(Number(calculator.spec?.schemaVersion)===2){await editCalculatorManually(id);return;}
- state.creationSource="ai";state.aiOperationId="";
- state.editingId=id;state.editingVisibility=calculator.visibility||"private";state.editingStatus=calculator.status||"draft";
- openMaker();
- const modal=$("ugcMakerModal");
- modal.querySelector("[name=prompt]").value="";
- $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator (for example: make the cost assumptions more precise or improve the formulas). Its subject and purpose cannot be changed.";
- state.aiDraft={title:calculator.title,description:calculator.description||"",category:calculator.category,subcategories:calculator.subcategories||[],spec:calculator.spec};
- renderMakerPreview(state.aiDraft);setMakerModeUI();
- makerStatus("Your calculator's subject, title, category and description stay fixed. Ask AI to improve its inputs and formulas.");
+ await editCalculatorManually(id);
 }
 async function editCalculatorManually(id){
  if(!requireAccount()||!verifyConfirmed())return;
@@ -1963,22 +1914,17 @@ async function setCalculatorVisibility(id,visibility){
 function openMaker(){
  if(!requireAccount()||!verifyConfirmed())return;
  const modal=$("ugcMakerModal");if(!modal)return;
+ state.creationSource="manual";
  modal.hidden=false;modal.setAttribute("aria-hidden","false");
  document.body.classList.add("ugc-maker-open");
- const manual=state.creationSource==="manual",editing=Boolean(state.editingId);
- if(editing&&!manual)void refreshAiEditQuota();
+ const editing=Boolean(state.editingId);
  if(!editing)void refreshCreationQuota();
- if(!manual&&!editing)void refreshMakerGenerationQuota();
- const editQuota=$("ugcMakerEditQuotaStatus"),createQuota=$("ugcMakerQuotaStatus");
- const generationQuota=$("ugcMakerGenerationQuotaStatus");
- if(editQuota)editQuota.hidden=!(editing&&!manual);
+ const createQuota=$("ugcMakerQuotaStatus");
  if(createQuota)createQuota.hidden=editing;
- if(generationQuota)generationQuota.hidden=manual||editing;
  const visibilityWrap=$("ugcMakerVisibilityWrap");
  if(visibilityWrap)visibilityWrap.hidden=editing;
  setMakerModeUI();
- if(!editing)makerStatus(manual?"Choose a builder mode and customize your calculator.":"Describe your calculator in at least 10 characters.");
- if(!manual)$("ugcMakerPrompt")?.focus();
+ if(!editing)makerStatus("Choose a builder mode and customize your calculator.");
 }
 function closeMaker(){
  const modal=$("ugcMakerModal");if(modal){modal.hidden=true;modal.setAttribute("aria-hidden","true");}
@@ -2472,50 +2418,28 @@ function createManualDraft(templateKey){
    inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),
    groups:JSON.parse(JSON.stringify(template.groups||[])),scenarios:JSON.parse(JSON.stringify(template.scenarios||[]))}};
 }
-function updateMakerBillingNotice(){
- const costNote=$("ugcMakerBillingNotice");
- if(!costNote)return;
- const schemaVersion=state.editingId?1:Number($("ugcMakerTargetSchemaVersion")?.value||1);
- if(schemaVersion===2){
-  costNote.innerHTML="<strong>Version 2 · typed:</strong> AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance. V2 saved-calculator AI improvement is not enabled yet.";
-  return;
- }
- costNote.innerHTML="<strong>Version 1:</strong> AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium per successful operation. Failed operations refund the CALC charge and daily AI allowance.";
-}
 function setMakerModeUI(){
- const manual=state.creationSource==="manual";
- const manualControls=$("ugcManualControls"),aiWrap=$("ugcMakerAiPromptWrap"),aiButton=$("ugcMakerGenerate");
- const aiSchemaWrap=$("ugcMakerTargetSchemaVersionWrap"),aiSchemaSelect=$("ugcMakerTargetSchemaVersion");
- if(aiSchemaWrap)aiSchemaWrap.hidden=manual||Boolean(state.editingId);
- if(aiSchemaSelect){aiSchemaSelect.disabled=Boolean(state.editingId);if(state.editingId)aiSchemaSelect.value="1";}
-
- if(manualControls)manualControls.hidden=!manual;
- if(aiWrap)aiWrap.hidden=manual;
- if(aiButton)aiButton.textContent=state.editingId?"✦ Improve with AI":"✦ Generate calculator";
+ const manualControls=$("ugcManualControls");
  const kicker=$("ugcMakerKicker"),heading=$("ugcMakerTitleHeading"),intro=$("ugcMakerIntro");
- if(kicker)kicker.textContent=manual?"WORTH IT MANUAL BUILDER":"WORTH IT AI";
- if(heading)heading.textContent=state.editingId?(manual?"Edit calculator manually":"Improve your calculator with AI"):(manual?"Create a calculator manually":"Create a calculator with AI");
- if(intro)intro.textContent=manual
-  ?"Build a safe calculator with formulas, inputs and currencies. No AI request or CALC charge is used."
-  :"Describe the decision or calculation. AI creates a safe, editable calculator draft.";
+ if(kicker)kicker.textContent="WORTH IT MANUAL BUILDER";
+ if(heading)heading.textContent=state.editingId?"Edit calculator manually":"Create a calculator manually";
+ if(intro)intro.textContent="Build a safe calculator with formulas, inputs and currencies. Manual Builder uses no AI and costs no CALC.";
+ if(manualControls)manualControls.hidden=false;
  const modeHelp=$("ugcManualModeHelp");
  if(modeHelp){
-  modeHelp.hidden=!manual;
+  modeHelp.hidden=false;
   modeHelp.querySelectorAll("[data-manual-mode-info]").forEach(card=>{
    const active=card.dataset.manualModeInfo===(state.manualMode||"quick");
    card.classList.toggle("is-active",active);
    card.setAttribute("aria-current",active?"true":"false");
   });
  }
- updateMakerBillingNotice();
- const manualAiImprove=$("ugcManualAiImproveButton");
- if(manualAiImprove)manualAiImprove.hidden=!(manual&&Boolean(state.editingId));
  const blueprintImportPanel=$("ugcBlueprintImportPanel");
- if(blueprintImportPanel)blueprintImportPanel.hidden=!manual||Boolean(state.editingId);
+ if(blueprintImportPanel)blueprintImportPanel.hidden=Boolean(state.editingId);
  const templateWrap=$("ugcManualTemplateWrap");
- if(templateWrap)templateWrap.hidden=!manual||Boolean(state.editingId)||state.manualMode!=="template";
+ if(templateWrap)templateWrap.hidden=Boolean(state.editingId)||state.manualMode!=="template";
  const modeSelect=$("ugcManualMode");
- if(modeSelect&&manual)modeSelect.value=state.manualMode||"quick";
+ if(modeSelect)modeSelect.value=state.manualMode||"quick";
 }
 function loadManualTemplate(templateKey){
  const selectedKey=templateKey==="random"?pickRandomManualTemplateKey():templateKey;
@@ -3631,53 +3555,6 @@ function renderMakerPreview(definition){
  const saveButton=$("ugcMakerSave"),publishButton=$("ugcMakerPublish");
  if(saveButton)saveButton.disabled=false;if(publishButton)publishButton.disabled=false;
 }
-async function generateWithAI(){
- if(!requireAccount()||!verifyConfirmed())return;
- state.blueprintImportActive=false;
- state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
- const prompt=String($("ugcMakerPrompt")?.value||"").trim();
- if(prompt.length<10||prompt.length>5000){makerStatus("Describe the request in 10 to 5000 characters.","error");return;}
- const button=$("ugcMakerGenerate");button.disabled=true;
- makerStatus(state.editingId?"Worth It AI is improving your existing calculator…":"Worth It AI is designing your calculator…","generating");
- $("ugcMakerPreview").hidden=true;
- try{
-  const targetSchemaVersion=state.editingId?1:Number($("ugcMakerTargetSchemaVersion")?.value||1);
-  const payload=state.editingId?{mode:"refine",calculator_id:state.editingId,prompt}:{mode:"create",prompt,schema_version:targetSchemaVersion};
-  const response=await fetch("/api/ugc-maker",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+state.session.access_token,"Accept":"application/json"},body:JSON.stringify(payload)});
-  const data=await response.json().catch(()=>null);
-  if(!response.ok||!data?.success){
-   const providerFailures=Array.isArray(data?.aiUsage?.attempts)
-    ?data.aiUsage.attempts.filter(item=>item?.success!==true).map(item=>{
-     const provider=String(item?.provider||"AI").toUpperCase();
-     const reason=String(item?.failureCode||(Number.isFinite(Number(item?.httpStatus))?"HTTP_"+item.httpStatus:"REQUEST_FAILED"));
-     return provider+" "+reason;
-    })
-    :[];
-   const message=data?.error||"The AI calculator maker is unavailable.";
-   throw new Error(providerFailures.length?message+" (Provider diagnostics: "+providerFailures.join("; ")+").":message);
-  }
-  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(data.operation_id||""))){
-   throw new Error("The AI operation could not be verified. No calculator draft was accepted.");
-  }
-  const returnedSchemaVersion=Number(data.calculator?.spec?.schemaVersion||1);
-  if(returnedSchemaVersion!==targetSchemaVersion)throw new Error("The AI returned a calculator schema that does not match the selected version. No draft was accepted.");
-  state.aiOperationId=String(data.operation_id);
-  state.aiDraft=data.calculator;
-  state.regionalDefaults=data.regionalDefaults||null;
-  state.makerLocale=state.regionalDefaults?.locale||"auto";
-  renderMakerPreview(state.aiDraft);
-  makerStatus(targetSchemaVersion===2
-   ?"Typed V2 AI generation passed server schema, formula, unit and default-value validation. The AI operation used the normal CALC charge and daily allowance. Review assumptions and test locally; "+(state.v2PersistenceAvailable?"V2 saving and publishing are enabled by this database.":"V2 Save and Publish remain disabled until the connected database advertises V2 persistence.")
-   :state.editingId?"AI improvement generated. Review the improved inputs and formulas, then save the update.":"Preview generated. Review the title, description and formulas before saving.");
- }catch(error){makerStatus(error?.message||"Could not generate a calculator.","error");}
- finally{
-  button.disabled=false;
-  if(!state.editingId){
-   void refreshCreationQuota();
-   void refreshMakerGenerationQuota();
-  }
- }
-}
 function describeResultFormula(item,inputs){
  const expression=String(item?.expression||"").trim();
  const used=(Array.isArray(inputs)?inputs:[]).filter(input=>new RegExp("(^|[^A-Za-z0-9_])"+String(input.key||"")+"($|[^A-Za-z0-9_])").test(expression));
@@ -3695,7 +3572,7 @@ async function saveMakerDraft(publish){
   }
  }
  const title=String($("ugcMakerTitle")?.value||"").trim();
- const description=state.editingId&&state.creationSource!=="manual"?String(state.aiDraft.description||""):String($("ugcMakerDescription")?.value||"").trim();
+ const description=String($("ugcMakerDescription")?.value||"").trim();
  const category=String(state.aiDraft.category||"other");
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
@@ -3728,11 +3605,10 @@ async function saveMakerDraft(publish){
  const publishButton=$("ugcMakerPublish");if(publishButton)publishButton.disabled=true;
  let savedIdAfterWrite="";
  try{
-  if(state.creationSource==="ai"&&!state.aiOperationId)throw new Error("Run a successful AI generation or improvement before saving this AI draft.");
   const saved=await sb().rpc("save_worth_it_ugc_calculator",{
    p_id:state.editingId||null,p_title:title,p_description:description,p_category:category,p_spec:specToSave,
-   p_source:state.creationSource==="manual"?"manual":"ai",
-   p_ai_request_id:state.creationSource==="manual"?null:state.aiOperationId
+   p_source:"manual",
+   p_ai_request_id:null
   });
   if(saved.error)throw saved.error;
   const payload=normalizeObject(saved.data),id=payload?.id;
@@ -3744,21 +3620,9 @@ async function saveMakerDraft(publish){
    state.editingId=id;
    state.editingVisibility=visibility;
    state.editingStatus="draft";
-   $("ugcMakerGenerate").textContent="✦ Improve with AI";
-   $("ugcMakerTitleHeading").textContent="Improve your calculator with AI";
    const visibilityWrap=$("ugcMakerVisibilityWrap");if(visibilityWrap)visibilityWrap.hidden=true;
-   const createQuota=$("ugcMakerQuotaStatus"),editQuota=$("ugcMakerEditQuotaStatus"),generationQuota=$("ugcMakerGenerationQuotaStatus");
+   const createQuota=$("ugcMakerQuotaStatus");
    if(createQuota)createQuota.hidden=true;
-   if(generationQuota)generationQuota.hidden=true;
-   if(editQuota)editQuota.hidden=true;
-   // Once the AI draft is first saved, future changes are ordinary manual
-   // edits. The generation has already consumed its AI slot and CALC charge.
-   if(state.creationSource==="ai"){
-    state.creationSource="manual";state.aiOperationId="";state.manualMode="advanced";
-    const mode=$("ugcManualMode");if(mode)mode.value="advanced";
-    const templateWrap=$("ugcManualTemplateWrap");if(templateWrap)templateWrap.hidden=true;
-    renderMakerPreview(state.aiDraft);
-   }
    setMakerModeUI();
    void refreshCreationQuota();
   }
@@ -3768,7 +3632,7 @@ async function saveMakerDraft(publish){
    const publication=normalizeObject(result.data);
    if(publication?.success!==true||publication.visibility!==visibility)throw new Error("The calculator was saved, but publication was not confirmed.");
   }
-  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerGenerate").textContent="✦ Generate calculator";$("ugcMakerTitleHeading").textContent="Create a calculator with AI";$("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
+  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";closeMaker();$("ugcMakerTitleHeading").textContent="Create a calculator manually";setActiveSort(publish||previousStatus==="published"?"mine":"my-drafts");await loadCatalog();
   const publicNumber=Number(payload?.calculator_number);
   const numberLabel=Number.isSafeInteger(publicNumber)&&publicNumber>=51?" #"+publicNumber:"";
   toast(publish?"Your calculator"+numberLabel+" has been published.":"Your calculator"+numberLabel+" draft has been saved.");
@@ -3895,16 +3759,6 @@ function refreshCreatorDiscoveryWhenVisible(){
 window.addEventListener("focus",()=>{reconcileExplorePanels();refreshCreatorDiscoveryWhenVisible();});
 window.addEventListener("popstate",()=>window.setTimeout(refreshCreatorDiscoveryWhenVisible,0));
 window.setInterval(refreshCreatorDiscoveryWhenVisible,60000);
-function openNewCalculatorMaker(){
- state.creationSource="ai";state.aiOperationId="";state.manualMode="quick";
- state.editingId=null;state.editingVisibility="";state.editingStatus="draft";state.aiDraft=null;state.regionalDefaults=null;state.makerLocale="auto";openMaker();
- $("ugcMakerVisibility").value="private";
- $("ugcMakerPrompt").placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance.";
- $("ugcMakerPrompt").value="";$("ugcMakerPreview").hidden=true;$("ugcMakerVisibility").value="private";
- $("ugcMakerGenerate").textContent="✦ Generate calculator";
- $("ugcMakerTitleHeading").textContent="Create a calculator with AI";
- makerStatus("Describe what you want to calculate.");
-}
 function openManualCalculatorMaker(){
  state.creationSource="manual";state.aiOperationId="";state.manualMode="quick";state.manualTemplateKey="simple-cost";
  state.editingId=null;state.editingVisibility="";state.editingStatus="draft";
@@ -3913,19 +3767,8 @@ function openManualCalculatorMaker(){
  const template=$("ugcManualTemplate");if(template)template.value="simple-cost";
  $("ugcMakerVisibility").value="private";
  openMaker();
- $("ugcMakerPrompt").value="";
  $("ugcMakerPreview").hidden=false;
  loadManualTemplate("simple-cost");
-}
-function switchManualDraftToAI(){
- if(!state.editingId||!state.aiDraft||!requireAccount()||!verifyConfirmed())return;
- state.creationSource="ai";state.aiOperationId="";setMakerModeUI();
- void refreshAiEditQuota();
- const editQuota=$("ugcMakerEditQuotaStatus");if(editQuota)editQuota.hidden=false;
- $("ugcMakerPrompt").value="";
- $("ugcMakerPrompt").placeholder="Describe how Worth It AI should improve this existing calculator. Its subject and purpose cannot be changed.";
- makerStatus("Ask AI to improve the formulas or calculation detail. This uses your AI improvement allowance and costs 2/4/6 CALC for your active membership.");
- $("ugcMakerPrompt")?.focus();
 }
 async function init(){
  try{await getSession();}catch(_){state.session=null;state.userId="";}
@@ -3948,16 +3791,12 @@ async function init(){
  $("ugcPageInput")?.addEventListener("change",event=>goToCatalogPage(event.target.value));
  $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
- $("ugcCreateButton")?.addEventListener("click",openNewCalculatorMaker);
  $("ugcCreateManualButton")?.addEventListener("click",openManualCalculatorMaker);
  $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
- $("ugcMakerTargetSchemaVersion")?.addEventListener("change",updateMakerBillingNotice);
  $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
- $("ugcManualAiImproveButton")?.addEventListener("click",switchManualDraftToAI);
  $("ugcBlueprintCopyPrompt")?.addEventListener("click",()=>void copyBlueprintPrompt());
  $("ugcBlueprintImportButton")?.addEventListener("click",importManualBlueprint);
  $("ugcMakerClose")?.addEventListener("click",closeMaker);
- $("ugcMakerGenerate")?.addEventListener("click",generateWithAI);
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
  $("ugcDetailBack")?.addEventListener("click",()=>window.closeWorthItUGCCalculator());
