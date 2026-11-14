@@ -315,7 +315,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.match(maker,/state\.editingId=id;\s*state\.editingVisibility=visibility;/,
         "a saved draft ID is retained if the first publication attempt fails, so retries do not create duplicate calculators");
     assert.ok(html.includes("ugcMakerVisibilityWrap"));
-    assert.ok(maker.includes("AI-selected categories"));
+    assert.ok(maker.includes("Calculator categories"));
     assert.ok(html.includes("New manual calculator saves are limited per UTC day: Free 1, Premium Lite 2 and Premium 3."));
     assert.ok(maker.includes("get_worth_it_ugc_catalog_page"));
     assert.ok(maker.includes("p_sort:state.sort"));
