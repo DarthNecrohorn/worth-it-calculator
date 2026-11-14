@@ -1379,6 +1379,8 @@ test("AI Maker refunds its reserved daily generation when Gemini and Groq both f
         const result = await response.json();
         assert.equal(result.code, "AI_PROVIDER_UNAVAILABLE");
         assert.match(result.error, /reserved CALC charge and AI allowance were returned/i);
+        assert.equal(result.aiUsage.attempts[0].failureCode,"HTTP_503");
+        assert.equal(result.aiUsage.attempts[1].failureCode,"HTTP_400");
         assert.equal(quotaEvents.refunds, 1);
         assert.equal(quotaEvents.settlements || 0, 0);
     }, quotaEvents);
@@ -3143,9 +3145,12 @@ test("Typed V2 persistence uses a database capability gate and a strict member r
  assert.match(workflow,/tests\/fixtures\/ugc-v2-persistence-postgres-smoke\.sql/);
 });
 
-test("AI Creator API supports a separate strict typed V2 provider schema and validates through the shared Blueprint importer",()=>{
+test("AI Creator API uses JSON-only V2 provider fallback and validates through the shared Blueprint importer",()=>{
  assert.ok(makerApi.includes('import "../../ugc-blueprint-import.js";'));
  assert.ok(makerApi.includes("GROQ_TYPED_V2_BLUEPRINT_SCHEMA"));
+ assert.match(makerApi,/response_format:typedV2\?\{type:"json_object"\}/);
+ assert.match(makerApi,/max_completion_tokens:16384/);
+ assert.match(makerApi,/maxOutputTokens:Number\(schemaVersion\)===2\?16384:8192/);
  assert.ok(makerApi.includes("prepareTypedV2ProviderCandidate"));
  assert.ok(makerApi.includes("normalizeTypedV2Definition"));
  assert.ok(makerApi.includes("importer.parseBlueprint(JSON.stringify(raw)"));
@@ -3214,9 +3219,8 @@ test("AI Creator generates and server-validates typed V2 blueprints without enab
   if(path.includes("api.groq.com/openai/v1/chat/completions")){
    providerCalls++;
    const body=JSON.parse(options.body);
-   const responseSchema=body.response_format.json_schema;
-   assert.equal(responseSchema.name,"worth_it_typed_v2_calculator");
-   assert.equal(responseSchema.schema.properties.blueprintVersion.enum[0],2);
+   assert.deepEqual(body.response_format,{type:"json_object"});
+   assert.equal(body.max_completion_tokens,16384);
    assert.match(body.messages[0].content,/canonical root blueprintVersion 2/i);
    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(candidate)}}]}),{status:200});
   }
@@ -3322,6 +3326,7 @@ test("AI Creator accepts canonical Gemini typed V2 blueprints and validates them
   if(path.includes("generativelanguage.googleapis.com")){
    providerCalls++;
    const body=JSON.parse(options.body);
+   assert.equal(body.generationConfig.maxOutputTokens,16384);
    assert.match(body.systemInstruction.parts[0].text,/blueprintVersion 2/i);
    assert.match(body.systemInstruction.parts[0].text,/typed/i);
    return new Response(JSON.stringify({
