@@ -3490,7 +3490,7 @@ test("V2 statistical aggregations and financial formulas evaluate deterministica
    key:"items",label:"Items",itemLabel:"Item",minItems:2,maxItems:10,
    fields:[
     {key:"value",label:"Value",type:"number",min:0,max:1000,default:10,step:1,unit:"EUR"},
-    {key:"weight",label:"Weight",type:"number",min:0,max:100,default:1,step:1,unit:""},
+    {key:"weight",label:"Weight",type:"number",min:-100,max:100,default:1,step:1,unit:""},
     {key:"score",label:"Score",type:"number",min:0,max:100,default:10,step:1,unit:""}
    ]
   }],
