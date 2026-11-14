@@ -598,7 +598,7 @@ function collectV2RuntimeValues(root,spec){
    return raw;
   });
  });
- const normalizedGroups=normalizeTypedGroupValues(executionSpec,rawGroups);
+ const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
  if(normalizedGroups.valid!==true)throw new Error((normalizedGroups.errors||[]).slice(0,3).join(" "));
  return {values,groups:normalizedGroups.groups};
 }
@@ -3205,7 +3205,7 @@ function updateMakerV2TestResults(panel){
    return value;
   });
  });
- const normalizedGroups=normalizeTypedGroupValues(spec,rawGroups);
+ const normalizedGroups=normalizeTypedGroupValues(executionSpec,rawGroups);
  if(normalizedGroups.valid!==true){status.textContent=normalizedGroups.errors.slice(0,3).join(" ");return;}
  let formulaErrors=0;
  const render=(host,values,compact)=>{
