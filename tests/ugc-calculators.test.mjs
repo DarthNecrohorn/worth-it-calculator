@@ -701,7 +701,9 @@ test("UGC Maker exposes editable regional number formatting, currency consistenc
     assert.match(maker, /ugc-maker-test-locale/);
     assert.match(maker, /Currency consistency warning/);
     assert.match(maker, /Free local test · No CALC is charged, no AI request is sent, and nothing is saved/);
-    assert.match(html, /AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
+    assert.match(html, /Version 1:.*AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium/);
+    assert.match(html, /Version 2 · typed:.*AI generation costs 4 CALC for Free, 8 CALC for Premium Lite and 12 CALC for Premium/);
+    assert.match(html, /Limited AI capacity/);
     assert.match(html, /Manual Builder uses no AI and costs no CALC/);
     assert.match(html, /Testing remains free and runs locally in your browser/);
     assert.match(maker, /24–500 characters/);
@@ -1552,16 +1554,19 @@ test("Subscriptions explain Free, Premium Lite and Premium UGC quotas without se
     assert.match(freeCard, /1 new AI-generated UGC calculator per UTC day/);
     assert.match(freeCard, /1 AI improvement to an existing UGC calculator per UTC day/);
     assert.match(freeCard, /1 new manually created \(non-AI\) UGC calculator saved per UTC day/);
-    assert.match(freeCard, /AI generation costs 2 CALC per successful operation/);
+    assert.match(freeCard, /Version 1 AI generation or improvement costs 2 CALC per successful operation/);
+    assert.match(freeCard, /Version 2 typed AI generation costs 4 CALC per successful operation/);
     assert.doesNotMatch(freeCard, /<button\b/i, "Free is informational and cannot be purchased");
     assert.match(panel, /2 new AI-generated UGC calculators per UTC day/);
     assert.match(panel, /2 AI improvements to existing UGC calculators per UTC day/);
     assert.match(panel, /2 new manually created \(non-AI\) UGC calculators saved per UTC day/);
-    assert.match(panel, /AI generation costs 4 CALC per successful operation/);
+    assert.match(panel, /Version 1 AI generation or improvement costs 4 CALC per successful operation/);
+    assert.match(panel, /Version 2 typed AI generation costs 8 CALC per successful operation/);
     assert.match(panel, /3 new AI-generated UGC calculators per UTC day/);
     assert.match(panel, /3 AI improvements to existing UGC calculators per UTC day/);
     assert.match(panel, /3 new manually created \(non-AI\) UGC calculators saved per UTC day/);
-    assert.match(panel, /AI generation costs 6 CALC per successful operation/);
+    assert.match(panel, /Version 1 AI generation or improvement costs 6 CALC per successful operation/);
+    assert.match(panel, /Version 2 typed AI generation costs 12 CALC per successful operation/);
     assert.doesNotMatch(panel, /100 successful new UGC calculator generations per UTC day/);
 });
 
@@ -1609,7 +1614,12 @@ test("Manual UGC Builder, separate save quota and paid AI operations are secured
     assert.match(manualBuilderSql, /kind='ugc_ai_spend' and currency='CALC'/);
     assert.match(manualBuilderSql, /A completed CALC AI-generation transaction is required/);
     assert.match(manualBuilderSql, /A completed CALC AI-improvement transaction is required/);
-    assert.match(manualBuilderSql, /when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end/);
+    assert.match(manualBuilderSql, /v_amount := \(case v_plan when 'premium' then 6000 when 'premium_lite' then 4000 else 2000 end\)[\s\S]*?case when p_schema_version=2 then 2 else 1 end/);
+    assert.match(manualBuilderSql, /p_request_id uuid,p_operation text,p_schema_version integer/);
+    assert.match(manualBuilderSql, /p_request_id uuid,p_mode text,p_calculator_id uuid,p_schema_version integer/);
+    assert.match(manualBuilderSql, /p_schema_version is null or p_schema_version not in \(1,2\)/);
+    assert.match(makerApi, /p_schema_version:schemaVersion/);
+    assert.match(makerApi, /reserveAiOperation\(env,token,aiOperationRequestId,"create",null,outputSchemaVersion\)/);
     assert.match(manualBuilderSql, /when 'premium' then 3 when 'premium_lite' then 2 else 1 end/);
     assert.match(calcEconomySource, /ugc_ai_spend:"AI UGC calculator"/);
     assert.match(paginationFixture, /ugc_manual_ai_billing/);
