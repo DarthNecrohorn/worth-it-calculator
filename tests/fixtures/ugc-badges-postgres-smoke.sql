@@ -1235,12 +1235,13 @@ declare
     v_premium uuid := 'a9999999-9999-4999-8999-999999999998';
     v_user uuid;
     v_limit integer;
-    v_used integer;
+    v_source text;
     v_id uuid;
     v_result jsonb;
     v_quota jsonb;
+    v_saved_spec jsonb;
     v_description text := 'A manual calculator used to verify daily save limits and edit behavior.';
-    v_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[]}'::jsonb;
+    v_spec jsonb := '{"subcategories":[],"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10,"step":1}],"results":[{"label":"Total amount","expression":"amount"}],"scenarios":[{"key":"higher_amount","label":"Higher amount","values":{"amount":20}}]}'::jsonb;
     blocked boolean;
     i integer;
 begin
@@ -1263,8 +1264,11 @@ begin
             );
             v_id:=(v_result->>'id')::uuid;
             if v_id is null then raise exception 'Manual save % failed for account %: %',i,v_user,v_result; end if;
-            select creation_source into v_used from private.worth_it_user_calculators where id=v_id;
-            if v_used::text<>'manual' then raise exception 'A Manual Builder save has incorrect provenance: %',v_used; end if;
+            select creation_source,spec into v_source,v_saved_spec from private.worth_it_user_calculators where id=v_id;
+            if v_source<>'manual' then raise exception 'A Manual Builder save has incorrect provenance: %',v_source; end if;
+            if jsonb_array_length(v_saved_spec->'scenarios')<>1 then
+                raise exception 'A comparison scenario was not preserved.';
+            end if;
         end loop;
 
         v_quota:=public.get_worth_it_ugc_creation_quota();
@@ -1280,6 +1284,17 @@ begin
         exception when sqlstate '54000' then blocked:=true;
         end;
         if not blocked then raise exception 'Account % exceeded its % manual saves per UTC day.',v_user,v_limit; end if;
+
+        -- A scenario outside its input bounds must be rejected before persistence.
+        blocked:=false;
+        begin
+            perform public.save_worth_it_ugc_calculator(
+                null,'Invalid scenario '||v_user::text,v_description,'money',
+                jsonb_set(v_spec,'{scenarios,0,values}','{"amount":101}'::jsonb),'manual',null
+            );
+        exception when invalid_parameter_value then blocked:=true;
+        end;
+        if not blocked then raise exception 'A scenario value outside the input range was accepted.'; end if;
 
         -- An old/forged AI request ID cannot make a newly saved calculator AI-sourced.
         blocked:=false;
