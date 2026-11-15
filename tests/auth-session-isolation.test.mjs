@@ -81,6 +81,12 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
 });
 
 
+test("Create account modal shifts left 10px and its close button moves down 1px", () => {
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-close\s*\{[^}]*top:\s*1px!important/);
+    assert.match(html, /signup-modal-alignment=20261115a/);
+});
+
 test("email confirmation callback clears the one-time session and presents the sign-in flow", () => {
     assert.match(app, /function handleEmailConfirmationLanding\(event, session\)/);
     assert.match(app, /callbackParams\.get\("type"\) !== "signup"/);
