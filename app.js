@@ -238,6 +238,10 @@ function handleEmailConfirmationLanding(event, session) {
 window.supabaseClient.auth.onAuthStateChange((event, session) => {
     updateAuthUI(session?.user || null);
 
+    if (handleEmailConfirmationLanding(event, session)) {
+        return;
+    }
+
     if (event === "PASSWORD_RECOVERY") {
         authMfaRequired = false;
         authPendingMfaFactorId = "";
