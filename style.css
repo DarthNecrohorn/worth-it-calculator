@@ -24345,22 +24345,20 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Create account close control: move the complete X button 10px right.
-   The glyph alone moves 1px down inside the button frame. */
-#authModalOverlay.signup-mode .auth-modal-close,
-#authModalOverlay.signup-mode .auth-modal-close:hover,
-#authModalOverlay.signup-mode .auth-modal-close:focus,
-#authModalOverlay.signup-mode .auth-modal-close:focus-visible,
-#authModalOverlay.signup-mode .auth-modal-close:active{
-    transform:translateX(10px)!important;
+/* Rebuilt Create account close control.
+   Negative end margin moves the whole button frame 10px right in the flex header;
+   the nested glyph is independently lowered by 1px. */
+#authModalOverlay.signup-mode #authModalCloseButton,
+#authModalOverlay.signup-mode #authModalCloseButton:hover,
+#authModalOverlay.signup-mode #authModalCloseButton:focus,
+#authModalOverlay.signup-mode #authModalCloseButton:focus-visible,
+#authModalOverlay.signup-mode #authModalCloseButton:active{
+    margin-right:-10px!important;
+    transform:none!important;
 }
-#authModalOverlay.signup-mode .auth-modal-close:hover,
-#authModalOverlay.signup-mode .auth-modal-close:focus,
-#authModalOverlay.signup-mode .auth-modal-close:focus-visible,
-#authModalOverlay.signup-mode .auth-modal-close:active{
-    transform:translate(10px,-2px)!important;
-}
-#authModalOverlay.signup-mode .auth-modal-close-glyph{
-    display:inline-block;
-    transform:translateY(1px)!important;
+#authModalOverlay.signup-mode #authModalCloseGlyph{
+    position:relative!important;
+    top:1px!important;
+    display:inline-block!important;
+    transform:none!important;
 }
