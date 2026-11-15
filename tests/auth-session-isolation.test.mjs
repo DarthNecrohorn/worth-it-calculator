@@ -89,6 +89,8 @@ test("Remember me is opt-in and stores unchecked sign-ins only for the browser s
     assert.match(app, /window\.sessionStorage\.setItem\(key, value\)/);
     assert.match(app, /window\.localStorage\.setItem\(key, value\)/);
     assert.match(app, /function setAuthRememberMe\(enabled\)/);
+    assert.match(app, /if \(key === AUTH_STORAGE_KEY\)[\s\S]*?removeItem\(AUTH_REMEMBER_UNTIL_KEY\)/);
+    assert.match(app, /window\.sessionStorage\.removeItem\(AUTH_STORAGE_KEY\)/);
     assert.match(app, /setAuthRememberMe\(Boolean\(\$\("authRememberMe"\)\?\.checked\)\)/);
     assert.match(html, /id="authRememberMe" name="rememberMe" value="yes"/);
     assert.match(html, /id="authRememberWrap" style="display:none;"/);
