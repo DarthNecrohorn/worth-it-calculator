@@ -94,6 +94,10 @@ test("Remember me is opt-in and stores unchecked sign-ins only for the browser s
     assert.match(app, /setAuthRememberMe\(Boolean\(\$\("authRememberMe"\)\?\.checked\)\)/);
     assert.match(html, /id="authRememberMe" name="rememberMe" value="yes"/);
     assert.match(html, /id="authRememberWrap" style="display:none;"/);
+    const signInButtonEnd = html.indexOf('id="authSubmitBtn"');
+    const rememberRow = html.indexOf('id="authRememberWrap"');
+    const statusRow = html.indexOf('id="authModalStatus"');
+    assert.ok(signInButtonEnd >= 0 && rememberRow > signInButtonEnd && statusRow > rememberRow);
 });
 
 test("Create account modal removes its internal scrollbar and keeps email status between guest and sign-in link", () => {
