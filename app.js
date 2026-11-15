@@ -47,9 +47,13 @@ function getAuthRememberUntil() {
 
 let authRememberMeActive = Boolean(getAuthRememberUntil());
 
-// Do not silently restore legacy persistent sessions after Remember me becomes
-// opt-in. New unchecked sign-ins use sessionStorage only.
+// Migrate an existing pre-Remember-me session into this browser session
+// instead of unexpectedly signing everyone out on the first deployment.
 if (!authRememberMeActive) {
+    const legacySession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (legacySession && !window.sessionStorage.getItem(AUTH_STORAGE_KEY)) {
+        window.sessionStorage.setItem(AUTH_STORAGE_KEY, legacySession);
+    }
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
