@@ -143,7 +143,7 @@ test("explicit no-store requests, forced water refreshes and third-party fetches
 });
 
 test("the persistent section cache is loaded after primary auth initializes and before section UIs", () => {
-    const appIndex = html.indexOf('app.js?v=auth-remember-me-30d-20261115a');
+    const appIndex = html.indexOf('app.js?v=auth-email-confirmation-success-20261115a');
     const cacheIndex = html.indexOf('section-data-cache.js?v=sectioncache20261015a');
     const newsIndex = html.indexOf('news-ui.js?v=newscache20261012a');
 
