@@ -81,16 +81,17 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
 });
 
 
-test("Create account close button moves 10px up and uses the shared site-wide button hover and active effects", () => {
+test("Create account close button shifts right 10px and uses the shared site-wide button hover and active effects", () => {
     assert.doesNotMatch(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
     assert.match(html, /id="authModalCloseButton"/);
     assert.match(html, /id="authModalCloseGlyph" aria-hidden="true">✕<\/span>/);
-    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*top:-10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*top:0!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*left:10px!important/);
     assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*transform:translateX\(-10px\)!important/);
     assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton:hover,[\s\S]*?transform:translate\(-10px,-2px\) scale\(1\.015\)!important/);
     assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton:active\s*\{[^}]*scale\(\.995\)!important/);
-    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseGlyph\s*\{[^}]*top:1px!important/);
-    assert.match(html, /signup-close-up-standard-hover=20261115a/);
+    assert.match(css, /#authModalOverlay.signup-mode #authModalCloseGlyph\s*\{[^}]*top:1px!important/);
+    assert.match(html, /signup-close-right-standard-hover=20261115b/);
 });
 
 test("email confirmation callback clears the one-time session and presents the sign-in flow", () => {
