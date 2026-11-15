@@ -96,10 +96,10 @@ test("Remember me is opt-in and stores unchecked sign-ins only for the browser s
 
 test("Create account modal removes its internal scrollbar and keeps email status between guest and sign-in link", () => {
     const submit = html.indexOf('id="authSubmitBtn"');
-    const guest = html.indexOf('id="authGuestContinueButton"');
+    const guestInsert = guest.indexOf('submit.insertAdjacentElement("afterend", choice)');
     const status = html.indexOf('id="authModalStatus"');
     const mode = html.indexOf('id="authModeToggle"');
-    assert.ok(submit >= 0 && guest > submit && status > guest && mode > status);
+    assert.ok(submit >= 0 && guestInsert >= 0 && status > submit && mode > status);
     assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?overflow-y:visible!important/);
     assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?max-height:none!important/);
 });
