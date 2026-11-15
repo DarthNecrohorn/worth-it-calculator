@@ -24368,3 +24368,29 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
     display:inline-block!important;
     transform:none!important;
 }
+
+
+/* Final signup close-button adjustment: move only the X control 10px right
+   from its currently rendered position, preserving the existing hover lift. */
+@media (min-width:701px){
+    #authModalOverlay.signup-mode .auth-modal-close{
+        transform:translate(20px,0) !important;
+    }
+    #authModalOverlay.signup-mode .auth-modal-close:hover,
+    #authModalOverlay.signup-mode .auth-modal-close:focus,
+    #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
+    #authModalOverlay.signup-mode .auth-modal-close:active{
+        transform:translate(20px,-2px) !important;
+    }
+}
+@media (max-width:700px){
+    #authModalOverlay.signup-mode .auth-modal-close{
+        transform:translate(10px,0) !important;
+    }
+    #authModalOverlay.signup-mode .auth-modal-close:hover,
+    #authModalOverlay.signup-mode .auth-modal-close:focus,
+    #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
+    #authModalOverlay.signup-mode .auth-modal-close:active{
+        transform:translate(10px,-2px) !important;
+    }
+}
