@@ -24343,3 +24343,15 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
         margin:7px 0 4px;
     }
 }
+
+
+/* Create account modal alignment: shift the complete frame 10px left,
+   and place its close control 1px lower inside the frame. */
+#authModalOverlay.signup-mode .auth-modal-card{
+    position:relative!important;
+    left:-10px!important;
+}
+#authModalOverlay.signup-mode .auth-modal-close{
+    position:relative!important;
+    top:1px!important;
+}
