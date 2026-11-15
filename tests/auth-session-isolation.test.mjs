@@ -82,11 +82,11 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
 
 
 test("the rebuilt Create account close button shifts right 10px and its X glyph moves down 1px", () => {
-    assert.doesNotMatch(css, /#authModalOverlay\\.signup-mode \\.auth-modal-card\\s*\\{[^}]*left:\\s*-10px!important/);
+    assert.doesNotMatch(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
     assert.match(html, /id="authModalCloseButton"/);
-    assert.match(html, /id="authModalCloseGlyph" aria-hidden="true">✕<\\/span>/);
-    assert.match(css, /#authModalOverlay\\.signup-mode #authModalCloseButton,[\\s\\S]*?margin-right:-10px!important/);
-    assert.match(css, /#authModalOverlay\\.signup-mode #authModalCloseGlyph\\s*\\{[^}]*top:1px!important/);
+    assert.match(html, /id="authModalCloseGlyph" aria-hidden="true">✕<\/span>/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton,[\s\S]*?margin-right:-10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseGlyph\s*\{[^}]*top:1px!important/);
     assert.match(html, /signup-close-button-rebuilt=20261115d/);
 });
 
