@@ -81,6 +81,16 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
 });
 
 
+test("email confirmation callback clears the one-time session and presents the sign-in flow", () => {
+    assert.match(app, /function handleEmailConfirmationLanding\(event, session\)/);
+    assert.match(app, /callbackParams\.get\("type"\) !== "signup"/);
+    assert.match(app, /window\.history\.replaceState\([\s\S]*?window\.location\.pathname \+ window\.location\.search/);
+    assert.match(app, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+    assert.match(app, /Your email has been successfully confirmed\. You can now log in to your Worth It account\./);
+    assert.match(app, /if \(handleEmailConfirmationLanding\(event, session\)\) return/);
+    assert.match(html, /app\.js\?v=auth-email-confirmation-success-20261115a/);
+});
+
 test("Remember me is opt-in and stores unchecked sign-ins only for the browser session", () => {
     assert.match(app, /const AUTH_REMEMBER_UNTIL_KEY = "worth_it_auth_remember_until_v1"/);
     assert.match(app, /const AUTH_REMEMBER_DURATION_MS = 30 \* 24 \* 60 \* 60 \* 1000/);
