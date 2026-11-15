@@ -24345,13 +24345,25 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Create account modal alignment: shift the complete frame 10px left,
-   and place its close control 1px lower inside the frame. */
-#authModalOverlay.signup-mode .auth-modal-card{
+/* Create account close control: move its button frame 10px right,
+   while moving only the X glyph 1px down inside that frame. */
+#authModalOverlay.signup-mode .auth-modal-close,
+#authModalOverlay.signup-mode .auth-modal-close:hover,
+#authModalOverlay.signup-mode .auth-modal-close:focus,
+#authModalOverlay.signup-mode .auth-modal-close:focus-visible,
+#authModalOverlay.signup-mode .auth-modal-close:active{
     position:relative!important;
-    left:-10px!important;
+    left:10px!important;
+    top:0!important;
+    transform:none!important;
 }
-#authModalOverlay.signup-mode .auth-modal-close{
-    position:relative!important;
-    top:1px!important;
+#authModalOverlay.signup-mode .auth-modal-close:hover,
+#authModalOverlay.signup-mode .auth-modal-close:focus,
+#authModalOverlay.signup-mode .auth-modal-close:focus-visible,
+#authModalOverlay.signup-mode .auth-modal-close:active{
+    transform:translateY(-2px)!important;
+}
+#authModalOverlay.signup-mode .auth-modal-close-glyph{
+    display:inline-block;
+    transform:translateY(1px)!important;
 }
