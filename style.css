@@ -24370,27 +24370,29 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Final signup close-button adjustment: move only the X control 10px right
-   from its currently rendered position, preserving the existing hover lift. */
-@media (min-width:701px){
-    #authModalOverlay.signup-mode .auth-modal-close{
-        transform:translate(20px,0) !important;
-    }
-    #authModalOverlay.signup-mode .auth-modal-close:hover,
-    #authModalOverlay.signup-mode .auth-modal-close:focus,
-    #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
-    #authModalOverlay.signup-mode .auth-modal-close:active{
-        transform:translate(20px,-2px) !important;
-    }
+/* Final signup close-button positioning and shared site-wide button interaction.
+   Use relative top positioning so older transform rules cannot cancel the 10px lift.
+   Keep the existing 10px left offset; only the vertical position changes here. */
+#authModalOverlay.signup-mode #authModalCloseButton{
+    position:relative!important;
+    top:-10px!important;
+    transform:translateX(-10px)!important;
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease,
+        background-color .18s ease,
+        color .18s ease,
+        opacity .18s ease!important;
 }
-@media (max-width:700px){
-    #authModalOverlay.signup-mode .auth-modal-close{
-        transform:translate(10px,0) !important;
-    }
-    #authModalOverlay.signup-mode .auth-modal-close:hover,
-    #authModalOverlay.signup-mode .auth-modal-close:focus,
-    #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
-    #authModalOverlay.signup-mode .auth-modal-close:active{
-        transform:translate(10px,-2px) !important;
-    }
+#authModalOverlay.signup-mode #authModalCloseButton:hover,
+#authModalOverlay.signup-mode #authModalCloseButton:focus-visible{
+    transform:translate(-10px,-2px) scale(1.015)!important;
+    border-color:rgba(124,58,237,.55)!important;
+    box-shadow:
+        0 8px 20px rgba(37,99,235,.12),
+        0 3px 10px rgba(124,58,237,.10)!important;
+}
+#authModalOverlay.signup-mode #authModalCloseButton:active{
+    transform:translateX(-10px) scale(.995)!important;
 }
