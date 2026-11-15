@@ -24345,16 +24345,22 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Rebuilt Create account close control.
-   Negative end margin moves the whole button frame 10px right in the flex header;
-   the nested glyph is independently lowered by 1px. */
-#authModalOverlay.signup-mode #authModalCloseButton,
+/* Create account close control:
+   move the complete button frame 10px left; lower only the X glyph by 1px.
+   Keep a visible hover enlargement without changing the registration card. */
+#authModalOverlay.signup-mode #authModalCloseButton{
+    margin-right:0!important;
+    transform:translateX(-10px)!important;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease!important;
+}
 #authModalOverlay.signup-mode #authModalCloseButton:hover,
-#authModalOverlay.signup-mode #authModalCloseButton:focus,
-#authModalOverlay.signup-mode #authModalCloseButton:focus-visible,
+#authModalOverlay.signup-mode #authModalCloseButton:focus-visible{
+    transform:translateX(-10px) scale(1.06)!important;
+    border-color:rgba(124,92,255,.72)!important;
+    box-shadow:0 4px 12px rgba(79,70,229,.22)!important;
+}
 #authModalOverlay.signup-mode #authModalCloseButton:active{
-    margin-right:-10px!important;
-    transform:none!important;
+    transform:translateX(-10px) scale(.98)!important;
 }
 #authModalOverlay.signup-mode #authModalCloseGlyph{
     position:relative!important;
