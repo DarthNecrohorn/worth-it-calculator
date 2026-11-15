@@ -24370,12 +24370,13 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Final signup close-button positioning and shared site-wide button interaction.
-   Use relative top positioning so older transform rules cannot cancel the 10px lift.
-   Keep the existing 10px left offset; only the vertical position changes here. */
+/* Final signup close-button alignment: cancel the previous 10px-left offset
+   with a 10px relative right shift. Keep the card itself stationary.
+   The hover and active transforms follow the site's shared button treatment. */
 #authModalOverlay.signup-mode #authModalCloseButton{
     position:relative!important;
-    top:-10px!important;
+    top:0!important;
+    left:10px!important;
     transform:translateX(-10px)!important;
     transition:
         transform .18s ease,
