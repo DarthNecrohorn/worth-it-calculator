@@ -24345,23 +24345,20 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 
-/* Create account close control: move its button frame 10px right,
-   while moving only the X glyph 1px down inside that frame. */
+/* Create account close control: move the complete X button 10px right.
+   The glyph alone moves 1px down inside the button frame. */
 #authModalOverlay.signup-mode .auth-modal-close,
 #authModalOverlay.signup-mode .auth-modal-close:hover,
 #authModalOverlay.signup-mode .auth-modal-close:focus,
 #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
 #authModalOverlay.signup-mode .auth-modal-close:active{
-    position:relative!important;
-    left:10px!important;
-    top:0!important;
-    transform:none!important;
+    transform:translateX(10px)!important;
 }
 #authModalOverlay.signup-mode .auth-modal-close:hover,
 #authModalOverlay.signup-mode .auth-modal-close:focus,
 #authModalOverlay.signup-mode .auth-modal-close:focus-visible,
 #authModalOverlay.signup-mode .auth-modal-close:active{
-    transform:translateY(-2px)!important;
+    transform:translate(10px,-2px)!important;
 }
 #authModalOverlay.signup-mode .auth-modal-close-glyph{
     display:inline-block;
