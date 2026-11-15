@@ -83,6 +83,10 @@ const worthItAuthStorage = {
     removeItem(key) {
         window.localStorage.removeItem(key);
         window.sessionStorage.removeItem(key);
+        if (key === AUTH_STORAGE_KEY) {
+            window.localStorage.removeItem(AUTH_REMEMBER_UNTIL_KEY);
+            authRememberMeActive = false;
+        }
     }
 };
 
@@ -97,6 +101,7 @@ function setAuthRememberMe(enabled) {
     } else {
         window.localStorage.removeItem(AUTH_REMEMBER_UNTIL_KEY);
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
     }
 }
 
