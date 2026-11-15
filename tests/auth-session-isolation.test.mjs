@@ -93,7 +93,7 @@ test("email confirmation callback clears the one-time session and presents the s
     assert.match(app, /window\.history\.replaceState\([\s\S]*?window\.location\.pathname \+ window\.location\.search/);
     assert.match(app, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
     assert.match(app, /Your email has been successfully confirmed\. You can now log in to your Worth It account\./);
-    assert.match(app, /if \(handleEmailConfirmationLanding\(event, session\)\) return/);
+    assert.match(app, /if \(handleEmailConfirmationLanding\(event, session\)\) \{\s*return;\s*\}/);
     assert.match(html, /app\.js\?v=auth-email-confirmation-success-20261115a/);
 });
 
