@@ -24276,7 +24276,7 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
     align-items:center;
     justify-content:space-between;
     gap:12px;
-    margin:2px 0 13px;
+    margin:9px 0 5px;
     color:var(--muted);
     font-size:12px;
 }
@@ -24340,6 +24340,6 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
         line-height:1.35!important;
     }
     .auth-remember-wrap{
-        margin:0 0 10px;
+        margin:7px 0 4px;
     }
 }
