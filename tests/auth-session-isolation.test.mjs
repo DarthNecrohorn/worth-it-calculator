@@ -81,10 +81,12 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
 });
 
 
-test("Create account modal shifts left 10px and its close button moves down 1px", () => {
-    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
-    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-close\s*\{[^}]*top:\s*1px!important/);
-    assert.match(html, /signup-modal-alignment=20261115a/);
+test("Create account close frame moves right 10px and only the X glyph moves down 1px", () => {
+    assert.doesNotMatch(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-close,[\s\S]*?left:\s*10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-close-glyph\s*\{[^}]*transform:\s*translateY\(1px\)!important/);
+    assert.match(html, /class="auth-modal-close-glyph" aria-hidden="true">✕<\/span>/);
+    assert.match(html, /signup-close-right-glyph-down=20261115b/);
 });
 
 test("email confirmation callback clears the one-time session and presents the sign-in flow", () => {
