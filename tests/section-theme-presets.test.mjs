@@ -183,6 +183,8 @@ test("Custom Theme hydration preserves the same account's cached appearance duri
     assert.match(community, /const previousThemeUserId=themeUserId/);
     assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
     assert.match(community, /const cached=readLocal\(scopedKey\(THEME_KEY,userId\)\)/);
-    assert.match(community, /A transient wallet\/network failure is not proof that the user lost their entitlement/);
+    assert.match(community, /previouslyAppliedTheme&&isCustomTheme\(previouslyAppliedTheme\)/);
+    assert.match(community, /applyTheme\(livePreview\|\|retainedTheme\)/);
+    assert.match(community, /Your current account theme is being kept/);
     assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
 });
