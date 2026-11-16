@@ -29,8 +29,8 @@ test("only the current group Owner can kick members, enforced by the database", 
   assert.match(sql, /group_owner is distinct from actor_id/);
   assert.match(sql, /NOT_GROUP_OWNER/);
   assert.match(sql, /delete from public\.worth_it_chat_members[\s\S]*?target_user_id/);
-  assert.match(html, /id="worthItChatGroupKickSelect"/);
-  assert.match(html, /id="worthItChatGroupKickBtn"[^>]*performWorthItGroupAction\('kick'\)/);
+  assert.match(html, /id="worthItChatGroupMembersList"/);
+  assert.match(chat, /worth-it-chat-group-member-kick/);
   assert.match(chat, /rpcName = action === "delete" \? "delete_worth_it_group_chat" : action === "kick" \? "kick_worth_it_group_member"/);
   assert.match(chat, /conversation\.is_creator !== true/);
 });
@@ -38,4 +38,17 @@ test("only the current group Owner can kick members, enforced by the database", 
 test("leaving removes the membership and therefore removes the group from the member's group list", () => {
   assert.match(sql, /delete from public\.worth_it_chat_members[\s\S]*?user_id = actor_id/);
   assert.match(sql, /owner_transferred/);
+});
+
+test("mobile chat header separates direct identity, global chat, and group roster", () => {
+  assert.match(chat, /is-global-chat/);
+  assert.match(chat, /is-group-members-trigger/);
+  assert.match(chat, /openWorthItGroupMembers/);
+  assert.match(chat, /worthItChatGroupMembersList/);
+  assert.match(html, /id="worthItChatHeaderAvatar"[^>]*button/);
+});
+
+test("the site navigation is hidden while the chat overlay is open", () => {
+  const css = read("style.css");
+  assert.match(css, /body\\.worth-it-chat-open\\s*>\\s*nav\\.nav\\s*\\{\\s*display:none\\s*!important/);
 });
