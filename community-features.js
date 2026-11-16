@@ -390,6 +390,7 @@ function applyTheme(value){
   const cardLink=accessibleThemeText(theme.link,[cardSurface]);
   const surfaceText=accessibleThemeText(theme.text,[theme.surface]);
   const surfaceHeading=accessibleThemeText(theme.heading,[theme.surface]);
+  const surfaceLink=accessibleThemeText(theme.link,[theme.surface]);
   const surfaceMuted=accessibleThemeText(theme.muted,[theme.surface]);
   const softText=surfaceText;
   const softMuted=surfaceMuted;
@@ -414,6 +415,7 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-theme-card-link",cardLink);
   root.style.setProperty("--worth-it-theme-surface-text",surfaceText);
   root.style.setProperty("--worth-it-theme-surface-heading",surfaceHeading);
+  root.style.setProperty("--worth-it-theme-surface-link",surfaceLink);
   root.style.setProperty("--worth-it-theme-surface-muted",surfaceMuted);
   root.style.setProperty("--worth-it-theme-soft-text",softText);
   root.style.setProperty("--worth-it-theme-soft-muted",softMuted);
@@ -471,7 +473,7 @@ function applyTheme(value){
    "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color",
    "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading","--worth-it-theme-page-link",
    "--worth-it-theme-card-text","--worth-it-theme-card-muted","--worth-it-theme-card-heading","--worth-it-theme-card-link",
-   "--worth-it-theme-surface-text","--worth-it-theme-surface-heading","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
+   "--worth-it-theme-surface-text","--worth-it-theme-surface-heading","--worth-it-theme-surface-link","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
