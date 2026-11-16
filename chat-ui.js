@@ -391,8 +391,24 @@ function setHeader(title, subtitle, person) {
     headerPerson?.classList.toggle("is-global-chat", activeConversationType === "global");
     headerPerson?.classList.toggle("is-group-chat", activeConversationType === "group");
     if (titleNode) {
-        if (hasDirectProfile) titleNode.replaceChildren(makeChatProfileLink(person, "worth-it-chat-header-profile-link", title || GLOBAL_TITLE));
-        else titleNode.textContent = title || GLOBAL_TITLE;
+        if (hasDirectProfile) {
+            titleNode.replaceChildren(makeChatProfileLink(person, "worth-it-chat-header-profile-link", title || GLOBAL_TITLE));
+        } else if (activeConversationType === "group" && groupConversation) {
+            const groupTitleButton = document.createElement("button");
+            groupTitleButton.type = "button";
+            groupTitleButton.className = "worth-it-chat-group-title-trigger";
+            groupTitleButton.textContent = title || "Group chat";
+            groupTitleButton.setAttribute("aria-label", "View members of " + (title || "this group"));
+            groupTitleButton.title = "View group members";
+            groupTitleButton.addEventListener("click", event => {
+                event.preventDefault();
+                event.stopPropagation();
+                openWorthItGroupMembers(groupConversation.id);
+            });
+            titleNode.replaceChildren(groupTitleButton);
+        } else {
+            titleNode.textContent = title || GLOBAL_TITLE;
+        }
     }
     const subtitleNode = $("worthItChatSubtitle");
     if (subtitleNode) subtitleNode.textContent = subtitle || "";
