@@ -185,6 +185,6 @@ test("Custom Theme hydration preserves the same account's cached appearance duri
     assert.match(community, /const cached=readLocal\(scopedKey\(THEME_KEY,userId\)\)/);
     assert.match(community, /previouslyAppliedTheme&&isCustomTheme\(previouslyAppliedTheme\)/);
     assert.match(community, /applyTheme\(livePreview\|\|retainedTheme\)/);
-    assert.match(community, /Your current account theme is being kept/);
+    assert.match(community, /your current account theme is being kept/);
     assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
 });
