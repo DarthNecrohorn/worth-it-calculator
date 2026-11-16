@@ -144,20 +144,63 @@ select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid,'public')-
 -- Free accounts receive one successful new calculator per UTC day.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 do $free_quota$
-declare q jsonb; blocked boolean:=false; category_blocked boolean:=false; cooldown_blocked boolean:=false;
+declare q jsonb; blocked boolean:=false; category_blocked boolean:=false; cooldown_blocked boolean:=false; title_status jsonb; title_result jsonb; title_length_blocked boolean:=false;
 begin
     -- Owners can edit the saved title and description in Edit Calculator.
     -- The category remains immutable and the description cooldown is unchanged.
     perform public.save_worth_it_ugc_calculator(
         current_setting('test.ugc_id')::uuid,
-        'Monthly savings growth — revised',
+        'Monthly savings growth',
         'Updated description with clearer assumptions.',
         'money',
         '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
     );
     if not exists(select 1 from private.worth_it_user_calculators
-        where id=current_setting('test.ugc_id')::uuid and title='Monthly savings growth — revised') then
-        raise exception 'Editing an existing UGC calculator did not update its title.';
+        where id=current_setting('test.ugc_id')::uuid and title='Monthly savings growth') then
+        raise exception 'Saving an unchanged calculator title should preserve its original value.';
+    end if;
+
+    -- The profile title RPC accepts the 75-character maximum, then enforces the cooldown.
+    title_result:=public.update_worth_it_ugc_calculator_title(
+        current_setting('test.ugc_id')::uuid,repeat('T',75)
+    );
+    if (title_result->>'success')::boolean is distinct from true
+       or char_length(title_result->>'title')<>75 then
+        raise exception 'A 75-character owner title was not saved: %',title_result;
+    end if;
+    title_status:=public.get_worth_it_ugc_title_status(current_setting('test.ugc_id')::uuid);
+    if (title_status->>'success')::boolean is distinct from true
+       or (title_status->>'can_save')::boolean is distinct from false
+       or title_status->>'title'<>repeat('T',75) then
+        raise exception 'The owner title status did not report the new 10-minute cooldown: %',title_status;
+    end if;
+    title_result:=public.update_worth_it_ugc_calculator_title(
+        current_setting('test.ugc_id')::uuid,'A second title inside the cooldown'
+    );
+    if (title_result->>'success')::boolean is distinct from false
+       or title_result->>'code'<>'TITLE_COOLDOWN' then
+        raise exception 'A second title edit inside 10 minutes was not blocked: %',title_result;
+    end if;
+    begin
+        perform public.update_worth_it_ugc_calculator_title(
+            current_setting('test.ugc_id')::uuid,repeat('X',76)
+        );
+    exception when sqlstate '22023' then title_length_blocked:=true;
+    end;
+    if not title_length_blocked then
+        raise exception 'A calculator title longer than 75 characters was accepted.';
+    end if;
+
+    -- Expire the fixture cooldown deterministically so the normal profile rename can be tested.
+    update private.worth_it_user_calculators
+       set title_changed_at=clock_timestamp()-interval '11 minutes'
+     where id=current_setting('test.ugc_id')::uuid;
+    title_result:=public.update_worth_it_ugc_calculator_title(
+        current_setting('test.ugc_id')::uuid,'Monthly savings growth — revised'
+    );
+    if (title_result->>'success')::boolean is distinct from true
+       or title_result->>'title'<>'Monthly savings growth — revised' then
+        raise exception 'The owner profile title editor could not save a name after cooldown: %',title_result;
     end if;
     begin
         perform public.save_worth_it_ugc_calculator(
@@ -259,6 +302,18 @@ declare
     v_blocked boolean := false;
 begin
     v_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_calculator_id')::uuid);
+    v_blocked:=false;
+    begin
+        perform public.get_worth_it_ugc_title_status(current_setting('test.ugc_calculator_id')::uuid);
+    exception when insufficient_privilege then v_blocked:=true;
+    end;
+    if not v_blocked then raise exception 'A non-owner could read the private UGC title editor status.'; end if;
+    v_blocked:=false;
+    begin
+        perform public.update_worth_it_ugc_calculator_title(current_setting('test.ugc_calculator_id')::uuid,'Unauthorized rename');
+    exception when insufficient_privilege then v_blocked:=true;
+    end;
+    if not v_blocked then raise exception 'A non-owner could rename another member''s UGC calculator.'; end if;
     if (v_detail->>'is_owner')::boolean is distinct from false then
         raise exception 'A different member was incorrectly treated as the calculator owner.';
     end if;
