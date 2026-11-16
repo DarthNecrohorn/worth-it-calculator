@@ -1587,6 +1587,8 @@ function clearReactionNote(){
  note.classList.remove("is-warning");
 }
 function detailShow(calculator,fromUrl){
+ if(state.titleStatusTimer){clearInterval(state.titleStatusTimer);state.titleStatusTimer=null;}
+ state.titleStatusRequest++;
  state.activeCalculator=calculator;state.activeId=String(calculator.id);
  const title=$("ugcDetailTitle"),description=$("ugcDetailDescription"),owner=$("ugcDetailOwner");
  const kicker=$("ugcDetailKicker"),publicNumber=Number(calculator.calculator_number);
@@ -3385,7 +3387,7 @@ function renderMakerPreview(definition){
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
  const existing=Boolean(state.editingId);
  const title=document.createElement("label");title.textContent="Calculator title";
- const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=75;titleInput.value=definition.title||"";title.appendChild(titleInput);
+ const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";title.appendChild(titleInput);
  const desc=document.createElement("label");desc.className="ugc-maker-description-field";desc.textContent="Description";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
@@ -3654,7 +3656,7 @@ async function saveMakerDraft(publish){
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
  const titleLength=Array.from(title).length;
- if(titleLength<3||titleLength>75){makerStatus("Enter a title with 3 to 75 characters.","error");return;}
+ if(titleLength<3||titleLength>70){makerStatus("Enter a title with 3 to 70 characters.","error");return;}
  const originalDescription=String(state.aiDraft.description||"").trim();
  const descriptionWasChanged=Boolean(state.editingId)&&description!==originalDescription;
  if(description.length>500||((!state.editingId||descriptionWasChanged)&&description.length<24)){
