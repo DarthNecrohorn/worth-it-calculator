@@ -162,6 +162,7 @@ test("Custom Theme styles sign-out, search, Admin Panel and other modal backdrop
         assert.ok(siteThemeCss.includes(selector), "missing theme coverage for " + selector);
     }
     assert.match(siteThemeCss, /worth-it-signout-confirm-yes[\s\S]*?var\(--worth-it-gradient-foreground\)/);
+    assert.match(siteThemeCss, /worth-it-signout-confirm-kicker[\s\S]*?var\(--worth-it-theme-surface-link/);
     assert.match(siteThemeCss, /worth-it-user-search-card[\s\S]*?var\(--worth-it-theme-surface-text/);
     assert.match(siteThemeCss, /admin-panel-card[\s\S]*?var\(--worth-it-theme-surface-text/);
     assert.match(siteThemeCss, /admin-panel-section-button[\s\S]*?var\(--worth-it-primary-readable/);
@@ -179,12 +180,17 @@ test("Custom Theme calculates separate heading contrast for modal surfaces", () 
     assert.match(siteThemeCss, /var\(--worth-it-theme-surface-heading,var\(--worth-it-theme-surface-text/);
 });
 
-test("Custom Theme hydration preserves the same account's cached appearance during temporary wallet failures", () => {
+test("Custom Theme hydration preserves the bootstrap account appearance during temporary session or wallet failures", () => {
+    assert.match(html, /root\.dataset\.worthItBootUserId = sessionUserId/);
+    assert.match(community, /function readCachedCustomTheme\(userId\)/);
+    assert.match(community, /const bootstrapUserId=String\(document\.documentElement\?\.dataset\?\.worthItBootUserId\|\|previousThemeUserId\|\|""\)/);
+    assert.match(community, /Your current account theme is being kept locally/);
     assert.match(community, /const previousThemeUserId=themeUserId/);
     assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
     assert.match(community, /const cached=readLocal\(scopedKey\(THEME_KEY,userId\)\)/);
     assert.match(community, /previouslyAppliedTheme&&isCustomTheme\(previouslyAppliedTheme\)/);
     assert.match(community, /applyTheme\(livePreview\|\|retainedTheme\)/);
     assert.match(community, /your current account theme is being kept/);
+    assert.match(community, /bootstrapTheme\|\|DEFAULT_THEME/);
     assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
 });
