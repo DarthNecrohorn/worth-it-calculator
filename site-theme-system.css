@@ -1483,3 +1483,6 @@ html[data-worth-it-custom-theme] body .admin-panel-card :is(th,td) {
 html[data-worth-it-custom-theme] body .admin-panel-card th {
     background:var(--surface-soft) !important;
 }
+html[data-worth-it-custom-theme] body .admin-panel-card a:not([class*="button"]):not([class*="-btn"]) {
+    color:var(--worth-it-theme-surface-link,var(--worth-it-theme-surface-text,var(--text))) !important;
+}
