@@ -42,3 +42,5 @@ test("the mobile chat controls are scoped to Chat and do not change the site nav
     assert.doesNotMatch(html, /id="worthItChatMobileListBtn"[^>]*☰/);
     assert.match(css, /@media \(max-width: 540px\)/);
 });
+
+// Keep these contracts focused on the Chat interface; the site navigation remains outside the change.
