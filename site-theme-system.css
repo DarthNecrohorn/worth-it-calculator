@@ -1539,3 +1539,14 @@ button.worth-it-chat-travel-present:not([disabled]):focus-visible {
 button.worth-it-chat-travel-present:not([disabled]):active {
     transform: translateX(-50%) scale(.96) !important;
 }
+
+/* The chat history shortcut must keep its centred anchor under every Custom Theme
+   hover preset, including the high-specificity global "none" transform rule.
+   Its unique ID intentionally outranks generic button hover selectors. */
+#worthItChatTravelPresentBtn:not([disabled]):hover,
+#worthItChatTravelPresentBtn:not([disabled]):focus-visible {
+    transform: translateX(-50%) scale(1.045) !important;
+}
+#worthItChatTravelPresentBtn:not([disabled]):active {
+    transform: translateX(-50%) scale(.96) !important;
+}
