@@ -371,35 +371,41 @@ function setHeader(title, subtitle, person) {
     const titleNode = $("worthItChatTitle");
     const directPersonId = Number(person?.worth_it_id);
     const hasDirectProfile = activeConversationType === "direct" && Number.isSafeInteger(directPersonId) && directPersonId > 0;
+    const groupConversation = activeConversationType === "group" ? chatConversations.find(item => String(item.id) === String(activeConversationId)) : null;
+    const avatar = $("worthItChatHeaderAvatar");
+    const headerPerson = avatar?.closest(".worth-it-chat-header-person");
+    headerPerson?.classList.toggle("is-global-chat", activeConversationType === "global");
+    headerPerson?.classList.toggle("is-group-chat", activeConversationType === "group");
     if (titleNode) {
         if (hasDirectProfile) titleNode.replaceChildren(makeChatProfileLink(person, "worth-it-chat-header-profile-link", title || GLOBAL_TITLE));
         else titleNode.textContent = title || GLOBAL_TITLE;
     }
-    $("worthItChatSubtitle").textContent = subtitle || "";
-    const host = $("worthItChatHeaderAvatar");
-    if (!host) return;
-    host.replaceChildren();
-    if (person?.avatar_url) {
-        const img = document.createElement("img");
-        img.src = String(person.avatar_url); img.alt = ""; img.referrerPolicy = "no-referrer";
-        img.onerror = () => { img.remove(); host.insertBefore(document.createTextNode(initials(person)), host.querySelector(".worth-it-presence-indicator")); };
-        host.appendChild(img);
-    } else host.textContent = activeConversationType === "global" ? "🌐" : (activeConversationType === "group" ? "👥" : initials(person || {display_name:title}));
+    const subtitleNode = $("worthItChatSubtitle");
+    if (subtitleNode) subtitleNode.textContent = subtitle || "";
+    if (!avatar) return;
+    avatar.replaceChildren();
+    if (person?.avatar_url && activeConversationType === "direct") {
+        const img = document.createElement("img"); img.src = String(person.avatar_url); img.alt = ""; img.referrerPolicy = "no-referrer";
+        img.onerror = () => { img.remove(); avatar.insertBefore(document.createTextNode(initials(person)), avatar.querySelector(".worth-it-presence-indicator")); };
+        avatar.appendChild(img);
+    } else avatar.textContent = activeConversationType === "global" ? "" : (activeConversationType === "group" ? "👥" : initials(person || {display_name:title}));
     if (hasDirectProfile) {
-        host.setAttribute("role", "link"); host.setAttribute("tabindex", "0");
-        host.setAttribute("aria-label", "View " + (person.display_name || person.username || "Worth It member") + "'s profile");
-        host.title = "View profile";
-        host.onclick = event => openWorthItChatProfile(directPersonId, event);
-        host.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItChatProfile(directPersonId, event); };
-        host.classList.add("is-profile-link");
-        if (typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(host, person);
+        avatar.setAttribute("role", "link"); avatar.setAttribute("tabindex", "0");
+        avatar.setAttribute("aria-label", "View " + (person.display_name || person.username || "Worth It member") + "'s profile");
+        avatar.title = "View profile"; avatar.onclick = event => openWorthItChatProfile(directPersonId, event);
+        avatar.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItChatProfile(directPersonId, event); };
+        avatar.classList.add("is-profile-link");
+        if (typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(avatar, person);
+    } else if (activeConversationType === "group" && groupConversation) {
+        avatar.setAttribute("role", "button"); avatar.setAttribute("tabindex", "0"); avatar.setAttribute("aria-label", "View group members");
+        avatar.title = "View group members"; avatar.onclick = event => { event?.preventDefault?.(); event?.stopPropagation?.(); openWorthItGroupMembers(groupConversation.id); };
+        avatar.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItGroupMembers(groupConversation.id); };
+        avatar.classList.add("is-group-members-trigger");
     } else {
-        host.removeAttribute("role"); host.removeAttribute("tabindex"); host.removeAttribute("aria-label"); host.removeAttribute("title");
-        host.onclick = null; host.onkeydown = null; host.classList.remove("is-profile-link");
+        avatar.removeAttribute("role"); avatar.removeAttribute("tabindex"); avatar.removeAttribute("aria-label"); avatar.removeAttribute("title");
+        avatar.onclick = null; avatar.onkeydown = null; avatar.classList.remove("is-profile-link", "is-group-members-trigger");
     }
-    window.dispatchEvent(new CustomEvent("worthitchatcontextchange", {
-        detail: typeof window.getWorthItChatEnhancementContext === "function" ? window.getWorthItChatEnhancementContext() : null
-    }));
+    window.dispatchEvent(new CustomEvent("worthitchatcontextchange", { detail: typeof window.getWorthItChatEnhancementContext === "function" ? window.getWorthItChatEnhancementContext() : null }));
 }
 function niceTime(value) {
     const date = new Date(value);
