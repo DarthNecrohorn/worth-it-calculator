@@ -9,10 +9,8 @@ alter table private.worth_it_profile_badge_equips
     check (badge_key in (
         'owner','premium','premium_lite',
         'calculator_5','calculator_10',
-        'member_1m','member_6m','member_12m',
-        'member_2y','member_3y','member_5y','member_10y',
-        -- Retain previously issued keys so existing equipped badges remain valid.
-        'member_3m','member_4y'
+        'member_1m','member_2m','member_3m','member_4m','member_6m','member_12m',
+        'member_2y','member_3y','member_5y','member_10y','member_4y'
     ));
 
 create or replace function private.worth_it_badge_is_earned(p_user_id uuid,p_badge_key text)
@@ -54,7 +52,9 @@ begin
 
     return case p_badge_key
         when 'member_1m' then v_created_at <= now()-interval '1 month'
+        when 'member_2m' then v_created_at <= now()-interval '2 months'
         when 'member_3m' then v_created_at <= now()-interval '3 months'
+        when 'member_4m' then v_created_at <= now()-interval '4 months'
         when 'member_6m' then v_created_at <= now()-interval '6 months'
         when 'member_12m' then v_created_at <= now()-interval '12 months'
         when 'member_2y' then v_created_at <= now()-interval '2 years'
@@ -178,12 +178,15 @@ begin
           ('calculator_5','5 CALCULATORS','▦','Created at least five community calculators.','Create and save 5 community calculators. Drafts count.','Permanent','Permanent once unlocked.',3),
           ('calculator_10','10 CALCULATORS','▤','Created at least ten community calculators.','Create and save 10 community calculators. Drafts count.','Permanent','Permanent once unlocked.',4),
           ('member_1m','1 MONTH','◈','Worth It member for at least one month.','Reach one month as a Worth It member.','Permanent','Permanent once unlocked.',10),
-          ('member_6m','6 MONTHS','✧','Worth It member for at least six months.','Reach six months as a Worth It member.','Permanent','Permanent once unlocked.',11),
-          ('member_12m','1 YEAR','★','Worth It member for at least one year.','Reach one year as a Worth It member.','Permanent','Permanent once unlocked.',12),
-          ('member_2y','2 YEARS','✺','Worth It member for at least two years.','Reach two years as a Worth It member.','Permanent','Permanent once unlocked.',13),
-          ('member_3y','3 YEARS','❖','Worth It member for at least three years.','Reach three years as a Worth It member.','Permanent','Permanent once unlocked.',14),
-          ('member_5y','5 YEARS','♛','Worth It member for at least five years.','Reach five years as a Worth It member.','Permanent','Permanent once unlocked.',15),
-          ('member_10y','10 YEARS','✪','Worth It member for at least ten years.','Reach ten years as a Worth It member.','Permanent','Permanent once unlocked.',16)
+          ('member_2m','2 MONTHS','✦','Worth It member for at least two months.','Reach two months as a Worth It member.','Permanent','Permanent once unlocked.',11),
+          ('member_3m','3 MONTHS','✧','Worth It member for at least three months.','Reach three months as a Worth It member.','Permanent','Permanent once unlocked.',12),
+          ('member_4m','4 MONTHS','◇','Worth It member for at least four months.','Reach four months as a Worth It member.','Permanent','Permanent once unlocked.',13),
+          ('member_6m','6 MONTHS','✧','Worth It member for at least six months.','Reach six months as a Worth It member.','Permanent','Permanent once unlocked.',14),
+          ('member_12m','1 YEAR','★','Worth It member for at least one year.','Reach one year as a Worth It member.','Permanent','Permanent once unlocked.',15),
+          ('member_2y','2 YEARS','✺','Worth It member for at least two years.','Reach two years as a Worth It member.','Permanent','Permanent once unlocked.',16),
+          ('member_3y','3 YEARS','❖','Worth It member for at least three years.','Reach three years as a Worth It member.','Permanent','Permanent once unlocked.',17),
+          ('member_5y','5 YEARS','♛','Worth It member for at least five years.','Reach five years as a Worth It member.','Permanent','Permanent once unlocked.',18),
+          ('member_10y','10 YEARS','✪','Worth It member for at least ten years.','Reach ten years as a Worth It member.','Permanent','Permanent once unlocked.',19)
     ), rows as (
         select d.*,
                private.worth_it_badge_is_earned(v_user_id,d.badge_key) as earned,
@@ -234,7 +237,7 @@ begin
     if p_equipped is null then raise exception 'Choose whether to equip or unequip this badge.' using errcode='22023'; end if;
     if p_badge_key not in (
         'owner','premium','premium_lite','calculator_5','calculator_10',
-        'member_1m','member_6m','member_12m','member_2y','member_3y','member_5y','member_10y'
+        'member_1m','member_2m','member_3m','member_4m','member_6m','member_12m','member_2y','member_3y','member_5y','member_10y'
     ) then raise exception 'Unknown badge.' using errcode='22023'; end if;
 
     -- Serialize simultaneous equip requests for this account; the unique index
