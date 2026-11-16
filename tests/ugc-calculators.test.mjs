@@ -1308,6 +1308,25 @@ test("UGC Calculator Builder footer clearly explains daily UGC save limits", () 
     assert.match(html,/arbitrary JavaScript is never executed/);
 });
 
+test("Mobile UGC Creator keeps mode explanations collapsed by default and expands the full guide on demand", () => {
+    const guideIndex=html.indexOf('id="ugcManualModeHelp"');
+    const toggleIndex=html.indexOf('id="ugcManualModeHelpToggle"');
+    assert.ok(guideIndex>=0&&toggleIndex>guideIndex,"the explanation toggle must sit below the four mode cards");
+    assert.match(html,/aria-controls="ugcManualModeHelp" aria-expanded="false"/);
+    for(const mode of ["quick","template","advanced","random"]) {
+        assert.ok(html.includes('data-manual-mode-info="'+mode+'"'));
+    }
+    assert.match(maker,/let manualModeHelpExpanded=false/);
+    assert.match(maker,/function setManualModeHelpExpanded\(expanded\)/);
+    assert.match(maker,/ugcManualModeHelpToggle/);
+    assert.match(maker,/setManualModeHelpExpanded\(!manualModeHelpExpanded\)/);
+    assert.match(maker,/manualModeHelpExpanded=false/);
+    assert.match(paginationCss,/@media\(max-width:700px\)[\s\S]*?\.ugc-manual-mode-help\{[\s\S]*?max-height:0/);
+    assert.match(paginationCss,/\.ugc-manual-mode-help\.is-expanded\{[\s\S]*?max-height:1100px/);
+    assert.match(paginationCss,/\.ugc-manual-mode-help-toggle\{[\s\S]*?margin:8px auto 0/);
+    assert.match(paginationCss,/height:calc\(100dvh - env\(safe-area-inset-top/);
+});
+
 test("Community Discovery is a separate slide with 100 ranked profiles and responsive scroll windows", () => {
     const communityStart = html.indexOf('id="ugcCommunitySection"');
     const discoveryStart = html.indexOf('id="ugcCommunityDiscoverySection"');
