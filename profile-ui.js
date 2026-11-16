@@ -287,7 +287,8 @@ function setWorthItBadgeIcon(icon,badge){
  const label=String(badge?.label||"").toLowerCase();
  const isOwner=key.includes("owner")||label.includes("owner");
  icon.classList.toggle("worth-it-owner-emblem",isOwner);
- icon.classList.add("worth-it-badge-mark");
+ if(icon.classList.contains("worth-it-badge-info-icon"))icon.classList.remove("worth-it-badge-mark");
+ else icon.classList.add("worth-it-badge-mark");
  icon.innerHTML=getWorthItBadgeSvgMarkup(key);
 }
 function createWorthItBadgeNode(badge,compact){
