@@ -259,16 +259,37 @@ async function getWorthItProfileBadgeInfo(worthItId){
  profileBadgesCache.set(key,promise);
  try{return await promise;}catch(error){profileBadgesCache.delete(key);throw error;}
 }
+function getWorthItBadgeSvgMarkup(badgeKey){
+ const safeKey=/^[a-z0-9_-]+$/.test(badgeKey)?badgeKey:"default";
+ const shell='<path d="M24 3.5 40 9v13.1c0 9.6-6.4 17-16 22.4C14.4 39.1 8 31.7 8 22.1V9L24 3.5Z" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M24 8.2 35.5 12v9.7c0 7.1-4.5 13-11.5 17.1-7-4.1-11.5-10-11.5-17.1V12L24 8.2Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-opacity=".48"/>';
+ const art={
+  owner:'<path d="m12.5 27-2.1-12 8.2 5.4L24 10l5.4 10.4 8.2-5.4-2.1 12h-23Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M14.5 31h19M17 34h14M14 13l-2-2m24 2 2-2M24 7V5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  premium:'<path d="m12 25-2-11 8 5 6-10 6 10 8-5-2 11H12Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M16 29h16M18 33h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="m24 14 2.1 4.1 4.5.7-3.3 3.2.8 4.5-4.1-2.1-4.1 2.1.8-4.5-3.3-3.2 4.5-.7L24 14Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>',
+  premium_lite:'<path d="m24 10 12 12-12 16-12-16 12-12Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="m24 10 0 28m-12-16h24M18 16l12 12m0-12L18 28" stroke="currentColor" stroke-width="1.25" stroke-opacity=".75"/><path d="m35 8 1.2 2.8L39 12l-2.8 1.2L35 16l-1.2-2.8L31 12l2.8-1.2L35 8ZM12 9l.9 2.1L15 12l-2.1.9L12 15l-.9-2.1L9 12l2.1-.9L12 9Z" fill="currentColor"/>',
+  calculator_5:'<rect x="15" y="10" width="18" height="28" rx="3" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="2.1"/><path d="M19 15h10M19 21h3m5 0h2m-10 5h3m5 0h2m-10 5h3m5 0h2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M11 17h-2m2 7H9m2 7H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  calculator_10:'<rect x="14" y="9" width="20" height="30" rx="3" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="2.1"/><path d="M18 14h12M18 20h3m5 0h3m-11 6h3m5 0h3m-11 6h3m5 0h3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 15v18m-3-15 3-3 3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  member_1m:'<path d="m24 12 3.4 7 7.7 1.1-5.6 5.4 1.3 7.7-6.8-3.6-6.8 3.6 1.3-7.7-5.6-5.4 7.7-1.1L24 12Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>',
+  member_2m:'<path d="m18 12 2.2 4.6 5.1.7-3.7 3.6.9 5.1-4.5-2.4-4.5 2.4.9-5.1-3.7-3.6 5.1-.7L18 12Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m31 22 1.7 3.4 3.8.6-2.8 2.7.7 3.8-3.4-1.8-3.4 1.8.7-3.8-2.8-2.7 3.8-.6L31 22Z" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>',
+  member_3m:'<path d="m17 13 2 4.1 4.5.7-3.3 3.2.8 4.5-4-2.1-4 2.1.8-4.5-3.3-3.2 4.5-.7L17 13Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m30 12 2 4.1 4.5.7-3.3 3.2.8 4.5-4-2.1-4 2.1.8-4.5-3.3-3.2 4.5-.7L30 12Z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m24 26 1.6 3.2 3.5.5-2.5 2.5.6 3.5-3.2-1.7-3.2 1.7.6-3.5-2.5-2.5 3.5-.5L24 26Z" fill="currentColor"/>',
+  member_4m:'<path d="m24 10 4.5 9.5 9.5 4.5-9.5 4.5L24 38l-4.5-9.5L10 24l9.5-4.5L24 10Z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="m24 16 2.8 5.2 5.2 2.8-5.2 2.8-2.8 5.2-2.8-5.2L16 24l5.2-2.8L24 16Z" fill="currentColor" fill-opacity=".38"/>',
+  member_6m:'<path d="m24 10 3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1 3-6.2Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 32 10 35m25-3 3 3M24 35v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  member_12m:'<path d="M14 30c-3-4-4-9-2-14 4 1 7 4 8 8m14 6c3-4 4-9 2-14-4 1-7 4-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="m24 12 3.1 6.2 6.9 1-5 4.8 1.2 6.8-6.2-3.3-6.2 3.3 1.2-6.8-5-4.8 6.9-1L24 12Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+  member_2y:'<path d="M13 32c-4-4-5-10-3-16 5 1 8 4 9 9m16 7c4-4 5-10 3-16-5 1-8 4-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M24 12v23m-6-17 6-6 6 6m-12 13 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  member_3y:'<path d="m17 13 2.2 4.3 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8-3.5-3.4 4.8-.7L17 13Zm14 0 2.2 4.3 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8-3.5-3.4 4.8-.7L31 13Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m24 27 1.6 3.2 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5L24 27Z" fill="currentColor"/>',
+  member_5y:'<path d="M13 34c-4-4-6-10-4-17 5 1 9 5 10 10m16 7c4-4 6-10 4-17-5 1-9 5-10 10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="m24 11 3.3 6.7 7.4 1.1-5.3 5.2 1.3 7.4-6.7-3.5-6.7 3.5 1.3-7.4-5.3-5.2 7.4-1.1L24 11Z" fill="currentColor" fill-opacity=".24" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  member_10y:'<path d="M12 33c-5-5-6-12-3-19 6 1 10 5 12 11m15 8c5-5 6-12 3-19-6 1-10 5-12 11M16 38c-3-2-5-4-7-7m23 7c3-2 5-4 7-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="m24 9 3.5 7 7.7 1.1-5.6 5.4 1.3 7.7-6.9-3.6-6.9 3.6 1.3-7.7-5.6-5.4 7.7-1.1L24 9Z" fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M24 14v14m-5-9h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
+ };
+ const inner=art[safeKey]||'<path d="m24 12 3.4 7 7.7 1.1-5.6 5.4 1.3 7.7-6.8-3.6-6.8 3.6 1.3-7.7-5.6-5.4 7.7-1.1L24 12Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>';
+ return '<svg class="worth-it-badge-icon-svg" data-badge="'+safeKey+'" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">'+shell+inner+'</svg>';
+}
 function setWorthItBadgeIcon(icon,badge){
  const key=String(badge?.key||"").toLowerCase();
  const label=String(badge?.label||"").toLowerCase();
  const isOwner=key.includes("owner")||label.includes("owner");
  icon.classList.toggle("worth-it-owner-emblem",isOwner);
- if(isOwner){
-  icon.innerHTML='<svg class="worth-it-owner-emblem-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M4 18.5h16l-1.4-9-4.1 3.1L12 5l-2.5 7.6L5.4 9.5 4 18.5Z" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 21h13M7 18.5v2.5m10-2.5v2.5m-5-19v1.2" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/></svg>';
-  return;
- }
- icon.textContent=String(badge?.icon||"✦");
+ if(icon.classList.contains("worth-it-badge-info-icon"))icon.classList.remove("worth-it-badge-mark");
+ else icon.classList.add("worth-it-badge-mark");
+ icon.innerHTML=getWorthItBadgeSvgMarkup(key);
 }
 function createWorthItBadgeNode(badge,compact){
  const node=document.createElement("span");

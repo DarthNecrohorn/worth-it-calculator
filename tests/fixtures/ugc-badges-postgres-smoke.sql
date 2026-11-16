@@ -69,9 +69,9 @@ insert into auth.users(id,email,email_confirmed_at) values
 
 insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name,created_at) values
  ('11111111-1111-4111-8111-111111111111',101,'creator','Calculator Creator',now()-interval '13 months'),
- ('22222222-2222-4222-8222-222222222222',102,'viewer','Calculator Viewer',now()-interval '2 weeks'),
- ('33333333-3333-4333-8333-333333333333',103,'premium','Premium Member',now()-interval '1 month'),
- ('44444444-4444-4444-8444-444444444444',104,'lite','Premium Lite Member',now()-interval '3 months'),
+ ('22222222-2222-4222-8222-222222222222',102,'viewer','Calculator Viewer',now()-interval '2 months'),
+ ('33333333-3333-4333-8333-333333333333',103,'premium','Premium Member',now()-interval '3 months'),
+ ('44444444-4444-4444-8444-444444444444',104,'lite','Premium Lite Member',now()-interval '4 months'),
  ('55555555-5555-4555-8555-555555555555',105,'owner','Worth It Owner',now()-interval '6 years'),
  ('66666666-6666-4666-8666-666666666666',106,'unconfirmed','Unconfirmed Member',now()-interval '1 month');
 
@@ -901,14 +901,17 @@ select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333'
 select public.set_worth_it_profile_badge_equipped('premium',true);
 select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
 select public.set_worth_it_profile_badge_equipped('premium_lite',true);
+select public.set_worth_it_profile_badge_equipped('member_4m',true);
 select public.set_worth_it_profile_badge_equipped('member_1m',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select public.set_worth_it_profile_badge_equipped('member_12m',true);
 
 -- Only the configured owner account can equip the OWNER badge.
 select set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',false);
+select public.set_worth_it_profile_badge_equipped('member_3m',true);
 select public.set_worth_it_profile_badge_equipped('owner',true);
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+select public.set_worth_it_profile_badge_equipped('member_2m',true);
 
 do $test$
 declare
@@ -916,11 +919,30 @@ declare
     v_badge jsonb;
     v_count integer;
 begin
-    -- A different account can inspect all 12 badges, including locked ones.
+    -- A different account can inspect all 15 badges, including locked milestones.
     result:=public.get_worth_it_profile_badges(103);
-    if jsonb_array_length(result->'badges')<>12 then
-        raise exception 'A visitor must see all 12 badges, including locked badges.';
+    if jsonb_array_length(result->'badges')<>15 then
+        raise exception 'A visitor must see all 15 badges, including locked badges.';
     end if;
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_3m' and (b->>'earned')::boolean is true)
+       or exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_4m' and (b->>'earned')::boolean is true) then
+        raise exception 'The 3-month membership milestone threshold is incorrect.';
+    end if;
+    result:=public.get_worth_it_profile_badges(102);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_2m' and (b->>'earned')::boolean is true and (b->>'equipped')::boolean is true)
+       or exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_3m' and (b->>'earned')::boolean is true) then
+        raise exception 'The 2-month milestone threshold or equip state is incorrect.';
+    end if;
+    result:=public.get_worth_it_profile_badges(104);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_4m' and (b->>'earned')::boolean is true) then
+        raise exception 'The 4-month membership milestone threshold is incorrect.';
+    end if;
+    result:=public.get_worth_it_profile_badges(103);
     select b into v_badge from jsonb_array_elements(result->'badges') b where b->>'key'='premium';
     if v_badge is null
        or (v_badge->>'equipped')::boolean is distinct from true
