@@ -33,9 +33,11 @@ const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql"
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const editDetailsSql = read("supabase/worth-it-ugc-edit-details.sql");
+const titleCooldownSql = read("supabase/worth-it-ugc-profile-title-cooldown.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
+const communityCss = read("community-features.css");
 const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
@@ -386,6 +388,23 @@ test("saved UGC calculators allow owner title edits while keeping category fixed
     assert.doesNotMatch(editDetailsSql,/cannot be changed into a different calculator/);
     assert.match(editDetailsSql,/old\.description_changed_at \+ interval '10 minutes'/);
     assert.match(editDetailsSql,/new\.description_changed_at := v_now/);
+});
+
+test("UGC calculator profile title editing is owner-only, limited to 75 characters and cooled down for 10 minutes", () => {
+    assert.match(html, /id="ugcDetailTitleEditor"[\\s\\S]*?id="ugcDetailTitleInput"[^>]*maxlength="75"/);
+    assert.match(html, /id="ugcDetailSaveTitle"/);
+    assert.match(maker, /update_worth_it_ugc_calculator_title/);
+    assert.match(maker, /get_worth_it_ugc_title_status/);
+    assert.match(maker, /titleInput\\.maxLength=75/);
+    assert.match(titleCooldownSql, /add column if not exists title_changed_at timestamptz/);
+    assert.match(titleCooldownSql, /not between 3 and 75/);
+    assert.match(titleCooldownSql, /old\\.title_changed_at \\+ interval '10 minutes'/);
+    assert.match(titleCooldownSql, /where c\\.id=p_id and c\\.owner_user_id=v_user_id/);
+    assert.match(titleCooldownSql, /where id=p_id and owner_user_id=v_user_id[\\s\\S]*?for update/);
+    assert.match(titleCooldownSql, /grant execute on function public\\.update_worth_it_ugc_calculator_title\\(uuid,text\\) to authenticated/);
+    assert.match(paginationCss, /ugc-maker-description-field[\\s\\S]*?translateY\\(-10px\\)/);
+    assert.match(communityCss, /calc-favorite-icon[^}]*translateY\\(0px\\)/);
+    assert.match(paginationCss, /@media\\(min-width:701px\\)[\\s\\S]*?\\.ugc-calculator-card \\.ugc-card-description\\{[\\s\\S]*?-webkit-line-clamp:1/);
 });
 
 test("Subscriptions show only UGC calculator save quotas without selling Free", () => {
@@ -1202,12 +1221,10 @@ test("UGC catalogue descriptions use the same 120-character preview and placemen
     assert.ok(helperStart >= 0 && helperEnd > helperStart, "The shared UGC description preview helper must exist.");
     const preview = runInNewContext("(" + maker.slice(helperStart, helperEnd) + ")");
     const longDescription = "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current monthly amount and compare it with another plan.";
-    assert.equal(
-        preview(longDescription),
-        "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current..."
-    );
+    const expectedPreview = longDescription.slice(0, 91).trimEnd().replace(/[.!?…]+$/, "") + "...";
+    assert.equal(preview(longDescription), expectedPreview);
     assert.equal(preview("A short calculator description."), "A short calculator description.");
-    assert.ok(maker.includes("const limit=120"));
+    assert.ok(maker.includes("const limit=91"));
     assert.ok(maker.includes('replace(/[.!?…]+$/,"")+"..."'));
     assert.ok(maker.includes("descriptionNode.title=fullDescription"));
     assert.ok(maker.includes('description.textContent=calculator.description||"No description provided."'));
