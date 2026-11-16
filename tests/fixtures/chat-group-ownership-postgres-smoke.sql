@@ -39,8 +39,10 @@ begin
   if owner_id <> '00000000-0000-4000-8000-000000000003' then raise exception 'User 3 did not inherit Owner'; end if;
 
   -- Current Owner 3 may kick; a non-owner may not.
+  insert into public.worth_it_chat_members(conversation_id,user_id)
+  values (g1,'00000000-0000-4000-8000-000000000004');
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
-  r := public.kick_worth_it_group_member(g1,2);
+  r := public.kick_worth_it_group_member(g1,4);
   if not coalesce((r->>'success')::boolean,false) then raise exception 'Current Owner could not kick a member: %',r; end if;
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
   r := public.kick_worth_it_group_member(g1,3);
@@ -69,7 +71,12 @@ begin
     from public.worth_it_chat_conversations c
     cross join (select '00000000-0000-4000-8000-000000000006'::uuid as user_id) u
    where c.title like 'Cap group %';
-  select id into g_limit from public.worth_it_chat_conversations where title='Cap group 1';
+  insert into public.worth_it_chat_conversations(conversation_type,title,created_by,invite_token)
+  values ('group','Cap invite','00000000-0000-4000-8000-000000000010',repeat('b',64));
+  insert into public.worth_it_chat_members(conversation_id,user_id)
+  select id,'00000000-0000-4000-8000-000000000010'
+    from public.worth_it_chat_conversations where title='Cap invite';
+  select id into g_limit from public.worth_it_chat_conversations where title='Cap invite';
 
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000006',true);
   r := public.accept_worth_it_group_invite((select invite_token from public.worth_it_chat_conversations where id=g_limit));
