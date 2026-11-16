@@ -2634,3 +2634,47 @@ html[data-worth-it-custom-theme] .worth-it-badge-icon-svg[data-badge^="calculato
 
 /* The detail dialog hosts its SVG directly inside the fixed-size icon tile. */
 .worth-it-badge-info-icon>.worth-it-badge-icon-svg{display:block;width:100%;height:100%;overflow:visible}
+
+
+/* Small, consistent badge-size increase beside profile names and in chat. */
+.worth-it-profile-name-badges .worth-it-member-badge{
+ min-height:32px;
+ gap:7px;
+ padding:5px 10px;
+}
+.worth-it-profile-name-badges .worth-it-badge-mark{
+ flex:0 0 21px;
+ width:21px;
+ height:21px;
+}
+.worth-it-profile-name-badges .worth-it-badge-icon-svg{
+ width:100%;
+ height:100%;
+}
+/* Owner emblem alone is raised 2px in the badge collection; no other item moves. */
+.worth-it-profile-badge-list .worth-it-member-badge[data-badge="owner"] .worth-it-badge-mark{
+ transform:translateY(-2px);
+}
+/* Chat keeps its existing compact pill, with a slightly larger, uniform emblem. */
+.worth-it-chat-member-badges .worth-it-member-badge{
+ font-size:9px;
+ padding:3px 7px;
+ gap:5px;
+}
+.worth-it-chat-member-badges .worth-it-badge-mark{
+ display:inline-grid;
+ place-items:center;
+ flex:0 0 14px;
+ width:14px;
+ height:14px;
+}
+.worth-it-chat-member-badges .worth-it-badge-icon-svg{
+ display:block;
+ width:100%;
+ height:100%;
+}
+@media(max-width:640px){
+ .worth-it-profile-name-badges .worth-it-member-badge{min-height:31px;padding:5px 9px}
+ .worth-it-profile-name-badges .worth-it-badge-mark{flex-basis:20px;width:20px;height:20px}
+ .worth-it-chat-member-badges .worth-it-member-badge{font-size:9px;padding:3px 7px}
+}

@@ -42,3 +42,10 @@ test("2, 3 and 4 month badges are defined, date-gated, and allowed to equip serv
   assert.match(badgeSql, /'4 MONTHS'/);
   assert.match(badgeSql, /if p_badge_key not in \([\s\S]*?'member_2m','member_3m','member_4m'/);
 });
+
+
+test("profile name badges use one consistent slightly larger icon size; chat badges grow evenly", () => {
+  assert.match(badgeCss, /\.worth-it-profile-name-badges \.worth-it-badge-mark[\s\S]*?flex:0 0 21px/);
+  assert.match(badgeCss, /\.worth-it-chat-member-badges \.worth-it-badge-mark[\s\S]*?flex:0 0 14px/);
+  assert.match(badgeCss, /\.worth-it-profile-badge-list \.worth-it-member-badge\[data-badge="owner"\] \.worth-it-badge-mark\{\s*transform:translateY\(-2px\)/);
+});
