@@ -2436,3 +2436,73 @@ html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tool
  .ugc-manual-controls{grid-template-columns:1fr}
  .ugc-maker-input-grid,.ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:1fr}
 }
+
+
+/* Phone-only mode guide drawer: keep the creator workspace prominent by default. */
+.ugc-manual-mode-help-toggle{display:none}
+#ugcManualModeHelpToggle[hidden]{display:none!important}
+@media(max-width:700px){
+ .ugc-maker-card{
+  height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 10px);
+  min-height:0;
+ }
+ .ugc-manual-mode-help{
+  grid-template-columns:1fr;
+  gap:7px;
+  max-height:0;
+  margin:0;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(-12px);
+  pointer-events:none;
+  transition:max-height .34s cubic-bezier(.2,.75,.25,1),margin .28s ease,opacity .22s ease,transform .28s ease;
+  will-change:max-height,opacity,transform;
+ }
+ .ugc-manual-mode-help.is-expanded{
+  max-height:1100px;
+  margin:9px 0 10px;
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+ }
+ .ugc-manual-mode-card{padding:10px 11px}
+ .ugc-manual-mode-card p{
+  display:block;
+  overflow:visible;
+  white-space:normal;
+  text-overflow:clip;
+  font-size:11px;
+  line-height:1.48;
+ }
+ .ugc-manual-mode-help-toggle{
+  width:min(100%,290px);
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  margin:8px auto 0;
+  padding:8px 12px;
+  border:1px solid color-mix(in srgb,var(--primary) 55%,var(--border));
+  border-radius:10px;
+  background:color-mix(in srgb,var(--primary) 10%,var(--card-solid));
+  color:var(--text);
+  font:inherit;
+  font-size:11px;
+  font-weight:850;
+  cursor:pointer;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+ }
+ .ugc-manual-mode-help-toggle::after{
+  content:"⌄";
+  color:var(--primary2);
+  font-size:17px;
+  line-height:1;
+ }
+ .ugc-manual-mode-help-toggle.is-expanded::after{content:"⌃"}
+ .ugc-manual-mode-help-toggle:active{transform:scale(.985)}
+}
+@media(prefers-reduced-motion:reduce){
+ .ugc-manual-mode-help{transition:none!important}
+ .ugc-manual-mode-help-toggle{transition:none!important}
+}
