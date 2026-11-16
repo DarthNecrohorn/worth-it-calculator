@@ -942,6 +942,7 @@ begin
                    where b->>'key'='member_4m' and (b->>'earned')::boolean is true) then
         raise exception 'The 4-month membership milestone threshold is incorrect.';
     end if;
+    result:=public.get_worth_it_profile_badges(103);
     select b into v_badge from jsonb_array_elements(result->'badges') b where b->>'key'='premium';
     if v_badge is null
        or (v_badge->>'equipped')::boolean is distinct from true
