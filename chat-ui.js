@@ -3055,7 +3055,15 @@ async function createWorthItGroupChat(event) {
     try {
         const result = await sb().rpc("create_worth_it_group_chat", {p_title:title,p_member_worth_it_ids:ids});
         if (result.error) throw result.error;
-        if (!result.data?.success) throw new Error(result.data?.code || "Could not create group chat.");
+        if (!result.data?.success) {
+            const code = result.data?.code;
+            const message = code === "GROUP_LIMIT_REACHED"
+                ? "You can belong to a maximum of 10 groups. Leave a group before creating another."
+                : code === "GROUP_PARTICIPANTS_MUST_BE_FRIENDS"
+                    ? "Everyone invited to a group must be your friend."
+                    : code || "Could not create group chat.";
+            throw new Error(message);
+        }
         closeWorthItGroupChatDialog();
         await refreshWorthItChatData();
         const conversation = chatConversations.find(item => item.id === result.data.conversation_id);
@@ -3168,7 +3176,13 @@ window.acceptWorthItGroupInvite = async function () {
                 activeGroupInvitePreview = Object.assign({}, activeGroupInvitePreview, {is_full:true});
                 showWorthItGroupInviteDialog(activeGroupInvitePreview, activeGroupInviteToken);
             } else {
-                if (status) status.textContent = result.data?.code === "INVITE_NOT_FOUND" ? "This invite link is invalid or has expired." : (result.data?.code || "Could not join this group.");
+                const code = result.data?.code;
+                const message = code === "GROUP_LIMIT_REACHED"
+                    ? "You are already in 10 groups. Leave one group before joining another."
+                    : code === "INVITE_NOT_FOUND"
+                        ? "This invite link is invalid or has expired."
+                        : code || "Could not join this group.";
+                if (status) status.textContent = message;
                 if (button) { button.disabled = false; button.textContent = "Join group"; }
             }
             return;
