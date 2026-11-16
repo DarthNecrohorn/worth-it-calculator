@@ -168,9 +168,10 @@ function readableAccent(hex){
  return "#FFFFFF";
 }
 function gradientForeground(primary,secondary){
- const whiteScore=Math.min(contrastRatio("#FFFFFF",primary),contrastRatio("#FFFFFF",secondary));
+ const samples=Array.from({length:21},(_,index)=>mixHex(primary,secondary,index/20));
+ const whiteScore=Math.min(...samples.map(colour=>contrastRatio("#FFFFFF",colour)));
  const dark="#000000";
- const darkScore=Math.min(contrastRatio(dark,primary),contrastRatio(dark,secondary));
+ const darkScore=Math.min(...samples.map(colour=>contrastRatio(dark,colour)));
  return whiteScore>=darkScore?"#FFFFFF":dark;
 }
 function isCustomTheme(value){
@@ -338,7 +339,6 @@ function applyTheme(value){
   const cardSurface=theme.cardStyle==="flat"
    ?mixHex(theme.background,theme.surfaceAlt,cardOpacity)
    :mixHex(theme.background,theme.surface,cardOpacity);
-  const softSurfaceOnCard=mixHex(theme.surface,theme.surfaceAlt,0.74);
   const activeControlSurface=mixHex(theme.surface,theme.primary,0.18);
   const secondaryControlSurface=mixHex(theme.surface,theme.secondary,0.15);
   const pageText=accessibleThemeText(theme.text,[theme.background]);
@@ -351,8 +351,8 @@ function applyTheme(value){
   const cardLink=accessibleThemeText(theme.link,[cardSurface]);
   const surfaceText=accessibleThemeText(theme.text,[theme.surface]);
   const surfaceMuted=accessibleThemeText(theme.muted,[theme.surface]);
-  const softText=accessibleThemeText(theme.text,[softSurfaceOnCard]);
-  const softMuted=accessibleThemeText(theme.muted,[softSurfaceOnCard]);
+  const softText=surfaceText;
+  const softMuted=surfaceMuted;
   root.style.setProperty("--worth-it-theme-color-scheme",relativeLuminance(theme.background)>=0.42?"light":"dark");
   root.style.setProperty("--bg",theme.background);
   root.style.setProperty("--bg2",theme.background);
