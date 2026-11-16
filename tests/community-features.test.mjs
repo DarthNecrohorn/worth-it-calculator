@@ -263,19 +263,40 @@ test("community slide and calculator pagination surfaces stay opaque and clearly
 });
 
 
-test("Custom Theme includes twelve distinct extra presets with an accessible expandable collection",()=>{
- const extraIds=["graphite","lavender-mist","terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura","neon-pulse"];
- const extraNames=["Graphite","Lavender Mist","Terracotta","Matcha","Champagne","Berry","Arctic","Retro","Royal","Mocha","Sakura","Neon Pulse"];
+test("Custom Theme includes 24 distinct extra presets with an accessible expandable collection",()=>{
+ const extraIds=[
+  "graphite","lavender-mist","terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura","neon-pulse",
+  "cobalt-night","copper-dusk","glacier-blue","citrus-grove","plum-noir","coral-reef","sand-dune","cyberpunk","alpine-meadow","ruby-velvet","indigo-ink","pastel-pop"
+ ];
+ const extraNames=[
+  "Graphite","Lavender Mist","Terracotta","Matcha","Champagne","Berry","Arctic","Retro","Royal","Mocha","Sakura","Neon Pulse",
+  "Cobalt Night","Copper Dusk","Glacier Blue","Citrus Grove","Plum Noir","Coral Reef","Sand Dune","Cyberpunk","Alpine Meadow","Ruby Velvet","Indigo Ink","Pastel Pop"
+ ];
  extraIds.forEach(id=>assert.ok(html.includes('data-theme-preset="'+id+'"'),"missing preset "+id));
  extraNames.forEach(name=>assert.ok(html.includes("<strong>"+name+"</strong>"),"missing preset label "+name));
+ assert.equal((js.match(/group:"more"/g)||[]).length,24,"there must be exactly 24 additional theme definitions");
+ assert.ok(html.includes("24 additional looks with their own colours, fonts and effects."));
  assert.ok(html.includes('id="worthItThemePresetMoreToggle"'));
  assert.ok(html.includes('id="worthItThemePresetMoreGrid"'));
  assert.ok(html.includes('aria-controls="worthItThemePresetMoreGrid"'));
+ assert.ok(html.includes("Explore 24 more palettes"));
  assert.ok(js.includes("function setMoreThemePresetsExpanded"));
+ assert.ok(js.includes("Explore 24 more palettes"));
  assert.ok(js.includes('THEME_PRESETS.some(preset=>preset.group==="more"'));
- assert.ok(js.includes('preset.group==="more"'));
  assert.ok(css.includes(".worth-it-theme-preset-extra-grid"));
  assert.ok(css.includes("#worthItThemePresetMoreGrid[hidden]"));
+});
+
+test("Custom Theme editor and UGC Creator provide compact mobile controls without removing desktop options",()=>{
+ assert.ok(js.includes("function setupMobileThemeAccordions"));
+ assert.ok(js.includes('window.matchMedia?.("(max-width:700px)")'));
+ assert.ok(js.includes("worth-it-theme-mobile-accordion-toggle"));
+ assert.ok(css.includes(".worth-it-theme-mobile-accordion-content[hidden]"));
+ assert.ok(css.includes(".worth-it-theme-preset-extra-grid{grid-template-columns:repeat(3"));
+ assert.ok(ugcCss.includes(".ugc-maker-head{"));
+ assert.ok(ugcCss.includes("position:sticky;top:-11px"));
+ assert.ok(ugcCss.includes(".ugc-maker-card .ugc-maker-actions{"));
+ assert.ok(ugcCss.includes("grid-template-columns:repeat(2,minmax(0,1fr))"));
 });
 
 
