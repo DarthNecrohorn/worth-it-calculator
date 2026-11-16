@@ -1252,3 +1252,23 @@ html[data-worth-it-custom-theme] body :is(
 ) a:not([class*="button"]):not([class*="-btn"]) {
     color: var(--worth-it-theme-card-link, var(--worth-it-theme-link-color)) !important;
 }
+
+
+/* Unaccented controls use the exact solid surface their foreground was measured on.
+   This avoids translucent button fills changing contrast depending on the parent card. */
+html[data-worth-it-custom-theme] body :is(
+    button,input[type="button"],input[type="submit"],.settings-option
+):not(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,.worth-it-chat-nav-btn,
+    .worth-it-chat-send-btn,.shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,.active,.is-active,
+    .calc-favorite-toggle,.worth-it-profile-avatar-remove,
+    .worth-it-chat-call-end,.worth-it-chat-call-reject,.worth-it-chat-manage-delete,
+    .worth-it-chat-manage-leave,.is-recording,[aria-pressed="true"],
+    [aria-selected="true"],[aria-expanded="true"],
+    [class*="danger"],[class*="delete"],[class*="remove"],[class*="reject"]
+) {
+    color: var(--worth-it-theme-soft-text, var(--worth-it-theme-surface-text, var(--text))) !important;
+    background: var(--card-solid) !important;
+}
