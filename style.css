@@ -24460,3 +24460,51 @@ body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility
  .worth-it-chat-group-member-avatar { width:36px; height:36px; flex-basis:36px; }
  .worth-it-chat-group-member-kick { padding:7px 9px; }
 }
+
+/* Chat header actions: the hidden attribute must win over icon/button display rules. */
+#worthItChatAudioCallBtn[hidden],
+#worthItChatVideoCallBtn[hidden],
+#worthItChatHeaderNotifications[hidden],
+#worthItChatMessageSearchBtn[hidden],
+#worthItChatShareInviteBtn[hidden] {
+    display: none !important;
+}
+
+/* Mobile-only Chat list drawer. The main conversation stays mounted underneath,
+   so closing the drawer returns to the exact active conversation and draft. */
+@media (max-width: 540px) {
+    .worth-it-chat-window > .worth-it-chat-sidebar {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 20 !important;
+        display: flex !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        transform: translate3d(-102%, 0, 0) !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        box-shadow: none !important;
+        will-change: transform;
+        transition: transform .28s cubic-bezier(.22,.8,.24,1), visibility 0s linear .28s !important;
+    }
+    .worth-it-chat-window.is-mobile-sidebar > .worth-it-chat-sidebar {
+        transform: translate3d(0, 0, 0) !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        box-shadow: 18px 0 48px rgba(0,0,0,.28) !important;
+        transition: transform .28s cubic-bezier(.22,.8,.24,1), visibility 0s !important;
+    }
+    .worth-it-chat-window.is-mobile-sidebar > .worth-it-chat-main {
+        display: flex !important;
+        visibility: visible !important;
+    }
+    .worth-it-chat-window .worth-it-chat-mobile-close {
+        display: grid !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-mobile-list-btn {
+        display: grid !important;
+    }
+}
