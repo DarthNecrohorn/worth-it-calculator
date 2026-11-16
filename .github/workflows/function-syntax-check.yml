@@ -108,6 +108,8 @@ jobs:
 
       - name: Run chat enhancement regression tests
         run: node --test tests/worth-it-chat-enhancements.test.mjs
+      - name: Run group ownership and membership limit tests
+        run: node --test tests/chat-group-ownership-limit.test.mjs
 
       - name: Check JavaScript syntax
         shell: bash
@@ -143,7 +145,7 @@ jobs:
           from pathlib import Path
           from pglast import parse_sql
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-ai-creator-disable.sql", "supabase/worth-it-ugc-composable-builder.sql", "supabase/worth-it-ugc-version-gate.sql", "supabase/worth-it-ugc-v2-database-validator.sql", "supabase/worth-it-ugc-v2-persistence.sql", "supabase/worth-it-ugc-v2-server-runtime.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-realtime.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/worth-it-chat-private-media.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-ai-creator-disable.sql", "supabase/worth-it-ugc-composable-builder.sql", "supabase/worth-it-ugc-version-gate.sql", "supabase/worth-it-ugc-v2-database-validator.sql", "supabase/worth-it-ugc-v2-persistence.sql", "supabase/worth-it-ugc-v2-server-runtime.sql", "supabase/worth-it-chat-group-ownership-and-limit.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               statements = parse_sql(sql)
@@ -161,7 +163,7 @@ jobs:
           import re
           from collections import Counter
 
-          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-ai-creator-disable.sql", "supabase/worth-it-ugc-composable-builder.sql", "supabase/worth-it-ugc-version-gate.sql", "supabase/worth-it-ugc-v2-database-validator.sql", "supabase/worth-it-ugc-v2-persistence.sql", "supabase/worth-it-ugc-v2-server-runtime.sql"):
+          for name in ("supabase/worth-it-settings-privacy-notifications.sql", "supabase/worth-it-chat-video-media.sql", "supabase/worth-it-chat-message-actions.sql", "supabase/worth-it-chat-message-delete-constraint.sql", "supabase/worth-it-chat-message-action-indexes.sql", "supabase/worth-it-chat-enhancements.sql", "supabase/worth-it-chat-call-reliability.sql", "supabase/calc-economy.sql", "supabase/calc-wallet-history.sql", "supabase/worth-it-community-extras.sql", "supabase/worth-it-ugc-badges.sql", "supabase/worth-it-ugc-enhancements.sql", "supabase/worth-it-ugc-security-hardening.sql", "supabase/worth-it-ugc-pagination.sql", "supabase/worth-it-ugc-visibility-categories-drafts.sql", "supabase/worth-it-ugc-publish-notifications.sql", "supabase/worth-it-ugc-profile-cards.sql", "supabase/worth-it-ugc-reaction-policy.sql", "supabase/worth-it-ugc-reaction-policy-owner-privacy.sql", "supabase/worth-it-community-theme-hover.sql", "supabase/worth-it-community-theme-header.sql", "supabase/worth-it-community-theme-design-system.sql", "supabase/worth-it-community-theme-premium-gate.sql", "supabase/calc-economy-followup.sql", "supabase/worth-it-ugc-unique-views.sql", "supabase/worth-it-creator-leaderboards.sql", "supabase/worth-it-ugc-creator-earnings.sql", "supabase/worth-it-ugc-creator-earnings-price-cap.sql", "supabase/worth-it-ugc-pricing.sql", "supabase/worth-it-ugc-maker-generation-refunds.sql", "supabase/worth-it-ugc-manual-builder-ai-costs.sql", "supabase/worth-it-ugc-ai-creator-disable.sql", "supabase/worth-it-ugc-composable-builder.sql", "supabase/worth-it-ugc-version-gate.sql", "supabase/worth-it-ugc-v2-database-validator.sql", "supabase/worth-it-ugc-v2-persistence.sql", "supabase/worth-it-ugc-v2-server-runtime.sql", "supabase/worth-it-chat-group-ownership-and-limit.sql"):
               path = Path(name)
               sql = path.read_text(encoding="utf-8")
               # Count each dollar-quote delimiter independently. Function definitions may
@@ -286,6 +288,28 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_enhancements_test
+
+      - name: Create isolated database for group ownership and membership-limit tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_group_ownership_test
+
+      - name: Execute and smoke-test group ownership migration in isolated PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_chat_group_ownership_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-group-ownership-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-group-ownership-and-limit.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-group-ownership-postgres-smoke.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF NOT has_function_privilege('authenticated','public.leave_worth_it_group_chat(uuid)','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.create_worth_it_group_chat(text,bigint[])','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.accept_worth_it_group_invite(text)','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.kick_worth_it_group_member(uuid,bigint)','EXECUTE')
+              OR has_function_privilege('anon','public.leave_worth_it_group_chat(uuid)','EXECUTE')
+              OR has_function_privilege('anon','public.kick_worth_it_group_member(uuid,bigint)','EXECUTE')
+            THEN RAISE EXCEPTION 'Group RPC execute grants are incorrect'; END IF;
+          END \$\$;"
 
       - name: Execute and smoke-test chat-enhancements migration in isolated PostgreSQL
         env:

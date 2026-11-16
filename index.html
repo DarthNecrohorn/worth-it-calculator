@@ -131,7 +131,7 @@ html.worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a&chat-media-compact=20261116a">
+<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a&chat-media-compact=20261116a&group-roster-header-mobile-nav=20261116b">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
@@ -361,7 +361,7 @@ html.worth-it-initial-paint::before {
                     <header class="worth-it-chat-header">
                         <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-list-btn" onclick="showWorthItChatSidebar()" aria-label="Back to chat list" title="Chat list">☰</button>
                     <div class="worth-it-chat-header-person">
-                            <div class="worth-it-chat-header-avatar" id="worthItChatHeaderAvatar">🌐</div>
+                            <button type="button" class="worth-it-chat-header-avatar" id="worthItChatHeaderAvatar" aria-label="Global Chat" tabindex="-1">🌐</button>
                             <div><h2 id="worthItChatTitle">Global Chat</h2><p id="worthItChatSubtitle">A shared space for the Worth It community</p></div>
                         </div>
                         <div class="worth-it-chat-header-actions">
@@ -459,8 +459,9 @@ html.worth-it-initial-paint::before {
             <section class="worth-it-chat-manage-card" role="dialog" aria-modal="true" aria-labelledby="worthItChatGroupManageTitle">
                 <span class="worth-it-chat-modal-kicker">✦ WORTH IT COMMUNITY</span>
                 <div class="worth-it-chat-manage-icon" aria-hidden="true">👥</div>
-                <h2 id="worthItChatGroupManageTitle">Group options</h2>
-                <p id="worthItChatGroupManageCopy">Manage this group chat.</p>
+                <h2 id="worthItChatGroupManageTitle">Group members</h2>
+                <p id="worthItChatGroupManageCopy">View the members of this group.</p>
+                <div class="worth-it-chat-group-members-list" id="worthItChatGroupMembersList" aria-label="Group members"></div>
                 <div class="worth-it-chat-manage-actions">
                     <button type="button" class="worth-it-chat-manage-leave" id="worthItChatGroupLeaveBtn" onclick="performWorthItGroupAction('leave')">Leave group</button>
                     <button type="button" class="worth-it-chat-manage-delete" id="worthItChatGroupDeleteBtn" onclick="performWorthItGroupAction('delete')" hidden>Delete group permanently</button>
@@ -6004,7 +6005,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a&amp;free-preview=20261104a&amp;ugc-publish-notifications=20261105b&amp;profile-rich-ugc-cards=20261108a&amp;route-back-20261109a"></script>
-<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
+<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a&amp;group-roster-header-mobile-nav=20261116b"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
 <script src="/ugc-blueprint-import.js?v=blueprint-quick-fix-draft-20261113a"></script>

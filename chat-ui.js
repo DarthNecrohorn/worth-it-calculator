@@ -371,35 +371,41 @@ function setHeader(title, subtitle, person) {
     const titleNode = $("worthItChatTitle");
     const directPersonId = Number(person?.worth_it_id);
     const hasDirectProfile = activeConversationType === "direct" && Number.isSafeInteger(directPersonId) && directPersonId > 0;
+    const groupConversation = activeConversationType === "group" ? chatConversations.find(item => String(item.id) === String(activeConversationId)) : null;
+    const avatar = $("worthItChatHeaderAvatar");
+    const headerPerson = avatar?.closest(".worth-it-chat-header-person");
+    headerPerson?.classList.toggle("is-global-chat", activeConversationType === "global");
+    headerPerson?.classList.toggle("is-group-chat", activeConversationType === "group");
     if (titleNode) {
         if (hasDirectProfile) titleNode.replaceChildren(makeChatProfileLink(person, "worth-it-chat-header-profile-link", title || GLOBAL_TITLE));
         else titleNode.textContent = title || GLOBAL_TITLE;
     }
-    $("worthItChatSubtitle").textContent = subtitle || "";
-    const host = $("worthItChatHeaderAvatar");
-    if (!host) return;
-    host.replaceChildren();
-    if (person?.avatar_url) {
-        const img = document.createElement("img");
-        img.src = String(person.avatar_url); img.alt = ""; img.referrerPolicy = "no-referrer";
-        img.onerror = () => { img.remove(); host.insertBefore(document.createTextNode(initials(person)), host.querySelector(".worth-it-presence-indicator")); };
-        host.appendChild(img);
-    } else host.textContent = activeConversationType === "global" ? "🌐" : (activeConversationType === "group" ? "👥" : initials(person || {display_name:title}));
+    const subtitleNode = $("worthItChatSubtitle");
+    if (subtitleNode) subtitleNode.textContent = subtitle || "";
+    if (!avatar) return;
+    avatar.replaceChildren();
+    if (person?.avatar_url && activeConversationType === "direct") {
+        const img = document.createElement("img"); img.src = String(person.avatar_url); img.alt = ""; img.referrerPolicy = "no-referrer";
+        img.onerror = () => { img.remove(); avatar.insertBefore(document.createTextNode(initials(person)), avatar.querySelector(".worth-it-presence-indicator")); };
+        avatar.appendChild(img);
+    } else avatar.textContent = activeConversationType === "global" ? "" : (activeConversationType === "group" ? "👥" : initials(person || {display_name:title}));
     if (hasDirectProfile) {
-        host.setAttribute("role", "link"); host.setAttribute("tabindex", "0");
-        host.setAttribute("aria-label", "View " + (person.display_name || person.username || "Worth It member") + "'s profile");
-        host.title = "View profile";
-        host.onclick = event => openWorthItChatProfile(directPersonId, event);
-        host.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItChatProfile(directPersonId, event); };
-        host.classList.add("is-profile-link");
-        if (typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(host, person);
+        avatar.setAttribute("role", "link"); avatar.setAttribute("tabindex", "0");
+        avatar.setAttribute("aria-label", "View " + (person.display_name || person.username || "Worth It member") + "'s profile");
+        avatar.title = "View profile"; avatar.onclick = event => openWorthItChatProfile(directPersonId, event);
+        avatar.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItChatProfile(directPersonId, event); };
+        avatar.classList.add("is-profile-link");
+        if (typeof window.renderWorthItPresenceIndicator === "function") window.renderWorthItPresenceIndicator(avatar, person);
+    } else if (activeConversationType === "group" && groupConversation) {
+        avatar.setAttribute("role", "button"); avatar.setAttribute("tabindex", "0"); avatar.setAttribute("aria-label", "View group members");
+        avatar.title = "View group members"; avatar.onclick = event => { event?.preventDefault?.(); event?.stopPropagation?.(); openWorthItGroupMembers(groupConversation.id); };
+        avatar.onkeydown = event => { if (event.key === "Enter" || event.key === " ") openWorthItGroupMembers(groupConversation.id); };
+        avatar.classList.add("is-group-members-trigger");
     } else {
-        host.removeAttribute("role"); host.removeAttribute("tabindex"); host.removeAttribute("aria-label"); host.removeAttribute("title");
-        host.onclick = null; host.onkeydown = null; host.classList.remove("is-profile-link");
+        avatar.removeAttribute("role"); avatar.removeAttribute("tabindex"); avatar.removeAttribute("aria-label"); avatar.removeAttribute("title");
+        avatar.onclick = null; avatar.onkeydown = null; avatar.classList.remove("is-profile-link", "is-group-members-trigger");
     }
-    window.dispatchEvent(new CustomEvent("worthitchatcontextchange", {
-        detail: typeof window.getWorthItChatEnhancementContext === "function" ? window.getWorthItChatEnhancementContext() : null
-    }));
+    window.dispatchEvent(new CustomEvent("worthitchatcontextchange", { detail: typeof window.getWorthItChatEnhancementContext === "function" ? window.getWorthItChatEnhancementContext() : null }));
 }
 function niceTime(value) {
     const date = new Date(value);
@@ -830,21 +836,70 @@ function renderConversations() {
     });
 }
 
+function renderWorthItGroupMemberRows(conversation) {
+    const host = $("worthItChatGroupMembersList");
+    if (!host) return;
+    host.replaceChildren();
+    const members = Array.isArray(conversation?.members) ? conversation.members : [];
+    if (!members.length) {
+        const empty = document.createElement("p");
+        empty.className = "worth-it-chat-group-members-empty";
+        empty.textContent = "No other members yet.";
+        host.appendChild(empty);
+        return;
+    }
+    members.forEach(member => {
+        const row = document.createElement("div");
+        row.className = "worth-it-chat-group-member-row";
+        const avatar = document.createElement("span");
+        avatar.className = "worth-it-chat-group-member-avatar";
+        const name = member.display_name || member.username || ("Worth It member #" + member.worth_it_id);
+        if (member.avatar_url) {
+            const image = document.createElement("img");
+            image.src = String(member.avatar_url); image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
+            image.onerror = () => { avatar.replaceChildren(); avatar.textContent = initials(member); };
+            avatar.appendChild(image);
+        } else avatar.textContent = initials(member);
+        const details = document.createElement("span");
+        details.className = "worth-it-chat-group-member-details";
+        const username = document.createElement("strong");
+        username.textContent = member.username ? "@" + member.username : name;
+        const presence = document.createElement("small");
+        presence.className = "worth-it-chat-person-presence worth-it-chat-group-member-presence";
+        presence.dataset.worthItPresenceId = String(member.worth_it_id || "");
+        presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(member).label : "Last seen unavailable";
+        details.append(username, presence);
+        row.append(avatar, details);
+        if (conversation.is_creator === true) {
+            const kick = document.createElement("button");
+            kick.type = "button"; kick.className = "worth-it-chat-group-member-kick"; kick.textContent = "Kick";
+            kick.setAttribute("aria-label", "Remove " + name + " from this group");
+            kick.addEventListener("click", () => performWorthItGroupAction("kick", member.worth_it_id, name, kick));
+            row.appendChild(kick);
+        }
+        host.appendChild(row);
+    });
+}
+function openWorthItGroupMembers(conversationId) {
+    openWorthItGroupManageDialog(conversationId);
+}
 function openWorthItGroupManageDialog(conversationId) {
-    const conversation = chatConversations.find(item => item.id === conversationId && item.type === "group");
+    const conversation = chatConversations.find(item => String(item.id) === String(conversationId) && item.type === "group");
     const dialog = $("worthItChatGroupManageDialog");
     if (!conversation || !dialog) return;
     const title = $("worthItChatGroupManageTitle");
     const copy = $("worthItChatGroupManageCopy");
     const remove = $("worthItChatGroupDeleteBtn");
     const status = $("worthItChatGroupManageStatus");
-    if (title) title.textContent = conversationLabel(conversation);
-    if (copy) copy.textContent = conversation.is_creator
-        ? "Leave the group and hand ownership to another member, or permanently delete the group and all its messages for everyone."
-        : "Leave this group to remove it from your chat list. You can join again only if someone shares a valid group invitation with you.";
+    if (title) title.textContent = conversationLabel(conversation) + " · Members";
+    if (copy) copy.textContent = conversation.is_creator === true
+        ? "You are the group Owner. You can remove members from this list."
+        : "Group members. Only the current Owner can remove members.";
     if (remove) remove.hidden = conversation.is_creator !== true;
+    renderWorthItGroupMemberRows(conversation);
     if (status) { status.textContent = ""; status.classList.remove("is-error"); }
     dialog.dataset.conversationId = String(conversation.id);
+    dialog.classList.add("is-members-view");
     if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.hidden = false;
     dialog.setAttribute("aria-hidden", "false");
@@ -852,51 +907,78 @@ function openWorthItGroupManageDialog(conversationId) {
 }
 function closeWorthItGroupManageDialog() {
     const dialog = $("worthItChatGroupManageDialog");
-    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden", "true"); }
+    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden", "true"); dialog.classList.remove("is-members-view"); }
 }
-async function performWorthItGroupAction(action) {
+async function performWorthItGroupAction(action, explicitTargetId, explicitTargetName, triggerButton) {
     const dialog = $("worthItChatGroupManageDialog");
     const conversationId = String(dialog?.dataset.conversationId || "");
     const conversation = chatConversations.find(item => String(item.id) === conversationId && item.type === "group");
     const status = $("worthItChatGroupManageStatus");
-    const button = $(action === "delete" ? "worthItChatGroupDeleteBtn" : "worthItChatGroupLeaveBtn");
+    const button = triggerButton || $(action === "delete" ? "worthItChatGroupDeleteBtn" : action === "kick" ? "worthItChatGroupKickBtn" : "worthItChatGroupLeaveBtn");
     if (!chatUser || !conversation || !button || button.disabled) return;
     if (action === "delete" && conversation.is_creator !== true) {
-        if (status) { status.textContent = "Only the group creator can permanently delete this group."; status.classList.add("is-error"); }
+        if (status) { status.textContent = "Only the current group Owner can permanently delete this group."; status.classList.add("is-error"); }
+        return;
+    }
+    if (action === "kick" && conversation.is_creator !== true) {
+        if (status) { status.textContent = "Only the current group Owner can remove members."; status.classList.add("is-error"); }
+        return;
+    }
+    const targetId = action === "kick" ? Number(explicitTargetId ?? $("worthItChatGroupKickSelect")?.value) : null;
+    if (action === "kick" && (!Number.isSafeInteger(targetId) || targetId <= 0)) {
+        if (status) { status.textContent = "Choose a group member first."; status.classList.add("is-error"); }
         return;
     }
     const groupName = conversationLabel(conversation);
+    const targetName = action === "kick"
+        ? (explicitTargetName || $("worthItChatGroupKickSelect")?.selectedOptions?.[0]?.textContent || "this member") : "";
     const confirmed = action === "delete"
         ? window.confirm("Permanently delete “" + groupName + "” for everyone? All group messages and its invitation link will be deleted and cannot be recovered.")
-        : window.confirm("Leave “" + groupName + "”? It will disappear from your group list. You may need a new invitation to join again.");
+        : action === "kick"
+            ? window.confirm("Remove " + targetName + " from “" + groupName + "”? They will need a new invitation to rejoin.")
+            : window.confirm("Leave “" + groupName + "”? It will disappear from your group list. You may need a new invitation to join again.");
     if (!confirmed) return;
     const priorText = button.textContent;
     button.disabled = true;
-    button.textContent = action === "delete" ? "Deleting…" : "Leaving…";
+    button.textContent = action === "delete" ? "Deleting…" : action === "kick" ? "Removing…" : "Leaving…";
     if (status) { status.textContent = ""; status.classList.remove("is-error"); }
     try {
-        const rpcName = action === "delete" ? "delete_worth_it_group_chat" : "leave_worth_it_group_chat";
-        const result = await sb().rpc(rpcName, {p_conversation_id:conversation.id});
+        const rpcName = action === "delete" ? "delete_worth_it_group_chat" : action === "kick" ? "kick_worth_it_group_member" : "leave_worth_it_group_chat";
+        const args = action === "kick"
+            ? {p_conversation_id:conversation.id,p_target_worth_it_id:targetId}
+            : {p_conversation_id:conversation.id};
+        const result = await sb().rpc(rpcName, args);
         if (result.error) throw result.error;
         if (!result.data?.success) {
             const codes = {
-                NOT_GROUP_CREATOR: "Only the group creator can delete this group.",
-                NOT_A_GROUP_MEMBER: "You are no longer a member of this group.",
+                NOT_GROUP_CREATOR: "Only the current group Owner can delete this group.",
+                NOT_GROUP_OWNER: "Only the current group Owner can remove members.",
+                NOT_A_GROUP_MEMBER: "This member is no longer in the group.",
+                INVALID_GROUP_MEMBER: "Choose a valid group member.",
                 GROUP_NOT_FOUND: "This group no longer exists."
             };
             throw new Error(codes[result.data?.code] || result.data?.code || "The group action could not be completed.");
+        }
+        if (action === "kick") {
+            await refreshWorthItChatData();
+            openWorthItGroupManageDialog(conversation.id);
+            if (status) status.textContent = targetName + " was removed from the group.";
+            return;
         }
         const wasActive = activeConversationType === "group" && String(activeConversationId) === conversationId;
         closeWorthItGroupManageDialog();
         await refreshWorthItChatData();
         if (wasActive) await activateConversation(null, "global", GLOBAL_TITLE, null);
-        const message = action === "delete" ? "Group permanently deleted." : (result.data.owner_transferred ? "You left the group. Ownership was transferred to another member." : "You left the group.");
+        const message = action === "delete" ? "Group permanently deleted." : (result.data.owner_transferred ? "You left the group. Ownership was transferred to the next member." : "You left the group.");
         if (chatOpen) setStatus(message, false);
         else if (typeof window.showToast === "function") window.showToast(message);
     } catch (error) {
         if (status) { status.textContent = rpcError(error); status.classList.add("is-error"); }
     } finally {
-        if (button.isConnected) { button.disabled = false; button.textContent = priorText; }
+        if (button.isConnected) {
+            button.disabled = false;
+            button.textContent = priorText;
+        }
     }
 }
 window.openWorthItGroupManageDialog = openWorthItGroupManageDialog;
@@ -3005,7 +3087,15 @@ async function createWorthItGroupChat(event) {
     try {
         const result = await sb().rpc("create_worth_it_group_chat", {p_title:title,p_member_worth_it_ids:ids});
         if (result.error) throw result.error;
-        if (!result.data?.success) throw new Error(result.data?.code || "Could not create group chat.");
+        if (!result.data?.success) {
+            const code = result.data?.code;
+            const message = code === "GROUP_LIMIT_REACHED"
+                ? "You can belong to a maximum of 10 groups. Leave a group before creating another."
+                : code === "GROUP_PARTICIPANTS_MUST_BE_FRIENDS"
+                    ? "Everyone invited to a group must be your friend."
+                    : code || "Could not create group chat.";
+            throw new Error(message);
+        }
         closeWorthItGroupChatDialog();
         await refreshWorthItChatData();
         const conversation = chatConversations.find(item => item.id === result.data.conversation_id);
@@ -3118,7 +3208,13 @@ window.acceptWorthItGroupInvite = async function () {
                 activeGroupInvitePreview = Object.assign({}, activeGroupInvitePreview, {is_full:true});
                 showWorthItGroupInviteDialog(activeGroupInvitePreview, activeGroupInviteToken);
             } else {
-                if (status) status.textContent = result.data?.code === "INVITE_NOT_FOUND" ? "This invite link is invalid or has expired." : (result.data?.code || "Could not join this group.");
+                const code = result.data?.code;
+                const message = code === "GROUP_LIMIT_REACHED"
+                    ? "You are already in 10 groups. Leave one group before joining another."
+                    : code === "INVITE_NOT_FOUND"
+                        ? "This invite link is invalid or has expired."
+                        : code || "Could not join this group.";
+                if (status) status.textContent = message;
                 if (button) { button.disabled = false; button.textContent = "Join group"; }
             }
             return;
