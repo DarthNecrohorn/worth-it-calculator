@@ -985,3 +985,36 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
         margin-top: 8px !important;
     }
 }
+
+/* Mobile-only header alignment and control sizing requested 2026-11-16.
+   Keep the economy row under the menu/brand row and prevent its button borders
+   from being clipped by the old 36px overflow box. */
+@media (max-width: 560px) {
+    .nav-inner > .calc-economy-nav {
+        left: 9px !important;
+        top: 52px !important;
+        margin: 0 !important;
+        height: auto !important;
+        min-height: 44px !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+    }
+
+    .nav-inner > .nav-right-stack > .nav-top-row {
+        transform: translateY(1px) !important;
+    }
+
+    .nav-inner > .nav-right-stack > .nav-secondary-row > .signout-nav-btn,
+    .nav-inner > .nav-right-stack > .nav-secondary-row > .settings-btn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        flex: 0 0 36px !important;
+        padding: 4px !important;
+        font-size: 16px !important;
+        transform: translateY(6px) !important;
+    }
+}
