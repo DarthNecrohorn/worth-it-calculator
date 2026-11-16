@@ -3325,12 +3325,12 @@ function renderMakerPreview(definition){
  const fields=document.createElement("div");fields.className="ugc-maker-edit-grid";
  const existing=Boolean(state.editingId);
  const title=document.createElement("label");title.textContent="Calculator title";
- const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";titleInput.disabled=existing;title.appendChild(titleInput);
+ const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";title.appendChild(titleInput);
  const desc=document.createElement("label");desc.textContent="Description";
- const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";descInput.disabled=existing;desc.appendChild(descInput);
+ const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
  if(existing&&manual){
-  host.appendChild(text("p","ugc-maker-schema-summary","A saved calculator's title and primary category stay fixed. To update its description, use the description editor on the calculator detail page; its 10-minute cooldown still applies."));
+  host.appendChild(text("p","ugc-maker-schema-summary","You can update the title and description here. The primary category stays fixed, and saved description changes are limited to once every 10 minutes."));
  }
  const descriptionHelp=text("p","ugc-maker-schema-summary",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
@@ -3593,8 +3593,10 @@ async function saveMakerDraft(publish){
  const visibility=state.editingId?(state.editingVisibility||"private"):(String($("ugcMakerVisibility")?.value||"private")==="public"?"public":"private");
  const previousStatus=state.editingStatus||"draft";
  if(title.length<3){makerStatus("Enter a title with at least 3 characters.","error");return;}
- if(!state.editingId&&(description.length<24||description.length>500)){
-  makerStatus("The description must contain 24 to 500 characters and explain what the calculator measures and its main assumptions.","error");return;
+ const originalDescription=String(state.aiDraft.description||"").trim();
+ const descriptionWasChanged=Boolean(state.editingId)&&description!==originalDescription;
+ if(description.length>500||((!state.editingId||descriptionWasChanged)&&description.length<24)){
+  makerStatus("A new or revised description must contain 24 to 500 characters and explain what the calculator measures, its assumptions and what the results mean.","error");return;
  }
  const specToSave={...state.aiDraft.spec};
  if(state.creationSource==="manual"){
