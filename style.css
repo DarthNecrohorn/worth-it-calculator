@@ -24432,7 +24432,7 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 
 /* Chat-only navigation suppression and compact mobile identity/roster layout. */
 body.worth-it-chat-open > nav.nav { display:none !important; }
-.worth-it-chat-header-avatar { padding:0; color:inherit; cursor:default; font:inherit; }
+.worth-it-chat-header-avatar { padding:0; color:inherit; cursor:default; font:inherit; appearance:none; -webkit-appearance:none; }
 .worth-it-chat-header-avatar.is-group-members-trigger { cursor:pointer; }
 .worth-it-chat-header-avatar.is-group-members-trigger:hover { border-color:rgba(165,180,252,.55); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
 .worth-it-chat-header-person.is-global-chat .worth-it-chat-header-avatar { display:none !important; }
@@ -24450,7 +24450,6 @@ body.worth-it-chat-open > nav.nav { display:none !important; }
  .worth-it-chat-header { justify-content:flex-start; gap:9px; }
  .worth-it-chat-mobile-list-btn { order:0; flex:0 0 34px; }
  .worth-it-chat-header-person { order:1; flex:1 1 auto; min-width:0; gap:8px; }
- .worth-it-chat-header-person.is-global-chat { display:none; }
  .worth-it-chat-header-person.is-global-chat + .worth-it-chat-header-actions { margin-left:auto; }
  .worth-it-chat-header-avatar { width:38px; height:38px; flex-basis:38px; border-radius:12px; }
  .worth-it-chat-header-person h2 { max-width:clamp(80px,32vw,170px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
