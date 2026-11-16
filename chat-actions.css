@@ -297,3 +297,164 @@ html[data-theme="light"] .worth-it-chat-no-results{
 .worth-it-chat-copy-action {
     font-size: 0;
 }
+
+
+/* Chat conversation controls: respect the hidden attribute even when icon
+   buttons define an explicit display mode. */
+.worth-it-chat-icon-btn[hidden],
+.worth-it-chat-enhancement-btn[hidden] {
+    display: none !important;
+}
+
+/* Phone-only conversation list: a right-edge drawer that slides over the
+   existing conversation, preserving the active chat underneath it. */
+@media (max-width: 540px) {
+    .worth-it-chat-window {
+        position: relative !important;
+        display: block !important;
+        overflow: hidden !important;
+    }
+
+    .worth-it-chat-window .worth-it-chat-main,
+    .worth-it-chat-window.is-mobile-sidebar .worth-it-chat-main {
+        position: relative !important;
+        display: flex !important;
+        width: 100% !important;
+        height: 100dvh !important;
+        min-width: 0 !important;
+        transform: none !important;
+    }
+
+    .worth-it-chat-window.is-mobile-sidebar .worth-it-chat-main::after {
+        content: "";
+        position: absolute;
+        z-index: 3;
+        inset: 0;
+        background: rgba(3, 7, 18, .34);
+        pointer-events: auto;
+    }
+
+    .worth-it-chat-window .worth-it-chat-sidebar {
+        position: absolute !important;
+        inset: 0 0 0 auto !important;
+        display: flex !important;
+        width: min(88vw, 380px) !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+        z-index: 12 !important;
+        border-right: 0 !important;
+        border-left: 1px solid rgba(148, 163, 184, .25) !important;
+        box-shadow: -18px 0 48px rgba(0, 0, 0, .34) !important;
+        transform: translateX(102%) !important;
+        transition: transform 260ms cubic-bezier(.22, .75, .18, 1) !important;
+        pointer-events: none !important;
+    }
+
+    .worth-it-chat-window.is-mobile-sidebar .worth-it-chat-sidebar {
+        transform: translateX(0) !important;
+        pointer-events: auto !important;
+    }
+
+    .worth-it-chat-header {
+        display: flex !important;
+        flex-flow: row nowrap !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+        min-height: 70px !important;
+        padding: 9px 10px !important;
+        overflow: visible !important;
+    }
+
+    .worth-it-chat-header > .worth-it-chat-mobile-list-btn {
+        display: grid !important;
+        position: static !important;
+        order: 0 !important;
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        height: 34px !important;
+        margin: 0 !important;
+        transform: none !important;
+    }
+
+    .worth-it-chat-header > .worth-it-chat-header-person {
+        display: flex !important;
+        position: static !important;
+        order: 1 !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        gap: 8px !important;
+        align-items: center !important;
+        transform: none !important;
+    }
+
+    .worth-it-chat-header-person > div:last-child {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+
+    .worth-it-chat-header-person h2 {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .worth-it-chat-header-person p {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .worth-it-chat-header > .worth-it-chat-header-actions {
+        display: flex !important;
+        position: static !important;
+        order: 2 !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        margin: 0 0 0 auto !important;
+        padding: 0 !important;
+        gap: 4px !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        transform: none !important;
+    }
+
+    .worth-it-chat-header-actions > .worth-it-chat-header-notifications,
+    .worth-it-chat-header-actions > .worth-it-chat-icon-btn,
+    .worth-it-chat-header-actions > .worth-it-chat-enhancement-btn {
+        flex: 0 0 32px !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+    }
+
+    .worth-it-chat-header-notifications .worth-it-chat-notification-label {
+        display: none !important;
+    }
+
+    .worth-it-chat-mobile-close {
+        display: grid !important;
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        height: 34px !important;
+    }
+}
+
+@media (max-width: 540px) and (prefers-reduced-motion: reduce) {
+    .worth-it-chat-window .worth-it-chat-sidebar {
+        transition: none !important;
+    }
+}

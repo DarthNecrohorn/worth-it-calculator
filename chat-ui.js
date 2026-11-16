@@ -374,6 +374,9 @@ function setHeader(title, subtitle, person) {
     const groupConversation = activeConversationType === "group" ? chatConversations.find(item => String(item.id) === String(activeConversationId)) : null;
     const avatar = $("worthItChatHeaderAvatar");
     const headerPerson = avatar?.closest(".worth-it-chat-header-person");
+    if (activeConversationType !== "direct") {
+        ["worthItChatAudioCallBtn", "worthItChatVideoCallBtn"].forEach(id => { const button = $(id); if (button) button.hidden = true; });
+    }
     headerPerson?.classList.toggle("is-global-chat", activeConversationType === "global");
     headerPerson?.classList.toggle("is-group-chat", activeConversationType === "group");
     if (titleNode) {
@@ -1017,7 +1020,7 @@ function updateChatHeaderNotificationButton() {
     const button = $("worthItChatHeaderNotifications");
     if (!button) return;
     const chatKey = getActiveChatNotificationKey();
-    const available = Boolean(chatUser && chatKey);
+    const available = Boolean(chatUser && chatKey && activeConversationType !== "direct");
     button.hidden = !available;
     button.dataset.chatKey = chatKey;
     const categoryEnabled = chatNotificationCategoryEnabled(chatKey);
@@ -2209,7 +2212,10 @@ async function activateConversation(id, type, title, person, inviteToken) {
     rememberLastWorthItChatConversation();
     restoreWorthItChatDraft(worthItChatDraftKey());
     syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
-    if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+    if (window.matchMedia("(max-width: 540px)").matches) {
+        $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+        $("worthItChatMobileListBtn")?.setAttribute("aria-expanded", "false");
+    }
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
     renderFriends(); renderConversations();
     const subtitle = activeConversationType === "global" ? "A shared space for the Worth It community" : activeConversationType === "group" ? "Group conversation · " + (chatConversations.find(c => c.id === id)?.members?.length || 2) + " members" : (window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(activeConversationPerson).label : "Private conversation with your friend");
@@ -2221,7 +2227,16 @@ async function activateConversation(id, type, title, person, inviteToken) {
     await syncWorthItChatRealtimeChannel();
     await loadWorthItChatMessages(true, true);
 }
-window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
+window.showWorthItChatSidebar = function () {
+    if (!window.matchMedia("(max-width: 540px)").matches) return;
+    $("worthItChatWindow")?.classList.add("is-mobile-sidebar");
+    $("worthItChatMobileListBtn")?.setAttribute("aria-expanded", "true");
+};
+window.hideWorthItChatSidebar = function () {
+    if (!window.matchMedia("(max-width: 540px)").matches) return;
+    $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+    $("worthItChatMobileListBtn")?.setAttribute("aria-expanded", "false");
+};
 window.openWorthItGlobalChat = async function () {
     if (!chatUser) { renderMessages(); return; }
     await activateConversation(null, "global", GLOBAL_TITLE, null);

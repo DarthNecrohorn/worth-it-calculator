@@ -134,7 +134,7 @@ html.worth-it-initial-paint::before {
 <link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a&chat-media-compact=20261116a&group-roster-header-mobile-nav=20261116b&chat-overlay-visible-nav-hide=20261116a">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
-<link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
+<link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c&amp;mobile-chat-conversation-controls=20261116a">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
@@ -340,10 +340,10 @@ html.worth-it-initial-paint::before {
 
         <div class="worth-it-chat-overlay" id="worthItChatOverlay" hidden aria-hidden="true">
             <section class="worth-it-chat-window" id="worthItChatWindow" role="dialog" aria-modal="true" aria-labelledby="worthItChatTitle">
-                <aside class="worth-it-chat-sidebar">
+                <aside class="worth-it-chat-sidebar" id="worthItChatSidebar">
                     <div class="worth-it-chat-brand">
                         <div><span class="worth-it-chat-brand-mark">✦</span><div><strong>Worth It Chat</strong><small>Stay connected</small></div></div>
-                        <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="toggleWorthItChat(event)" aria-label="Close chat">✕</button>
+                        <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-close" onclick="hideWorthItChatSidebar()" aria-label="Back to conversation" title="Back to conversation">❮</button>
                     </div>
                     <div class="worth-it-chat-list-row worth-it-chat-global-row"><button type="button" class="worth-it-chat-side-item is-active" id="worthItGlobalChatBtn" onclick="openWorthItGlobalChat()"><span>🌐</span><span><strong>Global Chat</strong><small>Talk with the community</small></span><i>↗</i><span class="worth-it-chat-person-count worth-it-chat-global-count" id="worthItGlobalChatUnreadCount" hidden aria-label="Unread messages in Global Chat">0</span></button></div>
                     <div class="worth-it-chat-side-heading"><span>PRIVATE CHATS</span><button type="button" class="worth-it-chat-text-btn" onclick="refreshWorthItChatData()">Refresh</button></div>
@@ -359,7 +359,7 @@ html.worth-it-initial-paint::before {
                 </aside>
                 <main class="worth-it-chat-main">
                     <header class="worth-it-chat-header">
-                        <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-list-btn" onclick="showWorthItChatSidebar()" aria-label="Back to chat list" title="Chat list">☰</button>
+                        <button type="button" class="worth-it-chat-icon-btn worth-it-chat-mobile-list-btn" id="worthItChatMobileListBtn" onclick="showWorthItChatSidebar()" aria-label="Open chat list" aria-expanded="false" aria-controls="worthItChatSidebar" title="Chat list">❯</button>
                     <div class="worth-it-chat-header-person">
                             <button type="button" class="worth-it-chat-header-avatar" id="worthItChatHeaderAvatar" aria-label="Global Chat" tabindex="-1">🌐</button>
                             <div><h2 id="worthItChatTitle">Global Chat</h2><p id="worthItChatSubtitle">A shared space for the Worth It community</p></div>
@@ -6005,7 +6005,7 @@ if($("carResults")){
 
 </script>
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a&amp;free-preview=20261104a&amp;ugc-publish-notifications=20261105b&amp;profile-rich-ugc-cards=20261108a&amp;route-back-20261109a"></script>
-<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a&amp;group-roster-header-mobile-nav=20261116b"></script>
+<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a&amp;group-roster-header-mobile-nav=20261116b&amp;mobile-chat-conversation-controls=20261116a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
 <script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
 <script src="/ugc-blueprint-import.js?v=blueprint-quick-fix-draft-20261113a"></script>
