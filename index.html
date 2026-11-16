@@ -8,15 +8,78 @@
 <title>Worth It — Smart Decision Calculators</title>
 
 <script>
-/* Apply the saved theme and cover all page content before the browser's first paint. */
+/* Resolve the stored appearance before first paint. Custom Themes are account-scoped,
+   so keep the page covered until the authenticated theme loader confirms the active entitlement. */
 (function () {
     const root = document.documentElement;
+    let bootBackground = "#10151f";
+    let sessionUserId = "";
+
+    function parseStoredSession(raw) {
+        if (!raw) return null;
+        const candidates = [String(raw)];
+        if (String(raw).startsWith("base64-")) {
+            try {
+                candidates.push(atob(String(raw).slice(7)));
+            } catch (_) {}
+        }
+        for (const candidate of candidates) {
+            try {
+                const parsed = JSON.parse(candidate);
+                const session = parsed?.currentSession || parsed?.session || parsed;
+                const userId = session?.user?.id || parsed?.user?.id;
+                if (typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+                    return userId;
+                }
+                const token = String(session?.access_token || parsed?.access_token || "");
+                const payload = token.split(".")[1];
+                if (payload) {
+                    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+                    if (typeof decoded?.sub === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded.sub)) {
+                        return decoded.sub;
+                    }
+                }
+            } catch (_) {}
+        }
+        return "";
+    }
+
+    function findSessionUserId(storage) {
+        try {
+            for (let index = 0; index < storage.length; index += 1) {
+                const key = storage.key(index) || "";
+                if (!/^sb-[a-z0-9]+-auth-token$/i.test(key) && key !== "worth-it-auth-token-v1") continue;
+                const userId = parseStoredSession(storage.getItem(key));
+                if (userId) return userId;
+            }
+        } catch (_) {}
+        return "";
+    }
+
     try {
         root.dataset.theme = localStorage.getItem("worthItTheme") === "light" ? "light" : "dark";
+        const rememberUntil = Number(localStorage.getItem("worth_it_auth_remember_until_v1") || 0);
+        const remembered = Number.isFinite(rememberUntil) && rememberUntil > Date.now();
+        sessionUserId = remembered
+            ? findSessionUserId(localStorage) || findSessionUserId(sessionStorage)
+            : findSessionUserId(sessionStorage) || findSessionUserId(localStorage);
+        if (!sessionUserId) {
+            bootBackground = root.dataset.theme === "light" ? "#FFFFFF" : "#070B14";
+        } else {
+            // This is only the loading veil's background. The saved theme is not activated
+            // until Supabase confirms the current account's Premium entitlement.
+            const cachedTheme = JSON.parse(localStorage.getItem("worthItCustomTheme:v1:" + sessionUserId) || "null");
+            if (/^#[0-9a-f]{6}$/i.test(String(cachedTheme?.background || ""))) {
+                bootBackground = cachedTheme.background;
+            }
+        }
     } catch (_) {
         root.dataset.theme = "dark";
     }
+
+    root.style.setProperty("--worth-it-boot-background", bootBackground);
     root.classList.add("worth-it-initial-paint");
+
     try {
         const path = window.location.pathname.replace(/\/+$/, "") || "/";
         if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
@@ -34,18 +97,23 @@
 })();
 </script>
 <style>
-/* Inline boot cover: it works before the main stylesheet has downloaded. */
+/* Keep unthemed page text and controls out of the first paint. The class is removed
+   only after the account's saved theme has been resolved and applied. */
+html.worth-it-initial-paint {
+    min-height: 100%;
+    background: var(--worth-it-boot-background, #10151f) !important;
+}
+html.worth-it-initial-paint body {
+    visibility: hidden !important;
+}
 html.worth-it-initial-paint::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: 2147483647;
     display: block;
-    background: #070b14;
+    background: var(--worth-it-boot-background, #10151f);
     pointer-events: none;
-}
-html[data-theme="light"].worth-it-initial-paint::before {
-    background: #fff;
 }
 </style>
 
@@ -76,7 +144,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-header-actions=20261109a&amp;subscription-card-spacing=20261109b&amp;subscription-card-desktop=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a&amp;mobile-header-economy-row=20261116g">
+<link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a&amp;mobile-header-economy-row=20261116g&amp;theme-boot-contrast=20261116a">
 </head>
 
 <body>
