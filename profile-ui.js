@@ -834,11 +834,11 @@ function closeWorthItNotifications(){
  if(panel){panel.hidden=true;panel.setAttribute("aria-hidden","true");}
  if(button)button.setAttribute("aria-expanded","false");
 }
-window.toggleWorthItNotifications=async function(event){
+window.toggleWorthItNotifications=async function(event,forceClose){
  event?.stopPropagation?.();
  const panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
  if(!panel||!currentUser){if(!currentUser)promptSignInForSocial();return;}
- if(!panel.hidden){closeWorthItNotifications();return;}
+ if(!panel.hidden){if(forceClose===true)closeWorthItNotifications();return;}
  closeAccountDropdown();panel.hidden=false;panel.setAttribute("aria-hidden","false");if(button)button.setAttribute("aria-expanded","true");
  if(worthItNotificationExpiryTimer===null)worthItNotificationExpiryTimer=window.setInterval(()=>{const activePanel=$("worthItNotificationPanel");if(currentUser&&activePanel&&!activePanel.hidden)refreshWorthItNotifications(false);},60000);
  setWorthItNotificationTab(worthItNotificationTab);
@@ -875,9 +875,8 @@ function requestWorthItUnfriendReason(targetId){
  overlay.hidden=false;
  return new Promise(resolve=>{worthItUnfriendReasonResolver=resolve;input?.focus();});
 }
-document.addEventListener("click",event=>{const wrap=$("worthItNotificationWrap");if(wrap&&!wrap.contains(event.target))closeWorthItNotifications();});
 document.addEventListener("keydown",event=>{
- if(event.key==="Escape"){closeWorthItNotifications();if(!$("worthItUnfriendDialog")?.hidden)finishWorthItUnfriendDialog(null);}
+ if(event.key==="Escape"&&!$("worthItUnfriendDialog")?.hidden)finishWorthItUnfriendDialog(null);
 });
 
 function socialErrorMessage(result) {
