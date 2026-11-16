@@ -407,7 +407,6 @@ test("UGC calculator profile title editing is owner-only, limited to 75 characte
     assert.ok(paginationCss.includes("ugc-maker-description-field"));
     assert.ok(paginationCss.includes("translateY(-10px)"));
     assert.ok(communityCss.includes(".calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(0px)}"));
-    assert.ok(paginationCss.includes("-webkit-line-clamp:1;"));
 });
 
 test("Subscriptions show only UGC calculator save quotas without selling Free", () => {
@@ -1218,7 +1217,7 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
 });
 
 
-test("UGC catalogue descriptions use the same compact one-line preview and placement on every desktop calculator card", () => {
+test("UGC catalogue descriptions use the same 91-character preview and placement on every calculator card", () => {
     const helperStart = maker.indexOf("function cardDescriptionPreview(description){");
     const helperEnd = maker.indexOf("\n}", helperStart) + 2;
     assert.ok(helperStart >= 0 && helperEnd > helperStart, "The shared UGC description preview helper must exist.");
