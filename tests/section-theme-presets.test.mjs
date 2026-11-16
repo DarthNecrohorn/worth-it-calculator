@@ -167,6 +167,12 @@ test("Custom Theme styles sign-out, search, Admin Panel and other modal backdrop
     assert.match(siteThemeCss, /admin-panel-section-button[\s\S]*?var\(--worth-it-primary-readable/);
 });
 
+test("Custom Theme calculates surface-specific heading and link contrast for modal surfaces", () => {
+    assert.match(community, /const surfaceLink=accessibleThemeText\(theme\.link,\[theme\.surface\]\)/);
+    assert.match(community, /--worth-it-theme-surface-link",surfaceLink/);
+    assert.match(siteThemeCss, /var\(--worth-it-theme-surface-link,var\(--worth-it-theme-surface-text/);
+});
+
 test("Custom Theme calculates separate heading contrast for modal surfaces", () => {
     assert.match(community, /const surfaceHeading=accessibleThemeText\(theme\.heading,\[theme\.surface\]\)/);
     assert.match(community, /--worth-it-theme-surface-heading",surfaceHeading/);
