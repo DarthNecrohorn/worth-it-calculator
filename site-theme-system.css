@@ -991,8 +991,8 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
    from being clipped by the old 36px overflow box. */
 @media (max-width: 560px) {
     .nav-inner > .calc-economy-nav {
-        left: 14px !important;
-        top: 51px !important;
+        left: 12px !important;
+        top: 52px !important;
         margin: 0 !important;
         height: auto !important;
         min-height: 44px !important;
