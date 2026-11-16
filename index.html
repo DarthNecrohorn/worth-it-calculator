@@ -246,7 +246,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <div class="worth-it-notification-panel" id="worthItNotificationPanel" hidden aria-hidden="true">
                 <div class="worth-it-notification-header">
                     <strong>Notifications</strong>
-                    <button type="button" class="worth-it-notification-close" onclick="toggleWorthItNotifications(event)" aria-label="Close notifications">✕</button>
+                    <button type="button" class="worth-it-notification-close" onclick="toggleWorthItNotifications(event, true)" aria-label="Close notifications">✕</button>
                 </div>
                 <div class="worth-it-notification-tabs" role="tablist" aria-label="Notification categories">
                     <button type="button" class="active" id="worthItNotificationRequestsTab" data-notification-tab="requests" role="tab" aria-selected="true" onclick="showWorthItNotificationTab('requests')">Friend requests <span id="worthItNotificationRequestsCount" hidden></span></button>
