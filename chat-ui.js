@@ -836,44 +836,70 @@ function renderConversations() {
     });
 }
 
+function renderWorthItGroupMemberRows(conversation) {
+    const host = $("worthItChatGroupMembersList");
+    if (!host) return;
+    host.replaceChildren();
+    const members = Array.isArray(conversation?.members) ? conversation.members : [];
+    if (!members.length) {
+        const empty = document.createElement("p");
+        empty.className = "worth-it-chat-group-members-empty";
+        empty.textContent = "No other members yet.";
+        host.appendChild(empty);
+        return;
+    }
+    members.forEach(member => {
+        const row = document.createElement("div");
+        row.className = "worth-it-chat-group-member-row";
+        const avatar = document.createElement("span");
+        avatar.className = "worth-it-chat-group-member-avatar";
+        const name = member.display_name || member.username || ("Worth It member #" + member.worth_it_id);
+        if (member.avatar_url) {
+            const image = document.createElement("img");
+            image.src = String(member.avatar_url); image.alt = ""; image.loading = "lazy"; image.referrerPolicy = "no-referrer";
+            image.onerror = () => { avatar.replaceChildren(); avatar.textContent = initials(member); };
+            avatar.appendChild(image);
+        } else avatar.textContent = initials(member);
+        const details = document.createElement("span");
+        details.className = "worth-it-chat-group-member-details";
+        const username = document.createElement("strong");
+        username.textContent = member.username ? "@" + member.username : name;
+        const presence = document.createElement("small");
+        presence.className = "worth-it-chat-group-member-presence";
+        presence.dataset.worthItPresenceId = String(member.worth_it_id || "");
+        presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(member).label : "Last seen unavailable";
+        details.append(username, presence);
+        row.append(avatar, details);
+        if (conversation.is_creator === true) {
+            const kick = document.createElement("button");
+            kick.type = "button"; kick.className = "worth-it-chat-group-member-kick"; kick.textContent = "Kick";
+            kick.setAttribute("aria-label", "Remove " + name + " from this group");
+            kick.addEventListener("click", () => performWorthItGroupAction("kick", member.worth_it_id, name, kick));
+            row.appendChild(kick);
+        }
+        host.appendChild(row);
+    });
+}
+function openWorthItGroupMembers(conversationId) {
+    openWorthItGroupManageDialog(conversationId);
+}
 function openWorthItGroupManageDialog(conversationId) {
-    const conversation = chatConversations.find(item => item.id === conversationId && item.type === "group");
+    const conversation = chatConversations.find(item => String(item.id) === String(conversationId) && item.type === "group");
     const dialog = $("worthItChatGroupManageDialog");
     if (!conversation || !dialog) return;
     const title = $("worthItChatGroupManageTitle");
     const copy = $("worthItChatGroupManageCopy");
     const remove = $("worthItChatGroupDeleteBtn");
-    const kickSelect = $("worthItChatGroupKickSelect");
-    const kickButton = $("worthItChatGroupKickBtn");
     const status = $("worthItChatGroupManageStatus");
-    if (title) title.textContent = conversationLabel(conversation);
-    if (copy) copy.textContent = conversation.is_creator
-        ? "You are the group Owner. You can remove members, leave and transfer ownership to the next member in join order, or permanently delete the group."
-        : "Leave this group to remove it from your chat list. The Owner manages membership and group settings.";
+    if (title) title.textContent = conversationLabel(conversation) + " · Members";
+    if (copy) copy.textContent = conversation.is_creator === true
+        ? "You are the group Owner. You can remove members from this list."
+        : "Group members. Only the current Owner can remove members.";
     if (remove) remove.hidden = conversation.is_creator !== true;
-    if (kickSelect) {
-        kickSelect.replaceChildren();
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Select a member to remove";
-        kickSelect.appendChild(placeholder);
-        (Array.isArray(conversation.members) ? conversation.members : []).forEach(member => {
-            if (!member?.worth_it_id) return;
-            const option = document.createElement("option");
-            option.value = String(member.worth_it_id);
-            option.textContent = member.display_name || member.username || ("Worth It member #" + member.worth_it_id);
-            kickSelect.appendChild(option);
-        });
-        kickSelect.hidden = conversation.is_creator !== true || kickSelect.options.length <= 1;
-        kickSelect.value = "";
-    }
-    if (kickButton) {
-        kickButton.hidden = conversation.is_creator !== true || !kickSelect || kickSelect.options.length <= 1;
-        kickButton.disabled = false;
-        kickButton.textContent = "Kick member";
-    }
+    renderWorthItGroupMemberRows(conversation);
     if (status) { status.textContent = ""; status.classList.remove("is-error"); }
     dialog.dataset.conversationId = String(conversation.id);
+    dialog.classList.add("is-members-view");
     if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
     dialog.hidden = false;
     dialog.setAttribute("aria-hidden", "false");
@@ -881,14 +907,14 @@ function openWorthItGroupManageDialog(conversationId) {
 }
 function closeWorthItGroupManageDialog() {
     const dialog = $("worthItChatGroupManageDialog");
-    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden", "true"); }
+    if (dialog) { dialog.hidden = true; dialog.setAttribute("aria-hidden", "true"); dialog.classList.remove("is-members-view"); }
 }
-async function performWorthItGroupAction(action) {
+async function performWorthItGroupAction(action, explicitTargetId, explicitTargetName, triggerButton) {
     const dialog = $("worthItChatGroupManageDialog");
     const conversationId = String(dialog?.dataset.conversationId || "");
     const conversation = chatConversations.find(item => String(item.id) === conversationId && item.type === "group");
     const status = $("worthItChatGroupManageStatus");
-    const button = $(action === "delete" ? "worthItChatGroupDeleteBtn" : action === "kick" ? "worthItChatGroupKickBtn" : "worthItChatGroupLeaveBtn");
+    const button = triggerButton || $(action === "delete" ? "worthItChatGroupDeleteBtn" : action === "kick" ? "worthItChatGroupKickBtn" : "worthItChatGroupLeaveBtn");
     if (!chatUser || !conversation || !button || button.disabled) return;
     if (action === "delete" && conversation.is_creator !== true) {
         if (status) { status.textContent = "Only the current group Owner can permanently delete this group."; status.classList.add("is-error"); }
@@ -898,14 +924,14 @@ async function performWorthItGroupAction(action) {
         if (status) { status.textContent = "Only the current group Owner can remove members."; status.classList.add("is-error"); }
         return;
     }
-    const targetId = action === "kick" ? Number($("worthItChatGroupKickSelect")?.value) : null;
+    const targetId = action === "kick" ? Number(explicitTargetId ?? $("worthItChatGroupKickSelect")?.value) : null;
     if (action === "kick" && (!Number.isSafeInteger(targetId) || targetId <= 0)) {
         if (status) { status.textContent = "Choose a group member first."; status.classList.add("is-error"); }
         return;
     }
     const groupName = conversationLabel(conversation);
     const targetName = action === "kick"
-        ? ($("worthItChatGroupKickSelect")?.selectedOptions?.[0]?.textContent || "this member") : "";
+        ? (explicitTargetName || $("worthItChatGroupKickSelect")?.selectedOptions?.[0]?.textContent || "this member") : "";
     const confirmed = action === "delete"
         ? window.confirm("Permanently delete “" + groupName + "” for everyone? All group messages and its invitation link will be deleted and cannot be recovered.")
         : action === "kick"
