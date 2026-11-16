@@ -167,6 +167,12 @@ test("Custom Theme styles sign-out, search, Admin Panel and other modal backdrop
     assert.match(siteThemeCss, /admin-panel-section-button[\s\S]*?var\(--worth-it-primary-readable/);
 });
 
+test("Custom Theme calculates separate heading contrast for modal surfaces", () => {
+    assert.match(community, /const surfaceHeading=accessibleThemeText\(theme\.heading,\[theme\.surface\]\)/);
+    assert.match(community, /--worth-it-theme-surface-heading",surfaceHeading/);
+    assert.match(siteThemeCss, /var\(--worth-it-theme-surface-heading,var\(--worth-it-theme-surface-text/);
+});
+
 test("Custom Theme hydration preserves the same account's cached appearance during temporary wallet failures", () => {
     assert.match(community, /const previousThemeUserId=themeUserId/);
     assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
