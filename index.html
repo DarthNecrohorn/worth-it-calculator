@@ -1908,6 +1908,12 @@ html.worth-it-initial-paint::before {
             <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
           </div>
         </header>
+        <section id="ugcDetailTitleEditor" class="ugc-detail-title-editor" hidden>
+          <label for="ugcDetailTitleInput">Your calculator title · 3–75 characters</label>
+          <input id="ugcDetailTitleInput" type="text" maxlength="75" autocomplete="off" spellcheck="false" aria-describedby="ugcDetailTitleCooldown" placeholder="Enter your calculator title">
+          <p id="ugcDetailTitleCooldown" class="ugc-maker-status" role="status" aria-live="polite">You can change this title once every 10 minutes.</p>
+          <button type="button" class="ugc-action-primary" id="ugcDetailSaveTitle">Save title</button>
+        </section>
         <section id="ugcDetailDescriptionEditor" class="ugc-detail-description-editor" hidden>
           <label for="ugcDetailDescriptionInput">Your calculator description · optional · up to 500 characters</label>
           <textarea id="ugcDetailDescriptionInput" rows="3" maxlength="500" placeholder="Explain what this calculator does and when people should use it."></textarea>
