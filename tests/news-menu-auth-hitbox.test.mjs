@@ -6,6 +6,8 @@ const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const news = readFileSync(new URL("../news-ui.js", import.meta.url), "utf8");
+const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
+const siteThemeCss = readFileSync(new URL("../site-theme-system.css", import.meta.url), "utf8");
 
 test("choosing a section keeps an explicitly opened hamburger panel open", () => {
     const start = app.indexOf("function closeNavMenuUnlessPreserved(navLinks)");
@@ -57,7 +59,7 @@ test("open hamburger blocks header actions from receiving clicks behind the drop
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack \*\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
+    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a/);
 });
 
 test("the open hamburger shields every header sibling, including Sign out", () => {
@@ -101,4 +103,35 @@ test("News rechecks the account scope before reusing its in-memory feed", () => 
     assert.match(body, /newsFeedAccountScope !==\s*previousAccountScope/);
     assert.match(body, /newsData = \{\};/);
     assert.match(body, /newsLoadInProgress = false;\s*return;/);
+});
+
+test("hamburger drawer opens and closes instantly without timers or transition rules", () => {
+    const drawerCss = communityCss.slice(communityCss.indexOf("/* Side drawer:"));
+    assert.doesNotMatch(app, /navMenuCloseTimer|classList\.(?:add|remove)\("closing"\)|setTimeout\([\s\S]*?460/);
+    assert.doesNotMatch(drawerCss, /nav-links\.closing|transition:\s*transform/);
+    assert.doesNotMatch(siteThemeCss, /nav-links\.closing|worthItHamburger|@keyframes/);
+    assert.match(drawerCss, /#navLinks\.nav-links\.open\s*\{[\s\S]*?transform:translate3d\(0,0,0\)!important/);
+    assert.match(siteThemeCss, /#navLinks\.nav-links\.open[\s\S]*?transform: translate3d\(0,0,0\)/);
+    assert.match(siteThemeCss, /top: 88px !important/);
+    assert.match(siteThemeCss, /top: 114px !important/);
+});
+
+
+test("responsive header stacks the economy controls under the logo and enlarges only the profile target", () => {
+    const start = siteThemeCss.indexOf("The compact header has two predictable left-side rows");
+    assert.ok(start >= 0, "the compact brand-stack layout exists");
+    const block = siteThemeCss.slice(start);
+    assert.match(block, /\.nav-inner > \.menu-btn[\s\S]*?left: 16px/);
+    assert.match(block, /\.nav-inner > \.logo[\s\S]*?left: 64px/);
+    assert.match(block, /\.nav-inner > \.calc-economy-nav[\s\S]*?left: 64px[\s\S]*?top: 48px/);
+    assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?width: 44px/);
+    assert.match(block, /\.nav-top-row \.nav-actions > \.auth-wrap > \.profile-nav-btn[\s\S]*?height: 44px/);
+    assert.doesNotMatch(block, /worthItHamburger|animation-duration: \.5[46]s/);
+    assert.match(block, /\.nav-inner > \.menu-btn\[aria-expanded="true"\][\s\S]*?background:/);
+    assert.match(html, /site-theme-system\.css\?v=drawer-instant-20261105a/);
+});
+
+test("the homepage no longer reserves a large block for outdated calculator statistics", () => {
+    const home = html.slice(html.indexOf('<section id="homePage">'), html.indexOf('<div id="calculatorExploreStage"'));
+    assert.doesNotMatch(home, /Decision calculators|Long-term comparisons|Free to use/);
 });

@@ -259,8 +259,10 @@ test("chat doodles and accents stay separated, adapt to both themes and retain v
     assert.match(client, /candidate\.kind === "accent" && existing\.kind === "accent"[\s\S]*?\? 6 : 8/);
     assert.match(client, /const targetAccents = Math\.min\([\s\S]*?Math\.max\(68, Math\.round\(canvasWidth \/ 7\.5\)\)/);
     assert.match(client, /const scale = \.14 \+ random\(\) \* \.18/);
-    assert.match(client, /const opacity = theme === "light" \? "\.44" : "\.36"/);
-    assert.match(client, /const smallOpacity = theme === "light" \? "\.52" : "\.43"/);
+    assert.match(client, /const opacity = customPalette \? \(mode === "light" \? "\.34" : "\.32"\)/);
+    assert.match(client, /const smallOpacity = customPalette \? "\.43"/);
+    assert.match(client, /getConversationWallpaperTheme\(\)/);
+    assert.match(client, /mode === "light" \? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE/);
     assert.match(css, /var\(--worthit-chat-wallpaper-image,none\)!important/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-chat-messages/);
     assert.match(css, /var\(--worthit-chat-wallpaper-size,600px 900px\)!important/);

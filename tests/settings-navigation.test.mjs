@@ -7,6 +7,8 @@ const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8"
 const routing = readFileSync(new URL("../routing.js", import.meta.url), "utf8");
 const redirects = readFileSync(new URL("../_redirects", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const webShopCss = readFileSync(new URL("../web-shop.css", import.meta.url), "utf8");
+const profile = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
 
 const sections = [
     { key: "account", path: "/settings/account", panel: "accountProfilePanel", card: "settingsAccount", fn: "openSettingsAccount" },
@@ -61,7 +63,7 @@ test("dedicated section URLs support direct navigation and browser back/forward"
     assert.match(routing, /window\.addEventListener\("popstate"/);
     assert.match(settings, /openSettingsCategory = function\(panelId\)/);
     assert.match(settings, /window\[config\.openFunction\]\(\)/);
-    assert.match(html, /onclick="openFullSettings\(\)">← Back to Settings/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/settings'\)">← Back to Settings/);
     for (const path of ["/settings", ...sections.map(section => section.path), appearance.path]) {
         assert.ok(routing.includes('"' + path + '"'), "Missing route " + path);
     }
@@ -70,15 +72,18 @@ test("dedicated section URLs support direct navigation and browser back/forward"
 
 test("only the selected detail section appears; Appearance remains on the overview", () => {
     assert.match(css, /\.worth-it-settings-page \[hidden\][^{]*\{display:none!important\}/);
+    assert.match(css, /\.worth-it-settings-panel\[hidden\]/);
     assert.match(settings, /if \(hero\) hero\.hidden = !overview/);
     assert.match(settings, /if \(grid\) grid\.hidden = !overview/);
-    assert.match(settings, /if \(panel\) panel\.hidden = section \? key !== section : key !== "appearance"/);
+    assert.match(settings, /const shouldShow = section \? key === section : key === "appearance"/);
+    assert.match(settings, /panel\.hidden = !shouldShow/);
+    assert.match(settings, /panel\.style\.display = shouldShow \? "" : "none"/);
     assert.match(settings, /if \(roadmap\) roadmap\.hidden = !overview/);
 });
 
 test("the navigation assets are cache-busted together", () => {
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /settings\.js\?v=feedback-overlay-stay-open-20261030a/);
+    assert.match(html, /settings\.js\?v=appearance-custom-reset-direct-theme-20261104e/);
     assert.match(html, /routing\.js\?v=profile-navigation-hardening-20261028b/);
 });
 
@@ -105,4 +110,64 @@ test("direct route refreshes rely on automatic SPA fallback without proxying thr
     assert.match(routing, /"\/settings\/privacy": "openSettingsPrivacy"/);
     assert.match(routing, /const initialPath = normalizePath\(window\.location\.pathname\)/);
     assert.match(routing, /applyRoute\(initialPath, \{ initial: true \}\)/);
+});
+
+
+test("custom appearance cannot be mixed with standard Dark/Light until a full reset", () => {
+    const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
+    assert.match(settings, /root\?\.hasAttribute\("data-worth-it-custom-theme"\)/);
+    assert.match(settings, /window\.resetWorthItCustomTheme/);
+    assert.match(settings, /customThemeReset = await window\.resetWorthItCustomTheme\(\)/);
+    assert.match(settings, /showToast\(customThemeReset/);
+    assert.match(settings, /removeAttribute\("data-worth-it-custom-theme"\)/);
+    assert.match(community, /window\.resetWorthItCustomTheme=resetCustomTheme/);
+    assert.match(community, /root\.removeAttribute\("data-worth-it-custom-theme"\)/);
+});
+
+test("Web Shop Back sits beside its title and restores the exact Settings route", () => {
+    const shopStart = html.indexOf('id="webShopSection"');
+    const shopEnd = html.indexOf("</section>", shopStart);
+    assert.ok(shopStart >= 0 && shopEnd > shopStart, "Web Shop markup exists");
+    const shop = html.slice(shopStart, shopEnd);
+    const heading = shop.indexOf('class="web-shop-heading-row"');
+    const title = shop.indexOf('id="webShopTitle"', heading);
+    const back = shop.indexOf('class="web-shop-back"', heading);
+    assert.ok(heading >= 0 && title > heading && back > title, "Back is aligned to the right of the Web Shop title");
+    assert.match(shop, /onclick="backFromWebShop\(\)"/);
+    assert.doesNotMatch(shop, /onclick="showHome\(\)">← Back to Worth It/);
+    assert.match(routing, /window\.backFromWebShop = function \(\)/);
+    assert.match(routing, /window\.backFromWebShop = function \(\)\s*\{\s*return window\.backFromWorthItRoute\("\/"\);/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
+    assert.match(webShopCss, /web-shop-heading-row/);
+    assert.match(webShopCss, /@media\(max-width:600px\)[\s\S]*?web-shop-heading-row/);
+});
+
+
+test("Settings Back returns to the route that opened it, with safe direct-link fallbacks", () => {
+    assert.match(html, /onclick="backFromWorthItRoute\('\/'\)">← Back to Worth It/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/settings'\)">← Back to Settings/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
+    assert.match(routing, /state\.worthItRoutePrevious/);
+    assert.match(routing, /previousPath && previousPath !== currentPath && window\.history\.length > 1/);
+    assert.match(routing, /window\.history\.back\(\)/);
+    assert.match(routing, /worthItRoutePrevious: null/);
+    assert.match(routing, /applyRoute\(target, \{ initial: false \}\)/);
+});
+
+test("opening a different page hides the UGC detail instead of stacking the next page below it", () => {
+    assert.match(settings, /ugcDetail\.hidden = true/);
+    assert.match(routing, /route\.kind !== "ugc-calculator"[\s\S]*?ugcDetail\.hidden = true/);
+    assert.match(html, /id="ugcDetailSection"/);
+});
+
+test("Web Shop and calculator Back buttons use the shared route-aware return helper", () => {
+    assert.match(routing, /window\.backFromWebShop = function \(\)\s*\{\s*return window\.backFromWorthItRoute\("\/"\);/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/calculators'\)">← Back/);
+});
+
+
+test("Profile connection-list Back restores the prior profile entry without adding history", () => {
+    assert.match(profile, /window\.backFromWorthItRoute\("\/profile\/" \+ id\)/);
+    assert.match(profile, /window\.openWorthItProfileConnectionsBack = function\(\)/);
+    assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
 });

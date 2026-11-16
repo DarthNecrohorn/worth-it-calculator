@@ -46,7 +46,7 @@ test("message menu offers hide-for-me and owner-only delete-for-everyone actions
     assert.match(client, /The message has been deleted by/);
     assert.match(client, /This message has been hidden by you \(only you can see this\)\./);
     assert.match(client, /message\.deleted_by_display_name \|\| message\.display_name/);
-    assert.match(client, /if \(!message\.is_deleted && !message\.is_hidden_by_me\) stack\.appendChild\(name\)/);
+    assert.match(client, /if \(!message\.is_deleted && !message\.is_hidden_by_me\) \{\s*const authorLine = document\.createElement\("span"\);\s*authorLine\.className = "worth-it-chat-message-author-line";\s*authorLine\.appendChild\(name\)/);
     assert.match(client, /function getOwnedWorthItChatMediaObjectPath/);
     assert.match(client, /media\.origin !== configured\.origin/);
     assert.match(client, /objectPath\.startsWith\(String\(userId/);

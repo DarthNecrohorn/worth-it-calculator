@@ -75,6 +75,16 @@ async function listUsersPage(
     return await response.json();
 }
 
+function getMailboxProvider(email) {
+    const domain = String(email || "").trim().toLowerCase().split("@").pop() || "";
+    if (["gmail.com", "googlemail.com"].includes(domain)) return "gmail";
+    if (["outlook.com", "outlook.co.uk", "hotmail.com", "hotmail.co.uk", "live.com", "live.co.uk", "msn.com"].includes(domain)) return "microsoft";
+    if (["yahoo.com", "yahoo.co.uk", "ymail.com"].includes(domain)) return "yahoo";
+    if (["icloud.com", "me.com", "mac.com"].includes(domain)) return "icloud";
+    if (["proton.me", "protonmail.com"].includes(domain)) return "proton";
+    return "other";
+}
+
 async function findEmailByUsername(
     supabaseUrl,
     supabaseSecret,
@@ -341,6 +351,25 @@ export async function onRequestPost(
             await authResponse.json();
 
         if (!authResponse.ok) {
+            const authErrorCode = String(
+                authPayload?.code ||
+                authPayload?.error_code ||
+                ""
+            ).toLowerCase();
+
+            // Show the confirmation guidance only when Supabase Auth itself
+            // identifies this exact failure after checking the submitted credentials.
+            if (authErrorCode === "email_not_confirmed") {
+                return respond(
+                    {
+                        code: "EMAIL_NOT_CONFIRMED",
+                        emailProvider: getMailboxProvider(email),
+                        error: "Your email address must be confirmed before you can sign in."
+                    },
+                    403
+                );
+            }
+
             return respond(
                 {
                     error:

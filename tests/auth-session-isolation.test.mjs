@@ -40,8 +40,8 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=signout-confirmation-20261028a/);
-    assert.match(html, /guest-mode\.js\?v=chat-route-preserve-20261028a/);
+    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a/);
+    assert.ok(html.includes("guest-mode.js?v=guest-webshop-ugc-guards-20261031a"));
 });
 
 
@@ -56,4 +56,26 @@ test("username login allows production and only the Worth It Pages preview origi
     assert.match(usernameLogin, /onRequestOptions\(context\)/);
     assert.match(usernameLogin, /jsonResponse\(\s*\{\},\s*204,\s*origin \|\| SITE_ORIGIN\s*\)/);
     assert.match(usernameLogin, /"Access-Control-Allow-Origin":\s*origin/);
+});
+
+
+test("username login distinguishes only Supabase's explicit unconfirmed-email error and never returns the email", () => {
+    assert.match(usernameLogin, /authErrorCode === "email_not_confirmed"/);
+    assert.match(usernameLogin, /code: "EMAIL_NOT_CONFIRMED"/);
+    assert.match(usernameLogin, /emailProvider: getMailboxProvider\(email\)/);
+    assert.match(usernameLogin, /"Incorrect username or password\."/);
+    assert.doesNotMatch(usernameLogin, /email:\s*email,/);
+});
+
+test("email confirmation guidance gives safe provider-specific inbox links without injecting HTML", () => {
+    assert.match(app, /function setAuthEmailConfirmationStatus\(provider = "other", correctCredentials = false\)/);
+    assert.match(app, /Your username and password are correct, but you must confirm your email address/);
+    assert.match(app, /Your Worth It account has been created\. Confirm your email address to finish signing up/);
+    assert.match(app, /https:\/\/mail\.google\.com\/mail\/u\/0\/#inbox/);
+    assert.match(app, /https:\/\/outlook\.live\.com\/mail\/0\/inbox/);
+    assert.match(app, /https:\/\/outlook\.office\.com\/mail\//);
+    assert.match(app, /document\.createElement\("a"\)/);
+    assert.match(app, /link\.rel = "noopener noreferrer"/);
+    assert.match(app, /error\?\.code === "EMAIL_NOT_CONFIRMED"/);
+    assert.match(css, /\.auth-modal-status \.auth-email-inbox-link/);
 });

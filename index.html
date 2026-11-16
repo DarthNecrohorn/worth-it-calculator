@@ -21,6 +21,7 @@
         const path = window.location.pathname.replace(/\/+$/, "") || "/";
         if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
             root.classList.add("worth-it-profile-route-pending");
+            root.classList.add("worth-it-profile-theme-isolated");
         }
         // Chat routes contain private conversations or bearer invite tokens and should not be indexed.
         if (path === "/chat" || path.startsWith("/chat/")) {
@@ -62,16 +63,20 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=detail-panels-overlay-blue-backdrop-20261030a">
+<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=nav-background-profile-centre-scroll-20261104a&desktop-profile-avatar=20261109a">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
 <link rel="stylesheet" href="chat-delete-confirm.css?v=chat-delete-confirm-20261028b">
 <link rel="stylesheet" href="chat-realtime.css?v=chat-realtime-typing-20261028b">
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
+    <link rel="stylesheet" href="web-shop.css?v=web-shop-heading-back-20261105a&amp;mobile-wallet-grid-20261108a&amp;phone-header-position=20261108b&amp;mobile-header-grid-layout=20261109a&amp;mobile-header-offsets=20261110e">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
+<link rel="stylesheet" href="community-features.css?v=hamburger-instant-20261105a&amp;ugc-detail-favorite=20261106a">
+<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-header-actions=20261109a&amp;subscription-card-spacing=20261109b&amp;subscription-card-desktop=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a">
 </head>
 
 <body>
@@ -92,6 +97,24 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <span class="logo-mark">✓</span>
             <span>Worth It</span>
         </a>
+
+        <div class="calc-economy-nav" aria-label="Web Shop, CALC Lite or CALC, and WIP currency">
+            <button type="button" class="calc-shop-nav" id="worthItWebShopButton" hidden onclick="openWebShop('currency')" aria-label="Open Web Shop" title="Web Shop">
+                <span class="calc-shop-nav-icon" aria-hidden="true">🛍️</span>
+                <span class="calc-shop-nav-label">Web Shop</span>
+            </button>
+            <button type="button" class="calc-wallet-nav" id="worthItCalcWalletButton" hidden onclick="openWebShop('currency')" aria-label="CALC balance" title="View CALC balance">
+                <span class="calc-wallet-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#calcCoinGradient)"/><path d="M11 8.5h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3Z" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zM11 16.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4zm-8.6 4.2h2.4v1H11zm4.3 0h2.4v1h-2.4zm4.3 0H22v1h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="calcCoinGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
+                <strong class="calc-wallet-value" id="worthItCalcWalletValue">—</strong>
+                <span class="calc-wallet-unit" id="worthItCalcWalletUnit">CALC</span>
+            </button>
+            <button type="button" class="calc-wip-nav" id="worthItWipWalletButton" onclick="openWebShop('subscriptions')" aria-label="WIP balance; used only for Premium Lite" title="WIP is earned daily and used only for Premium Lite: 50 WIP for 15 days." hidden>
+                <span class="calc-wip-icon" aria-hidden="true">✦</span>
+                <strong class="calc-wip-value" id="worthItWipWalletValue">—</strong>
+                <span class="calc-wip-unit">WIP</span>
+                <small class="calc-wip-use">Premium Lite</small>
+            </button>
+        </div>
 
 <div class="nav-links" id="navLinks">
     <div class="nav-scroll-content" id="navScrollContent">
@@ -431,13 +454,13 @@ html[data-theme="light"].worth-it-initial-paint::before {
                         <div class="account-email" id="accountEmail"></div>
                     </div>
                 </div>
-                <div class="social-preview" aria-label="Social counts">
-                    <div class="social-preview-item"><strong id="accountPanelFriends">…</strong><span>Friends</span></div>
-                    <div class="social-preview-item"><strong id="accountPanelFollowers">…</strong><span>Followers</span></div>
-                    <div class="social-preview-item"><strong id="accountPanelFollowing">…</strong><span>Following</span></div>
+                <div class="social-preview" aria-label="Social connections">
+                    <button type="button" class="social-preview-item" onclick="window.openWorthItOwnProfileConnections && window.openWorthItOwnProfileConnections('friends')" aria-label="Open your friends list"><strong id="accountPanelFriends">…</strong><span>Friends</span></button>
+                    <button type="button" class="social-preview-item" onclick="window.openWorthItOwnProfileConnections && window.openWorthItOwnProfileConnections('followers')" aria-label="Open your followers list"><strong id="accountPanelFollowers">…</strong><span>Followers</span></button>
+                    <button type="button" class="social-preview-item" onclick="window.openWorthItOwnProfileConnections && window.openWorthItOwnProfileConnections('following')" aria-label="Open your following list"><strong id="accountPanelFollowing">…</strong><span>Following</span></button>
                 </div>
                 <div class="account-divider"></div>
-                <button type="button" class="account-action account-view-profile-btn" onclick="openAccountInfo('profile')">👤 <span>View profile</span><span class="account-action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="account-action account-view-profile-btn" onclick="window.openWorthItOwnProfile && window.openWorthItOwnProfile()">👤 <span>View profile</span><span class="account-action-arrow" aria-hidden="true">→</span></button>
             </div>
         </div>
 
@@ -1085,6 +1108,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <button type="button" class="settings-option" id="themeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
     </div>
+    <div class="settings-section settings-custom-theme-promo" id="settingsCustomThemePromo" role="note" hidden>
+        <div class="settings-custom-theme-promo-head"><span aria-hidden="true">🎨</span><strong>Try Custom Themes</strong><span class="settings-custom-theme-premium">SAVE WITH PREMIUM</span></div>
+        <p>Experiment with the page, cards, text, links, buttons, fonts and heading styles for free. Your preview lasts while Settings is open. Save the complete design and keep it active across Worth It with Premium Lite or Premium.</p>
+        <button type="button" class="settings-option" onclick="openSettingsAppearance()">Try Custom Themes →</button>
+    </div>
 
     <div class="settings-section settings-zoom-help">
         <label>How to zoom in</label>
@@ -1119,7 +1147,15 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         <div id="aiChatAppView" style="display:none;flex:1;min-height:0;flex-direction:column">
             <div class="ai-chat-messages" id="aiChatMessages">
-                <div class="ai-chat-empty" id="aiChatEmpty">Ask me about a Worth It calculator, a calculation, a cost comparison, savings, or another feature of this website.</div>
+                <div class="ai-chat-empty" id="aiChatEmpty">
+                    <p class="ai-chat-empty-prompt">Ask me about a Worth It calculator, a calculation, a cost comparison, savings, or another feature of this website.</p>
+                    <aside class="ai-chat-important-note" role="note" aria-label="Important information about AI Chat">
+                        <strong>IMPORTANT — PLEASE READ BEFORE USING WORTH IT AI</strong>
+                        <p>Think carefully about what you want to ask before sending your first message. Please do not send random test messages or repeated requests just to try the service.</p>
+                        <p>Each successful AI reply costs <strong>0.1 CALC</strong>. Your balance is charged only after an AI reply completes successfully.</p>
+                        <p>If the AI is temporarily unavailable, or the reply fails before completion, the reserved amount is returned and <strong>no CALC is charged</strong>.</p>
+                    </aside>
+                </div>
             </div>
             <div class="ai-chat-status" id="aiChatStatus"></div>
             <div class="ai-chat-composer">
@@ -1175,38 +1211,21 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
     </section>
 
-    <div class="container">
-
-        <div class="stats">
-
-    <div class="stat">
-        <strong>50</strong>
-        <span>Decision calculators</span>
-    </div>
-
-    <div class="stat">
-        <strong>1–10 yrs</strong>
-        <span>Long-term comparisons</span>
-    </div>
-
-    <div class="stat">
-        <strong>100%</strong>
-        <span>Free to use</span>
-    </div>
-
-</div>
-
-</div>
-
-<section class="section" id="calculators">
+    <div id="calculatorExploreStage" class="calculator-explore-stage" data-active-view="basic" aria-label="Calculator sections">
+<section class="section calculator-explore-panel" id="calculators">
 
     <div class="container">
 
             <div class="section-header">
-                <h2>Choose a calculator</h2>
-                <p id="categoryDescription">
-                    Find the right tool for your decision.
-                </p>
+                <div class="section-header-copy">
+                    <h2>Choose a basic calculator</h2>
+                    <p id="categoryDescription">
+                        These built-in calculators are created and maintained by the Worth It owner. They are separate from community-created calculators.
+                    </p>
+                </div>
+                <div class="community-calculator-navigation" id="ugcNavigationActions" hidden>
+                    <button type="button" class="community-calculator-nav-button" id="ugcCatalogJumpButton">🌐 Community calculators</button>
+                </div>
             </div>
 
             <div class="calculator-toolbar">
@@ -1386,6 +1405,300 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
     </section>
 
+
+    <section id="ugcCommunitySection" class="ugc-community-section calculator-explore-panel" hidden aria-label="Worth It community calculators">
+      <div class="ugc-community-shell">
+        <header class="ugc-community-header">
+          <div class="ugc-community-heading-copy">
+            <span class="ugc-community-kicker">WORTH IT COMMUNITY</span>
+            <h2>Community calculators</h2>
+            <p>Discover community calculators, build your own without AI, or use Worth It AI when you need help.</p>
+          </div>
+          <div class="ugc-community-header-actions">
+            <button type="button" id="ugcBackToBasicButton" class="ugc-action-secondary">← Go back to regular calculators</button>
+            <div class="ugc-community-header-primary-actions">
+              <button type="button" id="ugcOpenDiscoveryButton" class="ugc-open-discovery-button">🌐 Community Discovery →</button>
+              <button type="button" id="ugcCreateManualButton" class="ugc-action-secondary">＋ Create manually</button>
+              <button type="button" id="ugcCreateButton" class="ugc-primary-button">✦ Create with AI</button>
+            </div>
+          </div>
+        </header>
+                <nav class="ugc-sort-tabs" aria-label="Community calculator sorting">
+          <button type="button" class="ugc-sort-tab active" data-ugc-sort="latest" aria-pressed="true">Latest</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="popular" aria-pressed="false">Most Popular</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="liked" aria-pressed="false">Most Liked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="favorited" aria-pressed="false">Most Favorited</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="disliked" aria-pressed="false">Most Disliked</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="mine" aria-pressed="false">My Calculators</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-drafts" aria-pressed="false">My Drafts</button>
+          <button type="button" class="ugc-sort-tab" data-ugc-sort="my-favorites" aria-pressed="false">My Favourites</button>
+        </nav>
+        <div class="ugc-catalog-tools">
+          <input type="search" id="ugcSearch" placeholder="Search community calculators..." maxlength="80" autocomplete="off" aria-label="Search community calculators">
+          <select id="ugcCategoryFilter" aria-label="Filter community calculators by category">
+            <option value="all">All categories</option><optgroup label="Cars"><option value="cars">Cars — all</option><option value="car-ownership">Car ownership</option><option value="ev-ownership">Electric vehicles</option><option value="fuel-costs">Fuel costs</option><option value="vehicle-financing">Car financing</option><option value="car-insurance">Insurance</option><option value="car-maintenance">Maintenance & repairs</option><option value="depreciation-resale">Depreciation & resale</option><option value="vehicle-comparison">Vehicle comparisons</option></optgroup><optgroup label="Money"><option value="money">Money — all</option><option value="budgeting">Budgeting</option><option value="saving">Saving</option><option value="investing">Investing</option><option value="loans-debt">Loans & debt</option><option value="mortgages">Mortgages</option><option value="taxes">Taxes</option><option value="income-salary">Income & salary</option><option value="retirement">Retirement</option></optgroup><optgroup label="Technology"><option value="technology">Technology — all</option><option value="smartphones">Smartphones</option><option value="computers">Computers</option><option value="gaming">Gaming</option><option value="software-subscriptions">Software & subscriptions</option><option value="internet-connectivity">Internet & connectivity</option><option value="consumer-electronics">Consumer electronics</option><option value="tech-comparison">Technology comparisons</option></optgroup><optgroup label="Home Costs"><option value="home">Home Costs — all</option><option value="utilities-energy">Utilities & energy</option><option value="rent-housing">Rent & housing</option><option value="home-buying">Home buying</option><option value="renovation-repairs">Renovations & repairs</option><option value="home-appliances">Home appliances</option><option value="home-maintenance">Home maintenance</option><option value="household-budget">Household budget</option></optgroup><optgroup label="Other"><option value="other">Other — all</option><option value="travel">Travel</option><option value="education-career">Education & career</option><option value="health-fitness">Health & fitness</option><option value="food-groceries">Food & groceries</option><option value="business">Business</option><option value="lifestyle">Lifestyle</option><option value="general-comparison">General comparisons</option></optgroup>
+          </select>
+          <select id="ugcPeriodFilter" aria-label="Filter calculator activity by period">
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="1m">Last month</option>
+            <option value="3m">Last 3 months</option>
+            <option value="6m">Last 6 months</option>
+            <option value="12m">Last 12 months</option>
+            <option value="3y">Last 3 years</option>
+            <option value="6y">Last 6 years</option>
+            <option value="12y" selected>Last 12 years</option>
+          </select>
+        </div>
+        <h3 id="ugcCatalogHeading">Latest calculators</h3>
+        <p id="ugcCatalogStatus" class="ugc-catalog-status" role="status" aria-live="polite">Sign in to browse, create and use community calculators.</p>
+        <div id="ugcCalculatorGrid" class="ugc-calculator-grid" aria-live="polite"></div>
+        <nav id="ugcPagination" class="ugc-pagination" aria-label="Community calculator pages" hidden>
+          <button type="button" id="ugcPagePrevious" class="ugc-page-step" aria-label="Previous page" disabled>←</button>
+          <div class="ugc-page-current" aria-live="polite"><span id="ugcPageNumber">1</span><span class="ugc-page-divider">/</span><span id="ugcPageTotal">1</span></div>
+          <button type="button" id="ugcPageNext" class="ugc-page-step" aria-label="Next page" disabled>→</button>
+          <input id="ugcPageInput" class="ugc-page-input" type="number" min="1" max="1" step="1" inputmode="numeric" aria-label="Jump to page" title="Enter a page number and press Enter">
+        </nav>
+        <p class="ugc-pagination-note">The catalogue shows up to 30 calculators per page, not 30 in total. Use the arrows or enter a page number to browse the rest.</p>
+        <p id="ugcPaginationStatus" class="ugc-pagination-status" aria-live="polite"></p>
+      </div>
+    </section>
+
+<section id="ugcCommunityDiscoverySection" class="ugc-community-discovery-section calculator-explore-panel" hidden aria-label="Community creator and member discovery">
+  <div class="ugc-community-shell">
+    <header class="ugc-discovery-page-header">
+      <div class="ugc-discovery-page-heading">
+        <span class="ugc-community-kicker">COMMUNITY DISCOVERY</span>
+        <h2>Discover creators and members</h2>
+        <p>Activity and growth use the selected period; Most Followers always shows the current total.</p>
+      </div>
+      <button type="button" id="ugcBackToUgcButton" class="ugc-discovery-back-button">← Back to community calculators</button>
+    </header>
+    <section class="ugc-creator-discovery" aria-label="Community creator and member rankings">
+      <header class="ugc-creator-discovery-header">
+        <label class="ugc-discovery-search-control" for="ugcDiscoverySearch">
+          Search the top 100
+          <input id="ugcDiscoverySearch" type="search" maxlength="80" autocomplete="off" placeholder="Name, @username or profile number" aria-describedby="ugcDiscoverySearchNote">
+          <span class="ugc-discovery-search-note" id="ugcDiscoverySearchNote">Searches the up to 100 results already loaded in each ranking.</span>
+        </label>
+        <label class="ugc-creator-period-control" for="ugcCreatorPeriodFilter">
+              Activity period
+              <select id="ugcCreatorPeriodFilter">
+                <option value="7d" selected>Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="6m">Last 6 months</option>
+                <option value="12m">Last 12 months</option>
+                <option value="3y">Last 3 years</option>
+                <option value="5y">Last 5 years</option>
+                <option value="10y">Last 10 years</option>
+              </select>
+            </label>
+      </header>
+      <details class="ugc-ranking-method">
+        <summary>ⓘ How rankings work</summary>
+        <div class="ugc-ranking-method-body">
+          <p><strong>Top Creators — Top Overall:</strong> a weighted score based on current followers (25%), likes in the selected period (20%), favourites (15%), views (15%), new followers (10%), engagement rate (10%) and the like-to-reaction ratio (5%). Each part is compared across creators, so the score is not simply a sum of raw totals.</p>
+          <p><strong>Rising Creators:</strong> Growth ranks new followers; Engagement combines period likes, favourites, views and new followers; New Creators uses the first public calculator date; Breakout combines follower growth (55%) and engagement (45%); Consistent Creators ranks active weeks.</p>
+          <p><strong>Community Members:</strong> Most Followers uses the current follower total; Rising Members uses new followers in the selected period; New Members uses account creation date; Most Following uses current following totals; Most Connections adds followers and following.</p>
+          <p>The activity period changes time-based metrics. Most Followers remains a current total. The rankings return up to 100 profiles per board; search filters those results and does not change their original rank.</p>
+        </div>
+      </details>
+      <div class="ugc-creator-leaderboards">
+            <section class="ugc-creator-board" aria-labelledby="ugcTopCreatorsHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcTopCreatorsHeading">🌟 Top Creators</h3>
+                  <p>Creators ranked by the quality and engagement of their public calculators.</p>
+                </div>
+                <label for="ugcTopCreatorSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcTopCreatorSort">
+                    <option value="overall" selected>Top Overall</option>
+                    <option value="followers">Most Followers</option>
+                    <option value="likes">Most Liked</option>
+                    <option value="favorites">Most Favorited</option>
+                    <option value="views">Most Viewed</option>
+                    <option value="engagement">Highest Engagement</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcTopCreatorsList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover community creators.</p>
+              </div>
+            </section>
+            <section class="ugc-creator-board" aria-labelledby="ugcRisingCreatorsHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcRisingCreatorsHeading">🚀 Rising Creators</h3>
+                  <p>Creators whose public calculators are gaining momentum.</p>
+                </div>
+                <label for="ugcRisingCreatorSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcRisingCreatorSort">
+                    <option value="growth" selected>Fastest Growing</option>
+                    <option value="engagement">Rising Engagement</option>
+                    <option value="new">New Creators to Watch</option>
+                    <option value="breakout">Breakout Creators</option>
+                    <option value="consistent">Consistent Creators</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcRisingCreatorsList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover rising creators.</p>
+              </div>
+            </section>
+            <section class="ugc-creator-board ugc-creator-board-members" aria-labelledby="ugcCommunityMembersHeading">
+              <header class="ugc-creator-board-header">
+                <div>
+                  <h3 id="ugcCommunityMembersHeading">👥 Community Members</h3>
+                  <p>Discover other public members, including people who have not published a community calculator.</p>
+                </div>
+                <label for="ugcCommunityMemberSort" class="ugc-creator-sort-label">Rank by
+                  <select id="ugcCommunityMemberSort">
+                    <option value="followers" selected>Most Followers</option>
+                    <option value="growth">Rising Members</option>
+                    <option value="new">New Members</option>
+                    <option value="following">Most Following</option>
+                    <option value="connected">Most Connections</option>
+                  </select>
+                </label>
+              </header>
+              <div id="ugcCommunityMembersList" class="ugc-creator-list" aria-live="polite">
+                <p class="ugc-creator-list-status">Sign in to discover community members.</p>
+              </div>
+            </section>
+          </div>
+    </section>
+  </div>
+</section>
+
+</div>
+
+
+
+    <div id="ugcMakerModal" class="ugc-maker-overlay" role="dialog" aria-modal="true" aria-labelledby="ugcMakerTitleHeading" aria-hidden="true" hidden>
+      <section id="ugcMakerOverlay" class="ugc-maker-card">
+        <header class="ugc-maker-head">
+          <div>
+            <span class="ugc-community-kicker" id="ugcMakerKicker">WORTH IT CALCULATOR CREATOR</span>
+            <h2 id="ugcMakerTitleHeading">Create a calculator</h2>
+            <p id="ugcMakerIntro">Choose AI-assisted generation or build a calculator yourself.</p>
+            <div id="ugcManualModeHelp" class="ugc-manual-mode-help" hidden aria-label="Manual Builder modes">
+              <article class="ugc-manual-mode-card" data-manual-mode-info="quick">
+                <strong>Quick Builder</strong>
+                <p>Start with a simple, ready-to-edit calculator for common calculations such as quantity × price or a recurring cost. Best when you want to get a useful calculator working quickly.</p>
+              </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="template">
+                <strong>Template Builder</strong>
+                <p>Choose a prepared model for costs, energy, vehicles, travel, savings or business calculations. The template includes suggested inputs, formulas and assumptions that you can adapt to your situation.</p>
+              </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="advanced">
+                <strong>Advanced Formula Builder</strong>
+                <p>Build a custom calculation by adding your own inputs and result rows, then writing formulas with the supported arithmetic functions. Best for multi-step calculations and specialised comparisons.</p>
+              </article>
+              <article class="ugc-manual-mode-card" data-manual-mode-info="random">
+                <strong>Random calculator</strong>
+                <p>Let Worth It choose a tested calculator template at random. The selected title, description, inputs and formulas always match the calculator that was actually created.</p>
+              </article>
+            </div>
+          </div>
+          <button type="button" class="ugc-maker-close" id="ugcMakerClose" aria-label="Close calculator maker"><span class="ugc-maker-close-glyph" aria-hidden="true">×</span></button>
+        </header>
+        <div id="ugcManualControls" class="ugc-manual-controls" hidden>
+          <label for="ugcManualMode">Builder type
+            <select id="ugcManualMode">
+              <option value="quick">Quick Builder</option>
+              <option value="template">Template Builder</option>
+              <option value="advanced">Advanced Formula Builder</option>
+              <option value="random">Random calculator</option>
+            </select>
+          </label>
+          <label id="ugcManualTemplateWrap" for="ugcManualTemplate">Start from a template
+            <select id="ugcManualTemplate">
+              <optgroup label="Everyday calculations">
+                <option value="simple-cost">Simple total cost</option>
+                <option value="monthly-cost">Monthly, weekly and yearly cost</option>
+                <option value="compare-costs">Compare two costs</option>
+                <option value="unit-price-compare">Compare price per unit</option>
+                <option value="discount-price">Discount and final price</option>
+              </optgroup>
+              <optgroup label="Home and utilities">
+                <option value="electricity-cost">Electricity cost</option>
+                <option value="smart-led-lighting">Smart LED lighting energy and cost</option>
+                <option value="heating-compare">Electricity vs pellet heating cost</option>
+                <option value="water-cost">Water usage cost</option>
+                <option value="flooring-materials">Flooring materials estimate</option>
+              </optgroup>
+              <optgroup label="Cars and travel">
+                <option value="fuel-cost">Vehicle fuel cost</option>
+                <option value="car-ownership-cost">Monthly car ownership cost</option>
+                <option value="travel-budget">Trip budget</option>
+              </optgroup>
+              <optgroup label="Money and business">
+                <option value="savings-total">Savings contributions</option>
+                <option value="hourly-pay">Hourly pay to yearly income</option>
+                <option value="simple-interest">Simple interest</option>
+                <option value="profit-margin">Business profit and margin</option>
+                <option value="break-even">Break-even units</option>
+              </optgroup>
+            </select>
+          </label>
+          <p class="ugc-maker-status">Manual Builder uses no AI and costs no CALC. You can add inputs and results, edit every formula, and test calculations locally before saving.</p>
+          <button type="button" id="ugcManualAiImproveButton" class="ugc-action-secondary" hidden>✦ Improve this saved calculator with AI</button>
+        </div>
+        <section id="ugcBlueprintImportPanel" class="ugc-blueprint-import" hidden aria-labelledby="ugcBlueprintImportHeading">
+          <div class="ugc-blueprint-import-head">
+            <div>
+              <h3 id="ugcBlueprintImportHeading">AI Blueprint Import <span>Optional</span></h3>
+              <p>Use an external AI assistant to draft a calculator blueprint, then paste its JSON here. Manual Builder remains fully independent and works without AI.</p>
+            </div>
+          </div>
+          <div class="ugc-blueprint-import-actions">
+            <button type="button" id="ugcBlueprintCopyPrompt" class="ugc-action-secondary">Copy instructions for an external AI</button>
+            <p class="ugc-blueprint-import-note">After copying, add your own calculator request in the same message to the external AI. The request can cover any subject; these instructions define only the Worth It blueprint format and safety rules.</p>
+          </div>
+          <label for="ugcBlueprintOriginalRequest">Original calculator request (recommended for adaptive recovery)
+            <textarea id="ugcBlueprintOriginalRequest" rows="3" maxlength="5000" spellcheck="true" placeholder="Paste the same calculator request you gave the external AI. Worth It checks keyword coverage locally only."></textarea>
+          </label>
+          <p class="ugc-blueprint-import-note">Worth It uses this text locally to check requested coverage and choose the closest Manual Builder mode/template if the imported blueprint cannot be repaired safely. Enter “random calculator” here when that was your request; the Random calculator mode will then be selected. The text is never sent to an AI service, added to the calculator, or saved.</p>
+          <label for="ugcBlueprintImportJson">Paste blueprint JSON
+            <textarea id="ugcBlueprintImportJson" rows="7" maxlength="50000" spellcheck="false" autocomplete="off" placeholder='{"blueprintVersion":1,"title":"...","description":"...","category":"home","spec":{"inputs":[],"groups":[],"results":[],"scenarios":[]}}'></textarea>
+          </label>
+          <div class="ugc-blueprint-import-actions">
+            <button type="button" id="ugcBlueprintImportButton" class="ugc-primary-button">Import into Manual Builder</button>
+          </div>
+          <p id="ugcBlueprintImportStatus" class="ugc-maker-status" role="status" aria-live="polite"></p>
+          <p class="ugc-blueprint-import-note">Import is local only: no Worth It AI request, no CALC charge, no AI quota use, and no automatic save or publish. Quick Fix first tries to preserve and repair the blueprint. If the result still cannot pass shared checks, Creator automatically switches to the closest safe Manual Builder mode/template (or Random calculator when the request is random) and prepares a usable editable draft. Save and Publish remain subject to the normal checks.</p>
+        </section>
+        <div id="ugcMakerAiPromptWrap">
+          <label for="ugcMakerPrompt">What should your calculator calculate?</label>
+          <textarea id="ugcMakerPrompt" name="prompt" maxlength="1000" rows="5" placeholder="Example: Create a calculator that compares the total cost of owning two cars over five years, including purchase price, fuel, insurance and maintenance."></textarea>
+          <p class="ugc-maker-status">AI generation and AI improvement use CALC and have separate daily limits. Testing remains free and runs locally in your browser.</p>
+          <p id="ugcMakerBillingNotice" class="ugc-maker-ai-cost-note" role="note">AI generation costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed requests are refunded.</p>
+          <div class="ugc-maker-actions">
+            <button type="button" id="ugcMakerGenerate" class="ugc-primary-button">✦ Generate calculator</button>
+          </div>
+        </div>
+        <p id="ugcMakerStatus" class="ugc-maker-status" role="status" aria-live="polite">Describe your calculator in at least 10 characters.</p>
+        <p id="ugcMakerGenerationQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's AI generation allowance loads when the maker opens.</p>
+        <p id="ugcMakerQuotaStatus" class="ugc-maker-status" role="status" aria-live="polite">Today's new calculator save allowance loads when the maker opens.</p>
+        <div id="ugcMakerPreview" class="ugc-maker-preview" hidden></div>
+        <div id="ugcMakerVisibilityWrap" class="ugc-maker-visibility" hidden>
+          <label for="ugcMakerVisibility">Who can find this calculator when published?</label>
+          <select id="ugcMakerVisibility">
+            <option value="private" selected>Private — only you can see it</option>
+            <option value="public">Public — anyone can discover it</option>
+          </select>
+          <small>Private calculators appear only in My Calculators. Other members cannot open them, even through a direct link.</small>
+        </div>
+        <div class="ugc-maker-actions">
+          <button type="button" id="ugcMakerSave" class="ugc-action-secondary" disabled>Save draft</button>
+          <button type="button" id="ugcMakerPublish" class="ugc-primary-button" disabled>Publish calculator</button>
+        </div>
+        <p class="ugc-maker-status">There is no lifetime limit on saved community calculators. Guest and Guest Lite members cannot create or improve community UGC calculators. Each UTC day, Free members can save 1 new manual calculator, Premium Lite 2 and Premium 3. This allowance applies only to new manual saves; AI-generated calculators do not use it. AI generation and AI improvement each have separate daily limits: Guest 0, Free 1, Premium Lite 2 and Premium 3. Each successful AI operation costs 2 CALC for Free, 4 CALC for Premium Lite or 6 CALC for Premium; failed AI operations refund both the CALC and the daily AI allowance. AI improvements preserve the existing calculator's original subject and purpose. Saved calculators can be published publicly or kept private. Published calculators use restricted formulas; arbitrary JavaScript is never executed.</p>
+        <p class="ugc-maker-status" id="ugcMakerEditQuotaStatus" role="status" aria-live="polite" hidden></p>
+      </section>
+    </div>
+
     <section class="section">
         <div class="container">
             <div class="panel">
@@ -1442,37 +1755,55 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Are the calculators free?
+                        Are the built-in calculators free?
                     </button>
                     <div class="faq-answer">
-                        Yes. All calculators on Worth It are designed to be free to use.
+                        Yes. The Basic, Advanced and Scientific tools and the 50 owner-maintained calculators are free to open. Some supported calculations in account-based tools, including community calculators, use 0.1 CALC per successful calculation. Guest Lite has a separate daily allowance.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Are the results financial advice?
+                        What are CALC and WIP?
                     </button>
                     <div class="faq-answer">
-                        No. Results are estimates based on the values you provide. Real-world costs can vary.
+                        CALC is Worth It's in-app credit for supported calculations and successful AI replies. WIP is a separate activity point earned by signed-in accounts once per UTC day and can only be used to activate Premium Lite. Neither currency is cash, transferable or withdrawable.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Can I use the calculators on my phone?
+                        What does Premium Lite include?
                     </button>
                     <div class="faq-answer">
-                        Yes. The interface is responsive and designed to work on desktop and mobile devices.
+                        Premium Lite lasts 15 days and costs 50 WIP. While active it removes ads, provides 1.5 CALC and 1 WIP daily, adds its profile and chat badge, and increases media upload limits. You cannot activate it while another subscription is active.
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question" onclick="toggleFAQ(this)">
-                        Does the website save my calculations?
+                        Can I use Worth It on my phone?
                     </button>
                     <div class="faq-answer">
-                        Calculations happen directly in your browser. This version does not require an account or server.
+                        Yes. The site adapts to phone, tablet and desktop screens. Community calculators show four cards per row on desktop screens and two per row on phones.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        Does Worth It save my calculations?
+                    </button>
+                    <div class="faq-answer">
+                        Calculator inputs and results are normally processed for the current session. Wallet transactions, saved community calculators, favourites and account settings are stored with your account where those features are enabled. Worth It does not automatically create a personal history of every calculation result.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        Can guests use community calculators?
+                    </button>
+                    <div class="faq-answer">
+                        No. Community calculators, the AI Maker and the Web Shop require a signed-in account. Guest Lite can use the first 50 built-in calculators with its separate 0.5 CALC Lite daily allowance.
                     </div>
                 </div>
 
@@ -1482,6 +1813,69 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </section>
 
 </section>
+
+    <section id="ugcDetailSection" class="ugc-detail-section" hidden aria-label="Community calculator profile">
+      <div class="ugc-detail-shell">
+        <div class="ugc-detail-toolbar">
+          <button type="button" class="btn btn-secondary" id="ugcDetailBack">← Back to calculators</button>
+          <span class="ugc-community-kicker">COMMUNITY CALCULATOR</span>
+        </div>
+        <header class="ugc-detail-header">
+          <button type="button" id="ugcDetailFavorite" class="ugc-action-secondary ugc-detail-favorite-button" aria-pressed="false" aria-label="Add to favourites" title="Add to favourites">☆</button>
+          <span class="ugc-detail-kicker" id="ugcDetailKicker">WORTH IT COMMUNITY</span>
+          <h1 id="ugcDetailTitle">Community calculator</h1>
+          <p id="ugcDetailDescription"></p>
+          <div class="ugc-detail-meta-grid">
+            <div class="ugc-detail-meta-row">
+              <a id="ugcDetailOwner" class="ugc-detail-owner" href="#">Made by a Worth It member</a>
+              <button type="button" id="ugcDetailLike" class="ugc-action-secondary ugc-detail-reaction-button" hidden>👍 Like</button>
+            </div>
+            <div class="ugc-detail-meta-row">
+              <div id="ugcDetailCategories" class="ugc-detail-categories" aria-label="AI-selected calculator categories"></div>
+              <button type="button" id="ugcDetailDislike" class="ugc-action-secondary ugc-detail-reaction-button" hidden>👎 Dislike</button>
+            </div>
+            <div class="ugc-detail-meta-row ugc-detail-reaction-feedback-row">
+              <span aria-hidden="true"></span>
+              <div class="ugc-detail-reaction-feedback">
+                <div id="ugcDetailReactionPolicy" class="ugc-detail-reaction-policy" hidden>
+                  <label for="ugcDetailRequireTestBeforeReaction">
+                    <input type="checkbox" id="ugcDetailRequireTestBeforeReaction" checked>
+                    <span>Require one completed calculation before rating</span>
+                    <small>Members must calculate once before they can Like or Dislike.</small>
+                  </label>
+                  <p id="ugcDetailReactionPolicyStatus" class="ugc-detail-reaction-policy-status" role="status" aria-live="polite"></p>
+                </div>
+                <p id="ugcDetailReactionNote" class="ugc-detail-reaction-note" role="status" aria-live="polite" hidden></p>
+              </div>
+            </div>
+            <div id="ugcDetailStats" class="ugc-detail-stats" aria-label="Calculator statistics"></div>
+            <div id="ugcDetailOwnerBadges" class="worth-it-profile-badge-list"></div>
+          </div>
+        </header>
+        <section id="ugcDetailDescriptionEditor" class="ugc-detail-description-editor" hidden>
+          <label for="ugcDetailDescriptionInput">Your calculator description · optional · up to 500 characters</label>
+          <textarea id="ugcDetailDescriptionInput" rows="3" maxlength="500" placeholder="Explain what this calculator does and when people should use it."></textarea>
+          <p id="ugcDetailDescriptionCooldown" class="ugc-maker-status" role="status" aria-live="polite">You can update this description once every 10 minutes.</p>
+          <button type="button" class="ugc-action-primary" id="ugcDetailSaveDescription">Save description</button>
+        </section>
+        <p id="ugcDetailUsagePriceDisplay" class="ugc-detail-usage-price">Cost per calculation: 0.1 CALC.</p>
+        <section id="ugcDetailPriceEditor" class="ugc-detail-price-editor" hidden>
+          <label for="ugcDetailUsagePrice">Set your calculator's usage price (0.10–0.50 CALC)</label>
+          <div class="ugc-detail-price-controls">
+            <input id="ugcDetailUsagePrice" type="number" min="0.1" max="0.5" step="0.01" value="0.10" inputmode="decimal">
+            <button type="button" class="ugc-action-primary" id="ugcDetailSaveUsagePrice">Save usage price</button>
+          </div>
+          <p class="ugc-maker-status">You can choose any price from 0.10 to 0.50 CALC in 0.01 increments.</p>
+          <p id="ugcDetailUsagePriceStatus" class="ugc-maker-status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="ugc-detail-calculator-card" aria-label="Calculator inputs">
+          <h2>Enter your values</h2>
+          <div id="ugcDetailCalculatorForm" class="ugc-detail-calculator-form"></div>
+        </section>
+        <div id="ugcDetailResults"></div>
+        <p id="ugcDetailStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
 
 <!-- EV CALCULATOR -->
 
@@ -1502,7 +1896,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         </div>
 
-        <button class="close-btn" onclick="showHome()">← Back</button>
+        <button class="close-btn" onclick="backFromWorthItRoute('/calculators')">← Back</button>
 
     </div>
 
@@ -1786,7 +2180,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
         </div>
 
-        <button class="close-btn" onclick="showHome()">
+        <button class="close-btn" onclick="backFromWorthItRoute('/calculators')">
             ← Back
         </button>
 
@@ -1821,7 +2215,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 
             </div>
 
-            <button class="close-btn" onclick="showHome()">
+            <button class="close-btn" onclick="backFromWorthItRoute('/calculators')">
                 ← Back
             </button>
 
@@ -2295,9 +2689,10 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <div class="worth-it-profile-heading">
             <div class="worth-it-profile-name-row">
               <h1 id="worthItProfileName">Profile</h1>
+              <span id="worthItProfileNameBadges" class="worth-it-profile-name-badges" aria-label="Equipped member badges"></span>
               <button type="button" id="worthItProfileDisplayNameEdit" class="worth-it-profile-display-name-edit" onclick="openWorthItDisplayNameEditor()" aria-label="Change display name" title="Change display name" hidden>✎</button>
             </div>
-            <p id="worthItProfileUsername" class="worth-it-profile-username"></p>
+            <div class="worth-it-profile-username-row"><p id="worthItProfileUsername" class="worth-it-profile-username"></p><span id="worthItProfilePremiumBadge" class="worth-it-premium-badge" hidden></span></div>
             <p id="worthItProfileEmail" class="worth-it-profile-email" hidden></p>
             <div id="worthItProfileAvatarControls" class="worth-it-profile-avatar-controls" hidden>
               <div class="worth-it-profile-avatar-actions">
@@ -2336,6 +2731,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <button type="button" id="worthItProfileFriendSecondary" class="worth-it-profile-social-button quiet" onclick="performWorthItSocialAction('secondary')" hidden>Cancel request</button>
               <p id="worthItProfileSocialHint" class="worth-it-profile-social-hint" hidden></p>
             </div>
+            <div class="worth-it-profile-report-wrap"><button type="button" id="worthItProfileReportButton" class="worth-it-profile-report-button" hidden>⚑ Report profile</button></div>
           </div>
         </div>
       </div>
@@ -2357,6 +2753,17 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
       </section>
 
+      <section id="worthItProfileFavouritesSection" class="worth-it-profile-favourites" aria-label="Favorite calculators" hidden>
+        <h2>Favorite Calculators</h2>
+        <div id="worthItProfileFavouriteCalculators" class="worth-it-profile-favourite-grid"></div>
+        <p id="worthItProfileFavouritesEmpty" class="ugc-detail-status" hidden>No favourite community calculators yet.</p>
+      </section>
+      <section id="worthItProfileBadgesSection" class="worth-it-profile-badges" aria-label="Member badges" hidden>
+        <h2>Badges</h2>
+        <div id="worthItProfileBadgesDisplay" class="worth-it-profile-badge-list" aria-label="Equipped badges"></div>
+        <div id="worthItProfileBadgesManage" class="worth-it-profile-badge-manage" hidden></div>
+        <p id="worthItProfileBadgesStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
+      </section>
       <section id="worthItProfileFriendsPreview" class="worth-it-profile-friends-preview" aria-label="Friends preview">
         <div class="worth-it-profile-friends-title">
           <strong>Friends:</strong>
@@ -2404,7 +2811,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <section id="settingsPage" class="worth-it-settings-page" style="display:none;" aria-label="Account settings">
   <div class="container worth-it-settings-container">
     <div class="worth-it-settings-toolbar">
-      <button type="button" class="btn btn-secondary" onclick="showHome()">← Back to Worth It</button>
+      <button type="button" class="btn btn-secondary" onclick="backFromWorthItRoute('/')">← Back to Worth It</button>
       <span class="worth-it-settings-overline">WORTH IT · ACCOUNT CENTRE</span>
     </div>
     <header class="worth-it-settings-hero">
@@ -2460,7 +2867,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </div>
 
     <div class="worth-it-settings-section-nav" id="settingsSectionNav" hidden>
-      <button type="button" class="btn btn-secondary" onclick="openFullSettings()">← Back to Settings</button>
+      <button type="button" class="btn btn-secondary" onclick="backFromWorthItRoute('/settings')">← Back to Settings</button>
       <span id="settingsSectionNavTitle" aria-live="polite"></span>
     </div>
 
@@ -2776,7 +3183,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div class="worth-it-settings-card-icon" aria-hidden="true">🎨</div>
         <div>
           <h2 id="settingsAppearanceTitle">Appearance &amp; Accessibility</h2>
-          <p>Personalise the way Worth It looks. Changes are saved automatically.</p>
+          <p>Personalise the way Worth It looks. Standard appearance settings save automatically; Custom Theme previews are temporary until saved with Premium.</p>
         </div>
       </div>
       <div class="worth-it-settings-control-group">
@@ -2786,6 +3193,164 @@ html[data-theme="light"].worth-it-initial-paint::before {
           <button type="button" class="settings-option" id="settingsPageThemeLightBtn" onclick="setTheme('light')">☀️ Light</button>
         </div>
       </div>
+      <div class="worth-it-settings-control-group worth-it-custom-theme-group" id="worthItCustomThemeSettingsGroup">
+        <h3>Custom Themes</h3>
+        <div id="worthItThemeLocked" class="worth-it-theme-locked" role="note" hidden>
+          <div class="worth-it-theme-locked-icon" aria-hidden="true">✨</div>
+          <div>
+            <strong>Make Worth It yours</strong>
+            <p>Try every colour, font and style for free and see your complete design instantly. Your preview lasts while Settings is open. Save it and keep it active across the whole website with an active Premium Lite or Premium subscription.</p>
+          </div>
+          <button type="button" class="settings-option" onclick="openWorthItThemeUpgrade()">Unlock theme saving →</button>
+        </div>
+        <div class="worth-it-theme-editor" id="worthItThemeEditor">
+          <div class="worth-it-theme-editor-head"><strong>Build your theme</strong><span class="settings-note" id="worthItThemePreviewLabel">Free live preview · Save with Premium</span></div>
+          <div class="worth-it-theme-preset-section">
+            <div class="worth-it-theme-subhead"><span><h4>Theme presets</h4><p>Choose one of six featured looks or explore 12 more palettes. Customize every detail afterwards.</p></span><button type="button" class="worth-it-theme-small-action" id="worthItThemeRandomPalette">Random palette</button></div>
+            <div class="worth-it-theme-preset-grid" id="worthItThemePresetGrid">
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="midnight"><span class="worth-it-theme-preset-swatches"><i style="background:#8b5cf6"></i><i style="background:#38bdf8"></i><i style="background:#080b18"></i></span><strong>Midnight</strong><small>Violet · Blue</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="minimal"><span class="worth-it-theme-preset-swatches"><i style="background:#3157d5"></i><i style="background:#0ea5a4"></i><i style="background:#f4f6fa"></i></span><strong>Minimal</strong><small>Clean · Neutral</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="emerald"><span class="worth-it-theme-preset-swatches"><i style="background:#10b981"></i><i style="background:#a3e635"></i><i style="background:#061b19"></i></span><strong>Emerald</strong><small>Green · Fresh</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="sunset"><span class="worth-it-theme-preset-swatches"><i style="background:#f97316"></i><i style="background:#ec4899"></i><i style="background:#1d1020"></i></span><strong>Sunset</strong><small>Warm · Vibrant</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="ocean"><span class="worth-it-theme-preset-swatches"><i style="background:#0ea5e9"></i><i style="background:#14b8a6"></i><i style="background:#061724"></i></span><strong>Ocean</strong><small>Blue · Teal</small></button>
+              <button type="button" class="worth-it-theme-preset" data-theme-preset="rose"><span class="worth-it-theme-preset-swatches"><i style="background:#e879a8"></i><i style="background:#a78bfa"></i><i style="background:#180f1b"></i></span><strong>Rose</strong><small>Rose · Lavender</small></button>
+              <div class="worth-it-theme-preset-more">
+                <div class="worth-it-theme-preset-more-head"><span><strong>More palettes</strong><small>12 additional looks with their own colours, fonts and effects.</small></span><button type="button" class="worth-it-theme-small-action worth-it-theme-preset-more-toggle" id="worthItThemePresetMoreToggle" aria-expanded="false" aria-controls="worthItThemePresetMoreGrid">Explore 12 more palettes ↓</button></div>
+                <div class="worth-it-theme-preset-extra-grid" id="worthItThemePresetMoreGrid" hidden>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="graphite" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#94A3B8"></i><i style="background:#CBD5E1"></i><i style="background:#0B0F17"></i></span><strong>Graphite</strong><small>Slate · Monochrome</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="lavender-mist" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#8B7FB8"></i><i style="background:#B49FCC"></i><i style="background:#F8F5FC"></i></span><strong>Lavender Mist</strong><small>Lilac · Airy</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="terracotta" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#C46A4A"></i><i style="background:#D9A36A"></i><i style="background:#1C1210"></i></span><strong>Terracotta</strong><small>Clay · Warm</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="matcha" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#789B58"></i><i style="background:#C0CE7A"></i><i style="background:#101A11"></i></span><strong>Matcha</strong><small>Sage · Botanical</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="champagne" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B28A43"></i><i style="background:#6D8B86"></i><i style="background:#F7F3E9"></i></span><strong>Champagne</strong><small>Ivory · Gold</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="berry" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B0527A"></i><i style="background:#8756B2"></i><i style="background:#190D18"></i></span><strong>Berry</strong><small>Plum · Rich</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="arctic" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#287EAA"></i><i style="background:#5BB8C9"></i><i style="background:#F3FAFD"></i></span><strong>Arctic</strong><small>Ice · Crisp</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="retro" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#E0A83A"></i><i style="background:#3B9C93"></i><i style="background:#18170F"></i></span><strong>Retro</strong><small>Mustard · Vintage</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="royal" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#536DCE"></i><i style="background:#D6B45E"></i><i style="background:#0A1026"></i></span><strong>Royal</strong><small>Indigo · Gold</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="mocha" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B27B58"></i><i style="background:#D7B990"></i><i style="background:#19130F"></i></span><strong>Mocha</strong><small>Coffee · Warm</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="sakura" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#C85D82"></i><i style="background:#9C83C6"></i><i style="background:#FFF6F8"></i></span><strong>Sakura</strong><small>Petal · Soft</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="neon-pulse" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#C3F53C"></i><i style="background:#24D4C8"></i><i style="background:#080F14"></i></span><strong>Neon Pulse</strong><small>Lime · Electric</small></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="worth-it-theme-preview-switcher" id="worthItThemePreviewSwitcher" role="group" aria-label="Preview different website areas">
+            <button type="button" data-theme-preview-view="website" aria-pressed="true">Website</button>
+            <button type="button" data-theme-preview-view="calculator" aria-pressed="false">Calculator</button>
+            <button type="button" data-theme-preview-view="shop" aria-pressed="false">Web Shop</button>
+            <button type="button" data-theme-preview-view="chat" aria-pressed="false">AI Chat</button>
+            <button type="button" data-theme-preview-view="cards" aria-pressed="false">Cards</button>
+            <button type="button" data-theme-preview-view="forms" aria-pressed="false">Forms</button>
+          </div>
+          <div id="worthItThemePreview" class="worth-it-theme-preview" role="group" aria-label="Live sample of your custom Worth It theme">
+            <div class="worth-it-theme-preview-nav">
+              <span class="worth-it-theme-preview-brand"><span class="worth-it-theme-preview-mark">✓</span> Worth It</span>
+              <span class="worth-it-theme-preview-chip">YOUR THEME</span>
+            </div>
+            <div class="worth-it-theme-preview-card">
+              <span class="worth-it-theme-preview-eyebrow">PERSONAL WORKSPACE</span>
+              <h4>Make Worth It yours</h4>
+              <p>This sample shows how headings, normal text, secondary text and links will look together. <a href="#" tabindex="-1" aria-disabled="true">Example link</a></p>
+              <div class="worth-it-theme-preview-controls">
+                <span class="worth-it-theme-preview-input">Example input field</span>
+                <button type="button" class="worth-it-theme-preview-primary" disabled>Primary button</button>
+                <button type="button" class="worth-it-theme-preview-secondary" disabled>Secondary</button>
+              </div>
+              <div class="worth-it-theme-preview-footer"><span>Card surface</span><span>Border · Accent · Text</span></div>
+            </div>
+          </div>
+          <label class="worth-it-theme-field" for="worthItThemeName">Theme name<input id="worthItThemeName" class="worth-it-theme-name" type="text" maxlength="24" value="Worth It" autocomplete="off"></label>
+          <div class="worth-it-theme-design-section">
+            <h4>Website colours</h4>
+            <p>Choose the main colours that shape the whole website. Text colours automatically receive a contrast-safe fallback when needed.</p>
+            <div class="worth-it-theme-section-actions"><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="colours">Reset colour group</button></div>
+            <div class="worth-it-theme-fields">
+              <label class="worth-it-theme-field" for="worthItThemePrimary">Primary accent<input id="worthItThemePrimary" type="color" value="#7c5cff"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSecondary">Secondary accent<input id="worthItThemeSecondary" type="color" value="#38bdf8"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHover">Button hover, border &amp; glow<input id="worthItThemeHover" type="color" value="#8b5cf6"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHeader">Web Shop &amp; wallet background<input id="worthItThemeHeader" type="color" value="#0b1120"></label>
+              <label class="worth-it-theme-field" for="worthItThemeBackground">Page background<input id="worthItThemeBackground" type="color" value="#070b14"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSurface">Card &amp; panel background<input id="worthItThemeSurface" type="color" value="#11192a"></label>
+              <label class="worth-it-theme-field" for="worthItThemeSurfaceAlt">Secondary surface<input id="worthItThemeSurfaceAlt" type="color" value="#151f33"></label>
+              <label class="worth-it-theme-field" for="worthItThemeBorder">Borders &amp; dividers<input id="worthItThemeBorder" type="color" value="#334155"></label>
+              <label class="worth-it-theme-field" for="worthItThemeText">Main text<input id="worthItThemeText" type="color" value="#f8fafc"></label>
+              <label class="worth-it-theme-field" for="worthItThemeHeading">Heading text<input id="worthItThemeHeading" type="color" value="#ffffff"></label>
+              <label class="worth-it-theme-field" for="worthItThemeMuted">Secondary / muted text<input id="worthItThemeMuted" type="color" value="#94a3b8"></label>
+              <label class="worth-it-theme-field" for="worthItThemeLink">Links &amp; link accents<input id="worthItThemeLink" type="color" value="#a99bff"></label>
+            </div>
+            <div class="worth-it-theme-recent"><div class="worth-it-theme-subhead"><span><strong>Recent colours</strong><small>Reuse the last colours you selected.</small></span></div><div id="worthItThemeRecentColours" class="worth-it-theme-recent-swatches"></div></div>
+          </div>
+          <div class="worth-it-theme-design-section">
+            <h4>Typography &amp; shape</h4>
+            <p>Change the personality of headings and body text, and choose how cards and controls are shaped.</p>
+            <div class="worth-it-theme-section-actions"><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="typography">Reset typography</button></div>
+            <div class="worth-it-theme-fields worth-it-theme-style-fields">
+              <label class="worth-it-theme-field" for="worthItThemeFontFamily">Website font
+                <select id="worthItThemeFontFamily">
+                  <option value="inter">Inter · Modern</option><option value="system">System default</option>
+                  <option value="arial">Arial · Familiar</option><option value="georgia">Georgia · Classic serif</option>
+                  <option value="mono">Monospace · Technical</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeHeadingStyle">Heading style
+                <select id="worthItThemeHeadingStyle">
+                  <option value="modern">Modern</option><option value="bold">Extra bold</option>
+                  <option value="editorial">Editorial · Serif</option><option value="technical">Technical · Uppercase</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeBodyStyle">Body text spacing
+                <select id="worthItThemeBodyStyle">
+                  <option value="standard">Standard</option><option value="comfortable">Comfortable · Airy</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeFontSize">Website font size
+                <select id="worthItThemeFontSize"><option value="small">Small</option><option value="default" selected>Default</option><option value="large">Large</option></select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeHeadingScale">Heading scale
+                <select id="worthItThemeHeadingScale"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="large">Large</option></select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeLineHeight">Line height
+                <select id="worthItThemeLineHeight"><option value="tight">Tight</option><option value="normal" selected>Normal</option><option value="relaxed">Relaxed</option></select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeCorners">Corners &amp; controls
+                <select id="worthItThemeCorners">
+                  <option value="soft">Soft</option><option value="rounded">Extra rounded</option>
+                  <option value="sharp">Sharp</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeButtonStyle">Button appearance
+                <select id="worthItThemeButtonStyle">
+                  <option value="gradient">Gradient</option><option value="solid">Solid</option>
+                  <option value="outline">Outline</option>
+                </select>
+              </label>
+              <label class="worth-it-theme-field" for="worthItThemeCardStyle">Card appearance
+                <select id="worthItThemeCardStyle">
+                  <option value="glass">Glass</option><option value="solid">Solid</option>
+                  <option value="flat">Soft / flat</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="worth-it-theme-design-section">
+            <div class="worth-it-theme-subhead"><span><h4>Interaction &amp; depth</h4><p>Fine-tune hover motion, shadows, borders and keyboard focus.</p></span><button type="button" class="worth-it-theme-small-action" data-theme-reset-group="effects">Reset effects</button></div>
+            <div class="worth-it-theme-fields worth-it-theme-style-fields">
+              <label class="worth-it-theme-field" for="worthItThemeButtonAnimation">Button animation<select id="worthItThemeButtonAnimation"><option value="none" selected>None</option><option value="subtle">Subtle</option><option value="smooth">Smooth</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeHoverEffect">Hover effect<select id="worthItThemeHoverEffect"><option value="none" selected>None</option><option value="lift">Lift</option><option value="glow">Glow</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeShadowIntensity">Shadow intensity<select id="worthItThemeShadowIntensity"><option value="none" selected>None</option><option value="soft">Soft</option><option value="strong">Strong</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeBorderThickness">Border thickness<select id="worthItThemeBorderThickness"><option value="thin">Thin</option><option value="normal" selected>Normal</option><option value="thick">Thick</option></select></label>
+              <label class="worth-it-theme-field" for="worthItThemeFocusAppearance">Keyboard focus<select id="worthItThemeFocusAppearance"><option value="subtle">Subtle</option><option value="standard" selected>Standard</option><option value="prominent">Prominent</option></select></label>
+            </div>
+          </div>
+          <div class="worth-it-theme-design-section">
+            <div class="worth-it-theme-subhead"><span><h4>Accessibility &amp; contrast</h4><p>WCAG AA uses a 4.5:1 contrast target for normal text. Low-contrast text receives a readable fallback on the website.</p></span></div>
+            <div id="worthItThemeContrastAudit" class="worth-it-theme-contrast-audit" aria-live="polite"></div>
+          </div>
+          <div class="worth-it-theme-actions"><button type="button" class="settings-option" id="worthItThemeUndoButton">Undo unsaved changes</button><button type="button" class="settings-option" id="worthItThemeSaveButton">Unlock to save →</button><button type="button" class="settings-option" id="worthItThemeResetButton">Reset preview theme</button></div>
+          <p id="worthItThemeStatus" class="worth-it-theme-status" role="status" aria-live="polite">Change the colours above to preview your own Worth It look. Free previews are temporary; Premium Lite and Premium members can save them.</p>
+        </div>
+      </div>
+ 
       <div class="worth-it-settings-control-group worth-it-settings-zoom-help">
         <h3>How to zoom in</h3>
         <div class="worth-it-settings-zoom-method">
@@ -2802,7 +3367,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         </div>
         <p class="settings-note">Zoom is controlled by your browser or device. On some devices, pinch zoom may need to be enabled in browser settings.</p>
       </div>
-      <div class="worth-it-settings-reset">
+     <div class="worth-it-settings-reset">
         <div>
           <strong>Reset appearance settings</strong>
           <p>Restore the default dark theme and standard text size.</p>
@@ -2833,6 +3398,173 @@ html[data-theme="light"].worth-it-initial-paint::before {
     </div>
   </div>
 </div>
+
+
+<section class="app web-shop-section" id="webShopSection" data-ws-theme="dark" style="display:none" aria-labelledby="webShopTitle">
+    <div class="web-shop-shell">
+        <header class="web-shop-topline">
+            <div class="web-shop-heading-block">
+                <p class="web-shop-eyebrow">Worth It · Digital economy</p>
+                <div class="web-shop-heading-row">
+                    <h1 class="web-shop-title" id="webShopTitle">Web Shop</h1>
+                    <button type="button" class="web-shop-back" onclick="backFromWebShop()">← Back to Worth It</button>
+                </div>
+                <p class="web-shop-subtitle">CALC pays for supported calculators and successful AI replies. WIP is earned daily and is used only for Premium Lite. Guests use a separate 0.5 CALC Lite daily allowance.</p>
+            </div>
+            <div class="web-shop-tools">
+                <div class="web-shop-balance" aria-live="polite">
+                    <span class="web-shop-coin" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M16 2.5 28.1 9.4v13.2L16 29.5 3.9 22.6V9.4z" fill="url(#shopCalcCoinGradient)"/><rect x="8" y="8.5" width="16" height="15" rx="3" fill="#17152e" stroke="#fff" stroke-width="1.4"/><path d="M11 11h10v3H11zm0 5.5h2.4v2.4H11zm4.3 0h2.4v2.4h-2.4zm4.3 0H22v2.4h-2.4z" fill="#c4b5fd"/><defs><linearGradient id="shopCalcCoinGradient" x1="4" y1="4" x2="28" y2="28"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#57d8f1"/></linearGradient></defs></svg></span>
+                    <div class="web-shop-balance-currencies">
+                        <div><strong id="webShopBalanceValue">—</strong><small>CALC</small></div>
+                        <div><strong id="webShopWipBalanceValue">—</strong><small>WIP</small></div>
+                    </div>
+                    <small class="web-shop-balance-tier" id="webShopBalanceTier">BALANCE</small>
+                </div>
+                <button type="button" class="web-shop-theme-btn" id="webShopThemeToggle" onclick="toggleWebShopTheme()">☀️ Light theme</button>
+            </div>
+        </header>
+
+        <div class="web-shop-notice">
+            <span class="web-shop-notice-icon" aria-hidden="true">🎁</span>
+            <p><strong>Buying is completely optional.</strong> Free users receive 1 CALC and 1 WIP daily. Premium Lite members receive 1.5 CALC and 1 WIP daily, while Premium members receive 3 CALC and 1 WIP daily. Guests receive 0.5 CALC Lite per UTC day and no WIP. CALC pays for supported calculators and successful AI replies; WIP is reserved for Premium Lite.</p>
+        </div>
+
+        <div class="web-shop-tabs" role="tablist" aria-label="Web Shop categories">
+            <button type="button" class="web-shop-tab active" data-webshop-category="currency" id="webShopCurrencyTab" role="tab" aria-selected="true" aria-controls="webShopCurrencyPanel">◈ CALC currency</button>
+            <button type="button" class="web-shop-tab" data-webshop-category="subscriptions" id="webShopSubscriptionsTab" role="tab" aria-selected="false" aria-controls="webShopSubscriptionsPanel">✦ Subscriptions</button>
+        </div>
+
+        <section id="webShopCurrencyPanel" role="tabpanel" aria-labelledby="webShopCurrencyTab">
+            <div class="web-shop-category-heading">
+                <div><h3>CALC currency</h3><p>Digital credits for supported calculator and AI features. Each paid calculation costs 0.1 CALC.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">◈</div>
+                    <h4>Starter Pack</h4>
+                    <p class="web-shop-description">A small balance top-up for occasional calculator and AI use.</p>
+                    <p class="web-shop-price">10 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Cannot be transferred or withdrawn</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">POPULAR SIZE</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Plus Pack</h4>
+                    <p class="web-shop-description">More CALC for regular use of Worth It tools.</p>
+                    <p class="web-shop-price">30 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports continued development</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+                <article class="web-shop-card">
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Supporter Pack</h4>
+                    <p class="web-shop-description">A larger balance for people who want to support the project.</p>
+                    <p class="web-shop-price">75 <small>CALC</small></p>
+                    <ul class="web-shop-feature-list"><li>One-time credit pack</li><li>Credits stay in your account</li><li>Supports the website and its owner</li></ul>
+                    <button type="button" class="web-shop-action" disabled>Cash checkout not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">CALC is a closed-use Worth It credit for supported calculators and successful AI replies (0.1 CALC each). It has no cash value, cannot be transferred, exchanged for WIP or withdrawn, and <strong>cannot be used to buy Premium Lite</strong>. Paid CALC packs remain disabled until the payment provider approves the product and checkout is configured.</p>
+            <article class="web-shop-wip-note">
+                <strong>Worth It Points (WIP)</strong>
+                <p>WIP is a separate activity currency. Every signed-in account earns 1 WIP per UTC day, regardless of Free, Premium Lite or Premium status. WIP accumulates, cannot be purchased, has no cash value and cannot be exchanged for CALC. <strong>WIP is the only currency used to activate Premium Lite: 50 WIP for 15 days.</strong> CALC is never deducted for Premium Lite.</p>
+            </article>
+        </section>
+
+        <section id="webShopSubscriptionsPanel" role="tabpanel" hidden>
+            <div class="web-shop-category-heading">
+                <div><h3>Subscriptions</h3><p>Compare free access with the additional benefits and UGC creation limits in Premium Lite and Premium.</p></div>
+            </div>
+            <div class="web-shop-grid">
+                <article class="web-shop-card web-shop-card-free">
+                    <span class="web-shop-ribbon">ALWAYS FREE</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">◇</div>
+                    <h4>Free</h4>
+                    <p class="web-shop-description">The standard Worth It membership with daily rewards and access to community-created calculators.</p>
+                    <p class="web-shop-price">Free <small>· no purchase required</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>1 CALC and 1 WIP daily reward</li>
+                        <li>1 new AI-generated UGC calculator per UTC day</li>
+                        <li>1 AI improvement to an existing UGC calculator per UTC day</li>
+                        <li>1 new manually created (non-AI) UGC calculator saved per UTC day</li>
+                        <li>AI generation costs 2 CALC per successful operation</li>
+                        <li>Create, edit, save and publish calculators publicly or privately</li>
+                        <li>Standard profile, chat and media limits</li>
+                    </ul>
+                    <p class="web-shop-footnote">Free is the default membership. This card is informational only and cannot be purchased.</p>
+                </article>
+                <article class="web-shop-card web-shop-card-featured">
+                    <span class="web-shop-ribbon">15 DAYS · WIP</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✦</div>
+                    <h4>Premium Lite</h4>
+                    <p class="web-shop-description">A 15-day introduction to Premium benefits, activated with your saved Worth It Points.</p>
+                    <p class="web-shop-price">50 <small>WIP / 15 days</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li>
+                        <li>1.5 CALC and 1 WIP daily reward</li>
+                        <li>2 new AI-generated UGC calculators per UTC day</li>
+                        <li>2 AI improvements to existing UGC calculators per UTC day</li>
+                        <li>2 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                        <li>AI generation costs 4 CALC per successful operation</li>
+                        <li>Premium Lite profile and chat badge</li>
+                        <li>Higher image, GIF and video upload limits</li>
+                        <li>Extra profile and chat customisation</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" id="buyPremiumLiteButton" onclick="buyPremiumLite()">Activate Premium Lite · 50 WIP</button>
+                </article>
+                <article class="web-shop-card">
+                    <span class="web-shop-ribbon">30 DAYS · REAL MONEY</span>
+                    <div class="web-shop-card-icon" aria-hidden="true">✧</div>
+                    <h4>Premium</h4>
+                    <p class="web-shop-description">The full Premium tier, with the highest limits and the full set of member benefits.</p>
+                    <p class="web-shop-price">€4.99 <small>/ 30 days · proposed</small></p>
+                    <ul class="web-shop-feature-list">
+                        <li>No ads while active</li>
+                        <li>3 CALC and 1 WIP daily reward</li>
+                        <li>3 new AI-generated UGC calculators per UTC day</li>
+                        <li>3 AI improvements to existing UGC calculators per UTC day</li>
+                        <li>3 new manually created (non-AI) UGC calculators saved per UTC day</li>
+                        <li>AI generation costs 6 CALC per successful operation</li>
+                        <li>Exclusive Premium profile and chat badge</li>
+                        <li>Highest image, GIF and video upload limits</li>
+                        <li>More personalisation and future member features</li>
+                    </ul>
+                    <button type="button" class="web-shop-action" disabled>Payment setup not connected</button>
+                </article>
+            </div>
+            <p class="web-shop-footnote">New manual (non-AI) calculator saves are limited to 1 per UTC day for Free, 2 for Premium Lite and 3 for Premium. New AI calculator generations have a separate 1/2/3 daily limit, and AI improvements have a separate 1/2/3 daily limit. Each successful AI generation or improvement costs 2 CALC for Free, 4 CALC for Premium Lite and 6 CALC for Premium. Failed AI operations return the CALC charge and daily AI allowance. There is no lifetime limit on saved calculators. Premium Lite costs 50 WIP for 15 days. WIP is earned at 1 per day and continues to accumulate while a subscription is active. Full Premium checkout will only be enabled after the payment provider approves the offer and the payout account is configured.</p>
+        </section>
+
+        <section class="web-shop-history" id="webShopHistory" hidden aria-labelledby="webShopHistoryTitle">
+            <div class="web-shop-history-header">
+                <div>
+                    <h3 id="webShopHistoryTitle">Your transaction history</h3>
+                    <p>Only transactions belonging to your signed-in Worth It account are shown here.</p>
+                </div>
+                <div class="web-shop-history-tools">
+                    <label class="sr-only" for="webShopHistoryCurrency">Filter transaction history by currency</label>
+                    <select id="webShopHistoryCurrency" aria-label="Filter transaction history by currency">
+                        <option value="all">All currencies</option>
+                        <option value="CALC">CALC</option>
+                        <option value="WIP">WIP</option>
+                        <option value="purchases">Your purchases</option>
+                    </select>
+                    <button type="button" id="webShopHistoryRefresh" class="web-shop-history-refresh">↻ Refresh</button>
+                </div>
+            </div>
+            <p class="web-shop-history-status" id="webShopHistoryStatus" role="status" aria-live="polite">Your latest transactions will appear here.</p>
+            <div class="web-shop-history-table-wrap">
+                <table class="web-shop-history-table">
+                    <thead><tr><th>Date</th><th>Transaction</th><th>Change</th><th>Balance after</th><th>Status</th><th aria-label="Transaction actions"></th></tr></thead>
+                    <tbody id="webShopHistoryRows"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <p class="web-shop-status" id="webShopStatus" role="status" aria-live="polite"></p>
+    </div>
+</section>
 
 </main>
 
@@ -3034,7 +3766,7 @@ try{
             <div>
                 <span class="worth-it-guest-kicker">WORTH IT · GUEST LITE</span>
                 <h2 id="worthItGuestLimitsTitle">Continue with limited guest access</h2>
-                <p id="worthItGuestLimitsIntro">Guest Lite is a trial experience. You can use the default calculators provided by the Worth It owner, while account-based and community features stay locked.</p>
+                <p id="worthItGuestLimitsIntro">Guest Lite lets you try Worth It with a small daily CALC Lite allowance. You can use only the first 50 built-in calculators provided by the site owner.</p>
             </div>
             <button type="button" class="worth-it-guest-close" id="worthItGuestCloseBtn" aria-label="Return to account creation">✕</button>
         </header>
@@ -3043,17 +3775,17 @@ try{
             <section class="worth-it-guest-list worth-it-guest-allowed">
                 <h3><span aria-hidden="true">✓</span> Available as a guest</h3>
                 <ul>
-                    <li>Use the built-in Worth It calculators configured by the site owner.</li>
-                    <li>Explore the default calculator catalogue, search and filter calculators, enter values and view calculation results.</li>
-                    <li>Use basic calculator tools such as car, savings, investment, loan, purchase, salary, technology and home-cost calculators that are part of the standard catalogue.</li>
+                    <li>Use only the <strong>first 50 built-in Worth It calculators</strong> provided by the site owner. Search, filter, enter values and view results.</li>
+                    <li><strong>Each paid calculation costs 0.1 CALC Lite.</strong> Your daily Guest Lite balance is 0.5 CALC Lite.</li>
+                    <li>Your balance resets to exactly <strong>0.5 CALC Lite each UTC day</strong> when you visit Worth It. Unused CALC Lite does not roll over or accumulate.</li>
                 </ul>
             </section>
 
             <section class="worth-it-guest-list worth-it-guest-restricted">
                 <h3><span aria-hidden="true">🔒</span> Requires a Worth It account</h3>
                 <ul>
-                    <li><strong>Website sections:</strong> Weather, News, Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking.</li>
-                    <li><strong>User-generated calculators:</strong> creating, editing, publishing, opening or using calculators made by users or the community.</li>
+                    <li><strong>Website sections:</strong> Weather, News, Shop, Web Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking.</li>
+                    <li><strong>User-generated calculators:</strong> creating, editing, publishing, opening, using, favouriting, liking, disliking or reporting any calculator made by another user or the community. Those social actions are reserved for signed-in members and UGC calculators only. Only the first 50 site-owner calculators are available to guests.</li>
                     <li><strong>Worth It AI:</strong> opening or sending messages to Worth It AI Chat.</li>
                     <li><strong>People and social features:</strong> searching for users, opening user profiles, sending or receiving friend requests, following or being followed, and accessing friends, followers or following lists. Guest users do not have a public Worth It profile.</li>
                     <li><strong>Community chat:</strong> Global Chat, private one-to-one chats, group chats, sending messages, joining groups and using group invitations.</li>
@@ -3064,7 +3796,7 @@ try{
 
         <label class="worth-it-guest-consent" for="worthItGuestConsentCheck">
             <input type="checkbox" id="worthItGuestConsentCheck">
-            <span><strong>I agree with these limitations and wish to continue, remind me again in 24 hours.</strong><small>If you remain signed out, Worth It will show the account creation prompt again after 24 hours. Signing in stops the guest reminder.</small></span>
+            <span><strong>I agree to these Guest Lite limits and want to continue.</strong><small>We may remind you to create an account again after 24 hours. Signing in removes the guest restrictions.</small></span>
         </label>
         <p class="worth-it-guest-consent-status" id="worthItGuestConsentStatus" role="status" aria-live="polite">Review the available features and limitations, then check the box to continue.</p>
 
@@ -3171,19 +3903,19 @@ try{
         </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
-
-
-<script src="app.js?v=signout-confirmation-20261028a"></script>
+<script src="/api/runtime-config"></script>
+<script src="app.js?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a&drawer=hamburger-slide-drawer-20261105a"></script>
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 <script src="ai-ui.js?v=worthit-ai-overlay-20261029b"></script>
 <script src="calculators.js"></script>
+<script src="calc-economy.js?v=calc-premium-lite-history-purchases-20261104c"></script>
 <script src="cars-ui.js?v=carsperf20261025b"></script>
 <script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
 <script src="shop.js?v=shopswitchrender-20261030a"></script>
-<script src="settings.js?v=feedback-overlay-stay-open-20261030a"></script>
+<script src="settings.js?v=appearance-custom-reset-direct-theme-20261104e&amp;preview=custom-theme-free-preview-20261105b&amp;ugc-detail-layer-20261109a"></script>
 <script src="admin-panel.js?v=admin-overlays-stay-open-20261030a"></script>
 <script src="markets-ui.js?v=markets-detail-controls-20261030a"></script>
 <script src="crypto-ui.js?v=cryptoswitch-focus-20261030a"></script>
@@ -5195,11 +5927,15 @@ if($("carResults")){
 }
 
 </script>
-<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a"></script>
-<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a"></script>
+<script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a&amp;free-preview=20261104a&amp;ugc-publish-notifications=20261105b&amp;profile-rich-ugc-cards=20261108a&amp;route-back-20261109a"></script>
+<script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;rev=chat-member-badges-20261031a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/guest-mode.js?v=chat-route-preserve-20261028a"></script>
-<script src="/routing.js?v=profile-navigation-hardening-20261028b"></script>
+<script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=guest-ugc-detail-guard-20261031b"></script>
+<script src="/ugc-blueprint-import.js?v=blueprint-quick-fix-draft-20261113a"></script>
+<script src="/ugc-calculator-currency-data.js?v=shared-currency-data-20261113a"></script>
+<script src="/ugc-calculator-engine.js?v=shared-v1-extraction-20261113a"></script>
+<script src="/ugc-calculators.js?v=blueprint-count-dimension-fence-fix-20261113a&amp;rev=page-count-description-20261104a&amp;visibility-restore=20261105a&amp;rev=ugc-publish-detail-routing-20261106a&amp;rev=ugc-square-card-pricing-favorites-20261106a-creator-username-label-20261106a-currency-units-stats-20261108a-save-currency-check-20261108a-owner-reaction-controls-20261108a-catalogue-inline-tags-20261108a&amp;card-preview-ellipsis-20261109a&amp;live-stat-sync-20261109a&amp;creator-discovery-slide-100=20261109a&amp;subscription-card-spacing=20261109a&amp;discovery-search-follow=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a"></script>
+<script src="/routing.js?v=profile-navigation-hardening-20261028b&amp;rev=ugc-calculator-profile-route-20261031a&amp;theme-preview-close=20261104b&amp;web-shop-settings-back=20261105a&amp;generic-route-back-20261109a&amp;hide-ugc-detail-on-route-20261109a"></script>
 
     <section class="worth-it-chat-call-overlay" id="worthItChatCallOverlay" role="dialog" aria-modal="true" aria-labelledby="worthItChatCallTitle" aria-hidden="true" hidden>
         <div class="worth-it-chat-call-card">
@@ -5224,6 +5960,7 @@ if($("carResults")){
         </div>
     </section>
     
-<script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a"></script>
+<script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a&amp;theme-wallpaper=20261105a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b&amp;profile-theme-global=20261105b&amp;button-contrast-aa=20261105c&amp;ugc-detail-favorite=20261106a"></script>
 </body>
 </html>

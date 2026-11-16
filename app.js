@@ -11,11 +11,16 @@ window.$ = function (id) {
 SUPABASE AUTH
 ========================================================= */
 
-const SUPABASE_URL =
-    "https://diutcnylnubljvpezhmq.supabase.co";
+const SUPABASE_RUNTIME_CONFIG = window.WORTH_IT_SUPABASE_CONFIG || {};
+const SUPABASE_URL = String(SUPABASE_RUNTIME_CONFIG.url || "").trim().replace(/\/+$/, "");
+const SUPABASE_PUBLISHABLE_KEY = String(SUPABASE_RUNTIME_CONFIG.publishableKey || "").trim();
 
-const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_AzgPXyMrDpruSqGt-al9gg_9gsiCopw";
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error(
+        window.WORTH_IT_SUPABASE_CONFIG_ERROR ||
+        "Worth It could not load this deployment's Supabase configuration."
+    );
+}
 
 
 window.supabaseClient =
@@ -610,6 +615,7 @@ const SUPABASE_TURNSTILE_SITE_KEY =
 let authTurnstileWidgetId = null;
 let authTurnstileToken = "";
 let authModalOpenedAt = 0;
+let authModalReturnFocus = null;
 let authTurnstileScriptPromise = null;
 
 function isTurnstileConfigured() {
@@ -651,6 +657,20 @@ function resetAuthTurnstile() {
             );
         }
     }
+}
+
+function removeAuthTurnstile() {
+    authTurnstileToken = "";
+    if (window.turnstile && authTurnstileWidgetId !== null) {
+        try {
+            window.turnstile.remove(authTurnstileWidgetId);
+        } catch (error) {
+            console.warn("Worth It Turnstile cleanup failed:", error);
+        }
+    }
+    authTurnstileWidgetId = null;
+    const holder = $("authTurnstile");
+    if (holder) holder.replaceChildren();
 }
 
 function loadAuthTurnstileScript() {
@@ -1049,6 +1069,61 @@ function setAuthStatus(message = "", type = "") {
 
 }
 
+function getAuthMailboxProvider(email) {
+    const domain = String(email || "").trim().toLowerCase().split("@").pop() || "";
+    if (["gmail.com", "googlemail.com"].includes(domain)) return "gmail";
+    if (["outlook.com", "outlook.co.uk", "hotmail.com", "hotmail.co.uk", "live.com", "live.co.uk", "msn.com"].includes(domain)) return "microsoft";
+    if (["yahoo.com", "yahoo.co.uk", "ymail.com"].includes(domain)) return "yahoo";
+    if (["icloud.com", "me.com", "mac.com"].includes(domain)) return "icloud";
+    if (["proton.me", "protonmail.com"].includes(domain)) return "proton";
+    return "other";
+}
+
+function appendAuthInboxLink(status, label, url) {
+    const link = document.createElement("a");
+    link.className = "auth-email-inbox-link";
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    status.appendChild(link);
+    return link;
+}
+
+function setAuthEmailConfirmationStatus(provider = "other", correctCredentials = false) {
+    const status = $("authModalStatus");
+    if (!status) return;
+
+    status.replaceChildren();
+    status.className = "auth-modal-status error";
+
+    const message = document.createElement("span");
+    message.textContent = correctCredentials
+        ? "Your username and password are correct, but you must confirm your email address before signing in. Check your inbox: "
+        : "Your Worth It account has been created. Confirm your email address to finish signing up. Check your inbox: ";
+    status.appendChild(message);
+
+    const inboxes = {
+        gmail: ["Gmail inbox", "https://mail.google.com/mail/u/0/#inbox"],
+        microsoft: ["Outlook / Microsoft inbox", "https://outlook.live.com/mail/0/inbox"],
+        yahoo: ["Yahoo Mail inbox", "https://mail.yahoo.com/"],
+        icloud: ["iCloud Mail inbox", "https://www.icloud.com/mail/"],
+        proton: ["Proton Mail inbox", "https://mail.proton.me/"]
+    };
+
+    if (inboxes[provider]) {
+        appendAuthInboxLink(status, inboxes[provider][0], inboxes[provider][1]);
+        return;
+    }
+
+    // Work/school domains cannot reliably reveal their mailbox provider.
+    // Offer the two common hosted inboxes without guessing the user's provider.
+    appendAuthInboxLink(status, "Gmail", "https://mail.google.com/mail/u/0/#inbox");
+    const separator = document.createTextNode(" or ");
+    status.appendChild(separator);
+    appendAuthInboxLink(status, "Outlook / Microsoft Mail", "https://outlook.office.com/mail/");
+}
+
 
 function openAuthModal(mode = "signin") {
 
@@ -1059,6 +1134,10 @@ function openAuthModal(mode = "signin") {
         $("authModalOverlay");
 
     if (!overlay) return;
+
+    if (!overlay.classList.contains("open")) {
+        authModalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
 
     authModalMode =
         ["signin", "signup", "reset", "forgot", "mfa"].includes(mode)
@@ -1107,7 +1186,7 @@ function closeAuthModal(force) {
     }
 
 
-    resetAuthTurnstile();
+    removeAuthTurnstile();
 
     const legalCheck =
         $("authLegalCheck");
@@ -1122,6 +1201,9 @@ function closeAuthModal(force) {
 
     if (!overlay) return;
 
+    if (overlay.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
     overlay.classList.remove("open");
 
     overlay.setAttribute(
@@ -1130,6 +1212,12 @@ function closeAuthModal(force) {
     );
 
     setAuthStatus("");
+
+    const returnTarget = authModalReturnFocus;
+    authModalReturnFocus = null;
+    if (returnTarget?.isConnected && !returnTarget.closest("[hidden]") && !returnTarget.closest('[aria-hidden="true"]')) {
+        setTimeout(() => returnTarget.focus(), 0);
+    }
 
 }
 
@@ -1823,10 +1911,9 @@ async function submitAuthForm(event) {
             }
 
 
-            setAuthStatus(
-                "Account created. Check your email to confirm your account.",
-                "success"
-            );
+            setAuthEmailConfirmationStatus(getAuthMailboxProvider(email), false);
+            $("authModalStatus")?.classList.remove("error");
+            $("authModalStatus")?.classList.add("success");
 
 
         } else if (authModalMode === "reset") {
@@ -1895,6 +1982,8 @@ async function submitAuthForm(event) {
 
                 authError.status =
                     response.status;
+                authError.code = payload?.code || "";
+                authError.emailProvider = payload?.emailProvider || "other";
 
                 throw authError;
             }
@@ -1984,10 +2073,14 @@ async function submitAuthForm(event) {
         }
 
 
-        setAuthStatus(
-            message,
-            "error"
-        );
+        if (error?.code === "EMAIL_NOT_CONFIRMED") {
+            setAuthEmailConfirmationStatus(error.emailProvider || "other", true);
+        } else {
+            setAuthStatus(
+                message,
+                "error"
+            );
+        }
 
 
     } finally {
@@ -3418,75 +3511,30 @@ window.decimal = decimal;
 
 function closeNavMenuUnlessPreserved(navLinks) {
     if (!navLinks) return;
-
     /*
-     * Once the user explicitly opens the hamburger, keep it open while any
-     * section is selected. All section buttons share this guard, so users can
-     * move between sections without reopening the menu each time. The
-     * hamburger button itself calls toggleMenu() and remains the close control.
+     * Keep the hamburger open while a section is selected after the user
+     * explicitly opened it. The hamburger button remains the close control.
      */
-    if (
-        navLinks.classList.contains("open") &&
-        navLinks.dataset.preserveOpen === "true"
-    ) {
-        return;
-    }
-
+    if (navLinks.classList.contains("open") && navLinks.dataset.preserveOpen === "true") return;
     navLinks.classList.remove("open");
     delete navLinks.dataset.preserveOpen;
     navLinks.setAttribute("aria-hidden", "true");
-
     const menuButton = document.querySelector(".menu-btn");
     if (menuButton) menuButton.setAttribute("aria-expanded", "false");
-
     document.documentElement.style.setProperty("--nav-scroll-lock", "0");
 }
-
 function toggleMenu() {
-    const navLinks =
-        document.getElementById("navLinks");
-
+    const navLinks = document.getElementById("navLinks");
     if (!navLinks) return;
-
-    const isOpen =
-        navLinks.classList.toggle("open");
-
-    if (isOpen) {
-        navLinks.dataset.preserveOpen = "true";
-    } else {
-        delete navLinks.dataset.preserveOpen;
-    }
-
-    navLinks.setAttribute(
-        "aria-hidden",
-        String(!isOpen)
-    );
-
-    const menuButton =
-        document.querySelector(".menu-btn");
-
-    if (menuButton) {
-        menuButton.setAttribute(
-            "aria-expanded",
-            String(isOpen)
-        );
-    }
-
-    /*
-     * The mobile navigation uses one unified menu.
-     * Keep the legacy More panel mutually exclusive with it,
-     * so the two navigation layers never remain open together.
-     */
-    if (isOpen) {
-        closeMoreMenu();
-    }
-
-    document
-        .documentElement
-        .style
-        .setProperty("--nav-scroll-lock", isOpen ? "1" : "0");
+    const isOpen = navLinks.classList.toggle("open");
+    if (isOpen) navLinks.dataset.preserveOpen = "true";
+    else delete navLinks.dataset.preserveOpen;
+    navLinks.setAttribute("aria-hidden", String(!isOpen));
+    const menuButton = document.querySelector(".menu-btn");
+    if (menuButton) menuButton.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) closeMoreMenu();
+    document.documentElement.style.setProperty("--nav-scroll-lock", isOpen ? "1" : "0");
 }
-
 window.toggleMenu = toggleMenu;
 
 function closeMoreMenu() {

@@ -179,6 +179,38 @@ async function verifySupabaseUser(env, token) {
     return user;
 }
 
+
+async function calcWalletRpc(env, token, functionName, payload) {
+    const supabaseUrl = String(env.SUPABASE_URL || "").trim().replace(/\/$/, "");
+    const supabaseKey = String(env.SUPABASE_PUBLISHABLE_KEY || "").trim();
+    if (!supabaseUrl || !supabaseKey) throw new Error("CALC wallet API configuration is missing.");
+
+    const response = await fetch(supabaseUrl + "/rest/v1/rpc/" + functionName, {
+        method: "POST",
+        headers: {
+            "apikey": supabaseKey,
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify(payload || {}),
+        cache: "no-store"
+    });
+    if (!response.ok) {
+        const detail = await response.text().catch(function () { return ""; });
+        const error = new Error("CALC wallet RPC failed with HTTP " + response.status + ".");
+        error.status = response.status;
+        error.details = detail;
+        throw error;
+    }
+    return response.json();
+}
+
+function isMissingCalcWalletRpc(error) {
+    const detail = String(error && (error.details || error.message) || "");
+    return /PGRST202|Could not find the function|schema cache|function .*calc_wallet_reserve.* does not exist/i.test(detail);
+}
+
 function createStreamResponse(stream) {
     return new Response(stream, {
         status: 200,
@@ -579,6 +611,9 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestPost(context) {
+    let calcRequestId = null;
+    let calcBillingEnabled = false;
+    let calcToken = "";
 
     recordAdminApiUsage(context, {
         apiKey: "ai-chat",
@@ -604,6 +639,7 @@ export async function onRequestPost(context) {
         }
 
         const token = getToken(request);
+        calcToken = token;
 
         if (!token) {
             return responseJson(
@@ -722,142 +758,188 @@ export async function onRequestPost(context) {
             content: message
         });
 
+        // Reserve 0.1 CALC before calling an AI provider. The reservation is
+        // finalized only after Gemini or Groq completes successfully.
+        const calcRequestCandidate = crypto.randomUUID();
+        try {
+            const reservation = await calcWalletRpc(
+                env,
+                token,
+                "calc_wallet_reserve",
+                { p_request_id: calcRequestCandidate, p_reason: "ai_chat" }
+            );
+            if (!reservation || reservation.ok !== true) {
+                if (reservation && reservation.code === "INSUFFICIENT_CALC") {
+                    return responseJson({
+                        error: "A successful AI reply costs 0.1 CALC. Your balance is too low; visit Web Shop or collect your daily reward.",
+                        code: "INSUFFICIENT_CALC",
+                        balance: reservation.balance
+                    }, 402);
+                }
+                return responseJson({
+                    error: "Could not reserve CALC for this AI request. Please try again."
+                }, 503);
+            }
+            calcRequestId = calcRequestCandidate;
+            calcBillingEnabled = true;
+        } catch (walletError) {
+            // During the staged rollout, AI remains usable without charging
+            // until the database migration has been applied. Other RPC errors
+            // fail closed because the actual balance could not be verified.
+            if (!isMissingCalcWalletRpc(walletError)) {
+                console.error("Could not reserve CALC for AI chat:", walletError);
+                return responseJson({
+                    error: "The CALC wallet is temporarily unavailable. Please try again."
+                }, 503);
+            }
+            console.warn("CALC AI billing is not active until the database migration is applied.");
+        }
+
         const stream = new ReadableStream({
             async start(controller) {
-                const send =
-                    createSSEWriter(controller);
+                const send = createSSEWriter(controller);
+
+                const refundReservation = async function () {
+                    if (!calcBillingEnabled || !calcRequestId) return;
+                    try {
+                        const result = await calcWalletRpc(
+                            env,
+                            calcToken,
+                            "calc_wallet_refund",
+                            { p_request_id: calcRequestId }
+                        );
+                        if (result && result.ok) calcRequestId = null;
+                    } catch (refundError) {
+                        console.error("Could not refund an unsuccessful AI request:", refundError);
+                    }
+                };
+
+                const settleReservation = async function () {
+                    if (!calcBillingEnabled || !calcRequestId) return true;
+                    try {
+                        const result = await calcWalletRpc(
+                            env,
+                            calcToken,
+                            "calc_wallet_settle",
+                            { p_request_id: calcRequestId }
+                        );
+                        if (result && result.ok) {
+                            calcRequestId = null;
+                            return true;
+                        }
+                    } catch (settleError) {
+                        console.error("Could not confirm CALC charge for AI reply:", settleError);
+                    }
+                    await refundReservation();
+                    return false;
+                };
 
                 try {
-                    send({
-                        type: "start"
-                    });
+                    send({ type: "start" });
 
                     if (env.GEMINI_API_KEY) {
                         try {
-                            await streamGemini(
-                                env.GEMINI_API_KEY,
-                                geminiContents,
-                                send
-                            );
+                            await streamGemini(env.GEMINI_API_KEY, geminiContents, send);
 
-                            send({
-                                type: "done",
-                                provider: "gemini"
-                            });
-
-                            controller.close();
-
-                            return;
-                        } catch (geminiError) {
-                            console.error(
-                                "Gemini streaming request failed:",
-                                geminiError
-                            );
-
-                            /*
-                             * IMPORTANT:
-                             * If Gemini already sent any part of an answer,
-                             * never switch to Groq.
-                             */
-                            if (
-                                geminiError &&
-                                geminiError.sentAnyChunk
-                            ) {
+                            if (!(await settleReservation())) {
                                 send({
                                     type: "error",
-                                    error:
-                                        "The AI response was interrupted. Please try sending your message again."
+                                    error: "The AI response finished, but its CALC transaction could not be confirmed. Refresh your balance before sending another request."
                                 });
-
                                 controller.close();
-
                                 return;
                             }
 
-                            if (
-                                !shouldUseGroq(
-                                    geminiError
-                                )
-                            ) {
+                            send({ type: "done", provider: "gemini" });
+                            controller.close();
+                            return;
+                        } catch (geminiError) {
+                            console.error("Gemini streaming request failed:", geminiError);
+
+                            if (geminiError && geminiError.sentAnyChunk) {
+                                await refundReservation();
                                 send({
                                     type: "error",
-                                    error:
-                                        "Gemini is temporarily unavailable. Please try again later."
+                                    error: "The AI response was interrupted. No CALC was charged; please try again."
                                 });
-
                                 controller.close();
+                                return;
+                            }
 
+                            if (!shouldUseGroq(geminiError)) {
+                                await refundReservation();
+                                send({
+                                    type: "error",
+                                    error: "Gemini is temporarily unavailable. No CALC was charged; please try again later."
+                                });
+                                controller.close();
                                 return;
                             }
                         }
                     }
 
                     if (!env.GROQ_API_KEY) {
+                        await refundReservation();
                         send({
                             type: "error",
-                            error:
-                                "Gemini is unavailable and Groq backup is not configured."
+                            error: "Gemini is unavailable and Groq backup is not configured. No CALC was charged."
                         });
-
                         controller.close();
-
                         return;
                     }
 
                     try {
-                        await streamGroq(
-                            env.GROQ_API_KEY,
-                            groqMessages,
-                            send
-                        );
+                        await streamGroq(env.GROQ_API_KEY, groqMessages, send);
 
-                        send({
-                            type: "done",
-                            provider: "groq"
-                        });
+                        if (!(await settleReservation())) {
+                            send({
+                                type: "error",
+                                error: "The AI response finished, but its CALC transaction could not be confirmed. Refresh your balance before sending another request."
+                            });
+                            controller.close();
+                            return;
+                        }
 
+                        send({ type: "done", provider: "groq" });
                         controller.close();
                     } catch (groqError) {
-                        console.error(
-                            "Groq streaming request failed:",
-                            groqError
-                        );
-
+                        console.error("Groq streaming request failed:", groqError);
+                        await refundReservation();
                         send({
                             type: "error",
-                            error:
-                                "Both AI providers are temporarily unavailable. Please try again later."
+                            error: "Both AI providers are temporarily unavailable. No CALC was charged; please try again later."
                         });
-
                         controller.close();
                     }
                 } catch (error) {
-                    console.error(
-                        "Unhandled ai-chat stream error:",
-                        error
-                    );
+                    console.error("Unhandled ai-chat stream error:", error);
+                    await refundReservation();
 
                     try {
                         send({
                             type: "error",
-                            error:
-                                "AI request failed. Please try again."
+                            error: "AI request failed. No CALC was charged; please try again."
                         });
                     } catch (sendError) {
-                        console.error(
-                            "Could not send stream error:",
-                            sendError
-                        );
+                        console.error("Could not send stream error:", sendError);
                     }
-
-                    try {
-                        controller.close();
-                    } catch (closeError) {
-                        console.error(
-                            "Could not close stream:",
-                            closeError
-                        );
+                    try { controller.close(); } catch (closeError) {
+                        console.error("Could not close stream:", closeError);
                     }
+                }
+            },
+            async cancel() {
+                if (!calcBillingEnabled || !calcRequestId) return;
+                try {
+                    const refund = await calcWalletRpc(
+                        env,
+                        calcToken,
+                        "calc_wallet_refund",
+                        { p_request_id: calcRequestId }
+                    );
+                    if (refund && refund.ok) calcRequestId = null;
+                } catch (cancelRefundError) {
+                    console.error("Could not refund CALC after the AI client disconnected:", cancelRefundError);
                 }
             }
         });

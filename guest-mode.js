@@ -11,6 +11,7 @@
         /^\/weather\/?$/,
         /^\/news\/?$/,
         /^\/shop\/?$/,
+        /^\/web-shop\/?$/,
         /^\/compare-cars\/?$/,
         /^\/markets\/?$/,
         /^\/currencies\/?$/,
@@ -18,7 +19,8 @@
         /^\/water-levels\/?$/,
         /^\/ship-tracking\/?$/,
         /^\/profile(?:\/|$)/,
-        /^\/chat(?:\/|$)/
+        /^\/chat(?:\/|$)/,
+        /^\/calculator\/ugc(?:\/|$)/
     ];
 
     const BUILT_IN_CALCULATORS = new Set([
@@ -36,6 +38,10 @@
         "basic", "advanced", "scientific"
     ]);
 
+    const GUEST_BILLABLE_CALCULATORS = new Set(Array.from(BUILT_IN_CALCULATORS).filter(key => !["basic", "advanced", "scientific"].includes(key)));
+
+    let activeCalculatorKey = "";
+    let guestReturnFocus = null;
     let authStateKnown = false;
     let isAuthenticated = false;
     let autoPromptActive = false;
@@ -216,6 +222,7 @@
             return;
         }
 
+        guestReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         guestLimitsOpen = true;
         checkbox.checked = false;
         continueButton.disabled = true;
@@ -230,6 +237,7 @@
         const overlay = $(GUEST_OVERLAY_ID);
         guestLimitsOpen = false;
         if (overlay) {
+            if (overlay.contains(document.activeElement) && document.activeElement instanceof HTMLElement) document.activeElement.blur();
             overlay.hidden = true;
             overlay.setAttribute("aria-hidden", "true");
         }
@@ -239,7 +247,17 @@
             autoPromptActive = false;
             if (typeof window.openAuthModal === "function") window.openAuthModal("signup");
             installSignupGuestChoice();
-            window.setTimeout(installSignupGuestChoice, 0);
+            window.setTimeout(() => {
+                installSignupGuestChoice();
+                const target = $("authEmail") || $("authSubmitBtn");
+                if (target && !target.disabled) target.focus();
+            }, 50);
+        } else {
+            const target = guestReturnFocus;
+            guestReturnFocus = null;
+            if (target?.isConnected && !target.closest("[hidden]") && !target.closest("[aria-hidden='true']")) {
+                window.setTimeout(() => target.focus(), 0);
+            }
         }
     }
 
@@ -370,21 +388,51 @@
         if (typeof original !== "function" || original.__worthItGuestCalculatorGuard) return;
         const wrapped = function (type, ...args) {
             const key = String(type == null ? "" : type).toLowerCase();
-            if (BUILT_IN_CALCULATORS.has(key)) return original.call(this, type, ...args);
+            if (BUILT_IN_CALCULATORS.has(key)) {
+                activeCalculatorKey = key;
+                return original.call(this, type, ...args);
+            }
             return guardUnknownCalculator(this, original, type, args);
         };
         wrapped.__worthItGuestCalculatorGuard = true;
         window.openCalculator = wrapped;
     }
 
+    function guardGenericCalculatorSetup() {
+        const original = window.setupGeneric;
+        if (typeof original !== "function" || original.__worthItGuestSetupGuard) return;
+        const wrapped = function (type, ...args) {
+            const key = String(type == null ? "" : type).toLowerCase();
+            const run = user => {
+                if (user) {
+                    activeCalculatorKey = key;
+                    return original.apply(this, [type, ...args]);
+                }
+                if (GUEST_BILLABLE_CALCULATORS.has(key)) {
+                    activeCalculatorKey = key;
+                    return original.apply(this, [type, ...args]);
+                }
+                return denyGuestAction("Only the first 50 built-in Worth It calculators are available to guests.");
+            };
+            return authStateKnown ? run(isAuthenticated) : resolveAuthState().then(run);
+        };
+        wrapped.__worthItGuestSetupGuard = true;
+        wrapped.__worthItGuestSetupOriginal = original;
+        window.setupGeneric = wrapped;
+    }
+
     function guardUnknownCalculator(context, original, type, args) {
         const reason = "User-created and community calculators require a Worth It account.";
         if (authStateKnown) {
-            return isAuthenticated ? original.call(context, type, ...args) : denyGuestAction(reason);
+            if (!isAuthenticated) return denyGuestAction(reason);
+            activeCalculatorKey = String(type == null ? "" : type).toLowerCase();
+            return original.call(context, type, ...args);
         }
-        return resolveAuthState().then(user => user
-            ? original.call(context, type, ...args)
-            : denyGuestAction(reason));
+        return resolveAuthState().then(user => {
+            if (!user) return denyGuestAction(reason);
+            activeCalculatorKey = String(type == null ? "" : type).toLowerCase();
+            return original.call(context, type, ...args);
+        });
     }
 
     function guardUGCButtons(event) {
@@ -420,6 +468,7 @@
         ["openWeather", "Weather is available after you create a Worth It account."],
         ["openNews", "News is available after you create a Worth It account."],
         ["openDiscounts", "Shop is available after you create a Worth It account."],
+        ["openWebShop", "The Web Shop and CALC wallet are available after you create a Worth It account."],
         ["openCars", "Compare cars is available after you create a Worth It account."],
         ["openMarkets", "Markets are available after you create a Worth It account."],
         ["openMoney", "Currencies are available after you create a Worth It account."],
@@ -430,6 +479,7 @@
         ["sendAIChatMessage", "Worth It AI Chat requires a Worth It account."],
         ["openWorthItUserSearch", "Searching for people requires a Worth It account."],
         ["openWorthItProfile", "User profiles and social features require a Worth It account."],
+        ["openWorthItUGCCalculator", "Community calculators require a Worth It account."],
         ["openWorthItProfileConnections", "Friends, followers and following lists require a Worth It account."],
         ["openWorthItProfileConnectionsForCurrent", "Friends, followers and following lists require a Worth It account."],
         ["performWorthItSocialAction", "Friend requests and following require a Worth It account."],
@@ -450,6 +500,7 @@
     function installGuards() {
         blockedFeatures.forEach(([name, reason]) => guardFunction(name, reason));
         guardBuiltInCalculatorOpener();
+        guardGenericCalculatorSetup();
 
         [
             "openUGCCalculator", "openUserGeneratedCalculator", "openUserCalculator",
@@ -558,7 +609,9 @@
             showAccountPrompt: () => showSignupModal(false),
             showGuestLimitations: showGuestLimits,
             getNextPromptAt: nextPromptAt,
-            allowedDefaultCalculators: Object.freeze(Array.from(BUILT_IN_CALCULATORS))
+            allowedDefaultCalculators: Object.freeze(Array.from(GUEST_BILLABLE_CALCULATORS)),
+            isBillableCalculator: type => GUEST_BILLABLE_CALCULATORS.has(String(type || "").toLowerCase()),
+            getActiveCalculator: () => activeCalculatorKey
         });
     }
 

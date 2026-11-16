@@ -170,12 +170,44 @@ function pickWallpaperIndex(length, excludedIndices, random) {
     const next = typeof random === "function" ? random() : Math.random();
     return choices[Math.floor(next * choices.length)];
 }
+function getConversationWallpaperTheme() {
+    const root = document.documentElement;
+    if (root?.hasAttribute("data-worth-it-custom-theme")) {
+        const style = window.getComputedStyle(root);
+        const palette = [
+            style.getPropertyValue("--primary"),
+            style.getPropertyValue("--primary2"),
+            style.getPropertyValue("--worth-it-hover-glow")
+        ].map(value => String(value || "").trim().toUpperCase())
+         .filter(value => /^#[0-9A-F]{6}$/.test(value));
+        if (palette.length) {
+            const background = String(style.getPropertyValue("--bg") || "").trim();
+            const rgb = background.match(/^#([0-9A-F]{6})$/i);
+            let isLight = false;
+            if (rgb) {
+                const channels = rgb[1].match(/.{2}/g).map(value => parseInt(value,16)/255)
+                    .map(value => value <= 0.04045 ? value/12.92 : Math.pow((value+0.055)/1.055,2.4));
+                isLight = 0.2126*channels[0] + 0.7152*channels[1] + 0.0722*channels[2] >= 0.42;
+            }
+            return {
+                key: "custom:" + palette.join(":") + ":" + (isLight ? "light" : "dark"),
+                palette,
+                mode: isLight ? "light" : "dark"
+            };
+        }
+    }
+    return root?.dataset?.theme === "light" ? "light" : "dark";
+}
 function makeConversationWallpaper(contextValue, theme, requestedWidth) {
     const key = String(contextValue?.conversationType || "chat") + ":" + String(contextValue?.conversationId || GLOBAL_CHAT_ID);
     const random = wallpaperRandom(wallpaperSeed(key));
-    const palette = theme === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
-    const opacity = theme === "light" ? ".44" : ".36";
-    const smallOpacity = theme === "light" ? ".52" : ".43";
+    const customPalette = Boolean(theme && typeof theme === "object" && Array.isArray(theme.palette));
+    const mode = customPalette ? theme.mode : theme;
+    const palette = customPalette
+        ? theme.palette
+        : mode === "light" ? CHAT_WALLPAPER_LIGHT_PALETTE : CHAT_WALLPAPER_DARK_PALETTE;
+    const opacity = customPalette ? (mode === "light" ? ".34" : ".32") : mode === "light" ? ".44" : ".36";
+    const smallOpacity = customPalette ? ".43" : mode === "light" ? ".52" : ".43";
     const cells = [];
     const canvasWidth = Math.max(600, Math.min(2400, Math.ceil((Number(requestedWidth) || 600) / 120) * 120));
     const canvasHeight = Math.round(canvasWidth * 1.5);
@@ -350,11 +382,12 @@ function applyChatWallpaper(contextValue) {
         delete surface.dataset.worthitWallpaperKey;
         return;
     }
-    const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    const theme = getConversationWallpaperTheme();
+    const themeKey = typeof theme === "string" ? theme : theme.key;
     const visibleWidth = surface.clientWidth || window.innerWidth || 600;
     const tileWidth = Math.max(600, Math.min(2400, Math.ceil((visibleWidth + 160) / 120) * 120));
     const tileHeight = Math.round(tileWidth * 1.5);
-    const key = type + ":" + String(contextValue.conversationId || GLOBAL_CHAT_ID) + ":" + theme + ":" + tileWidth;
+    const key = type + ":" + String(contextValue.conversationId || GLOBAL_CHAT_ID) + ":" + themeKey + ":" + tileWidth;
     if (surface.dataset.worthitWallpaperKey === key) return;
     const svg = makeConversationWallpaper(contextValue, theme, tileWidth);
     const encoded = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
@@ -363,6 +396,10 @@ function applyChatWallpaper(contextValue) {
     surface.style.setProperty("--worthit-chat-wallpaper-position", "0px 0px");
     surface.dataset.worthitWallpaperKey = key;
 }
+window.refreshWorthItChatWallpaper = function () {
+    applyChatWallpaper(currentContext || context());
+};
+window.addEventListener("worthit-theme-change", window.refreshWorthItChatWallpaper);
 
 
 function context() {
@@ -402,7 +439,10 @@ function updateEnhancementContext(next) {
 }
 window.addEventListener("worthitchatcontextchange", event => updateEnhancementContext(event?.detail || context()));
 const wallpaperThemeObserver = new MutationObserver(() => applyChatWallpaper(currentContext || context()));
-wallpaperThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+wallpaperThemeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme", "data-worth-it-custom-theme"]
+});
 const wallpaperSurfaceObserver = typeof ResizeObserver === "function"
     ? new ResizeObserver(() => applyChatWallpaper(currentContext || context()))
     : null;
