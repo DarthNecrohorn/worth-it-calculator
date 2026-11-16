@@ -579,3 +579,66 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
  border-color:rgba(251,191,36,.48);
  background:rgba(251,191,36,.10);
 }
+
+
+/* Phone-first Custom Theme editor: short preset cards, compact controls and
+   one-at-a-time expandable design groups keep the editor manageable on mobile. */
+@media(max-width:700px){
+ .worth-it-theme-editor{gap:10px;padding:10px;border-radius:13px}
+ .worth-it-theme-editor-head{position:sticky;top:0;z-index:4;padding:7px 2px;background:var(--surface-soft)}
+ .worth-it-theme-preset-section{gap:7px}
+ .worth-it-theme-preset-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .worth-it-theme-preset{min-height:0;padding:7px;gap:3px;border-radius:9px}
+ .worth-it-theme-preset strong{font-size:10px;line-height:1.25}
+ .worth-it-theme-preset small{font-size:9px;line-height:1.2}
+ .worth-it-theme-preset-swatches{gap:3px}
+ .worth-it-theme-preset-swatches i{width:17px;height:17px;border-radius:5px}
+ .worth-it-theme-preset-more{padding:8px;gap:7px}
+ .worth-it-theme-preset-more-head{gap:7px}
+ .worth-it-theme-preset-extra-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .worth-it-theme-preset-extra-grid .worth-it-theme-preset{min-height:0}
+ .worth-it-theme-preset-more-toggle{min-height:36px;padding:7px 9px;font-size:11px}
+ .worth-it-theme-preview-switcher{gap:5px;padding-bottom:2px}
+ .worth-it-theme-preview-switcher button{min-height:30px;padding:5px 8px;font-size:10px}
+ .worth-it-theme-preview{gap:7px;padding:8px}
+ .worth-it-theme-preview-card{gap:6px;padding:9px}
+ .worth-it-theme-preview-card p{font-size:11px;line-height:1.4}
+ .worth-it-theme-preview-controls{gap:5px;margin-top:2px}
+ .worth-it-theme-preview-controls button{min-height:30px;padding:6px 8px;font-size:10px}
+ .worth-it-theme-field{gap:4px;font-size:10px}
+ .worth-it-theme-field input[type=color]{height:34px;padding:2px}
+ .worth-it-theme-name{min-height:36px;padding:7px 9px;font-size:12px}
+ .worth-it-theme-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .worth-it-theme-style-fields select{min-height:38px;padding:7px 27px 7px 8px;font-size:11px}
+ .worth-it-theme-hex-row{gap:4px;margin-top:3px}
+ .worth-it-theme-hex-input{min-height:28px;font-size:10px}
+ .worth-it-theme-recent{gap:5px;padding-top:2px}
+ .worth-it-theme-design-section{gap:7px;padding-top:8px}
+ .worth-it-theme-mobile-accordion{gap:0;padding-top:7px}
+ .worth-it-theme-mobile-accordion-toggle{
+  width:100%;min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 11px;border:1px solid var(--border);border-radius:10px;
+  background:var(--card-solid);color:var(--text);font:inherit;font-size:12px;font-weight:850;text-align:left;
+ }
+ .worth-it-theme-mobile-accordion-toggle::after{content:"＋";flex:0 0 auto;color:var(--primary2);font-size:17px}
+ .worth-it-theme-mobile-accordion-toggle[aria-expanded="true"]{border-color:var(--primary);border-radius:10px 10px 0 0;background:color-mix(in srgb,var(--primary) 8%,var(--card-solid))}
+ .worth-it-theme-mobile-accordion-toggle[aria-expanded="true"]::after{content:"−"}
+ .worth-it-theme-mobile-accordion-content{display:grid;gap:8px;padding:10px;border:1px solid var(--border);border-top:0;border-radius:0 0 10px 10px;background:color-mix(in srgb,var(--card-solid) 94%,var(--primary) 2%)}
+ .worth-it-theme-mobile-accordion-content[hidden]{display:none!important}
+ .worth-it-theme-mobile-accordion-content>h4,
+ .worth-it-theme-mobile-accordion-content .worth-it-theme-subhead h4{display:none}
+ .worth-it-theme-mobile-accordion-content>p,
+ .worth-it-theme-mobile-accordion-content .worth-it-theme-subhead p{font-size:10px;line-height:1.4}
+ .worth-it-theme-section-actions{margin-top:0}
+ .worth-it-theme-section-actions .worth-it-theme-small-action{min-height:30px;padding:5px 8px;font-size:10px}
+ .worth-it-theme-contrast-audit{gap:5px}
+ .worth-it-theme-contrast-row{padding:7px 8px}
+ .worth-it-theme-actions{gap:6px}
+ .worth-it-theme-actions .settings-option{min-height:38px;padding:8px 10px;font-size:11px}
+ .worth-it-theme-status{font-size:11px;line-height:1.4}
+}
+@media(max-width:380px){
+ .worth-it-theme-preset-grid,.worth-it-theme-preset-extra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .worth-it-theme-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .worth-it-theme-editor-head strong{font-size:13px}
+}
