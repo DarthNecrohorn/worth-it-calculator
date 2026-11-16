@@ -1169,7 +1169,7 @@ begin
         select 1 from jsonb_array_elements(notices) n
          where n->>'type'='ugc_published'
            and n->>'ugc_calculator_id'=current_setting('test.ugc_id')
-           and n->>'calculator_title'='Monthly savings growth'
+           and n->>'calculator_title'='Monthly savings growth — revised'
            and n->>'calculator_number'='51'
     ) then raise exception 'A follower did not receive the new public UGC calculator notification: %',notices; end if;
 end
