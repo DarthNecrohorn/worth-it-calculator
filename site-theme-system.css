@@ -1018,3 +1018,90 @@ html[data-worth-it-custom-theme] .worth-it-profile-section .worth-it-profile-pre
         transform: translateY(6px) !important;
     }
 }
+
+
+/* Dashboard surfaces and controls follow the active Custom Theme, not the previously selected Dark/Light mode. */
+html[data-worth-it-custom-theme] :is(
+ #marketsSection,#cryptoSection,#waterLevelsSection,#moneySection,#carsSection,
+ #weatherSection,#newsSection,#shipTrackingSection,#shopSection
+){
+ --wt-section-accent:var(--primary);
+ --wt-section-accent-strong:var(--primary2);
+ --wt-section-card:linear-gradient(145deg,color-mix(in srgb,var(--card-solid) 94%,var(--primary) 6%),var(--card-solid));
+ --wt-section-card-hover:linear-gradient(145deg,color-mix(in srgb,var(--card2) 90%,var(--primary) 10%),var(--card2));
+ --wt-section-soft:color-mix(in srgb,var(--card-solid) 88%,var(--primary) 12%);
+ --wt-section-control:var(--card-solid);
+ --wt-section-border:var(--border);
+ --wt-section-shadow:var(--shadow);
+ --wt-section-hover-shadow:0 14px 32px color-mix(in srgb,var(--primary) 18%,transparent);
+ color:var(--text)!important;
+}
+
+/* Community calculator catalogue and Manual Builder surfaces use the selected palette. */
+html[data-worth-it-custom-theme] :is(
+ #ugcCommunitySection,.ugc-community-section
+){
+ color:var(--text)!important;
+ border-color:var(--border)!important;
+ background:
+  radial-gradient(ellipse at 5% 0%,color-mix(in srgb,var(--primary) 10%,transparent),transparent 42%),
+  linear-gradient(145deg,var(--bg),var(--bg2))!important;
+}
+html[data-worth-it-custom-theme] :is(
+ .ugc-calculator-card,.ugc-maker-card,.ugc-detail-calculator-card,
+ .ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites,
+ .worth-it-profile-favourite-card
+){
+ color:var(--text)!important;
+ background:var(--card)!important;
+ border-color:var(--border)!important;
+}
+html[data-worth-it-custom-theme] :is(
+ .ugc-manual-controls,.ugc-maker-schema-group,.ugc-dynamic-group,
+ .ugc-maker-dynamic-field-editor,.ugc-maker-scenario-editor,
+ .ugc-maker-scenarios,.ugc-blueprint-import,.ugc-catalog-tools,
+ .ugc-detail-description-editor,.ugc-maker-preview,.ugc-maker-edit-grid
+){
+ color:var(--text)!important;
+ background:var(--surface-soft)!important;
+ border-color:var(--border)!important;
+}
+html[data-worth-it-custom-theme] :is(
+ .ugc-calculator-card,.ugc-maker-card,.ugc-detail-calculator-card,
+ .ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites,
+ .ugc-community-section
+) :is(p,small,span,label,legend){color:inherit}
+html[data-worth-it-custom-theme] :is(
+ .ugc-catalog-tools input,.ugc-catalog-tools select,
+ .ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,
+ .ugc-detail-description-editor textarea,.ugc-input-field input,
+ .ugc-maker-input-grid input,.ugc-maker-input-grid textarea,.ugc-maker-input-grid select
+){
+ color:var(--text)!important;
+ background:var(--card-solid)!important;
+ border-color:var(--border)!important;
+}
+html[data-worth-it-custom-theme] :is(
+ .ugc-maker-card h2,.ugc-maker-card h3,.ugc-maker-card h4,
+ .ugc-detail-calculator-card h2,.ugc-results-panel h3,
+ .ugc-community-section h2,.ugc-community-section h3
+){color:var(--worth-it-theme-heading-color)!important}
+
+/* UGC primary actions inherit the user's selected button treatment. */
+html[data-worth-it-custom-theme] body :is(.ugc-primary-button,.ugc-action-primary,.ugc-calculate-button){
+ border-radius:var(--worth-it-theme-control-radius)!important;
+ border-color:transparent!important;
+ background:var(--worth-it-theme-gradient)!important;
+ color:var(--worth-it-gradient-foreground)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body :is(.ugc-primary-button,.ugc-action-primary,.ugc-calculate-button){
+ background:var(--worth-it-button-primary-background)!important;
+ border-color:var(--worth-it-button-primary-background)!important;
+ color:var(--worth-it-primary-foreground)!important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body :is(.ugc-primary-button,.ugc-action-primary,.ugc-calculate-button){
+ background:transparent!important;
+ border:1px solid var(--primary)!important;
+ color:var(--worth-it-primary-readable)!important;
+}
+
