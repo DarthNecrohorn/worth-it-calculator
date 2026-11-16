@@ -119,7 +119,7 @@ function accessibleThemeText(color,surfaces){
  const clean=validHex(color)?color.toUpperCase():"#FFFFFF";
  const backgrounds=(Array.isArray(surfaces)?surfaces:[]).filter(validHex);
  if(!backgrounds.length||backgrounds.every(background=>contrastRatio(clean,background)>=4.5))return clean;
- const candidates=["#FFFFFF","#08111F"];
+ const candidates=["#FFFFFF","#000000"];
  return candidates.sort((a,b)=>{
   const score=value=>Math.min(...backgrounds.map(background=>contrastRatio(value,background)));
   return score(b)-score(a);
@@ -139,7 +139,7 @@ function contrastRatio(a,b){
  return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
 }
 function contrastForeground(hex){
- return contrastRatio(hex,"#FFFFFF")>=contrastRatio(hex,"#08111F")?"#FFFFFF":"#08111F";
+ return contrastRatio(hex,"#FFFFFF")>=contrastRatio(hex,"#000000")?"#FFFFFF":"#000000";
 }
 function mixHex(first,second,amount){
  const a=hexRgb(first),b=hexRgb(second);
@@ -149,7 +149,7 @@ function mixHex(first,second,amount){
 function accessibleButtonBackground(background,foreground){
  const original=validHex(background)?background.toUpperCase():"#7C5CFF";
  if(contrastRatio(foreground,original)>=4.5)return original;
- const target=foreground.toUpperCase()==="#08111F"?"#FFFFFF":"#08111F";
+ const target=foreground.toUpperCase()==="#000000"?"#FFFFFF":"#000000";
  for(let amount=0.02;amount<=1;amount+=0.02){
   const candidate=mixHex(original,target,amount);
   if(contrastRatio(foreground,candidate)>=4.5)return candidate;
@@ -169,7 +169,7 @@ function readableAccent(hex){
 }
 function gradientForeground(primary,secondary){
  const whiteScore=Math.min(contrastRatio("#FFFFFF",primary),contrastRatio("#FFFFFF",secondary));
- const dark="#08111F";
+ const dark="#000000";
  const darkScore=Math.min(contrastRatio(dark,primary),contrastRatio(dark,secondary));
  return whiteScore>=darkScore?"#FFFFFF":dark;
 }
