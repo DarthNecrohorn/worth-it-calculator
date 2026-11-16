@@ -1498,3 +1498,44 @@ html[data-worth-it-custom-theme] #homePage .hero .badge {
     font-weight: var(--worth-it-theme-body-font-weight, 600) !important;
     letter-spacing: var(--worth-it-theme-body-text-letter-spacing, var(--worth-it-theme-body-letter-spacing, normal)) !important;
 }
+
+/* The two homepage calls to action keep the selected palette's own accent glow.
+   Their old base styles used a permanent violet shadow, independent of Custom Theme. */
+html[data-worth-it-custom-theme] #homePage .hero-actions > .btn-primary,
+html[data-worth-it-custom-theme] #homePage .hero-calculator-action > .btn-secondary {
+    border-radius: var(--worth-it-theme-control-radius, 12px) !important;
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+    box-shadow:
+        0 10px 28px color-mix(in srgb, var(--primary) 28%, transparent),
+        0 0 20px color-mix(in srgb, var(--primary2) 20%, transparent) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] #homePage .hero-actions > .btn-primary,
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] #homePage .hero-calculator-action > .btn-secondary {
+    background: var(--worth-it-button-primary-background) !important;
+    border-color: var(--worth-it-button-primary-background) !important;
+    color: var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] #homePage .hero-actions > .btn-primary,
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] #homePage .hero-calculator-action > .btn-secondary {
+    background: transparent !important;
+    border: 1px solid var(--primary) !important;
+    color: var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] #homePage .hero-actions > .btn-primary,
+html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] #homePage .hero-calculator-action > .btn-secondary {
+    background: var(--worth-it-theme-gradient) !important;
+    border-color: transparent !important;
+    color: var(--worth-it-gradient-foreground) !important;
+}
+
+/* Keep the floating chat history shortcut centred for every theme and hover preset.
+   Generic button hover rules may request a vertical lift; this control must only scale. */
+button.worth-it-chat-travel-present:not([disabled]):hover,
+button.worth-it-chat-travel-present:not([disabled]):focus-visible {
+    transform: translateX(-50%) scale(1.045) !important;
+}
+button.worth-it-chat-travel-present:not([disabled]):active {
+    transform: translateX(-50%) scale(.96) !important;
+}
