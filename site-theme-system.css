@@ -1540,6 +1540,26 @@ button.worth-it-chat-travel-present:not([disabled]):active {
     transform: translateX(-50%) scale(.96) !important;
 }
 
+/* Detail-panel arrows have a permanent top:50% anchor.
+   Keep that centering when Custom Theme disables generic button transforms,
+   and use only a subtle scale on hover/focus for these four controls. */
+body button:is(
+    .worth-it-market-detail-navigation,
+    .currency-detail-nav,
+    .crypto-detail-nav,
+    .water-levels-detail-nav
+):is(:hover,:focus-visible):not(:disabled) {
+    transform:translateY(-50%) scale(1.025) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] body button:is(
+    .worth-it-market-detail-navigation,
+    .currency-detail-nav,
+    .crypto-detail-nav,
+    .water-levels-detail-nav
+):is(:hover,:focus-visible):not(:disabled) {
+    transform:translateY(-50%) scale(1.025) !important;
+}
+
 /* The chat history shortcut must keep its centred anchor under every Custom Theme
    hover preset, including the high-specificity global "none" transform rule.
    Its unique ID intentionally outranks generic button hover selectors. */
