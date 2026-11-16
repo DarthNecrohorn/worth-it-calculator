@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html = read("index.html");
@@ -13,7 +13,10 @@ const economyFollowup = read("supabase/calc-economy-followup.sql");
 const creatorEarnings = read("supabase/worth-it-ugc-creator-earnings.sql");
 const creatorPriceCap = read("supabase/worth-it-ugc-creator-earnings-price-cap.sql");
 const ugc = read("ugc-calculators.js");
-const ai = read("functions/api/ai-chat.js");
+const aiMaker = read("functions/api/ugc-maker.js");
+const aiChatApi = read("functions/api/ai-chat.js");
+const aiChatUi = read("ai-ui.js");
+const aiUgcDisable = read("supabase/worth-it-ugc-ai-creator-disable.sql");
 const mediaApi = read("functions/api/chat-media.js");
 const chat = read("chat-ui.js");
 const profile = read("profile-ui.js");
@@ -178,20 +181,24 @@ test("Custom Theme persistence is restricted to active Premium Lite/Premium at t
     assert.ok(setup.includes("enable row level security"));
 });
 
-test("AI reservations settle only after successful Gemini or Groq replies and failure paths refund", () => {
-    const reserve = ai.indexOf('"calc_wallet_reserve"');
-    const settle = ai.indexOf('"calc_wallet_settle"');
-    const refund = ai.indexOf('"calc_wallet_refund"');
-    const geminiSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (env.GEMINI_API_KEY)"));
-    const groqSettleCall = ai.indexOf("if (!(await settleReservation()))", ai.indexOf("if (!env.GROQ_API_KEY)"));
-    const geminiDone = ai.indexOf('type: "done", provider: "gemini"');
-    const groqDone = ai.indexOf('type: "done", provider: "groq"');
-    assert.ok(reserve >= 0 && settle > reserve && refund > reserve);
-    assert.ok(geminiSettleCall > reserve && geminiDone > geminiSettleCall);
-    assert.ok(groqSettleCall > reserve && groqDone > groqSettleCall);
-    assert.match(ai, /INSUFFICIENT_CALC/);
-    assert.match(ai, /No CALC was charged/);
-    assert.match(ai, /async cancel\(\)/);
+test("AI Chat is restored independently while user-facing AI UGC creation and billing are disabled", () => {
+    assert.match(aiChatApi, /export async function onRequestPost\(context\)/);
+    assert.match(aiChatApi, /isAllowedAIChatOrigin\(origin\)/);
+    assert.match(aiChatApi, /Please sign in to use Worth It AI/);
+    assert.match(aiChatApi, /streamGemini/);
+    assert.match(aiChatApi, /streamGroq/);
+    assert.match(aiChatUi, /\/api\/ai-chat/);
+    assert.match(aiChatUi, /function openAIChat/);
+    assert.match(html, /id="aiChatNavBtn"/);
+    assert.match(html, /id="aiChatOverlay"/);
+
+    assert.match(aiMaker, /AI_UGC_CREATOR_DISABLED/);
+    assert.match(aiMaker, /AI generation and AI improvement for community calculators have been removed/);
+    assert.match(aiUgcDisable, /revoke all on function public\.reserve_worth_it_ugc_ai_operation/);
+    assert.match(aiUgcDisable, /revoke all on function public\.reserve_worth_it_ugc_maker_generation_v2/);
+    assert.doesNotMatch(ugc, /generateWithAI|switchManualDraftToAI|Improve with AI/);
+    assert.match(ugc, /p_source:"manual"/);
+    assert.match(ugc, /p_ai_request_id:null/);
 });
 
 test("chat media limits are enforced server-side and dynamically validated in the composer", () => {

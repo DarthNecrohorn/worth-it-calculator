@@ -475,8 +475,6 @@
         ["openCrypto", "Cryptocurrency data is available after you create a Worth It account."],
         ["openWaterLevels", "Water levels are available after you create a Worth It account."],
         ["openShipTracking", "Ship tracking is available after you create a Worth It account."],
-        ["openAIChat", "Worth It AI Chat requires a Worth It account."],
-        ["sendAIChatMessage", "Worth It AI Chat requires a Worth It account."],
         ["openWorthItUserSearch", "Searching for people requires a Worth It account."],
         ["openWorthItProfile", "User profiles and social features require a Worth It account."],
         ["openWorthItUGCCalculator", "Community calculators require a Worth It account."],

@@ -67,9 +67,9 @@ test("all requested website sections are account-gated", () => {
     assert.match(guest, /restoreHomeIfOnRestrictedPath/);
 });
 
-test("AI, search, social actions and all chat types are account-gated", () => {
+test("Search, social actions and all chat types are account-gated", () => {
     for (const name of [
-        "openAIChat", "sendAIChatMessage", "openWorthItUserSearch",
+        "openWorthItUserSearch",
         "openWorthItProfile", "performWorthItSocialAction",
         "performWorthItPendingRequestAction", "toggleWorthItNotifications",
         "toggleWorthItChat", "openWorthItGlobalChat", "openWorthItFriendChat",

@@ -53,6 +53,129 @@ function blueprint(overrides={}){
  };
 }
 
+
+function typedV2Blueprint(overrides={}){
+ return{
+  blueprintVersion:2,
+  title:"Typed Household Expense Calculator",
+  description:"Calculate eligible expenses, tax and a date-based projection using typed household inputs.",
+  category:"home",
+  subcategories:["household-budget"],
+  assumptions:["All monetary amounts use EUR.","Dates are calendar dates without timezone semantics."],
+  spec:{
+   schemaVersion:2,engineVersion:2,
+   inputs:[
+    {key:"base_cost",label:"Base cost",type:"number",control:"number",min:0,max:10000,default:100,step:1,unit:"EUR"},
+    {key:"include_tax",label:"Include tax",type:"boolean",control:"toggle",default:true},
+    {key:"plan",label:"Plan",type:"enum",control:"select",default:"pro",choices:[{label:"Basic",value:"basic"},{label:"Pro",value:"pro"}]},
+    {key:"start_date",label:"Start date",type:"date",control:"date",default:"2026-01-31"},
+    {key:"day_offset",label:"Day offset",type:"number",control:"number",min:0,max:365,default:7,step:1,unit:"days"}
+   ],
+   groups:[{
+    key:"expenses",label:"Expenses",itemLabel:"Expense",minItems:1,maxItems:4,
+    fields:[
+     {key:"amount",label:"Amount",type:"number",min:0,max:1000,default:10,step:1,unit:"EUR"},
+     {key:"taxable",label:"Taxable",type:"boolean",default:true},
+     {key:"kind",label:"Kind",type:"enum",default:"fixed",choices:[{label:"Fixed",value:"fixed"},{label:"Variable",value:"variable"}]},
+     {key:"due_date",label:"Due date",type:"date",default:"2026-02-15"}
+    ]
+   }],
+   results:[
+    {key:"eligible_expenses",label:"Eligible expenses",expression:"sum_if(expenses.amount, and(expenses.taxable, eq(expenses.kind, \"fixed\")))",format:"currency",currency:"EUR",explanation:"Taxable fixed expenses."},
+    {key:"tax_amount",label:"Tax amount",expression:"if(and(include_tax, eq(plan, \"pro\")), base_cost * 0.2, 0)",format:"currency",currency:"EUR",explanation:"Tax when enabled for the Pro plan."},
+    {key:"final_total",label:"Final total",expression:"base_cost + eligible_expenses + tax_amount",format:"currency",currency:"EUR",explanation:"Base cost plus eligible expenses and tax."},
+    {key:"day_span",label:"Day span",expression:"date_diff_days(start_date, add_days(start_date, day_offset))",format:"unit",unit:"days",explanation:"Calendar days in the selected interval."}
+   ],
+   scenarios:[{label:"Basic plan without tax",values:{include_tax:false,plan:"basic",start_date:"2024-01-31"}}]
+  },
+  ...overrides
+ };
+}
+function makeTypedV2Validator(engine){
+ return spec=>{
+  const validation=engine.validateVersionedSpec(spec);
+  if(validation.errors.length)return validation;
+  const inputs=engine.createDefaultTypedValues(spec),groups=engine.createDefaultTypedGroupValues(spec);
+  if(!inputs.valid)return{errors:inputs.errors};
+  if(!groups.valid)return{errors:groups.errors};
+  try{engine.evaluateV2TypedResults(spec,inputs.values,groups.groups);}
+  catch(error){return{errors:[String(error?.message||"Default formula evaluation failed.")]};}
+  return{errors:[]};
+ };
+}
+
+test("imports a strict typed V2 blueprint and evaluates typed formulas, scenarios and groups",()=>{
+ const importer=getImporter(),engine=getManualEngine(),candidate=typedV2Blueprint();
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),makeTypedV2Validator(engine),"Build a typed household expense calculator with tax and dates.");
+ assert.equal(definition.title,candidate.title);
+ assert.equal(definition.spec.schemaVersion,2);
+ assert.equal(definition.spec.engineVersion,2);
+ assert.deepEqual(plain(definition.spec.subcategories),["household-budget"]);
+ assert.deepEqual(plain(definition.spec.assumptions),candidate.assumptions);
+ assert.deepEqual(plain(definition.spec.inputs.map(item=>item.type)),["number","boolean","enum","date","number"]);
+ assert.equal(definition.spec.inputs[1].default,true);
+ assert.equal(definition.spec.inputs[2].default,"pro");
+ assert.equal(definition.spec.inputs[3].default,"2026-01-31");
+ assert.equal(definition.spec.groups[0].fields[1].type,"boolean");
+ assert.equal(definition.spec.groups[0].fields[2].type,"enum");
+ assert.equal(definition.spec.groups[0].fields[3].type,"date");
+ assert.equal(definition.spec.scenarios[0].values.include_tax,false);
+ assert.equal(definition.spec.scenarios[0].values.start_date,"2024-01-31");
+ assert.ok(Array.isArray(definition.importNotes)&&definition.importNotes.length>0);
+ assert.deepEqual(plain(definition.importValidationIssues||[]),[]);
+ assert.equal(definition.importValidationIssueCount||0,0);
+ const engineSpec=plain(definition.spec);delete engineSpec.assumptions;delete engineSpec.subcategories;
+ const defaults=engine.createDefaultTypedValues(engineSpec),groups=engine.createDefaultTypedGroupValues(engineSpec);
+ const evaluated=engine.evaluateV2TypedResults(engineSpec,defaults.values,groups.groups);
+ const values=Object.fromEntries(evaluated.results.map(item=>[item.key,item.value]));
+ assert.equal(values.eligible_expenses,10);
+ assert.equal(values.tax_amount,20);
+ assert.equal(values.final_total,130);
+ assert.equal(values.day_span,7);
+});
+
+test("keeps structurally valid V2 blueprints with formula issues editable without rewriting typed values",()=>{
+ const importer=getImporter(),engine=getManualEngine(),candidate=typedV2Blueprint();
+ candidate.spec.results[1].expression="if(base_cost, base_cost + 1, 0)";
+ const original=candidate.spec.results[1].expression;
+ const definition=importer.parseBlueprint(JSON.stringify(candidate),makeTypedV2Validator(engine));
+ assert.equal(definition.spec.schemaVersion,2);
+ assert.equal(definition.spec.results[1].expression,original);
+ assert.equal(definition.spec.inputs[1].type,"boolean");
+ assert.equal(definition.spec.inputs[1].default,true);
+ assert.ok(definition.importValidationIssueCount>0);
+ assert.ok(definition.importValidationIssues.some(issue=>/condition must be boolean/.test(issue)));
+ assert.ok(definition.importNotes.some(note=>/typed V2 blueprint imported as an editable local draft/i.test(note)));
+});
+
+test("rejects malformed V2 version pairs, dates, enum defaults, duplicate keys and unknown properties",()=>{
+ const importer=getImporter(),engine=getManualEngine(),validate=makeTypedV2Validator(engine);
+ const mismatch=typedV2Blueprint();mismatch.spec.engineVersion=1;
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(mismatch),validate),/schemaVersion 2 and engineVersion 2/);
+ const badDate=typedV2Blueprint();badDate.spec.inputs[3].default="2026-02-30";
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(badDate),validate),/real YYYY-MM-DD calendar date/);
+ const badEnum=typedV2Blueprint();badEnum.spec.inputs[2].default="enterprise";
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(badEnum),validate),/must exactly match|choices must include/i);
+ const duplicate=typedV2Blueprint();duplicate.spec.groups[0].fields[0].key="base_cost";
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(duplicate),validate),/unique across the complete blueprint/);
+ const unknown=typedV2Blueprint();unknown.spec.inputs[0].script="alert(1)";
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(unknown),validate),/unsupported property/);
+ const wrongScenario=typedV2Blueprint();wrongScenario.spec.scenarios[0].values.include_tax="false";
+ assert.throws(()=>importer.parseBlueprint(JSON.stringify(wrongScenario),validate),/must be true or false/);
+});
+
+test("copies provider-neutral prompts for V1 and the typed V2 blueprint contract",()=>{
+ const importer=getImporter();
+ const v1=importer.buildPrompt(),v2=importer.buildPrompt(2);
+ assert.match(v1,/blueprintVersion 1/);
+ assert.match(v2,/blueprintVersion 2/);
+ assert.match(v2,/"schemaVersion": 2,[\s\S]*"engineVersion": 2/);
+ assert.match(v2,/Boolean inputs use type boolean/);
+ assert.match(v2,/date_diff_days/);
+ assert.match(v2,/sum_if/);
+ assert.doesNotMatch(v2,/USER'S ACTUAL CALCULATOR REQUEST:[\s\S]*blueprintVersion 1/);
+});
+
 test("imports a valid version-1 blueprint into the current Manual Builder definition shape",()=>{
  const importer=getImporter();
  const definition=importer.parseBlueprint(JSON.stringify(blueprint()),()=>({errors:[]}));
@@ -865,10 +988,11 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(html,/ugc-blueprint-import\.js/);
  const importFunction=builderSource.match(/function importManualBlueprint\(\)\{[\s\S]*?\n\}/)?.[0]||"";
  assert.ok(importFunction.includes("parseBlueprint"));
- assert.ok(importFunction.includes("parseBlueprint(raw,validateMakerSpec,originalRequest)"));
+ assert.ok(importFunction.includes("parseBlueprint(raw,validateManualDraftSpec,originalRequest)"));
  assert.doesNotMatch(importFunction,/parseBlueprint\(raw,\s*spec\s*=>/);
  assert.ok(importFunction.includes("Working on a quick fix"));
  assert.ok(importFunction.includes("importValidationIssueCount"));
+ assert.ok(importFunction.includes("typedV2"));
  assert.ok(importFunction.includes('state.creationSource="manual"'));
  assert.ok(importFunction.includes('state.aiOperationId=""'));
  assert.doesNotMatch(importFunction,/fetch\s*\(|\/api\/ugc-maker|\.rpc\s*\(/);
@@ -879,6 +1003,53 @@ test("Manual Builder exposes the optional importer without wiring it to the Wort
  assert.match(builderSource,/ugcBlueprintImportButton/);
  assert.match(builderSource,/ugcMakerAssumptions/);
  assert.match(builderSource,/maxLength=5000/);
+});
+
+test("Blueprint import keeps V1 and V2 schema detection in scope through completion",async()=>{
+ const start=builderSource.indexOf("async function importManualBlueprint(){");
+ const end=builderSource.indexOf("\nfunction renderManualGroupEditor(host,definition){",start);
+ assert.ok(start>=0&&end>start,"the complete import handler must exist");
+ const importSource=builderSource.slice(start,end)+"\nthis.runImport=importManualBlueprint;";
+ async function run(version){
+  const nodes={
+   ugcBlueprintImportStatus:{textContent:""},
+   ugcBlueprintImportJson:{value:"{}"},
+   ugcBlueprintImportButton:{textContent:"Import",disabled:false},
+   ugcBlueprintOriginalRequest:{value:""},
+   ugcManualMode:{value:"quick"},
+   ugcManualTemplateWrap:{hidden:false}
+  };
+  const messages=[];
+  const definition={
+   title:"Subscription Cost Planner",
+   description:"Calculate subscription costs over a selected period and compare durations.",
+   category:"money",
+   spec:{schemaVersion:version,engineVersion:version,inputs:[],groups:[],results:[],scenarios:[]}
+  };
+  const sandbox={
+   state:{editingId:null,aiDraft:null,creationSource:"manual",aiOperationId:"",manualMode:"quick",manualTemplateKey:"",blueprintImportActive:false,regionalDefaults:null,makerLocale:""},
+   window:{WorthItBlueprintImport:{parseBlueprint:()=>definition},confirm:()=>true},
+   $:id=>nodes[id]||null,
+   setTimeout:callback=>{callback();return 1;},
+   validateManualDraftSpec:()=>({errors:[]}),
+   makerStatus:message=>messages.push(String(message)),
+   setMakerModeUI:()=>{},
+   renderMakerPreview:()=>{}
+  };
+  runInNewContext(importSource,sandbox);
+  await sandbox.runImport();
+  return {definition,state:sandbox.state,nodes,messages};
+ }
+ const v1=await run(1);
+ assert.equal(v1.state.aiDraft,v1.definition);
+ assert.equal(v1.state.blueprintImportActive,true);
+ assert.ok(v1.messages.some(message=>message.includes("Quick Fix complete")),v1.messages.join("\n"));
+ assert.doesNotMatch(v1.nodes.ugcBlueprintImportStatus.textContent,/typedV2 is not defined|Creator could not complete/i);
+ const v2=await run(2);
+ assert.equal(v2.state.aiDraft,v2.definition);
+ assert.equal(v2.state.blueprintImportActive,true);
+ assert.ok(v2.messages.some(message=>message.includes("Typed V2 blueprint passed")),v2.messages.join("\n"));
+ assert.doesNotMatch(v2.nodes.ugcBlueprintImportStatus.textContent,/typedV2 is not defined|Creator could not complete/i);
 });
 
 test("if() evaluates only the selected branch so guarded division is safe at zero",()=>{
