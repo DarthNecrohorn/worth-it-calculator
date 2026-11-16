@@ -182,9 +182,9 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .feedbac
 .admin-user-report-readonly-hint strong{color:var(--text);text-transform:capitalize}
 
 
-/* UGC-only social controls. Keep the star glyph slightly above the button centre. */
+/* Keep the UGC favourite star vertically centred inside its button. */
 .calc-favorite-toggle{top:12px}
-.calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(-2px)}
+.calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(0px)}
 
 /* Keep the site-owner calculator catalogue in three columns on phones. */
 @media(max-width:700px){

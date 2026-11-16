@@ -36,6 +36,7 @@ const editDetailsSql = read("supabase/worth-it-ugc-edit-details.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
+const communityStyle = read("community-features.css");
 const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
@@ -382,7 +383,12 @@ test("saved UGC calculators allow owner title edits while keeping category fixed
     assert.match(maker,/You can update the title and description here/);
     assert.match(maker,/p_title:title,p_description:description,p_category:category/);
     assert.match(editDetailsSql,/new\.category is distinct from old\.category/);
-    assert.match(editDetailsSql,/new\.title is distinct from old\.title[\s\S]*?not between 3 and 70/);
+    assert.match(editDetailsSql,/new\.title is distinct from old\.title[\s\S]*?not between 3 and 75/);
+    assert.match(editDetailsSql,/add column if not exists title_changed_at timestamptz/);
+    assert.match(editDetailsSql,/old\.title_changed_at \+ interval '10 minutes'/);
+    assert.match(editDetailsSql,/update_worth_it_ugc_calculator_title/);
+    assert.match(editDetailsSql,/get_worth_it_ugc_title_status/);
+    assert.match(editDetailsSql,/grant execute on function public\.update_worth_it_ugc_calculator_title\(uuid,text\) to authenticated/);
     assert.doesNotMatch(editDetailsSql,/cannot be changed into a different calculator/);
     assert.match(editDetailsSql,/old\.description_changed_at \+ interval '10 minutes'/);
     assert.match(editDetailsSql,/new\.description_changed_at := v_now/);
@@ -1207,15 +1213,29 @@ test("UGC catalogue descriptions use the same 120-character preview and placemen
         "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current..."
     );
     assert.equal(preview("A short calculator description."), "A short calculator description.");
-    assert.ok(maker.includes("const limit=120"));
+    assert.ok(maker.includes("const limit=isDesktop?91:120"));
+    const desktopPreview = runInNewContext("(" + maker.slice(helperStart, helperEnd) + ")", {
+        window: { matchMedia: () => ({ matches: true }) }
+    });
+    const requestedExcerpt = "Evaluates whether a purchase, upgrade, or recurring commitment is worth the net cost over a";
+    assert.equal(desktopPreview(requestedExcerpt + " premium replacement or subscription over time."), requestedExcerpt + "...");
     assert.ok(maker.includes('replace(/[.!?…]+$/,"")+"..."'));
     assert.ok(maker.includes("descriptionNode.title=fullDescription"));
     assert.ok(maker.includes('description.textContent=calculator.description||"No description provided."'));
     assert.ok(maker.includes("descInput.maxLength=500"));
     assert.ok(html.includes('id="ugcDetailDescriptionInput"') && html.includes('maxlength="500"'));
+    const titleEditorPosition = html.indexOf('id="ugcDetailTitleEditor"');
+    const descriptionEditorPosition = html.indexOf('id="ugcDetailDescriptionEditor"');
+    assert.ok(titleEditorPosition >= 0 && titleEditorPosition < descriptionEditorPosition, "The owner title field must appear above the description editor.");
+    assert.match(html, /id="ugcDetailTitleInput"[^>]*maxlength="75"/);
+    assert.ok(maker.includes('update_worth_it_ugc_calculator_title'));
+    assert.ok(maker.includes('get_worth_it_ugc_title_status'));
     assert.ok(sqlEnhancements.includes("char_length(v_description)>500"));
     assert.ok(visibilitySql.includes("char_length(v_description)>500"));
     assert.ok(paginationCss.includes(".ugc-calculator-card .ugc-card-description{\n transform:translateY(0px);\n}"));
+    assert.match(paginationCss,/\.ugc-detail-description-editor\{position:relative;top:-10px\}/);
+    assert.match(paginationCss,/\.ugc-maker-description-field,\.ugc-maker-description-help\{position:relative;top:-10px\}/);
+    assert.match(communityStyle,/\.calc-favorite-icon\{display:inline-block;line-height:1;transform:translateY\(0px\)\}/);
     assert.match(paginationCss, /@media\(min-width:701px\)\{\s*\.ugc-calculator-card \.ugc-card-description\{\s*transform:translateY\(-5px\);\s*\}\s*\}/);
     assert.doesNotMatch(paginationCss, /@media\(max-width:700px\)\{[^}]*\.ugc-calculator-card \.ugc-card-description\{[^}]*transform:translateY\(-5px\)/);
     assert.ok(!paginationCss.includes(".ugc-calculator-card.ugc-card-subscription-savings .ugc-card-description"));

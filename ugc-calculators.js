@@ -44,7 +44,7 @@ function getCategoryLabels(item){
  const extras=keys.map(key=>CATEGORY_LABELS[key]).filter(Boolean);
  return [main,...extras.filter(label=>label!==main)];
 }
-let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
+let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,titleStatusRequest:0,titleStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
 let manualModeHelpExpanded=false;
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
@@ -297,7 +297,8 @@ async function loadCreatorLeaderboards(){
 function cardDescriptionPreview(description){
  const full=String(description||"").trim().replace(/\s+/g," ");
  if(!full)return "No description provided.";
- const limit=120;
+ const isDesktop=typeof window!=="undefined"&&typeof window.matchMedia==="function"&&window.matchMedia("(min-width: 701px)").matches;
+ const limit=isDesktop?91:120;
  if(full.length<=limit)return full;
  return full.slice(0,limit).trimEnd().replace(/[.!?…]+$/,"")+"...";
 }
@@ -1601,6 +1602,8 @@ function detailShow(calculator,fromUrl){
   owner.href=calculator.owner_worth_it_id?"/profile/"+calculator.owner_worth_it_id:"#";
  }
  renderDetailStats(calculator);
+ const titleEditor=$("ugcDetailTitleEditor");
+ if(titleEditor){titleEditor.hidden=calculator.is_owner!==true;$("ugcDetailTitleInput").value=calculator.title||"";}
  $("ugcDetailEditDescription")?.classList.toggle("hidden",calculator.is_owner!==true);
  const editor=$("ugcDetailDescriptionEditor");
  if(editor){editor.hidden=calculator.is_owner!==true;$("ugcDetailDescriptionInput").value=calculator.description||"";}
@@ -1656,7 +1659,7 @@ function detailShow(calculator,fromUrl){
  renderCalculatorForm(calculator);
  $("ugcDetailResults")?.replaceChildren();
  detailStatus("Enter your values and calculate when ready.");
- if(calculator.is_owner===true)void refreshDescriptionStatus(calculator.id);
+ if(calculator.is_owner===true){void refreshTitleStatus(calculator.id);void refreshDescriptionStatus(calculator.id);}
  const section=$("ugcDetailSection");if(section)section.hidden=false;
  const home=$("homePage");if(home)home.style.display="none";
  window.scrollTo({top:0,behavior:"auto"});
@@ -1680,6 +1683,7 @@ async function openDetail(id,options){
  $("ugcDetailCalculatorForm")?.replaceChildren();
  $("ugcDetailResults")?.replaceChildren();
  $("ugcDetailEditDescription")?.classList.add("hidden");
+ $("ugcDetailTitleEditor")?.setAttribute("hidden","");
  $("ugcDetailDescriptionEditor")?.setAttribute("hidden","");
  const section=$("ugcDetailSection");if(section)section.hidden=false;
  const home=$("homePage");if(home)home.style.display="none";
@@ -1707,7 +1711,8 @@ window.openWorthItUGCCalculator=function(id,options){
 window.closeWorthItUGCCalculator=function(){
  state.detailRequest++;state.activeCalculator=null;state.activeId="";
  if(state.descriptionStatusTimer){clearInterval(state.descriptionStatusTimer);state.descriptionStatusTimer=null;}
- state.descriptionStatusRequest++;
+ if(state.titleStatusTimer){clearInterval(state.titleStatusTimer);state.titleStatusTimer=null;}
+ state.descriptionStatusRequest++;state.titleStatusRequest++;
  const section=$("ugcDetailSection");if(section)section.hidden=true;
  if(window.location.pathname.startsWith("/calculator/ugc/")&&typeof window.backFromWorthItRoute==="function"){
   window.backFromWorthItRoute("/calculators");
@@ -1803,6 +1808,57 @@ async function saveUsagePrice(){
  }catch(error){
   if(statusNode)statusNode.textContent=error?.message||"Could not save the usage price.";
  }finally{if(buttonNode)buttonNode.disabled=false;}
+}
+async function refreshTitleStatus(id){
+ const request=++state.titleStatusRequest;
+ const host=$("ugcDetailTitleCooldown"),button=$("ugcDetailSaveTitle");
+ if(!host||!button||!id)return;
+ if(state.titleStatusTimer){clearInterval(state.titleStatusTimer);state.titleStatusTimer=null;}
+ try{
+  const result=await sb().rpc("get_worth_it_ugc_title_status",{p_id:id});
+  if(result.error)throw result.error;
+  if(request!==state.titleStatusRequest||String(state.activeId)!==String(id))return;
+  const data=normalizeObject(result.data);
+  if(!data?.success)throw new Error(data?.error||"Title cooldown is unavailable.");
+  const endAt=data.next_save_at?new Date(data.next_save_at).getTime():0;
+  const update=()=>{
+   const remaining=Math.max(0,endAt-Date.now());
+   button.disabled=remaining>0;
+   if(remaining<=0){
+    host.textContent="You can change this title once every 10 minutes.";
+    if(state.titleStatusTimer){clearInterval(state.titleStatusTimer);state.titleStatusTimer=null;}
+   }else{
+    const seconds=Math.ceil(remaining/1000);
+    host.textContent="Title change available in "+Math.floor(seconds/60)+"m "+String(seconds%60).padStart(2,"0")+"s. You can change it once every 10 minutes.";
+   }
+  };
+  update();
+  if(endAt>Date.now())state.titleStatusTimer=setInterval(update,1000);
+ }catch(error){
+  if(request!==state.titleStatusRequest)return;
+  button.disabled=false;
+  host.textContent=error?.message||"Title cooldown could not be checked. The server will verify the 10-minute limit when you save.";
+ }
+}
+async function saveTitle(){
+ const calculator=state.activeCalculator;if(!calculator||calculator.is_owner!==true)return;
+ const title=String($("ugcDetailTitleInput")?.value||"").trim();
+ if([...title].length<3||[...title].length>75){detailStatus("A calculator title must contain 3 to 75 characters.",true);return;}
+ const button=$("ugcDetailSaveTitle");if(button)button.disabled=true;
+ try{
+  const result=await sb().rpc("update_worth_it_ugc_calculator_title",{p_id:calculator.id,p_title:title});
+  if(result.error)throw result.error;
+  const data=normalizeObject(result.data);
+  if(!data?.success)throw new Error(data?.error||"Could not save the calculator title.");
+  calculator.title=String(data.title||title);
+  if($("ugcDetailTitle"))$("ugcDetailTitle").textContent=calculator.title;
+  detailStatus(data.unchanged?"Your calculator title is unchanged.":"Your calculator title was saved.");
+  await Promise.all([loadCatalog(),refreshTitleStatus(calculator.id)]);
+ }catch(error){
+  detailStatus(error?.message||"Could not save the calculator title.",true);
+  if(button)button.disabled=false;
+  await refreshTitleStatus(calculator.id);
+ }
 }
 async function refreshDescriptionStatus(id){
  const request=++state.descriptionStatusRequest;
@@ -3326,13 +3382,13 @@ function renderMakerPreview(definition){
  const existing=Boolean(state.editingId);
  const title=document.createElement("label");title.textContent="Calculator title";
  const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";title.appendChild(titleInput);
- const desc=document.createElement("label");desc.textContent="Description";
+ const desc=document.createElement("label");desc.className="ugc-maker-description-field";desc.textContent="Description";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
  if(existing&&manual){
   host.appendChild(text("p","ugc-maker-schema-summary","You can update the title and description here. The primary category stays fixed, and saved description changes are limited to once every 10 minutes."));
  }
- const descriptionHelp=text("p","ugc-maker-schema-summary",manual
+ const descriptionHelp=text("p","ugc-maker-schema-summary ugc-maker-description-help",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
   :"Write a short explanation of what the calculator measures and its key assumptions. Use 24–500 characters.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
@@ -3819,6 +3875,7 @@ async function init(){
  $("ugcMakerSave")?.addEventListener("click",()=>saveMakerDraft(false));
  $("ugcMakerPublish")?.addEventListener("click",()=>saveMakerDraft(true));
  $("ugcDetailBack")?.addEventListener("click",()=>window.closeWorthItUGCCalculator());
+ $("ugcDetailSaveTitle")?.addEventListener("click",saveTitle);
  $("ugcDetailSaveDescription")?.addEventListener("click",saveDescription);
  $("ugcDetailSaveUsagePrice")?.addEventListener("click",saveUsagePrice);
  $("ugcDetailLike")?.addEventListener("click",()=>state.activeId&&react(state.activeId,"like"));
