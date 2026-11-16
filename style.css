@@ -1873,8 +1873,11 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
 @media(max-width:700px){
     .admin-panel-nav-btn span{display:none}
     .admin-panel-nav-btn{
-        font-size:18px;
-        padding:8px 10px;
+        font-size:20px;
+        min-width:40px;
+        min-height:40px;
+        padding:9px 11px;
+        transform:translateY(5px)!important;
     }
 }
 
@@ -18063,7 +18066,7 @@ html[data-theme="light"] .shop-partner-detail-item{
 .worth-it-profile-stat span{display:block;margin-top:4px;color:var(--muted);font-size:12px}
 .worth-it-profile-status{margin:0 0 18px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--muted);font-size:13px;line-height:1.55}
 .worth-it-profile-status.is-error{border-color:rgba(239,68,68,.28);color:var(--danger)}
-.worth-it-profile-share{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
+.worth-it-profile-share{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--surface-soft)}
 .worth-it-profile-share-copy{min-width:0;display:flex;flex-direction:column;gap:6px}
 .worth-it-profile-share-copy .worth-it-profile-overline{color:var(--text);font-weight:900}
 .worth-it-profile-share-copy a{color:var(--text);font-size:13px;overflow-wrap:anywhere;text-decoration:none}
@@ -18247,7 +18250,7 @@ html.profile-banner-active .worth-it-profile-section.has-banner:before{backgroun
  align-items:center;gap:clamp(14px,2vw,24px)
 }
 .worth-it-profile-social-column{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%;align-self:center}
-.worth-it-profile-social-column .worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;transform:translate(-130px,-150px)}
+.worth-it-profile-social-column .worth-it-profile-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;transform:translate(70px,-150px)}
 #profileSection.signed-out-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(10px,10px)}
 #profileSection.signed-out-profile-view .worth-it-profile-social-actions{transform:translate(10px,10px)}
 .worth-it-profile-social-column .worth-it-profile-stat{
@@ -19577,13 +19580,13 @@ html[data-theme="light"] .worth-it-user-search-result-info small{color:#64748b}
 
 /* Reposition the three profile statistic buttons only for signed-in visitors viewing someone else's profile. */
 @media(min-width:1051px){
- #profileSection.signed-in-other-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(-30px,0px)}
+ #profileSection.signed-in-other-profile-view .worth-it-profile-social-column .worth-it-profile-stats{transform:translate(170px,0px)}
 }
 
 
 /* Shift the signed-in other-profile friend/follow action buttons left by 20px on desktop. */
 @media(min-width:1051px){
- #profileSection.signed-in-other-profile-view .worth-it-profile-social-actions{transform:translate(-28px,0)}
+ #profileSection.signed-in-other-profile-view .worth-it-profile-social-actions{transform:translate(172px,0)}
 }
 
 
