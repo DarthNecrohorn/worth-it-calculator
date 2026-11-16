@@ -1322,7 +1322,7 @@ html[data-worth-it-custom-theme] body :is(
 /* Sign-out confirmation: both the dimmed page and the dialog surface follow
    the selected palette, and both actions use contrast-tested foregrounds. */
 html[data-worth-it-custom-theme] body .worth-it-signout-confirm-kicker {
-    color:var(--worth-it-theme-link-color,var(--primary)) !important;
+    color:var(--worth-it-theme-surface-link,var(--worth-it-theme-surface-text,var(--primary))) !important;
 }
 html[data-worth-it-custom-theme] body .worth-it-signout-confirm-actions button {
     min-height:42px;
