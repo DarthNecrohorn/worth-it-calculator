@@ -324,8 +324,8 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
   "function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||\"\"));}",
   extract("hexRgb"),extract("relativeLuminance"),extract("contrastRatio"),
   extract("accessibleThemeText"),extract("mixHex"),
-  extract("accessibleButtonBackground"),extract("gradientForeground"),
-  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground,mixHex})"
+  extract("accessibleButtonBackground"),extract("gradientForeground"),extract("contrastForeground"),
+  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground,contrastForeground,mixHex})"
  ].join("\n"));
  const surfaces=[
   "#FFFFFF","#F4F6FA","#E9EEF5","#080B18","#141A31","#1D1028",
@@ -340,6 +340,40 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
   ["#8B5CF6","#38BDF8"],["#F97316","#EC4899"],["#10B981","#A3E635"],
   ["#777777","#999999"],["#F4F6FA","#FFFFFF"],["#101010","#202020"]
  ];
+ const presetStart=js.indexOf("const THEME_PRESETS=[");
+ const presetEnd=js.indexOf("\n];",presetStart);
+ assert.ok(presetStart>=0&&presetEnd>presetStart,"the built-in Custom Theme palettes must be discoverable");
+ const presets=runInNewContext(js.slice(presetStart,presetEnd+3)+"\nTHEME_PRESETS");
+ assert.ok(presets.length>=18,"all built-in palettes should receive a contrast test");
+ for(const preset of presets){
+  const theme=preset.theme;
+  const pageText=helpers.accessibleThemeText(theme.text,[theme.background]);
+  const pageHeading=helpers.accessibleThemeText(theme.heading,[theme.background]);
+  const pageLink=helpers.accessibleThemeText(theme.link,[theme.background]);
+  assert.ok(helpers.contrastRatio(pageText,theme.background)>=4.5,preset.name+" page text");
+  assert.ok(helpers.contrastRatio(pageHeading,theme.background)>=4.5,preset.name+" page heading");
+  assert.ok(helpers.contrastRatio(pageLink,theme.background)>=4.5,preset.name+" page link");
+  const cardAlpha=theme.cardStyle==="flat"?0.68:theme.cardStyle==="glass"?0.82:1;
+  const cardBackground=helpers.mixHex(theme.background,theme.cardStyle==="flat"?theme.surfaceAlt:theme.surface,cardAlpha);
+  const cardText=helpers.accessibleThemeText(theme.text,[cardBackground]);
+  const cardHeading=helpers.accessibleThemeText(theme.heading,[cardBackground]);
+  assert.ok(helpers.contrastRatio(cardText,cardBackground)>=4.5,preset.name+" card text");
+  assert.ok(helpers.contrastRatio(cardHeading,cardBackground)>=4.5,preset.name+" card heading");
+  const inputText=helpers.accessibleThemeText(theme.text,[theme.surface]);
+  assert.ok(helpers.contrastRatio(inputText,theme.surface)>=4.5,preset.name+" input text");
+  const activeBackground=helpers.mixHex(theme.surface,theme.primary,0.18);
+  const activeText=helpers.accessibleThemeText(theme.text,[activeBackground]);
+  assert.ok(helpers.contrastRatio(activeText,activeBackground)>=4.5,preset.name+" active button");
+  const solidForeground=helpers.contrastForeground(theme.primary);
+  const solidBackground=helpers.accessibleButtonBackground(theme.primary,solidForeground);
+  assert.ok(helpers.contrastRatio(solidForeground,solidBackground)>=4.5,preset.name+" solid button");
+  const primaryText=helpers.gradientForeground(theme.primary,theme.secondary);
+  const stops=[theme.primary,theme.secondary].map(colour=>helpers.accessibleButtonBackground(colour,primaryText));
+  for(let step=0;step<=20;step+=1){
+   const sample=helpers.mixHex(stops[0],stops[1],step/20);
+   assert.ok(helpers.contrastRatio(primaryText,sample)>=4.5,preset.name+" gradient button step "+step);
+  }
+ }
  for(const [primary,secondary] of gradients){
   const foreground=helpers.gradientForeground(primary,secondary);
   const safeStops=[primary,secondary].map(endpoint=>helpers.accessibleButtonBackground(endpoint,foreground));
