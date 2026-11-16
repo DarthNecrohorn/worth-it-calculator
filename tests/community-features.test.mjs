@@ -325,7 +325,7 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
   extract("hexRgb"),extract("relativeLuminance"),extract("contrastRatio"),
   extract("accessibleThemeText"),extract("mixHex"),
   extract("accessibleButtonBackground"),extract("gradientForeground"),
-  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground})"
+  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground,mixHex})"
  ].join("\n"));
  const surfaces=[
   "#FFFFFF","#F4F6FA","#E9EEF5","#080B18","#141A31","#1D1028",
