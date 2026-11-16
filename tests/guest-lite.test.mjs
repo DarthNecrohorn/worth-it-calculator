@@ -168,3 +168,13 @@ test("closing Guest Lite and authentication dialogs moves focus before hiding th
     assert.match(app, /function removeAuthTurnstile\(\)/);
     assert.match(app, /window\.turnstile\.remove\(authTurnstileWidgetId\)/);
 });
+
+
+test("a temporary Supabase session lookup failure never turns an existing session into a guest signup prompt", () => {
+    assert.match(guest, /eventName === "AUTH_UNAVAILABLE"[\s\S]*?return;/);
+    assert.match(guest, /if \(user === false\) return denyGuestAction\(reason\)/);
+    assert.match(guest, /if \(user === null \|\| !authStateKnown\) return/);
+    assert.match(guest, /event\.key === NEXT_PROMPT_KEY && authStateKnown && !isAuthenticated/);
+    assert.match(app, /failed lookup is not proof that the user is signed out/i);
+    assert.match(app, /if \(!window\.worthItAuthStateResolved\) \{[\s\S]*?worthItAuthResolutionFailed = true/);
+});

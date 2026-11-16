@@ -179,7 +179,7 @@
         if (isAuthenticated) return false;
         if (!authStateKnown) {
             resolveAuthState().then(user => {
-                if (!user) showSignupForRestrictedFeature(reason);
+                if (user === false) showSignupForRestrictedFeature(reason);
             });
             return false;
         }
@@ -298,19 +298,39 @@
                 const auth = window.supabaseClient?.auth;
                 if (!auth?.getSession) {
                     setAuthState(null, "AUTH_UNAVAILABLE");
-                    return false;
+                    return null;
                 }
                 const result = await auth.getSession();
-                setAuthState(result?.data?.session?.user || null, "INITIAL_SESSION");
+                if (result?.error || !result?.data || !Object.prototype.hasOwnProperty.call(result.data, "session")) {
+                    throw (result?.error || new Error("The current Worth It session could not be confirmed."));
+                }
+                setAuthState(result.data.session?.user || null, "INITIAL_SESSION");
             } catch (_) {
+                // An unavailable auth service is not the same as a signed-out
+                // visitor. Fail closed: do not show the signup / Turnstile modal.
                 setAuthState(null, "AUTH_UNAVAILABLE");
+                return null;
             }
             return isAuthenticated;
         })();
-        return window.worthItGuestAuthResolution;
+        const resolution = window.worthItGuestAuthResolution;
+        resolution.finally(() => {
+            if (window.worthItGuestAuthResolution === resolution && !authStateKnown) {
+                window.worthItGuestAuthResolution = null;
+            }
+        });
+        return resolution;
     }
 
     function setAuthState(user, eventName) {
+        // A transport or initialization failure must not be interpreted as a
+        // confirmed sign-out. Keep the last known state and suppress prompts.
+        if (eventName === "AUTH_UNAVAILABLE") {
+            if (promptTimer !== null) window.clearTimeout(promptTimer);
+            promptTimer = null;
+            return;
+        }
+
         const wasKnown = authStateKnown;
         const wasAuthenticated = isAuthenticated;
         authStateKnown = true;
@@ -374,8 +394,11 @@
                 return isAuthenticated ? original.apply(this, args) : denyGuestAction(reason);
             }
             return resolveAuthState().then(user => {
-                if (user) return original.apply(this, args);
-                return denyGuestAction(reason);
+                if (user === true) return original.apply(this, args);
+                if (user === false) return denyGuestAction(reason);
+                // Session status is temporarily unknown; do not redirect a
+                // signed-in user into an unnecessary signup challenge.
+                return undefined;
             });
         };
         wrapped.__worthItGuestGuard = true;
@@ -580,18 +603,19 @@
         installGuards();
         subscribeToAuthChanges();
 
-        resolveAuthState().then(() => {
+        resolveAuthState().then(user => {
             installSignupGuestChoice();
-            if (!isAuthenticated && isRestrictedPath(window.location.pathname)) {
+            if (user === null || !authStateKnown) return;
+            if (user === false && isRestrictedPath(window.location.pathname)) {
                 restoreHomeIfOnRestrictedPath();
                 showSignupForRestrictedFeature("This section requires a Worth It account.");
-            } else {
+            } else if (user === false) {
                 scheduleDailyPrompt();
             }
         });
 
         window.addEventListener("storage", event => {
-            if (event.key === NEXT_PROMPT_KEY && !isAuthenticated) scheduleDailyPrompt();
+            if (event.key === NEXT_PROMPT_KEY && authStateKnown && !isAuthenticated) scheduleDailyPrompt();
         });
 
         window.addEventListener("pageshow", () => {
@@ -604,7 +628,13 @@
 
         window.WorthItGuestLite = Object.freeze({
             isAuthenticated: () => authStateKnown && isAuthenticated,
-            showAccountPrompt: () => showSignupModal(false),
+            showAccountPrompt: () => {
+                if (authStateKnown) return isAuthenticated ? false : showSignupModal(false);
+                resolveAuthState().then(user => {
+                    if (user === false) showSignupModal(false);
+                });
+                return false;
+            },
             showGuestLimitations: showGuestLimits,
             getNextPromptAt: nextPromptAt,
             allowedDefaultCalculators: Object.freeze(Array.from(GUEST_BILLABLE_CALCULATORS)),

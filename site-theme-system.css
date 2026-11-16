@@ -6,13 +6,14 @@ html[data-worth-it-custom-theme] {
 }
 html[data-worth-it-custom-theme] body {
     color: var(--text) !important;
-    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family, inherit)) !important;
+    font-weight: var(--worth-it-theme-body-font-weight, 400);
     line-height: var(--worth-it-theme-body-line-height, 1.55);
-    letter-spacing: var(--worth-it-theme-body-letter-spacing, normal);
+    letter-spacing: var(--worth-it-theme-body-text-letter-spacing, var(--worth-it-theme-body-letter-spacing, normal));
 }
 html[data-worth-it-custom-theme] body :is(h1,h2,h3,h4,h5,h6) {
     color: var(--worth-it-theme-heading-color, var(--text)) !important;
-    font-family: var(--worth-it-theme-heading-font-family, var(--worth-it-theme-font-family)) !important;
+    font-family: var(--worth-it-theme-heading-font-family, var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family))) !important;
     font-weight: var(--worth-it-theme-heading-weight, 800);
     letter-spacing: var(--worth-it-theme-heading-letter-spacing, normal);
     text-transform: var(--worth-it-theme-heading-transform, none);
@@ -21,7 +22,7 @@ html[data-worth-it-custom-theme] body a:not(.logo):not([class*="button"]):not([c
     color: var(--worth-it-theme-link-color, var(--primary)) !important;
 }
 html[data-worth-it-custom-theme] body :is(input,select,textarea,[contenteditable="true"]) {
-    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family, inherit)) !important;
     color: var(--text) !important;
     border-color: var(--border) !important;
 }
@@ -48,7 +49,7 @@ html[data-worth-it-custom-theme] body :is(
     [aria-selected="true"],[aria-expanded="true"],
     [class*="danger"],[class*="delete"],[class*="remove"],[class*="reject"]
 ) {
-    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family, inherit)) !important;
     color: var(--text) !important;
     background: var(--surface-soft) !important;
     border-color: var(--border) !important;
@@ -72,7 +73,7 @@ html[data-worth-it-custom-theme] body :is(
     .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
     .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav
 ) {
-    font-family: var(--worth-it-theme-font-family, inherit) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family, inherit)) !important;
     border-radius: var(--worth-it-theme-control-radius, 10px) !important;
     border-color: transparent !important;
     background: var(--worth-it-theme-gradient) !important;
@@ -310,7 +311,7 @@ html[data-worth-it-custom-theme] .worth-it-chat-compose {
 html[data-worth-it-custom-theme] .worth-it-chat-compose textarea {
     background: transparent !important;
     color: var(--text) !important;
-    font-family: var(--worth-it-theme-font-family) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family)) !important;
 }
 html[data-worth-it-custom-theme] .worth-it-chat-compose textarea::placeholder {
     color: var(--muted) !important;
@@ -1299,7 +1300,7 @@ html[data-worth-it-custom-theme] body :is(
     border-color:var(--border) !important;
     border-radius:var(--radius) !important;
     box-shadow:0 26px 90px color-mix(in srgb,var(--bg) 55%,transparent) !important;
-    font-family:var(--worth-it-theme-font-family,inherit) !important;
+    font-family:var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family,inherit)) !important;
 }
 html[data-worth-it-custom-theme] body :is(
     .worth-it-signout-confirm-card,.worth-it-user-search-card,
@@ -1308,7 +1309,7 @@ html[data-worth-it-custom-theme] body :is(
     .worth-it-badge-info-card,.worth-it-unfriend-dialog
 ) :is(h1,h2,h3,h4,h5,h6,strong,legend) {
     color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
-    font-family:var(--worth-it-theme-heading-font-family,var(--worth-it-theme-font-family,inherit)) !important;
+    font-family:var(--worth-it-theme-heading-font-family,var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family,inherit))) !important;
 }
 html[data-worth-it-custom-theme] body :is(
     .worth-it-signout-confirm-card,.worth-it-user-search-card,
@@ -1327,7 +1328,7 @@ html[data-worth-it-custom-theme] body .worth-it-signout-confirm-kicker {
 html[data-worth-it-custom-theme] body .worth-it-signout-confirm-actions button {
     min-height:42px;
     border-radius:var(--worth-it-theme-control-radius,10px) !important;
-    font-family:var(--worth-it-theme-font-family,inherit) !important;
+    font-family:var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family,inherit)) !important;
     border-color:var(--border) !important;
 }
 html[data-worth-it-custom-theme] body .worth-it-signout-confirm-yes {
@@ -1444,7 +1445,7 @@ html[data-worth-it-custom-theme] body .admin-panel-card :is(
     .admin-panel-close,.admin-panel-back-button,.admin-panel-inline-button,
     .admin-panel-section-button,button:not([class*="danger"]):not([class*="delete"])
 ) {
-    font-family:var(--worth-it-theme-font-family,inherit) !important;
+    font-family:var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family,inherit)) !important;
     border-color:var(--border) !important;
 }
 html[data-worth-it-custom-theme] body .admin-panel-card :is(
@@ -1485,4 +1486,15 @@ html[data-worth-it-custom-theme] body .admin-panel-card th {
 }
 html[data-worth-it-custom-theme] body .admin-panel-card a:not([class*="button"]):not([class*="-btn"]) {
     color:var(--worth-it-theme-surface-link,var(--worth-it-theme-surface-text,var(--text))) !important;
+}
+
+
+/* The homepage hero badge participates in the same saved/live Custom Theme as the rest of the site. */
+html[data-worth-it-custom-theme] #homePage .hero .badge {
+    color: var(--worth-it-theme-page-text, var(--text)) !important;
+    background: color-mix(in srgb, var(--bg) 92%, var(--primary)) !important;
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
+    font-family: var(--worth-it-theme-body-font-family, var(--worth-it-theme-font-family, inherit)) !important;
+    font-weight: var(--worth-it-theme-body-font-weight, 600) !important;
+    letter-spacing: var(--worth-it-theme-body-text-letter-spacing, var(--worth-it-theme-body-letter-spacing, normal)) !important;
 }

@@ -194,3 +194,36 @@ test("Custom Theme hydration preserves the bootstrap account appearance during t
     assert.match(community, /bootstrapTheme\|\|DEFAULT_THEME/);
     assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
 });
+
+
+test("each of the 30 Custom Theme palettes supplies its own full-site typography combination", () => {
+    const presetIds = [
+        "midnight","minimal","emerald","sunset","ocean","rose","graphite","lavender-mist",
+        "terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura",
+        "neon-pulse","cobalt-night","copper-dusk","glacier-blue","citrus-grove","plum-noir",
+        "coral-reef","sand-dune","cyberpunk","alpine-meadow","ruby-velvet","indigo-ink","pastel-pop"
+    ];
+    assert.match(community, /const PRESET_TYPOGRAPHY = Object\.freeze\(/);
+    for (const id of presetIds) {
+        const key = id.includes("-") ? '"' + id + '":{fontFamily:' : id + ':{fontFamily:';
+        assert.ok(community.includes(key), "missing preset typography: " + id);
+    }
+    assert.match(community, /bodyTextStyle:"neutral"/);
+    assert.match(community, /"worthItThemeBodyTextStyle","bodyTextStyle"/);
+    assert.match(html, /id="worthItThemeBodyTextStyle"/);
+    assert.match(html, /option value="humanist"/);
+    assert.match(html, /option value="technical"/);
+    assert.match(html, /option value="elegant"/);
+    assert.match(community, /humanist:\{family:/);
+    assert.match(community, /elegant:\{family:/);
+    assert.match(siteThemeCss, /--worth-it-theme-body-font-family/);
+    assert.match(siteThemeCss, /--worth-it-theme-body-text-letter-spacing/);
+});
+
+test("homepage hero badge follows live and saved Custom Theme text, accent and typography tokens", () => {
+    assert.match(html, /<div class="badge">✦ Smart decisions made simple<\/div>/);
+    assert.match(siteThemeCss, /html\[data-worth-it-custom-theme\] #homePage \.hero \.badge/);
+    assert.match(siteThemeCss, /color: var\(--worth-it-theme-page-text/);
+    assert.match(siteThemeCss, /background: color-mix\(in srgb, var\(--bg\) 92%, var\(--primary\)\)/);
+    assert.match(siteThemeCss, /font-family: var\(--worth-it-theme-body-font-family/);
+});
