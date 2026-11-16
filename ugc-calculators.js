@@ -297,7 +297,7 @@ async function loadCreatorLeaderboards(){
 function cardDescriptionPreview(description){
  const full=String(description||"").trim().replace(/\s+/g," ");
  if(!full)return "No description provided.";
- const isDesktop=typeof window.matchMedia==="function"&&window.matchMedia("(min-width: 701px)").matches;
+ const isDesktop=typeof window!=="undefined"&&typeof window.matchMedia==="function"&&window.matchMedia("(min-width: 701px)").matches;
  const limit=isDesktop?91:120;
  if(full.length<=limit)return full;
  return full.slice(0,limit).trimEnd().replace(/[.!?…]+$/,"")+"...";
@@ -3382,13 +3382,13 @@ function renderMakerPreview(definition){
  const existing=Boolean(state.editingId);
  const title=document.createElement("label");title.textContent="Calculator title";
  const titleInput=document.createElement("input");titleInput.id="ugcMakerTitle";titleInput.maxLength=70;titleInput.value=definition.title||"";title.appendChild(titleInput);
- const desc=document.createElement("label");desc.textContent="Description";
+ const desc=document.createElement("label");desc.className="ugc-maker-description-field";desc.textContent="Description";
  const descInput=document.createElement("textarea");descInput.id="ugcMakerDescription";descInput.maxLength=500;descInput.rows=3;descInput.value=definition.description||"";desc.appendChild(descInput);
  fields.append(title,desc);host.appendChild(fields);
  if(existing&&manual){
   host.appendChild(text("p","ugc-maker-schema-summary","You can update the title and description here. The primary category stays fixed, and saved description changes are limited to once every 10 minutes."));
  }
- const descriptionHelp=text("p","ugc-maker-schema-summary",manual
+ const descriptionHelp=text("p","ugc-maker-schema-summary ugc-maker-description-help",manual
   ?"Explain what the calculator measures, which assumptions it uses and what the results mean. 24–500 characters."
   :"Write a short explanation of what the calculator measures and its key assumptions. Use 24–500 characters.");
  descriptionHelp.id="ugcMakerDescriptionHelp";host.appendChild(descriptionHelp);
