@@ -865,7 +865,7 @@ function renderWorthItGroupMemberRows(conversation) {
         const username = document.createElement("strong");
         username.textContent = member.username ? "@" + member.username : name;
         const presence = document.createElement("small");
-        presence.className = "worth-it-chat-group-member-presence";
+        presence.className = "worth-it-chat-person-presence worth-it-chat-group-member-presence";
         presence.dataset.worthItPresenceId = String(member.worth_it_id || "");
         presence.textContent = window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(member).label : "Last seen unavailable";
         details.append(username, presence);
