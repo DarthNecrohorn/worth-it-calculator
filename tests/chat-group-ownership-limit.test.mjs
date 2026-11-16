@@ -45,7 +45,7 @@ test("mobile chat header separates direct identity, global chat, and group roste
   assert.match(chat, /is-group-members-trigger/);
   assert.match(chat, /openWorthItGroupMembers/);
   assert.match(chat, /worthItChatGroupMembersList/);
-  assert.match(html, /id="worthItChatHeaderAvatar"[^>]*button/);
+  assert.match(html, /<button[^>]*id="worthItChatHeaderAvatar"/);
 });
 
 test("the site navigation is hidden while the chat overlay is open", () => {
