@@ -210,6 +210,65 @@ begin
     if current_setting('test.ugc_second_number')::bigint<>52 then raise exception 'Calculator numbers must be sequential from 51.'; end if;
 end
 $number_check$;
+select id as second_calculator_id
+  from private.worth_it_user_calculators
+ where calculator_number=52
+ \gset
+select set_config('test.ugc_second_id', :'second_calculator_id', false);
+
+-- The calculator owner can rename a calculator to 75 characters, but cannot
+-- rename again until the separate title cooldown expires.
+do $ugc_title_edit$
+declare
+    v_result jsonb;
+    v_status jsonb;
+    v_blocked boolean := false;
+    v_title text := '75-character-title-tested-for-UGC-calculators-that-owners-can-change-safely';
+begin
+    v_status:=public.get_worth_it_ugc_title_status(current_setting('test.ugc_second_id')::uuid);
+    if (v_status->>'can_save')::boolean is distinct from true then
+        raise exception 'A new calculator title should initially be editable: %',v_status;
+    end if;
+
+    v_result:=public.update_worth_it_ugc_calculator_title(current_setting('test.ugc_second_id')::uuid,v_title);
+    if (v_result->>'success')::boolean is distinct from true
+       or v_result->>'title' is distinct from v_title
+       or not exists (
+           select 1 from private.worth_it_user_calculators
+            where id=current_setting('test.ugc_second_id')::uuid
+              and title=v_title
+              and title_changed_at is not null
+       ) then
+        raise exception 'The owner could not save a 75-character title: %',v_result;
+    end if;
+
+    v_status:=public.get_worth_it_ugc_title_status(current_setting('test.ugc_second_id')::uuid);
+    if (v_status->>'can_save')::boolean is distinct from false
+       or (v_status->>'remaining_ms')::bigint<=0 then
+        raise exception 'The title status did not report the 10-minute cooldown: %',v_status;
+    end if;
+
+    v_result:=public.update_worth_it_ugc_calculator_title(
+        current_setting('test.ugc_second_id')::uuid,'A second title inside the cooldown'
+    );
+    if (v_result->>'success')::boolean is distinct from false
+       or v_result->>'code' is distinct from 'TITLE_COOLDOWN' then
+        raise exception 'A second title edit inside the cooldown was not blocked: %',v_result;
+    end if;
+
+    begin
+        perform public.update_worth_it_ugc_calculator_title(
+            current_setting('test.ugc_second_id')::uuid,repeat('X',76)
+        );
+    exception when sqlstate '22023' then
+        v_blocked:=true;
+    end;
+    if not v_blocked then
+        raise exception 'A title longer than 75 characters was accepted.';
+    end if;
+end
+$ugc_title_edit$;
+
 select set_config('test.ugc_calculator_id', :'calculator_id', false);
 do $owner_check$
 declare
@@ -269,6 +328,26 @@ begin
 
     if v_detail ? 'require_test_before_reaction' or v_detail ? 'has_used' then
         raise exception 'Non-owners must not receive the owner rating setting or usage marker.';
+    end if;
+
+    v_blocked:=false;
+    begin
+        perform public.update_worth_it_ugc_calculator_title(
+            current_setting('test.ugc_second_id')::uuid,'Unauthorized calculator rename'
+        );
+    exception when insufficient_privilege then v_blocked:=true;
+    end;
+    if not v_blocked then
+        raise exception 'A non-owner was allowed to rename another member''s UGC calculator.';
+    end if;
+
+    v_blocked:=false;
+    begin
+        perform public.get_worth_it_ugc_title_status(current_setting('test.ugc_second_id')::uuid);
+    exception when insufficient_privilege then v_blocked:=true;
+    end;
+    if not v_blocked then
+        raise exception 'A non-owner was allowed to read another member''s title cooldown status.';
     end if;
 
     begin
