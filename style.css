@@ -24653,3 +24653,10 @@ body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility
         height: 34px !important;
     }
 }
+
+/* Enlarge only the Settings gear drawing; its 22px layout box keeps the button unchanged. */
+.settings-btn > .worth-it-icon-settings {
+    transform: scale(1.18);
+    transform-box: fill-box;
+    transform-origin: center;
+}
