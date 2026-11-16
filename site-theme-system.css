@@ -1550,3 +1550,16 @@ button.worth-it-chat-travel-present:not([disabled]):active {
 #worthItChatTravelPresentBtn:not([disabled]):active {
     transform: translateX(-50%) scale(.96) !important;
 }
+
+
+/* Crisp SVG icons inherit the active palette rather than emoji colours. */
+.worth-it-icon{display:inline-block;width:1.22em;height:1.22em;flex:0 0 auto;vertical-align:-.2em;color:currentColor;stroke:currentColor}
+.worth-it-icon-wrap{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.ai-chat-nav-btn .worth-it-icon{width:1.28em;height:1.28em}
+#aiChatTitle .worth-it-icon,.ai-chat-login-icon .worth-it-icon{width:1.5em;height:1.5em}
+.worth-it-chat-notification-icon .worth-it-icon{width:1.1em;height:1.1em}
+.worth-it-owner-emblem{display:inline-flex;align-items:center;justify-content:center;color:var(--primary);line-height:1}
+.worth-it-owner-emblem-svg{display:block;width:1.18em;height:1.18em;color:var(--primary);filter:drop-shadow(0 0 5px color-mix(in srgb,var(--primary) 38%,transparent))}
+.worth-it-member-badge .worth-it-owner-emblem{width:1.35em;height:1.35em}
+.worth-it-member-badge .worth-it-owner-emblem-svg{width:100%;height:100%}
+html[data-worth-it-custom-theme] .worth-it-owner-emblem,html[data-worth-it-custom-theme] .worth-it-owner-emblem-svg{color:var(--primary)}
