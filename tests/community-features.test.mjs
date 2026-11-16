@@ -284,7 +284,7 @@ test("Custom Theme is resolved before page content becomes visible",()=>{
  assert.ok(html.includes("sb-[a-z0-9]+-auth-token"));
  assert.ok(html.includes("worth_it_auth_remember_until_v1"));
  assert.ok(html.includes("worth-it-boot-background"));
- assert.ok(html.includes("html.worth-it-initial-paint body {\\n    visibility: hidden !important;"));
+ assert.ok(html.includes("html.worth-it-initial-paint body {\n    visibility: hidden !important;"));
  assert.ok(js.includes("let initialThemeHydrationPending"));
  assert.ok(js.includes("await window.worthItAuthReady"));
  assert.ok(js.includes("await loadThemeForSession()"));
@@ -315,7 +315,7 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
  const extract=name=>{
   const start=js.indexOf("function "+name+"(");
   assert.ok(start>=0,"missing production helper "+name);
-  const end=js.indexOf("\\n}",start);
+  const end=js.indexOf("\n}",start);
   assert.ok(end>start,"could not isolate production helper "+name);
   return js.slice(start,end+2);
  };
@@ -325,7 +325,7 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
   extract("accessibleThemeText"),extract("mixHex"),
   extract("accessibleButtonBackground"),extract("gradientForeground"),
   "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground})"
- ].join("\\n"));
+ ].join("\n"));
  const surfaces=[
   "#FFFFFF","#F4F6FA","#E9EEF5","#080B18","#141A31","#1D1028",
   "#777777","#A7B3C6","#10B981","#F97316","#3157D5"
