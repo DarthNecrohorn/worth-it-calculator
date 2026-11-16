@@ -580,7 +580,7 @@ async function loadThemeForSession(){
   // A transient wallet/network failure is not proof that the user lost their
   // entitlement. Keep this account-scoped theme while verification retries.
   applyTheme(livePreview||retainedTheme);
-  setThemeStatus("Your subscription could not be verified. Your current theme is being kept; no saved theme was changed. Please retry when the account service is available.",true);
+  setThemeStatus("Your subscription could not be verified. No saved theme has been changed, and your current account theme is being kept. Please retry when the account service is available.",true);
   return;
  }
  themeEntitled=hasPremiumThemeAccess(wallet);
