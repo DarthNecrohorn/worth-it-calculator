@@ -62,6 +62,8 @@ let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
 let themePreviewActive = false;
+let initialThemeHydrationPending = Boolean(document.documentElement?.classList.contains("worth-it-initial-paint"));
+let initialThemeHydrationFailsafe = null;
 let themeExpiryTimer = null;
 let themeReturnRefreshAt = 0;
 let favouritesRemoteAvailable = null;
@@ -332,6 +334,25 @@ function applyTheme(value){
    sharp:{card:"7px",control:"5px"}
   }[theme.corners];
   const cardAlpha=theme.cardStyle==="glass"?"82%":theme.cardStyle==="flat"?"68%":"100%";
+  const cardOpacity=theme.cardStyle==="glass"?0.82:theme.cardStyle==="flat"?0.68:1;
+  const cardSurface=theme.cardStyle==="flat"
+   ?mixHex(theme.background,theme.surfaceAlt,cardOpacity)
+   :mixHex(theme.background,theme.surface,cardOpacity);
+  const softSurfaceOnCard=mixHex(theme.surface,theme.surfaceAlt,0.74);
+  const activeControlSurface=mixHex(theme.surface,theme.primary,0.18);
+  const secondaryControlSurface=mixHex(theme.surface,theme.secondary,0.15);
+  const pageText=accessibleThemeText(theme.text,[theme.background]);
+  const pageMuted=accessibleThemeText(theme.muted,[theme.background]);
+  const pageHeading=accessibleThemeText(theme.heading,[theme.background]);
+  const pageLink=accessibleThemeText(theme.link,[theme.background]);
+  const cardText=accessibleThemeText(theme.text,[cardSurface]);
+  const cardMuted=accessibleThemeText(theme.muted,[cardSurface]);
+  const cardHeading=accessibleThemeText(theme.heading,[cardSurface]);
+  const cardLink=accessibleThemeText(theme.link,[cardSurface]);
+  const surfaceText=accessibleThemeText(theme.text,[theme.surface]);
+  const surfaceMuted=accessibleThemeText(theme.muted,[theme.surface]);
+  const softText=accessibleThemeText(theme.text,[softSurfaceOnCard]);
+  const softMuted=accessibleThemeText(theme.muted,[softSurfaceOnCard]);
   root.style.setProperty("--worth-it-theme-color-scheme",relativeLuminance(theme.background)>=0.42?"light":"dark");
   root.style.setProperty("--bg",theme.background);
   root.style.setProperty("--bg2",theme.background);
@@ -340,9 +361,21 @@ function applyTheme(value){
   root.style.setProperty("--card","color-mix(in srgb,"+theme.surface+" "+cardAlpha+",transparent)");
   root.style.setProperty("--surface-soft","color-mix(in srgb,"+theme.surfaceAlt+" 74%,transparent)");
   root.style.setProperty("--border",theme.border);
-  root.style.setProperty("--text",accessibleThemeText(theme.text,surfaces));
-  root.style.setProperty("--muted",accessibleThemeText(theme.muted,surfaces));
-  root.style.setProperty("--muted2",accessibleThemeText(theme.muted,surfaces));
+  root.style.setProperty("--text",pageText);
+  root.style.setProperty("--muted",pageMuted);
+  root.style.setProperty("--muted2",pageMuted);
+  root.style.setProperty("--worth-it-theme-page-text",pageText);
+  root.style.setProperty("--worth-it-theme-page-muted",pageMuted);
+  root.style.setProperty("--worth-it-theme-page-heading",pageHeading);
+  root.style.setProperty("--worth-it-theme-page-link",pageLink);
+  root.style.setProperty("--worth-it-theme-card-text",cardText);
+  root.style.setProperty("--worth-it-theme-card-muted",cardMuted);
+  root.style.setProperty("--worth-it-theme-card-heading",cardHeading);
+  root.style.setProperty("--worth-it-theme-card-link",cardLink);
+  root.style.setProperty("--worth-it-theme-surface-text",surfaceText);
+  root.style.setProperty("--worth-it-theme-surface-muted",surfaceMuted);
+  root.style.setProperty("--worth-it-theme-soft-text",softText);
+  root.style.setProperty("--worth-it-theme-soft-muted",softMuted);
   root.style.setProperty("--primary",theme.primary);
   root.style.setProperty("--primary2",theme.secondary);
   root.style.setProperty("--worth-it-hover-glow",theme.hover);
@@ -356,14 +389,14 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-header-foreground",contrastForeground(theme.header));
   root.style.setProperty("--worth-it-hover-foreground",contrastForeground(theme.hover));
   root.style.setProperty("--worth-it-gradient-foreground",gradientText);
-  root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.primary,surfaces));
-  root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.secondary,surfaces));
+  root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.text,[activeControlSurface]));
+  root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.text,[secondaryControlSurface]));
   root.style.setProperty("--worth-it-primary-foreground",primaryText);
   root.style.setProperty("--worth-it-secondary-foreground",secondaryText);
   root.style.setProperty("--worth-it-button-primary-background",accessibleButtonBackground(theme.primary,primaryText));
   root.style.setProperty("--worth-it-button-secondary-background",accessibleButtonBackground(theme.secondary,secondaryText));
-  root.style.setProperty("--worth-it-theme-heading-color",accessibleThemeText(theme.heading,surfaces));
-  root.style.setProperty("--worth-it-theme-link-color",accessibleThemeText(theme.link,surfaces));
+  root.style.setProperty("--worth-it-theme-heading-color",pageHeading);
+  root.style.setProperty("--worth-it-theme-link-color",pageLink);
   root.style.setProperty("--worth-it-theme-font-family",bodyFont);
   root.style.setProperty("--worth-it-theme-heading-font-family",headingStyles.family);
   root.style.setProperty("--worth-it-theme-heading-weight",headingStyles.weight);
@@ -394,7 +427,10 @@ function applyTheme(value){
    "--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient",
    "--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground",
    "--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable",
-   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
+   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color",
+   "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading","--worth-it-theme-page-link",
+   "--worth-it-theme-card-text","--worth-it-theme-card-muted","--worth-it-theme-card-heading","--worth-it-theme-card-link",
+   "--worth-it-theme-surface-text","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
@@ -537,6 +573,32 @@ async function loadThemeForSession(){
    themeRemoteAvailable=false;
    setThemeStatus("Preview-only: your saved Premium theme is stored on this device and will sync after the theme design migration is installed.",false);
   }else{console.warn("Worth It custom theme could not be synchronised:",error);}
+ }
+}
+function releaseInitialThemeCover(){
+ if(!initialThemeHydrationPending)return;
+ initialThemeHydrationPending=false;
+ if(initialThemeHydrationFailsafe){window.clearTimeout(initialThemeHydrationFailsafe);initialThemeHydrationFailsafe=null;}
+ document.documentElement?.classList.remove("worth-it-initial-paint");
+}
+async function hydrateInitialThemeBeforePaint(){
+ if(!initialThemeHydrationPending)return;
+ initialThemeHydrationFailsafe=window.setTimeout(()=>{
+  if(!initialThemeHydrationPending)return;
+  // Do not leave the site blank forever if the account service is unreachable.
+  // Invalidate the stalled request so it cannot apply a late, incorrect theme.
+  themeRequest+=1;
+  applyTheme(DEFAULT_THEME);
+  releaseInitialThemeCover();
+ },12000);
+ try{
+  if(window.worthItAuthReady&&typeof window.worthItAuthReady.then==="function")await window.worthItAuthReady;
+  await loadThemeForSession();
+ }catch(error){
+  console.warn("Initial Worth It theme hydration failed:",error);
+  applyTheme(DEFAULT_THEME);
+ }finally{
+  releaseInitialThemeCover();
  }
 }
 async function saveCustomTheme(){
@@ -962,9 +1024,9 @@ function init(){
    if(records.some(record=>record.addedNodes.length))decorateCards(grid);
   }).observe(grid,{childList:true});
  });
- void loadFavouritesForSession();void loadThemeForSession();
+ void loadFavouritesForSession();void hydrateInitialThemeBeforePaint();
  const refreshThemeOnReturn=()=>{
-  if(document.hidden)return;
+  if(initialThemeHydrationPending||document.hidden)return;
   const now=Date.now();
   if(now-themeReturnRefreshAt<5000)return;
   themeReturnRefreshAt=now;
@@ -974,6 +1036,7 @@ function init(){
  window.addEventListener("pageshow",refreshThemeOnReturn);
  document.addEventListener("visibilitychange",refreshThemeOnReturn);
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(()=>{
+  if(initialThemeHydrationPending)return;
   setTimeout(()=>{void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();},0);
  });
 }
