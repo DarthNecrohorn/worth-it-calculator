@@ -593,6 +593,7 @@ async function hydrateInitialThemeBeforePaint(){
  },12000);
  try{
   if(window.worthItAuthReady&&typeof window.worthItAuthReady.then==="function")await window.worthItAuthReady;
+  if(!initialThemeHydrationPending)return;
   await loadThemeForSession();
  }catch(error){
   console.warn("Initial Worth It theme hydration failed:",error);
