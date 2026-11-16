@@ -217,8 +217,32 @@ const oldToggle=window.toggleAccountPanel;
 window.toggleAccountPanel=function(event){const result=typeof oldToggle==="function"?oldToggle.apply(this,arguments):undefined;if($("accountPanel")?.classList.contains("open")){setPanelLoading();refreshAccountPanelCounts(true);}return result;};
 
 const profileBadgesCache=new Map();
+const profileBadgeExpiryTimers=new Map();
+let activeWorthItBadgeTrigger=null;
 function clearWorthItProfileBadgeCache(id){
  if(id==null)profileBadgesCache.clear();else profileBadgesCache.delete(String(id));
+}
+function scheduleWorthItBadgeExpiry(worthItId,badges){
+ const key=String(worthItId||"");
+ if(!key)return;
+ const existing=profileBadgeExpiryTimers.get(key);
+ if(existing!==undefined){window.clearTimeout(existing);profileBadgeExpiryTimers.delete(key);}
+ const nextExpiry=(badges||[])
+  .filter(badge=>badge&&badge.type==="Temporary"&&badge.expires_at)
+  .map(badge=>Date.parse(badge.expires_at))
+  .filter(value=>Number.isFinite(value)&&value>Date.now())
+  .sort((a,b)=>a-b)[0];
+ if(!nextExpiry)return;
+ const delay=Math.max(0,Math.min(2147480000,nextExpiry-Date.now()+500));
+ const timer=window.setTimeout(()=>{
+  profileBadgeExpiryTimers.delete(key);
+  clearWorthItProfileBadgeCache(key);
+  if(currentDisplayedProfileId===Number(key)){
+   void loadWorthItProfileBadges(Number(key),currentDisplayedProfileIsOwn);
+  }
+  window.dispatchEvent(new Event("worthit-badges-updated"));
+ },delay);
+ profileBadgeExpiryTimers.set(key,timer);
 }
 async function getWorthItProfileBadgeInfo(worthItId){
  const key=String(worthItId||"");
@@ -228,7 +252,9 @@ async function getWorthItProfileBadgeInfo(worthItId){
   const result=await client().rpc("get_worth_it_profile_badges",{p_worth_it_id:Number(worthItId)});
   if(result.error)throw result.error;
   const data=normalizeRpcObject(result.data)||{};
-  return {badges:Array.isArray(data.badges)?data.badges:[],is_own_profile:data.is_own_profile===true};
+  const info={badges:Array.isArray(data.badges)?data.badges:[],is_own_profile:data.is_own_profile===true};
+  scheduleWorthItBadgeExpiry(key,info.badges);
+  return info;
  })();
  profileBadgesCache.set(key,promise);
  try{return await promise;}catch(error){profileBadgesCache.delete(key);throw error;}
@@ -237,16 +263,117 @@ function createWorthItBadgeNode(badge,compact){
  const node=document.createElement("span");
  node.className="worth-it-member-badge"+(compact?" is-compact":"");
  if(badge.earned===false)node.classList.add("is-locked");
+ if(badge.equipped===true)node.classList.add("is-equipped");
  node.dataset.badge=String(badge.key||"");
  node.title=String(badge.description||badge.label||"");
  const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
  const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
  node.append(icon,label);return node;
 }
-function renderWorthItBadgeStrip(host,badges){
- if(!host)return;host.replaceChildren();
- (badges||[]).filter(badge=>badge&&badge.earned===true&&badge.equipped===true).forEach(badge=>host.appendChild(createWorthItBadgeNode(badge,true)));
+function createWorthItBadgeTrigger(badge,compact){
+ const node=document.createElement("button");
+ node.type="button";
+ node.className="worth-it-member-badge worth-it-profile-badge-trigger"+(compact?" is-compact":"");
+ if(badge.earned===false)node.classList.add("is-locked");
+ if(badge.equipped===true)node.classList.add("is-equipped");
+ node.dataset.badge=String(badge.key||"");
+ node.title=String(badge.description||badge.label||"View badge details");
+ const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
+ const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
+ node.append(icon,label);return node;
 }
+function renderWorthItBadgeStrip(host,badges,options){
+ if(!host)return;host.replaceChildren();
+ const equipped=(badges||[]).filter(badge=>badge&&badge.earned===true&&badge.equipped===true).slice(0,1);
+ equipped.forEach(badge=>{
+  if(options?.profileId){
+   const trigger=createWorthItBadgeTrigger(badge,true);
+   trigger.addEventListener("click",()=>openWorthItBadgeInfo(badge,{worthItId:options.profileId,canEquip:options.canEquip===true,trigger}));
+   host.appendChild(trigger);
+  }else{
+   host.appendChild(createWorthItBadgeNode(badge,true));
+  }
+ });
+}
+function formatWorthItBadgeExpiration(value){
+ const timestamp=Date.parse(value||"");
+ if(!Number.isFinite(timestamp))return "";
+ const date=new Date(timestamp);
+ const formatted=new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"short"}).format(date);
+ const remaining=timestamp-Date.now();
+ if(remaining<=0)return "Expired "+formatted;
+ const totalHours=Math.max(1,Math.ceil(remaining/3600000));
+ const days=Math.floor(totalHours/24),hours=totalHours%24;
+ const left=days?days+" day"+(days===1?"":"s")+(hours?" and "+hours+" hour"+(hours===1?"":"s"):""):hours+" hour"+(hours===1?"":"s");
+ return formatted+" ("+left+" remaining)";
+}
+function addWorthItBadgeInfoField(host,labelText,valueText){
+ const field=document.createElement("div");field.className="worth-it-badge-info-field";
+ const label=document.createElement("span");label.className="worth-it-badge-info-label";label.textContent=labelText;
+ const value=document.createElement("strong");value.className="worth-it-badge-info-value";value.textContent=String(valueText||"—");
+ field.append(label,value);host.appendChild(field);
+}
+function closeWorthItBadgeInfo(){
+ const overlay=$("worthItBadgeInfoOverlay");
+ if(overlay){overlay.hidden=true;overlay.setAttribute("aria-hidden","true");}
+ const trigger=activeWorthItBadgeTrigger;activeWorthItBadgeTrigger=null;
+ trigger?.focus?.({preventScroll:true});
+}
+async function equipWorthItProfileBadge(badge,context,button){
+ if(!context.canEquip||!badge.earned||!context.worthItId)return;
+ const equip=!badge.equipped;
+ button.disabled=true;
+ try{
+  const result=await client().rpc("set_worth_it_profile_badge_equipped",{p_badge_key:badge.key,p_equipped:equip});
+  if(result.error)throw result.error;
+  clearWorthItProfileBadgeCache(context.worthItId);
+  const info=await getWorthItProfileBadgeInfo(context.worthItId);
+  const updated=(info.badges||[]).find(item=>item.key===badge.key)||badge;
+  await loadWorthItProfileBadges(context.worthItId,true);
+  openWorthItBadgeInfo(updated,{worthItId:context.worthItId,canEquip:info.is_own_profile===true,trigger:context.trigger});
+  window.dispatchEvent(new Event("worthit-badges-updated"));
+ }catch(error){
+  const status=$("worthItProfileBadgesStatus");
+  if(status)status.textContent=error?.message||"Could not update this badge.";
+  button.disabled=false;
+ }
+}
+function openWorthItBadgeInfo(badge,context){
+ const overlay=$("worthItBadgeInfoOverlay"),title=$("worthItBadgeInfoTitle"),icon=$("worthItBadgeInfoIcon"),fields=$("worthItBadgeInfoFields"),actions=$("worthItBadgeInfoActions");
+ if(!overlay||!badge)return;
+ activeWorthItBadgeTrigger=context?.trigger||document.activeElement;
+ if(title)title.textContent=String(badge.label||badge.key||"Badge");
+ if(icon){icon.textContent=String(badge.icon||"✦");icon.dataset.badge=String(badge.key||"");}
+ if(fields){
+  fields.replaceChildren();
+  addWorthItBadgeInfoField(fields,"Badge type",badge.type||"Permanent");
+  addWorthItBadgeInfoField(fields,"Duration",badge.duration||"Permanent once unlocked.");
+  addWorthItBadgeInfoField(fields,"How to get it",badge.how_to_get||badge.description||"Badge requirements are not available.");
+  if(badge.type==="Temporary"&&badge.expires_at){
+   addWorthItBadgeInfoField(fields,"Subscription expiry",formatWorthItBadgeExpiration(badge.expires_at));
+  }else if(badge.type==="Temporary"&&!badge.earned){
+   addWorthItBadgeInfoField(fields,"Status","Not active. Purchase the subscription again to unlock this badge.");
+  }
+  if(badge.equipped===true)addWorthItBadgeInfoField(fields,"Profile status","Currently equipped");
+ }
+ if(actions){
+  actions.replaceChildren();
+  if(context?.canEquip===true){
+   const action=document.createElement("button");action.type="button";action.className="worth-it-badge-info-equip";
+   action.disabled=badge.earned!==true;
+   action.textContent=badge.earned===true?(badge.equipped===true?"Unequip badge":"Equip badge"):"Locked";
+   if(badge.earned===true)action.addEventListener("click",()=>void equipWorthItProfileBadge(badge,context,action));
+   actions.appendChild(action);
+  }else{
+   const note=document.createElement("p");note.className="worth-it-badge-info-readonly";
+   note.textContent="You can view badge details, but you cannot equip badges on another member’s profile.";
+   actions.appendChild(note);
+  }
+ }
+ overlay.hidden=false;overlay.setAttribute("aria-hidden","false");
+ $("worthItBadgeInfoClose")?.focus?.({preventScroll:true});
+}
+$("worthItBadgeInfoClose")?.addEventListener("click",closeWorthItBadgeInfo);
 async function loadWorthItPublicBadges(worthItId,host){
  if(!host)return;
  host.replaceChildren();
@@ -266,41 +393,24 @@ async function loadWorthItProfileBadges(worthItId,isOwn){
  if(section)section.hidden=false;
  if(status)status.textContent="Loading badges…";
  try{
-  const info=await getWorthItProfileBadgeInfo(worthItId),badges=info.badges||[];
-  renderWorthItBadgeStrip(nameHost,badges);
-  renderWorthItBadgeStrip(display,badges);
+  const info=await getWorthItProfileBadgeInfo(worthItId),badges=info.badges||[],canEquip=info.is_own_profile===true;
+  renderWorthItBadgeStrip(nameHost,badges,{profileId:worthItId,canEquip});
+  renderWorthItBadgeStrip(display,badges,{profileId:worthItId,canEquip});
   if(manage){
-   manage.replaceChildren();manage.hidden=!isOwn;
-   if(isOwn){
-    const heading=document.createElement("h3");heading.textContent="Your badge collection";manage.appendChild(heading);
-    if(!badges.length)manage.appendChild(textBadgeMessage("No badges unlocked yet. Membership badges unlock automatically as your account gets older."));
-    badges.forEach(badge=>{
-     const row=document.createElement("div");row.className="worth-it-badge-equip-row"+(badge.earned?"":" is-locked");
-     const copy=document.createElement("div");copy.className="worth-it-badge-copy";
-     const details=document.createElement("details");details.className="worth-it-badge-detail";
-     const summary=document.createElement("summary");summary.appendChild(createWorthItBadgeNode({...badge,equipped:false},false));
-     const description=document.createElement("p");description.textContent=badge.description||"";
-     details.append(summary,description);copy.appendChild(details);
-     const toggle=document.createElement("button");toggle.type="button";toggle.className="worth-it-badge-equip-toggle";
-     toggle.disabled=!badge.earned;toggle.textContent=badge.earned?(badge.equipped?"Unequip":"Equip"):"Locked";
-     toggle.addEventListener("click",async()=>{
-      toggle.disabled=true;
-      try{
-       const result=await client().rpc("set_worth_it_profile_badge_equipped",{p_badge_key:badge.key,p_equipped:!badge.equipped});
-       if(result.error)throw result.error;
-       clearWorthItProfileBadgeCache(worthItId);
-       await loadWorthItProfileBadges(worthItId,true);
-       window.dispatchEvent(new Event("worthit-badges-updated"));
-      }catch(error){
-       if(status)status.textContent=error?.message||"Could not update this badge.";
-       toggle.disabled=false;
-      }
-     });
-     row.append(copy,toggle);manage.appendChild(row);
-    });
-   }
+   manage.replaceChildren();manage.hidden=false;
+   const heading=document.createElement("h3");heading.textContent=canEquip?"Your badge collection":"Badge collection";manage.appendChild(heading);
+   if(!badges.length)manage.appendChild(textBadgeMessage("No badges are available on this profile yet."));
+   badges.forEach(badge=>{
+    const row=document.createElement("div");
+    row.className="worth-it-profile-badge-row"+(badge.earned===true?" is-earned":" is-locked")+(badge.equipped===true?" is-equipped":"");
+    const trigger=createWorthItBadgeTrigger(badge,false);
+    trigger.addEventListener("click",()=>openWorthItBadgeInfo(badge,{worthItId,canEquip,trigger}));
+    row.appendChild(trigger);manage.appendChild(row);
+   });
   }
-  if(status)status.textContent=badges.some(b=>b.equipped)?"Equipped badges are shown beside the display name and in chat.":isOwn?"Equip an unlocked badge to show it beside your display name and in chat.":"No public badges are equipped.";
+  if(status)status.textContent=canEquip
+   ?(badges.some(b=>b.equipped)?"One badge is equipped. Select any badge to see its details or replace your current badge.":"Select an unlocked badge to view its details and equip it.")
+   :"All badges are shown. Locked badges are dimmed. Select any badge to see how it is unlocked.";
  }catch(error){
   if(section)section.hidden=true;
   if(nameHost)nameHost.replaceChildren();
@@ -834,11 +944,11 @@ function closeWorthItNotifications(){
  if(panel){panel.hidden=true;panel.setAttribute("aria-hidden","true");}
  if(button)button.setAttribute("aria-expanded","false");
 }
-window.toggleWorthItNotifications=async function(event){
+window.toggleWorthItNotifications=async function(event,forceClose){
  event?.stopPropagation?.();
  const panel=$("worthItNotificationPanel"),button=$("worthItNotificationBell");
  if(!panel||!currentUser){if(!currentUser)promptSignInForSocial();return;}
- if(!panel.hidden){closeWorthItNotifications();return;}
+ if(!panel.hidden){if(forceClose===true)closeWorthItNotifications();return;}
  closeAccountDropdown();panel.hidden=false;panel.setAttribute("aria-hidden","false");if(button)button.setAttribute("aria-expanded","true");
  if(worthItNotificationExpiryTimer===null)worthItNotificationExpiryTimer=window.setInterval(()=>{const activePanel=$("worthItNotificationPanel");if(currentUser&&activePanel&&!activePanel.hidden)refreshWorthItNotifications(false);},60000);
  setWorthItNotificationTab(worthItNotificationTab);
@@ -875,9 +985,8 @@ function requestWorthItUnfriendReason(targetId){
  overlay.hidden=false;
  return new Promise(resolve=>{worthItUnfriendReasonResolver=resolve;input?.focus();});
 }
-document.addEventListener("click",event=>{const wrap=$("worthItNotificationWrap");if(wrap&&!wrap.contains(event.target))closeWorthItNotifications();});
 document.addEventListener("keydown",event=>{
- if(event.key==="Escape"){closeWorthItNotifications();if(!$("worthItUnfriendDialog")?.hidden)finishWorthItUnfriendDialog(null);}
+ if(event.key==="Escape"&&!$("worthItUnfriendDialog")?.hidden)finishWorthItUnfriendDialog(null);
 });
 
 function socialErrorMessage(result) {

@@ -116,12 +116,10 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-maker-edit-grid label:last-child{grid-column:auto}
  .worth-it-profile-favourite-grid{grid-template-columns:1fr 1fr}
 }
-@media(prefers-color-scheme:light){
- .ugc-calculator-card{background:linear-gradient(145deg,#fff,#f4f6ff)!important}
- .ugc-maker-card{background:#fff}
- .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites{background:#fff}
- .ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea,.ugc-input-field input{background:#f7f8ff;color:#17213e}
-}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) .ugc-calculator-card{background:linear-gradient(145deg,#fff,#f4f6ff)!important}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) .ugc-maker-card{background:#fff}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites){background:#fff}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea,.ugc-input-field input){background:#f7f8ff;color:#17213e}
 .ugc-maker-schema-heading{margin:18px 0 8px;font-size:13px;font-weight:850;letter-spacing:-.01em}
 .ugc-maker-schema-group{min-width:0;margin:9px 0;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(124,92,255,.035)}
 .ugc-maker-schema-group legend{padding:0 6px;color:var(--primary2);font-size:10px;font-weight:850}
@@ -2182,4 +2180,259 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-blueprint-import-actions{display:grid;grid-template-columns:1fr}
  .ugc-blueprint-import-actions button{width:100%}
  .ugc-blueprint-import textarea{min-height:170px;font-size:11px}
+}
+
+
+/* Keep the badge collection compact; older and locked badges scroll inside this panel. */
+.worth-it-profile-badge-manage{
+ max-height:280px;
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ padding-right:7px;
+}
+.worth-it-profile-badge-manage::-webkit-scrollbar{width:7px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 38%,transparent);border-radius:999px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-track{background:transparent}
+
+
+
+/* Profile badge collection: one badge per row, with locked milestones visibly dimmed. */
+.worth-it-profile-badge-manage{
+ display:flex;
+ flex-direction:column;
+ gap:7px;
+ max-height:280px;
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ padding:2px 7px 2px 0;
+}
+.worth-it-profile-badge-manage h3{
+ position:sticky;
+ top:0;
+ z-index:1;
+ margin:0 0 3px;
+ padding:5px 0 8px;
+ color:var(--text);
+ background:var(--card);
+ font-size:12px;
+}
+.worth-it-profile-badge-row{min-width:0}
+.worth-it-profile-badge-trigger{
+ width:100%;
+ min-height:38px;
+ justify-content:flex-start;
+ text-align:left;
+ padding:8px 11px;
+ border-radius:11px;
+ cursor:pointer;
+ transition:background .16s ease,border-color .16s ease,opacity .16s ease,transform .16s ease;
+}
+.worth-it-profile-badge-trigger:hover,
+.worth-it-profile-badge-trigger:focus-visible{
+ outline:none;
+ border-color:var(--primary)!important;
+ transform:translateX(2px);
+}
+.worth-it-profile-badge-row.is-locked .worth-it-profile-badge-trigger{
+ opacity:.34;
+ filter:grayscale(.88);
+}
+.worth-it-profile-badge-row.is-earned .worth-it-profile-badge-trigger{opacity:1;filter:none}
+.worth-it-profile-badge-row.is-equipped .worth-it-profile-badge-trigger{
+ border-color:var(--primary);
+ box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 24%,transparent);
+}
+.worth-it-profile-name-badges .worth-it-profile-badge-trigger{width:auto;min-height:0;padding:4px 8px}
+.worth-it-profile-badge-manage::-webkit-scrollbar{width:7px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 38%,transparent);border-radius:999px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-track{background:transparent}
+
+/* Badge details use an explicit close action; the blurred backdrop is not clickable. */
+.worth-it-badge-info-overlay{
+ position:fixed;
+ inset:0;
+ z-index:14000;
+ display:grid;
+ place-items:center;
+ box-sizing:border-box;
+ padding:18px;
+ background:rgba(4,8,20,.58);
+ -webkit-backdrop-filter:blur(14px);
+ backdrop-filter:blur(14px);
+}
+.worth-it-badge-info-overlay[hidden]{display:none!important}
+.worth-it-badge-info-dialog{
+ position:relative;
+ width:min(490px,100%);
+ max-height:min(86dvh,720px);
+ overflow:auto;
+ box-sizing:border-box;
+ padding:25px;
+ border:1px solid var(--border);
+ border-radius:22px;
+ color:var(--text);
+ background:
+  radial-gradient(120% 120% at 0% 0%,color-mix(in srgb,var(--primary) 13%,transparent),transparent 54%),
+  var(--card-solid);
+ box-shadow:0 26px 90px rgba(0,0,0,.48);
+}
+.worth-it-badge-info-close{
+ position:absolute;
+ top:12px;
+ right:12px;
+ display:grid;
+ place-items:center;
+ width:34px;
+ height:34px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ color:var(--text);
+ background:var(--surface-soft);
+ font:inherit;
+ font-size:16px;
+ font-weight:850;
+ cursor:pointer;
+}
+.worth-it-badge-info-heading{
+ display:flex;
+ align-items:center;
+ gap:13px;
+ padding:0 42px 17px 0;
+ border-bottom:1px solid var(--border);
+}
+.worth-it-badge-info-icon{
+ flex:0 0 54px;
+ width:54px;
+ height:54px;
+ display:grid;
+ place-items:center;
+ border:1px solid color-mix(in srgb,var(--primary) 42%,var(--border));
+ border-radius:16px;
+ color:var(--primary);
+ background:color-mix(in srgb,var(--primary) 12%,var(--card-solid));
+ font-size:26px;
+ font-weight:950;
+}
+.worth-it-badge-info-kicker{
+ margin:0 0 4px;
+ color:var(--muted);
+ font-size:9px;
+ font-weight:900;
+ letter-spacing:.13em;
+}
+.worth-it-badge-info-heading h2{
+ margin:0;
+ color:var(--worth-it-theme-heading-color,var(--text));
+ font-size:clamp(20px,4vw,26px);
+ line-height:1.2;
+ overflow-wrap:anywhere;
+}
+.worth-it-badge-info-fields{display:grid;gap:0;margin-top:7px}
+.worth-it-badge-info-field{
+ display:grid;
+ gap:5px;
+ padding:12px 0;
+ border-bottom:1px solid var(--border);
+}
+.worth-it-badge-info-label{
+ color:var(--muted);
+ font-size:10px;
+ font-weight:850;
+ letter-spacing:.06em;
+ text-transform:uppercase;
+}
+.worth-it-badge-info-value{
+ color:var(--text);
+ font-size:13px;
+ font-weight:650;
+ line-height:1.55;
+ overflow-wrap:anywhere;
+}
+.worth-it-badge-info-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+.worth-it-badge-info-equip{
+ min-width:130px;
+ padding:10px 15px;
+ border:1px solid transparent;
+ border-radius:11px;
+ color:var(--worth-it-gradient-foreground,#fff);
+ background:var(--worth-it-theme-gradient,linear-gradient(120deg,#7c5cff,#38bdf8));
+ font:inherit;
+ font-size:12px;
+ font-weight:900;
+ cursor:pointer;
+}
+.worth-it-badge-info-equip:disabled{opacity:.42;cursor:not-allowed}
+.worth-it-badge-info-readonly{margin:0;color:var(--muted);font-size:11px;line-height:1.5;text-align:right}
+@media(max-width:520px){
+ .worth-it-badge-info-overlay{padding:12px}
+ .worth-it-badge-info-dialog{padding:20px 17px;border-radius:18px}
+ .worth-it-badge-info-heading{gap:10px}
+ .worth-it-badge-info-icon{width:46px;height:46px;flex-basis:46px;font-size:22px}
+ .worth-it-badge-info-actions{flex-direction:column}
+ .worth-it-badge-info-equip{width:100%}
+ .worth-it-badge-info-readonly{text-align:left}
+}
+
+
+/* Compact phone layout for the UGC Calculator Creator.
+   Keep the close control and save/publish actions reachable while the form scrolls. */
+@media(max-width:700px){
+ .ugc-maker-overlay{padding:max(5px,env(safe-area-inset-top)) 5px max(5px,env(safe-area-inset-bottom))}
+ .ugc-maker-card{
+  width:100%;max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 10px);
+  padding:11px;border-radius:14px;overscroll-behavior:contain;
+ }
+ .ugc-maker-head{
+  position:sticky;top:-11px;z-index:8;align-items:center;gap:8px;
+  margin:-11px -11px 8px;padding:10px 11px 8px;
+  border-bottom:1px solid var(--border);border-radius:14px 14px 0 0;
+  background:var(--card-solid);
+ }
+ .ugc-maker-head h2{font-size:17px;line-height:1.2;margin:2px 0 3px}
+ .ugc-maker-head p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:10px;line-height:1.35}
+ .ugc-maker-close{width:34px;height:34px;flex-basis:34px}
+ .ugc-maker-card label{gap:5px;margin:7px 0;font-size:10px}
+ .ugc-maker-card input,.ugc-maker-card select,.ugc-maker-card textarea{font-size:12px}
+ .ugc-maker-card textarea{min-height:76px}
+ .ugc-maker-card textarea#ugcBlueprintImportJson{min-height:112px}
+ .ugc-maker-card .ugc-maker-status{min-height:0;margin:5px 0 7px;font-size:10px;line-height:1.4}
+ .ugc-maker-card .ugc-blueprint-import{padding:9px}
+ .ugc-maker-card .ugc-blueprint-import-note{font-size:9px;line-height:1.4;margin:6px 0}
+ .ugc-maker-card .ugc-blueprint-import-actions{gap:6px}
+ .ugc-maker-card .ugc-blueprint-import-actions button{min-height:36px;padding:7px 9px;font-size:10px}
+ .ugc-maker-card .ugc-maker-preview{padding:10px;margin-top:8px}
+ .ugc-maker-card .ugc-maker-actions{
+  position:sticky;bottom:-11px;z-index:7;
+  margin:8px -11px -11px;padding:9px 11px max(9px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);background:color-mix(in srgb,var(--card-solid) 96%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+ }
+ .ugc-maker-card .ugc-maker-actions button{flex:1 1 0;min-width:0;min-height:39px;padding:8px 7px;font-size:11px}
+ .ugc-manual-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .ugc-manual-controls>label{min-width:0;margin:5px 0}
+ .ugc-manual-controls>label select{min-height:38px;padding:7px 8px;font-size:11px}
+ .ugc-manual-controls>.ugc-maker-status{grid-column:1/-1}
+ .ugc-maker-visibility{padding:9px;margin:7px 0}
+ .ugc-maker-visibility select{min-height:37px}
+ .ugc-maker-schema-group{margin:6px 0;padding:8px}
+ .ugc-maker-schema-heading{margin:12px 0 6px;font-size:12px}
+ .ugc-maker-input-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .ugc-maker-input-grid label{margin:3px 0;font-size:9px}
+ .ugc-maker-input-grid input,.ugc-maker-input-grid textarea,.ugc-maker-input-grid select{padding:7px;font-size:11px}
+ .ugc-maker-input-grid textarea{min-height:58px}
+ .ugc-maker-test-panel{padding:9px;margin:8px 0 5px}
+ .ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .ugc-maker-test-input{padding:7px}
+ .ugc-maker-test-input input{padding:7px;font-size:12px}
+ .ugc-maker-test-result{padding:8px;gap:4px}
+ .ugc-maker-test-result>strong{font-size:15px}
+}
+@media(max-width:380px){
+ .ugc-maker-card{padding:9px}
+ .ugc-maker-head{top:-9px;margin:-9px -9px 7px;padding:8px 9px 7px}
+ .ugc-maker-card .ugc-maker-actions{bottom:-9px;margin:7px -9px -9px;padding:8px 9px max(8px,env(safe-area-inset-bottom))}
+ .ugc-manual-controls{grid-template-columns:1fr}
+ .ugc-maker-input-grid,.ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:1fr}
 }

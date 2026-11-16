@@ -84,7 +84,7 @@ insert into public.worth_it_user_preferences(user_id,profile_visibility) values
 
 insert into private.worth_it_calc_wallets(user_id,premium_plan,premium_expires_at,balance_milli) values
  ('33333333-3333-4333-8333-333333333333','premium',now()+interval '30 days',20000),
- ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '30 days',20000),
+ ('44444444-4444-4444-8444-444444444444','premium_lite',now()+interval '15 days',20000),
  ('a7777777-7777-4777-8777-777777777777','free',null,10000),
  ('a8888888-8888-4888-8888-888888888889','premium_lite',now()+interval '30 days',3000),
  ('a9999999-9999-4999-8999-999999999998','premium',now()+interval '30 days',20000),
@@ -789,12 +789,13 @@ begin
 end
 $test$;
 
--- Premium tiers and membership periods unlock only the matching server-issued badges.
+-- Premium tiers and membership milestones unlock only their matching server-issued badges.
+-- Equipping a second earned badge replaces the first selection.
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
 select public.set_worth_it_profile_badge_equipped('premium',true);
 select set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false);
 select public.set_worth_it_profile_badge_equipped('premium_lite',true);
-select public.set_worth_it_profile_badge_equipped('member_3m',true);
+select public.set_worth_it_profile_badge_equipped('member_1m',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select public.set_worth_it_profile_badge_equipped('member_12m',true);
 
@@ -802,23 +803,59 @@ select public.set_worth_it_profile_badge_equipped('member_12m',true);
 select set_config('request.jwt.claim.sub','55555555-5555-4555-8555-555555555555',false);
 select public.set_worth_it_profile_badge_equipped('owner',true);
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+
 do $test$
-declare result jsonb; failed boolean:=false;
+declare
+    result jsonb;
+    v_badge jsonb;
+    v_count integer;
 begin
+    -- A different account can inspect all 12 badges, including locked ones.
     result:=public.get_worth_it_profile_badges(103);
-    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='premium' and (b->>'equipped')::boolean) then
-        raise exception 'PREMIUM badge was not equipped.';
+    if jsonb_array_length(result->'badges')<>12 then
+        raise exception 'A visitor must see all 12 badges, including locked badges.';
     end if;
+    select b into v_badge from jsonb_array_elements(result->'badges') b where b->>'key'='premium';
+    if v_badge is null
+       or (v_badge->>'equipped')::boolean is distinct from true
+       or v_badge->>'type'<>'Temporary'
+       or v_badge->>'duration'<>'Until the current Premium subscription expires.'
+       or nullif(v_badge->>'expires_at','') is null then
+        raise exception 'Active PREMIUM badge metadata or equip state is incorrect: %',v_badge;
+    end if;
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='owner' and (b->>'earned')::boolean is false) then
+        raise exception 'The locked OWNER badge must remain visible on another member profile.';
+    end if;
+
+    -- Premium Lite remains earned for its 15-day term, but the subsequent
+    -- membership badge replaces it as the only selected badge.
     result:=public.get_worth_it_profile_badges(104);
-    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='premium_lite' and (b->>'equipped')::boolean) then
-        raise exception 'PREMIUM LITE badge was not equipped.';
+    select b into v_badge from jsonb_array_elements(result->'badges') b where b->>'key'='premium_lite';
+    if v_badge is null
+       or (v_badge->>'earned')::boolean is distinct from true
+       or (v_badge->>'equipped')::boolean is distinct from false
+       or v_badge->>'type'<>'Temporary'
+       or v_badge->>'duration'<>'15 days per purchase.'
+       or nullif(v_badge->>'expires_at','') is null then
+        raise exception 'PREMIUM LITE must be temporary, 15 days, and replaced by the latest badge: %',v_badge;
     end if;
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_1m' and (b->>'equipped')::boolean) then
+        raise exception 'Equipping a membership badge must replace PREMIUM LITE.';
+    end if;
+    select count(*)::integer into v_count from private.worth_it_profile_badge_equips
+     where user_id='44444444-4444-4444-8444-444444444444';
+    if v_count<>1 then raise exception 'Only one badge may be equipped at once; found %.',v_count; end if;
+
     result:=public.get_worth_it_profile_badges(105);
-    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='owner' and (b->>'equipped')::boolean) then
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='owner' and (b->>'equipped')::boolean) then
         raise exception 'OWNER badge was not visible on the owner profile.';
     end if;
     result:=public.get_worth_it_profile_badges(101);
-    if not exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='member_12m' and (b->>'equipped')::boolean) then
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='member_12m' and (b->>'equipped')::boolean) then
         raise exception 'Membership tenure badge was not equipped.';
     end if;
 end
@@ -837,19 +874,89 @@ begin
 end
 $test$;
 
--- Unequip persists and the public badge list no longer advertises it.
+-- A same-tier renewal before expiry preserves a selected Premium badge.
+update private.worth_it_calc_wallets
+   set premium_expires_at=now()+interval '45 days'
+ where user_id='33333333-3333-4333-8333-333333333333';
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $renewal$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_profile_badges(103);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='premium' and (b->>'equipped')::boolean) then
+        raise exception 'A same-tier pre-expiry renewal must preserve the equipped Premium badge.';
+    end if;
+end
+$renewal$;
+
+-- After expiry, the temporary selection is removed and cannot be equipped.
+update private.worth_it_calc_wallets
+   set premium_expires_at=now()-interval '1 second'
+ where user_id='33333333-3333-4333-8333-333333333333';
+do $expiry$
+declare result jsonb; v_count integer;
+begin
+    result:=public.get_worth_it_profile_badges(103);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='premium'
+                     and (b->>'earned')::boolean is false
+                     and (b->>'equipped')::boolean is false) then
+        raise exception 'Expired Premium must be shown as locked and unequipped.';
+    end if;
+    select count(*)::integer into v_count from private.worth_it_profile_badge_equips
+     where user_id='33333333-3333-4333-8333-333333333333';
+    if v_count<>0 then raise exception 'Expired Premium equip was not removed.'; end if;
+end
+$expiry$;
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+do $expired_equip$
+declare failed boolean:=false;
+begin
+    begin
+        perform public.set_worth_it_profile_badge_equipped('premium',true);
+    exception when insufficient_privilege then failed:=true;
+    end;
+    if not failed then raise exception 'An expired Premium account unexpectedly re-equipped the badge.'; end if;
+end
+$expired_equip$;
+
+-- A repurchase unlocks Premium, but it does not silently restore the old equip.
+update private.worth_it_calc_wallets
+   set premium_expires_at=now()+interval '30 days'
+ where user_id='33333333-3333-4333-8333-333333333333';
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+do $repurchase$
+declare result jsonb;
+begin
+    result:=public.get_worth_it_profile_badges(103);
+    if not exists(select 1 from jsonb_array_elements(result->'badges') b
+                   where b->>'key'='premium'
+                     and (b->>'earned')::boolean is true
+                     and (b->>'equipped')::boolean is false) then
+        raise exception 'Repurchase must unlock Premium without automatically equipping it.';
+    end if;
+end
+$repurchase$;
+select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',false);
+select public.set_worth_it_profile_badge_equipped('premium',true);
+
+-- Unequip removes the selected badge but the earned achievement stays visible in the collection.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 select public.set_worth_it_profile_badge_equipped('member_12m',false);
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
-do $test$
-declare result jsonb;
+do $unequip$
+declare result jsonb; v_badge jsonb;
 begin
     result:=public.get_worth_it_profile_badges(101);
-    if exists(select 1 from jsonb_array_elements(result->'badges') b where b->>'key'='member_12m') then
-        raise exception 'Unequipped badge remained on the public profile.';
+    select b into v_badge from jsonb_array_elements(result->'badges') b where b->>'key'='member_12m';
+    if v_badge is null
+       or (v_badge->>'earned')::boolean is distinct from true
+       or (v_badge->>'equipped')::boolean is distinct from false then
+        raise exception 'An unequipped earned badge must stay visible but not equipped: %',v_badge;
     end if;
 end
-$test$;
+$unequip$;
 
 -- Private profiles never reveal their favourites to another member.
 update public.worth_it_user_preferences set profile_visibility='private'

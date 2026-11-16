@@ -62,6 +62,8 @@ let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
 let themePreviewActive = false;
+let initialThemeHydrationPending = Boolean(document.documentElement?.classList.contains("worth-it-initial-paint"));
+let initialThemeHydrationFailsafe = null;
 let themeExpiryTimer = null;
 let themeReturnRefreshAt = 0;
 let favouritesRemoteAvailable = null;
@@ -117,7 +119,7 @@ function accessibleThemeText(color,surfaces){
  const clean=validHex(color)?color.toUpperCase():"#FFFFFF";
  const backgrounds=(Array.isArray(surfaces)?surfaces:[]).filter(validHex);
  if(!backgrounds.length||backgrounds.every(background=>contrastRatio(clean,background)>=4.5))return clean;
- const candidates=["#FFFFFF","#08111F"];
+ const candidates=["#FFFFFF","#000000"];
  return candidates.sort((a,b)=>{
   const score=value=>Math.min(...backgrounds.map(background=>contrastRatio(value,background)));
   return score(b)-score(a);
@@ -137,7 +139,7 @@ function contrastRatio(a,b){
  return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
 }
 function contrastForeground(hex){
- return contrastRatio(hex,"#FFFFFF")>=contrastRatio(hex,"#08111F")?"#FFFFFF":"#08111F";
+ return contrastRatio(hex,"#FFFFFF")>=contrastRatio(hex,"#000000")?"#FFFFFF":"#000000";
 }
 function mixHex(first,second,amount){
  const a=hexRgb(first),b=hexRgb(second);
@@ -147,7 +149,7 @@ function mixHex(first,second,amount){
 function accessibleButtonBackground(background,foreground){
  const original=validHex(background)?background.toUpperCase():"#7C5CFF";
  if(contrastRatio(foreground,original)>=4.5)return original;
- const target=foreground.toUpperCase()==="#08111F"?"#FFFFFF":"#08111F";
+ const target=foreground.toUpperCase()==="#000000"?"#FFFFFF":"#000000";
  for(let amount=0.02;amount<=1;amount+=0.02){
   const candidate=mixHex(original,target,amount);
   if(contrastRatio(foreground,candidate)>=4.5)return candidate;
@@ -166,9 +168,10 @@ function readableAccent(hex){
  return "#FFFFFF";
 }
 function gradientForeground(primary,secondary){
- const whiteScore=Math.min(contrastRatio("#FFFFFF",primary),contrastRatio("#FFFFFF",secondary));
- const dark="#08111F";
- const darkScore=Math.min(contrastRatio(dark,primary),contrastRatio(dark,secondary));
+ const samples=Array.from({length:21},(_,index)=>mixHex(primary,secondary,index/20));
+ const whiteScore=Math.min(...samples.map(colour=>contrastRatio("#FFFFFF",colour)));
+ const dark="#000000";
+ const darkScore=Math.min(...samples.map(colour=>contrastRatio(dark,colour)));
  return whiteScore>=darkScore?"#FFFFFF":dark;
 }
 function isCustomTheme(value){
@@ -228,7 +231,19 @@ const THEME_PRESETS=[
  {id:"royal",name:"Royal",group:"more",subtitle:"Indigo · Gold",swatches:["#536DCE","#D6B45E","#0A1026"],theme:{"primary":"#536DCE","secondary":"#D6B45E","hover":"#7B91EB","header":"#101A3A","background":"#0A1026","surface":"#151F42","surfaceAlt":"#202D55","border":"#40518A","text":"#EDF1FF","heading":"#FFFFFF","muted":"#B8C3E7","link":"#F1D58C","fontFamily":"inter","headingStyle":"bold","bodyStyle":"standard","fontSize":"default","headingScale":"large","lineHeight":"normal","corners":"soft","buttonStyle":"gradient","cardStyle":"glass","buttonAnimation":"smooth","hoverEffect":"glow","shadowIntensity":"strong","borderThickness":"normal","focusAppearance":"prominent"}},
  {id:"mocha",name:"Mocha",group:"more",subtitle:"Coffee · Warm",swatches:["#B27B58","#D7B990","#19130F"],theme:{"primary":"#B27B58","secondary":"#D7B990","hover":"#C48E68","header":"#2B211C","background":"#19130F","surface":"#2A211B","surfaceAlt":"#392D24","border":"#665143","text":"#F4EAE0","heading":"#FFF9F2","muted":"#C7B6A6","link":"#E1BE9C","fontFamily":"georgia","headingStyle":"editorial","bodyStyle":"comfortable","fontSize":"default","headingScale":"balanced","lineHeight":"relaxed","corners":"rounded","buttonStyle":"solid","cardStyle":"glass","buttonAnimation":"smooth","hoverEffect":"lift","shadowIntensity":"soft","borderThickness":"normal","focusAppearance":"standard"}},
  {id:"sakura",name:"Sakura",group:"more",subtitle:"Petal · Soft",swatches:["#C85D82","#9C83C6","#FFF6F8"],theme:{"primary":"#C85D82","secondary":"#9C83C6","hover":"#D8789B","header":"#F7EAF0","background":"#FFF6F8","surface":"#FFFFFF","surfaceAlt":"#F7E9EF","border":"#E7C9D5","text":"#49313D","heading":"#2C1A25","muted":"#795D6A","link":"#A63D66","fontFamily":"georgia","headingStyle":"editorial","bodyStyle":"comfortable","fontSize":"large","headingScale":"large","lineHeight":"relaxed","corners":"rounded","buttonStyle":"gradient","cardStyle":"glass","buttonAnimation":"smooth","hoverEffect":"lift","shadowIntensity":"soft","borderThickness":"normal","focusAppearance":"prominent"}},
- {id:"neon-pulse",name:"Neon Pulse",group:"more",subtitle:"Lime · Electric",swatches:["#C3F53C","#24D4C8","#080F14"],theme:{"primary":"#C3F53C","secondary":"#24D4C8","hover":"#D8FF54","header":"#111A20","background":"#080F14","surface":"#121D25","surfaceAlt":"#1A2A33","border":"#36505A","text":"#EAF8F5","heading":"#FFFFFF","muted":"#A6C3C1","link":"#66E8DC","fontFamily":"mono","headingStyle":"technical","bodyStyle":"compact","fontSize":"default","headingScale":"large","lineHeight":"tight","corners":"sharp","buttonStyle":"solid","cardStyle":"flat","buttonAnimation":"smooth","hoverEffect":"glow","shadowIntensity":"strong","borderThickness":"thick","focusAppearance":"prominent"}}
+ {id:"neon-pulse",name:"Neon Pulse",group:"more",subtitle:"Lime · Electric",swatches:["#C3F53C","#24D4C8","#080F14"],theme:{"primary":"#C3F53C","secondary":"#24D4C8","hover":"#D8FF54","header":"#111A20","background":"#080F14","surface":"#121D25","surfaceAlt":"#1A2A33","border":"#36505A","text":"#EAF8F5","heading":"#FFFFFF","muted":"#A6C3C1","link":"#66E8DC","fontFamily":"mono","headingStyle":"technical","bodyStyle":"compact","fontSize":"default","headingScale":"large","lineHeight":"tight","corners":"sharp","buttonStyle":"solid","cardStyle":"flat","buttonAnimation":"smooth","hoverEffect":"glow","shadowIntensity":"strong","borderThickness":"thick","focusAppearance":"prominent"}},
+ {id:"cobalt-night",name:"Cobalt Night",group:"more",subtitle:"Cobalt · Midnight",swatches:["#4F7DFF","#48C6EF","#080F24"],theme:{primary:"#4F7DFF",secondary:"#48C6EF",hover:"#79A0FF",header:"#111D3B",background:"#080F24",surface:"#121F3D",surfaceAlt:"#1B2D50",border:"#3A5482",text:"#EDF3FF",heading:"#FFFFFF",muted:"#B4C4E2",link:"#8CCBFF",fontFamily:"inter",headingStyle:"modern",bodyStyle:"comfortable",fontSize:"default",headingScale:"balanced",lineHeight:"normal",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"glow",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"copper-dusk",name:"Copper Dusk",group:"more",subtitle:"Copper · Ember",swatches:["#D17B4A","#E8B16B","#21130F"],theme:{primary:"#D17B4A",secondary:"#E8B16B",hover:"#E99A68",header:"#332019",background:"#21130F",surface:"#332019",surfaceAlt:"#44291F",border:"#76503B",text:"#FFF1E7",heading:"#FFFFFF",muted:"#D8B9A6",link:"#FFC18E",fontFamily:"georgia",headingStyle:"editorial",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"soft",buttonStyle:"solid",cardStyle:"glass",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"standard"}},
+ {id:"glacier-blue",name:"Glacier Blue",group:"more",subtitle:"Frost · Clear sky",swatches:["#287CA8","#55B6D2","#F1FAFE"],theme:{primary:"#287CA8",secondary:"#55B6D2",hover:"#3998C0",header:"#E5F2F8",background:"#F1FAFE",surface:"#FFFFFF",surfaceAlt:"#E6F3F8",border:"#BBD7E3",text:"#193B4C",heading:"#102C3B",muted:"#4D6C7A",link:"#145E86",fontFamily:"system",headingStyle:"modern",bodyStyle:"standard",fontSize:"default",headingScale:"balanced",lineHeight:"normal",corners:"soft",buttonStyle:"solid",cardStyle:"flat",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"thin",focusAppearance:"prominent"}},
+ {id:"citrus-grove",name:"Citrus Grove",group:"more",subtitle:"Lime · Forest",swatches:["#A5C943","#4EAD79","#101D16"],theme:{primary:"#A5C943",secondary:"#4EAD79",hover:"#C0DD62",header:"#1B3022",background:"#101D16",surface:"#1B2C20",surfaceAlt:"#293C2D",border:"#506A4D",text:"#F0F8E9",heading:"#FFFFFF",muted:"#B8C9AE",link:"#C8E98A",fontFamily:"system",headingStyle:"bold",bodyStyle:"comfortable",fontSize:"default",headingScale:"balanced",lineHeight:"relaxed",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"plum-noir",name:"Plum Noir",group:"more",subtitle:"Plum · Violet",swatches:["#B477D8","#8D72D9","#1B1024"],theme:{primary:"#B477D8",secondary:"#8D72D9",hover:"#CC94E8",header:"#2A1938",background:"#1B1024",surface:"#2A1B36",surfaceAlt:"#39264A",border:"#684B7D",text:"#F8F0FC",heading:"#FFFFFF",muted:"#CBB9D7",link:"#D9B0F2",fontFamily:"georgia",headingStyle:"editorial",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"glow",shadowIntensity:"strong",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"coral-reef",name:"Coral Reef",group:"more",subtitle:"Coral · Lagoon",swatches:["#F07869","#36B8B0","#102426"],theme:{primary:"#F07869",secondary:"#36B8B0",hover:"#FF9B88",header:"#193337",background:"#102426",surface:"#1A3436",surfaceAlt:"#254447",border:"#4A7070",text:"#F0FAF8",heading:"#FFFFFF",muted:"#B6D0CB",link:"#83E0D5",fontFamily:"inter",headingStyle:"modern",bodyStyle:"standard",fontSize:"default",headingScale:"balanced",lineHeight:"normal",corners:"soft",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"standard"}},
+ {id:"sand-dune",name:"Sand Dune",group:"more",subtitle:"Sand · Stone",swatches:["#A66F42","#6E8A83","#F5EFE3"],theme:{primary:"#A66F42",secondary:"#6E8A83",hover:"#C18B5C",header:"#EAE0D0",background:"#F5EFE3",surface:"#FFFCF6",surfaceAlt:"#EDE4D6",border:"#D6C7B3",text:"#3D3025",heading:"#241A13",muted:"#6D5C4B",link:"#80502D",fontFamily:"georgia",headingStyle:"editorial",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"soft",buttonStyle:"solid",cardStyle:"solid",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"thin",focusAppearance:"prominent"}},
+ {id:"cyberpunk",name:"Cyberpunk",group:"more",subtitle:"Neon · After dark",swatches:["#F43F9B","#36E5E0","#0B1020"],theme:{primary:"#F43F9B",secondary:"#36E5E0",hover:"#FF75BA",header:"#17142D",background:"#0B1020",surface:"#171A32",surfaceAlt:"#222442",border:"#4B416F",text:"#F7F4FF",heading:"#FFFFFF",muted:"#C0B9D8",link:"#69F1E8",fontFamily:"mono",headingStyle:"technical",bodyStyle:"compact",fontSize:"default",headingScale:"large",lineHeight:"tight",corners:"sharp",buttonStyle:"gradient",cardStyle:"flat",buttonAnimation:"smooth",hoverEffect:"glow",shadowIntensity:"strong",borderThickness:"thick",focusAppearance:"prominent"}},
+ {id:"alpine-meadow",name:"Alpine Meadow",group:"more",subtitle:"Alpine · Meadow",swatches:["#527D62","#8EA96B","#F2F7EF"],theme:{primary:"#527D62",secondary:"#8EA96B",hover:"#6F987D",header:"#E6EEE4",background:"#F2F7EF",surface:"#FFFFFF",surfaceAlt:"#E7EFE4",border:"#C7D6C2",text:"#26382D",heading:"#17271D",muted:"#566B5B",link:"#365E47",fontFamily:"system",headingStyle:"modern",bodyStyle:"comfortable",fontSize:"default",headingScale:"balanced",lineHeight:"relaxed",corners:"rounded",buttonStyle:"solid",cardStyle:"glass",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"ruby-velvet",name:"Ruby Velvet",group:"more",subtitle:"Ruby · Velvet",swatches:["#D34D66","#A94E83","#220F1A"],theme:{primary:"#D34D66",secondary:"#A94E83",hover:"#EA7185",header:"#351725",background:"#220F1A",surface:"#351B29",surfaceAlt:"#482435",border:"#784153",text:"#FFF0F3",heading:"#FFFFFF",muted:"#D8B5C0",link:"#FF9EAE",fontFamily:"georgia",headingStyle:"editorial",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"glow",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"indigo-ink",name:"Indigo Ink",group:"more",subtitle:"Ink · Periwinkle",swatches:["#7186E8","#9CA9F5","#0E1530"],theme:{primary:"#7186E8",secondary:"#9CA9F5",hover:"#91A2FF",header:"#1A2448",background:"#0E1530",surface:"#1A2545",surfaceAlt:"#263357",border:"#485B91",text:"#F0F3FF",heading:"#FFFFFF",muted:"#BAC5E8",link:"#B9C5FF",fontFamily:"inter",headingStyle:"bold",bodyStyle:"standard",fontSize:"default",headingScale:"balanced",lineHeight:"normal",corners:"soft",buttonStyle:"solid",cardStyle:"glass",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
+ {id:"pastel-pop",name:"Pastel Pop",group:"more",subtitle:"Pastel · Playful",swatches:["#B66B9A","#6F91C7","#FFF5F8"],theme:{primary:"#B66B9A",secondary:"#6F91C7",hover:"#CE8DB2",header:"#F4EAF1",background:"#FFF5F8",surface:"#FFFFFF",surfaceAlt:"#F4EAF1",border:"#E4CBD9",text:"#44313D",heading:"#2A1C26",muted:"#715C69",link:"#8B4D75",fontFamily:"arial",headingStyle:"modern",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}}
 ];
 function renderThemePreview(){
  const node=$("worthItThemePreview");if(!node)return;
@@ -264,8 +279,35 @@ function setMoreThemePresetsExpanded(expanded){
  if(panel)panel.hidden=!themeExtraPresetsExpanded;
  if(button){
   button.setAttribute("aria-expanded",String(themeExtraPresetsExpanded));
-  button.textContent=themeExtraPresetsExpanded?"Hide extra palettes ↑":"Explore 12 more palettes ↓";
+  button.textContent=themeExtraPresetsExpanded?"Hide extra palettes ↑":"View 24 more palette themes ↓";
  }
+}
+function setupMobileThemeAccordions(){
+ if(!window.matchMedia?.("(max-width:700px)").matches)return;
+ document.querySelectorAll(".worth-it-theme-design-section").forEach(section=>{
+  if(section.dataset.mobileAccordionReady==="true")return;
+  const heading=section.querySelector("h4");
+  const title=heading?.textContent?.trim();
+  if(!title)return;
+  const toggle=document.createElement("button");
+  toggle.type="button";
+  toggle.className="worth-it-theme-mobile-accordion-toggle";
+  toggle.textContent=title;
+  toggle.setAttribute("aria-expanded","false");
+  const content=document.createElement("div");
+  content.className="worth-it-theme-mobile-accordion-content";
+  while(section.firstChild)content.appendChild(section.firstChild);
+  content.hidden=true;
+  section.append(toggle,content);
+  section.classList.add("worth-it-theme-mobile-accordion","is-mobile-collapsed");
+  section.dataset.mobileAccordionReady="true";
+  toggle.addEventListener("click",()=>{
+   const expanded=toggle.getAttribute("aria-expanded")!=="true";
+   toggle.setAttribute("aria-expanded",String(expanded));
+   content.hidden=!expanded;
+   section.classList.toggle("is-mobile-collapsed",!expanded);
+  });
+ });
 }
 function updateThemeDesigner(theme){
  const clean=cleanTheme(theme);
@@ -332,6 +374,24 @@ function applyTheme(value){
    sharp:{card:"7px",control:"5px"}
   }[theme.corners];
   const cardAlpha=theme.cardStyle==="glass"?"82%":theme.cardStyle==="flat"?"68%":"100%";
+  const cardOpacity=theme.cardStyle==="glass"?0.82:theme.cardStyle==="flat"?0.68:1;
+  const cardSurface=theme.cardStyle==="flat"
+   ?mixHex(theme.background,theme.surfaceAlt,cardOpacity)
+   :mixHex(theme.background,theme.surface,cardOpacity);
+  const activeControlSurface=mixHex(theme.surface,theme.primary,0.18);
+  const secondaryControlSurface=mixHex(theme.surface,theme.secondary,0.15);
+  const pageText=accessibleThemeText(theme.text,[theme.background]);
+  const pageMuted=accessibleThemeText(theme.muted,[theme.background]);
+  const pageHeading=accessibleThemeText(theme.heading,[theme.background]);
+  const pageLink=accessibleThemeText(theme.link,[theme.background]);
+  const cardText=accessibleThemeText(theme.text,[cardSurface]);
+  const cardMuted=accessibleThemeText(theme.muted,[cardSurface]);
+  const cardHeading=accessibleThemeText(theme.heading,[cardSurface]);
+  const cardLink=accessibleThemeText(theme.link,[cardSurface]);
+  const surfaceText=accessibleThemeText(theme.text,[theme.surface]);
+  const surfaceMuted=accessibleThemeText(theme.muted,[theme.surface]);
+  const softText=surfaceText;
+  const softMuted=surfaceMuted;
   root.style.setProperty("--worth-it-theme-color-scheme",relativeLuminance(theme.background)>=0.42?"light":"dark");
   root.style.setProperty("--bg",theme.background);
   root.style.setProperty("--bg2",theme.background);
@@ -340,9 +400,21 @@ function applyTheme(value){
   root.style.setProperty("--card","color-mix(in srgb,"+theme.surface+" "+cardAlpha+",transparent)");
   root.style.setProperty("--surface-soft","color-mix(in srgb,"+theme.surfaceAlt+" 74%,transparent)");
   root.style.setProperty("--border",theme.border);
-  root.style.setProperty("--text",accessibleThemeText(theme.text,surfaces));
-  root.style.setProperty("--muted",accessibleThemeText(theme.muted,surfaces));
-  root.style.setProperty("--muted2",accessibleThemeText(theme.muted,surfaces));
+  root.style.setProperty("--text",pageText);
+  root.style.setProperty("--muted",pageMuted);
+  root.style.setProperty("--muted2",pageMuted);
+  root.style.setProperty("--worth-it-theme-page-text",pageText);
+  root.style.setProperty("--worth-it-theme-page-muted",pageMuted);
+  root.style.setProperty("--worth-it-theme-page-heading",pageHeading);
+  root.style.setProperty("--worth-it-theme-page-link",pageLink);
+  root.style.setProperty("--worth-it-theme-card-text",cardText);
+  root.style.setProperty("--worth-it-theme-card-muted",cardMuted);
+  root.style.setProperty("--worth-it-theme-card-heading",cardHeading);
+  root.style.setProperty("--worth-it-theme-card-link",cardLink);
+  root.style.setProperty("--worth-it-theme-surface-text",surfaceText);
+  root.style.setProperty("--worth-it-theme-surface-muted",surfaceMuted);
+  root.style.setProperty("--worth-it-theme-soft-text",softText);
+  root.style.setProperty("--worth-it-theme-soft-muted",softMuted);
   root.style.setProperty("--primary",theme.primary);
   root.style.setProperty("--primary2",theme.secondary);
   root.style.setProperty("--worth-it-hover-glow",theme.hover);
@@ -356,14 +428,14 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-header-foreground",contrastForeground(theme.header));
   root.style.setProperty("--worth-it-hover-foreground",contrastForeground(theme.hover));
   root.style.setProperty("--worth-it-gradient-foreground",gradientText);
-  root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.primary,surfaces));
-  root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.secondary,surfaces));
+  root.style.setProperty("--worth-it-primary-readable",accessibleThemeText(theme.text,[activeControlSurface]));
+  root.style.setProperty("--worth-it-secondary-readable",accessibleThemeText(theme.text,[secondaryControlSurface]));
   root.style.setProperty("--worth-it-primary-foreground",primaryText);
   root.style.setProperty("--worth-it-secondary-foreground",secondaryText);
   root.style.setProperty("--worth-it-button-primary-background",accessibleButtonBackground(theme.primary,primaryText));
   root.style.setProperty("--worth-it-button-secondary-background",accessibleButtonBackground(theme.secondary,secondaryText));
-  root.style.setProperty("--worth-it-theme-heading-color",accessibleThemeText(theme.heading,surfaces));
-  root.style.setProperty("--worth-it-theme-link-color",accessibleThemeText(theme.link,surfaces));
+  root.style.setProperty("--worth-it-theme-heading-color",pageHeading);
+  root.style.setProperty("--worth-it-theme-link-color",pageLink);
   root.style.setProperty("--worth-it-theme-font-family",bodyFont);
   root.style.setProperty("--worth-it-theme-heading-font-family",headingStyles.family);
   root.style.setProperty("--worth-it-theme-heading-weight",headingStyles.weight);
@@ -394,7 +466,10 @@ function applyTheme(value){
    "--primary","--primary2","--worth-it-hover-glow","--worth-it-theme-gradient",
    "--worth-it-header-background","--worth-it-header-foreground","--worth-it-hover-foreground",
    "--worth-it-gradient-foreground","--worth-it-primary-readable","--worth-it-secondary-readable",
-   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color","--worth-it-theme-font-family",
+   "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color",
+   "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading","--worth-it-theme-page-link",
+   "--worth-it-theme-card-text","--worth-it-theme-card-muted","--worth-it-theme-card-heading","--worth-it-theme-card-link",
+   "--worth-it-theme-surface-text","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
@@ -537,6 +612,33 @@ async function loadThemeForSession(){
    themeRemoteAvailable=false;
    setThemeStatus("Preview-only: your saved Premium theme is stored on this device and will sync after the theme design migration is installed.",false);
   }else{console.warn("Worth It custom theme could not be synchronised:",error);}
+ }
+}
+function releaseInitialThemeCover(){
+ if(!initialThemeHydrationPending)return;
+ initialThemeHydrationPending=false;
+ if(initialThemeHydrationFailsafe){window.clearTimeout(initialThemeHydrationFailsafe);initialThemeHydrationFailsafe=null;}
+ document.documentElement?.classList.remove("worth-it-initial-paint");
+}
+async function hydrateInitialThemeBeforePaint(){
+ if(!initialThemeHydrationPending)return;
+ initialThemeHydrationFailsafe=window.setTimeout(()=>{
+  if(!initialThemeHydrationPending)return;
+  // Do not leave the site blank forever if the account service is unreachable.
+  // Invalidate the stalled request so it cannot apply a late, incorrect theme.
+  themeRequest+=1;
+  applyTheme(DEFAULT_THEME);
+  releaseInitialThemeCover();
+ },12000);
+ try{
+  if(window.worthItAuthReady&&typeof window.worthItAuthReady.then==="function")await window.worthItAuthReady;
+  if(!initialThemeHydrationPending)return;
+  await loadThemeForSession();
+ }catch(error){
+  console.warn("Initial Worth It theme hydration failed:",error);
+  applyTheme(DEFAULT_THEME);
+ }finally{
+  releaseInitialThemeCover();
  }
 }
 async function saveCustomTheme(){
@@ -917,6 +1019,7 @@ function init(){
   if(next)applyThemePreset(next.id);
  });
  $("worthItThemePresetMoreToggle")?.addEventListener("click",()=>setMoreThemePresetsExpanded(!themeExtraPresetsExpanded));
+ setupMobileThemeAccordions();
  $("worthItThemePresetGrid")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-preset]");if(button)applyThemePreset(button.dataset.themePreset);});
  $("worthItThemePreviewSwitcher")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-preview-view]");if(!button)return;activeThemePreviewView=button.dataset.themePreviewView||"website";renderThemePreview();});
  document.querySelectorAll("[data-theme-reset-group]").forEach(button=>button.addEventListener("click",()=>resetThemeGroup(button.dataset.themeResetGroup)));
@@ -962,9 +1065,9 @@ function init(){
    if(records.some(record=>record.addedNodes.length))decorateCards(grid);
   }).observe(grid,{childList:true});
  });
- void loadFavouritesForSession();void loadThemeForSession();
+ void loadFavouritesForSession();void hydrateInitialThemeBeforePaint();
  const refreshThemeOnReturn=()=>{
-  if(document.hidden)return;
+  if(initialThemeHydrationPending||document.hidden)return;
   const now=Date.now();
   if(now-themeReturnRefreshAt<5000)return;
   themeReturnRefreshAt=now;
@@ -974,6 +1077,7 @@ function init(){
  window.addEventListener("pageshow",refreshThemeOnReturn);
  document.addEventListener("visibilitychange",refreshThemeOnReturn);
  if(sb()?.auth?.onAuthStateChange)sb().auth.onAuthStateChange(()=>{
+  if(initialThemeHydrationPending)return;
   setTimeout(()=>{void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();},0);
  });
 }

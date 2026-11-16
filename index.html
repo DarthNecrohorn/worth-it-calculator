@@ -8,15 +8,78 @@
 <title>Worth It — Smart Decision Calculators</title>
 
 <script>
-/* Apply the saved theme and cover all page content before the browser's first paint. */
+/* Resolve the stored appearance before first paint. Custom Themes are account-scoped,
+   so keep the page covered until the authenticated theme loader confirms the active entitlement. */
 (function () {
     const root = document.documentElement;
+    let bootBackground = "#10151f";
+    let sessionUserId = "";
+
+    function parseStoredSession(raw) {
+        if (!raw) return null;
+        const candidates = [String(raw)];
+        if (String(raw).startsWith("base64-")) {
+            try {
+                candidates.push(atob(String(raw).slice(7)));
+            } catch (_) {}
+        }
+        for (const candidate of candidates) {
+            try {
+                const parsed = JSON.parse(candidate);
+                const session = parsed?.currentSession || parsed?.session || parsed;
+                const userId = session?.user?.id || parsed?.user?.id;
+                if (typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+                    return userId;
+                }
+                const token = String(session?.access_token || parsed?.access_token || "");
+                const payload = token.split(".")[1];
+                if (payload) {
+                    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+                    if (typeof decoded?.sub === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded.sub)) {
+                        return decoded.sub;
+                    }
+                }
+            } catch (_) {}
+        }
+        return "";
+    }
+
+    function findSessionUserId(storage) {
+        try {
+            for (let index = 0; index < storage.length; index += 1) {
+                const key = storage.key(index) || "";
+                if (!/^sb-[a-z0-9]+-auth-token$/i.test(key) && key !== "worth-it-auth-token-v1") continue;
+                const userId = parseStoredSession(storage.getItem(key));
+                if (userId) return userId;
+            }
+        } catch (_) {}
+        return "";
+    }
+
     try {
         root.dataset.theme = localStorage.getItem("worthItTheme") === "light" ? "light" : "dark";
+        const rememberUntil = Number(localStorage.getItem("worth_it_auth_remember_until_v1") || 0);
+        const remembered = Number.isFinite(rememberUntil) && rememberUntil > Date.now();
+        sessionUserId = remembered
+            ? findSessionUserId(localStorage) || findSessionUserId(sessionStorage)
+            : findSessionUserId(sessionStorage) || findSessionUserId(localStorage);
+        if (!sessionUserId) {
+            bootBackground = root.dataset.theme === "light" ? "#FFFFFF" : "#070B14";
+        } else {
+            // This is only the loading veil's background. The saved theme is not activated
+            // until Supabase confirms the current account's Premium entitlement.
+            const cachedTheme = JSON.parse(localStorage.getItem("worthItCustomTheme:v1:" + sessionUserId) || "null");
+            if (/^#[0-9a-f]{6}$/i.test(String(cachedTheme?.background || ""))) {
+                bootBackground = cachedTheme.background;
+            }
+        }
     } catch (_) {
         root.dataset.theme = "dark";
     }
+
+    root.style.setProperty("--worth-it-boot-background", bootBackground);
     root.classList.add("worth-it-initial-paint");
+
     try {
         const path = window.location.pathname.replace(/\/+$/, "") || "/";
         if (/^\/profile\/[1-9]\d*(?:\/(?:friends|followers|following))?$/.test(path)) {
@@ -34,18 +97,23 @@
 })();
 </script>
 <style>
-/* Inline boot cover: it works before the main stylesheet has downloaded. */
+/* Keep unthemed page text and controls out of the first paint. The class is removed
+   only after the account's saved theme has been resolved and applied. */
+html.worth-it-initial-paint {
+    min-height: 100%;
+    background: var(--worth-it-boot-background, #10151f) !important;
+}
+html.worth-it-initial-paint body {
+    visibility: hidden !important;
+}
 html.worth-it-initial-paint::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: 2147483647;
     display: block;
-    background: #070b14;
+    background: var(--worth-it-boot-background, #10151f);
     pointer-events: none;
-}
-html[data-theme="light"].worth-it-initial-paint::before {
-    background: #fff;
 }
 </style>
 
@@ -63,7 +131,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a">
+<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a&chat-media-compact=20261116a">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
@@ -72,11 +140,11 @@ html[data-theme="light"].worth-it-initial-paint::before {
 <link rel="stylesheet" href="section-themes.css?v=section-themes-20261030a">
     <link rel="stylesheet" href="web-shop.css?v=web-shop-heading-back-20261105a&amp;mobile-wallet-grid-20261108a&amp;phone-header-position=20261108b&amp;mobile-header-grid-layout=20261109a&amp;mobile-header-offsets=20261110e">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
-<link rel="stylesheet" href="community-features.css?v=hamburger-instant-20261105a&amp;ugc-detail-favorite=20261106a">
-<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-header-actions=20261109a&amp;subscription-card-spacing=20261109b&amp;subscription-card-desktop=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a">
+<link rel="stylesheet" href="community-features.css?v=hamburger-instant-20261105a&amp;ugc-detail-favorite=20261106a&amp;mobile-theme-density-20261116a">
+<link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;rev=hide-basic-background-under-community-20261104a&amp;phone-creator-density-20261116a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-header-actions=20261109a&amp;subscription-card-spacing=20261109b&amp;subscription-card-desktop=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a&amp;mobile-header-economy-row=20261116g">
+<link rel="stylesheet" href="site-theme-system.css?v=drawer-instant-20261105a&amp;mobile-header-economy-row=20261116g&amp;theme-boot-contrast=20261116a">
 </head>
 
 <body>
@@ -246,7 +314,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
             <div class="worth-it-notification-panel" id="worthItNotificationPanel" hidden aria-hidden="true">
                 <div class="worth-it-notification-header">
                     <strong>Notifications</strong>
-                    <button type="button" class="worth-it-notification-close" onclick="toggleWorthItNotifications(event)" aria-label="Close notifications">✕</button>
+                    <button type="button" class="worth-it-notification-close" onclick="toggleWorthItNotifications(event, true)" aria-label="Close notifications">✕</button>
                 </div>
                 <div class="worth-it-notification-tabs" role="tablist" aria-label="Notification categories">
                     <button type="button" class="active" id="worthItNotificationRequestsTab" data-notification-tab="requests" role="tab" aria-selected="true" onclick="showWorthItNotificationTab('requests')">Friend requests <span id="worthItNotificationRequestsCount" hidden></span></button>
@@ -2793,6 +2861,18 @@ html[data-theme="light"].worth-it-initial-paint::before {
   </div>
 </section>
 
+<div id="worthItBadgeInfoOverlay" class="worth-it-badge-info-overlay" hidden aria-hidden="true">
+  <section class="worth-it-badge-info-dialog" role="dialog" aria-modal="true" aria-labelledby="worthItBadgeInfoTitle">
+    <button type="button" id="worthItBadgeInfoClose" class="worth-it-badge-info-close" aria-label="Close badge details">✕</button>
+    <div class="worth-it-badge-info-heading">
+      <span id="worthItBadgeInfoIcon" class="worth-it-badge-info-icon" aria-hidden="true">✦</span>
+      <div><p class="worth-it-badge-info-kicker">WORTH IT · MEMBER BADGE</p><h2 id="worthItBadgeInfoTitle">Badge</h2></div>
+    </div>
+    <div id="worthItBadgeInfoFields" class="worth-it-badge-info-fields"></div>
+    <div id="worthItBadgeInfoActions" class="worth-it-badge-info-actions"></div>
+  </section>
+</div>
+
 <section id="settingsPage" class="worth-it-settings-page" style="display:none;" aria-label="Account settings">
   <div class="container worth-it-settings-container">
     <div class="worth-it-settings-toolbar">
@@ -3191,7 +3271,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
         <div class="worth-it-theme-editor" id="worthItThemeEditor">
           <div class="worth-it-theme-editor-head"><strong>Build your theme</strong><span class="settings-note" id="worthItThemePreviewLabel">Free live preview · Save with Premium</span></div>
           <div class="worth-it-theme-preset-section">
-            <div class="worth-it-theme-subhead"><span><h4>Theme presets</h4><p>Choose one of six featured looks or explore 12 more palettes. Customize every detail afterwards.</p></span><button type="button" class="worth-it-theme-small-action" id="worthItThemeRandomPalette">Random palette</button></div>
+            <div class="worth-it-theme-subhead"><span><h4>Theme presets</h4><p>Choose one of six featured looks or explore 24 more palettes. Customize every detail afterwards.</p></span><button type="button" class="worth-it-theme-small-action" id="worthItThemeRandomPalette">Random palette</button></div>
             <div class="worth-it-theme-preset-grid" id="worthItThemePresetGrid">
               <button type="button" class="worth-it-theme-preset" data-theme-preset="midnight"><span class="worth-it-theme-preset-swatches"><i style="background:#8b5cf6"></i><i style="background:#38bdf8"></i><i style="background:#080b18"></i></span><strong>Midnight</strong><small>Violet · Blue</small></button>
               <button type="button" class="worth-it-theme-preset" data-theme-preset="minimal"><span class="worth-it-theme-preset-swatches"><i style="background:#3157d5"></i><i style="background:#0ea5a4"></i><i style="background:#f4f6fa"></i></span><strong>Minimal</strong><small>Clean · Neutral</small></button>
@@ -3200,7 +3280,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
               <button type="button" class="worth-it-theme-preset" data-theme-preset="ocean"><span class="worth-it-theme-preset-swatches"><i style="background:#0ea5e9"></i><i style="background:#14b8a6"></i><i style="background:#061724"></i></span><strong>Ocean</strong><small>Blue · Teal</small></button>
               <button type="button" class="worth-it-theme-preset" data-theme-preset="rose"><span class="worth-it-theme-preset-swatches"><i style="background:#e879a8"></i><i style="background:#a78bfa"></i><i style="background:#180f1b"></i></span><strong>Rose</strong><small>Rose · Lavender</small></button>
               <div class="worth-it-theme-preset-more">
-                <div class="worth-it-theme-preset-more-head"><span><strong>More palettes</strong><small>12 additional looks with their own colours, fonts and effects.</small></span><button type="button" class="worth-it-theme-small-action worth-it-theme-preset-more-toggle" id="worthItThemePresetMoreToggle" aria-expanded="false" aria-controls="worthItThemePresetMoreGrid">Explore 12 more palettes ↓</button></div>
+                <div class="worth-it-theme-preset-more-head"><span><strong>More palettes</strong><small>24 additional looks with their own colours, fonts and effects.</small></span><button type="button" class="worth-it-theme-small-action worth-it-theme-preset-more-toggle" id="worthItThemePresetMoreToggle" aria-expanded="false" aria-controls="worthItThemePresetMoreGrid">View 24 more palette themes ↓</button></div>
                 <div class="worth-it-theme-preset-extra-grid" id="worthItThemePresetMoreGrid" hidden>
                 <button type="button" class="worth-it-theme-preset" data-theme-preset="graphite" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#94A3B8"></i><i style="background:#CBD5E1"></i><i style="background:#0B0F17"></i></span><strong>Graphite</strong><small>Slate · Monochrome</small></button>
                 <button type="button" class="worth-it-theme-preset" data-theme-preset="lavender-mist" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#8B7FB8"></i><i style="background:#B49FCC"></i><i style="background:#F8F5FC"></i></span><strong>Lavender Mist</strong><small>Lilac · Airy</small></button>
@@ -3214,6 +3294,18 @@ html[data-theme="light"].worth-it-initial-paint::before {
                 <button type="button" class="worth-it-theme-preset" data-theme-preset="mocha" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B27B58"></i><i style="background:#D7B990"></i><i style="background:#19130F"></i></span><strong>Mocha</strong><small>Coffee · Warm</small></button>
                 <button type="button" class="worth-it-theme-preset" data-theme-preset="sakura" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#C85D82"></i><i style="background:#9C83C6"></i><i style="background:#FFF6F8"></i></span><strong>Sakura</strong><small>Petal · Soft</small></button>
                 <button type="button" class="worth-it-theme-preset" data-theme-preset="neon-pulse" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#C3F53C"></i><i style="background:#24D4C8"></i><i style="background:#080F14"></i></span><strong>Neon Pulse</strong><small>Lime · Electric</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="cobalt-night" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#4F7DFF"></i><i style="background:#48C6EF"></i><i style="background:#080F24"></i></span><strong>Cobalt Night</strong><small>Cobalt · Midnight</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="copper-dusk" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#D17B4A"></i><i style="background:#E8B16B"></i><i style="background:#21130F"></i></span><strong>Copper Dusk</strong><small>Copper · Ember</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="glacier-blue" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#287CA8"></i><i style="background:#55B6D2"></i><i style="background:#F1FAFE"></i></span><strong>Glacier Blue</strong><small>Frost · Clear sky</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="citrus-grove" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#A5C943"></i><i style="background:#4EAD79"></i><i style="background:#101D16"></i></span><strong>Citrus Grove</strong><small>Lime · Forest</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="plum-noir" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B477D8"></i><i style="background:#8D72D9"></i><i style="background:#1B1024"></i></span><strong>Plum Noir</strong><small>Plum · Violet</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="coral-reef" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#F07869"></i><i style="background:#36B8B0"></i><i style="background:#102426"></i></span><strong>Coral Reef</strong><small>Coral · Lagoon</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="sand-dune" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#A66F42"></i><i style="background:#6E8A83"></i><i style="background:#F5EFE3"></i></span><strong>Sand Dune</strong><small>Sand · Stone</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="cyberpunk" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#F43F9B"></i><i style="background:#36E5E0"></i><i style="background:#0B1020"></i></span><strong>Cyberpunk</strong><small>Neon · After dark</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="alpine-meadow" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#527D62"></i><i style="background:#8EA96B"></i><i style="background:#F2F7EF"></i></span><strong>Alpine Meadow</strong><small>Alpine · Meadow</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="ruby-velvet" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#D34D66"></i><i style="background:#A94E83"></i><i style="background:#220F1A"></i></span><strong>Ruby Velvet</strong><small>Ruby · Velvet</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="indigo-ink" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#7186E8"></i><i style="background:#9CA9F5"></i><i style="background:#0E1530"></i></span><strong>Indigo Ink</strong><small>Ink · Periwinkle</small></button>
+                <button type="button" class="worth-it-theme-preset" data-theme-preset="pastel-pop" aria-pressed="false"><span class="worth-it-theme-preset-swatches"><i style="background:#B66B9A"></i><i style="background:#6F91C7"></i><i style="background:#FFF5F8"></i></span><strong>Pastel Pop</strong><small>Pastel · Playful</small></button>
                 </div>
               </div>
             </div>
@@ -5944,6 +6036,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a&amp;theme-wallpaper=20261105a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b&amp;profile-theme-global=20261105b&amp;button-contrast-aa=20261105c&amp;ugc-detail-favorite=20261106a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b&amp;profile-theme-global=20261105b&amp;button-contrast-aa=20261105c&amp;ugc-detail-favorite=20261106a&amp;theme-first-paint-contrast=20261116a&amp;more-palettes-mobile-creator=20261116a"></script>
 </body>
 </html>

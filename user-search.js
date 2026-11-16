@@ -123,6 +123,4 @@
         if (event.key === "Enter") { event.preventDefault(); if (searchTimer !== null) window.clearTimeout(searchTimer); searchTimer = null; runSearch(); }
     });
     $("worthItUserSearchCloseBtn")?.addEventListener("click", closeSearch);
-    $("worthItUserSearchDialog")?.addEventListener("click", event => { if (event.target === event.currentTarget) closeSearch(); });
-    document.addEventListener("keydown", event => { if (event.key === "Escape" && isOpen) closeSearch(); });
 })();

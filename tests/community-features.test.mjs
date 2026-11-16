@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html=read("index.html"), js=read("community-features.js"), css=read("community-features.css");
 const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras.sql");
@@ -10,6 +11,7 @@ const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const themeDesignMigration=read("supabase/worth-it-community-theme-design-system.sql");
 const siteCss=read("style.css");
+const themeSystemCss=read("site-theme-system.css");
 const webShopCss=read("web-shop.css");
 const ugcCss=read("ugc-calculators.css");
 const ugcJs=read("ugc-calculators.js");
@@ -261,17 +263,146 @@ test("community slide and calculator pagination surfaces stay opaque and clearly
 });
 
 
-test("Custom Theme includes twelve distinct extra presets with an accessible expandable collection",()=>{
- const extraIds=["graphite","lavender-mist","terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura","neon-pulse"];
- const extraNames=["Graphite","Lavender Mist","Terracotta","Matcha","Champagne","Berry","Arctic","Retro","Royal","Mocha","Sakura","Neon Pulse"];
+test("Custom Theme includes 24 distinct extra presets with an accessible expandable collection",()=>{
+ const extraIds=[
+  "graphite","lavender-mist","terracotta","matcha","champagne","berry","arctic","retro","royal","mocha","sakura","neon-pulse",
+  "cobalt-night","copper-dusk","glacier-blue","citrus-grove","plum-noir","coral-reef","sand-dune","cyberpunk","alpine-meadow","ruby-velvet","indigo-ink","pastel-pop"
+ ];
+ const extraNames=[
+  "Graphite","Lavender Mist","Terracotta","Matcha","Champagne","Berry","Arctic","Retro","Royal","Mocha","Sakura","Neon Pulse",
+  "Cobalt Night","Copper Dusk","Glacier Blue","Citrus Grove","Plum Noir","Coral Reef","Sand Dune","Cyberpunk","Alpine Meadow","Ruby Velvet","Indigo Ink","Pastel Pop"
+ ];
  extraIds.forEach(id=>assert.ok(html.includes('data-theme-preset="'+id+'"'),"missing preset "+id));
  extraNames.forEach(name=>assert.ok(html.includes("<strong>"+name+"</strong>"),"missing preset label "+name));
+ assert.equal((js.match(/group:"more"/g)||[]).length,24,"there must be exactly 24 additional theme definitions");
+ assert.ok(html.includes("24 additional looks with their own colours, fonts and effects."));
  assert.ok(html.includes('id="worthItThemePresetMoreToggle"'));
  assert.ok(html.includes('id="worthItThemePresetMoreGrid"'));
  assert.ok(html.includes('aria-controls="worthItThemePresetMoreGrid"'));
+ assert.ok(html.includes("View 24 more palette themes"));
  assert.ok(js.includes("function setMoreThemePresetsExpanded"));
+ assert.ok(js.includes("View 24 more palette themes"));
  assert.ok(js.includes('THEME_PRESETS.some(preset=>preset.group==="more"'));
- assert.ok(js.includes('preset.group==="more"'));
  assert.ok(css.includes(".worth-it-theme-preset-extra-grid"));
  assert.ok(css.includes("#worthItThemePresetMoreGrid[hidden]"));
+});
+
+test("Custom Theme editor and UGC Creator provide compact mobile controls without removing desktop options",()=>{
+ assert.ok(js.includes("function setupMobileThemeAccordions"));
+ assert.ok(js.includes('window.matchMedia?.("(max-width:700px)")'));
+ assert.ok(js.includes("worth-it-theme-mobile-accordion-toggle"));
+ assert.ok(css.includes(".worth-it-theme-mobile-accordion-content[hidden]"));
+ assert.ok(css.includes(".worth-it-theme-preset-extra-grid{grid-template-columns:repeat(3"));
+ assert.ok(ugcCss.includes(".ugc-maker-head{"));
+ assert.ok(ugcCss.includes("position:sticky;top:-11px"));
+ assert.ok(ugcCss.includes(".ugc-maker-card .ugc-maker-actions{"));
+ assert.ok(ugcCss.includes("grid-template-columns:repeat(2,minmax(0,1fr))"));
+});
+
+
+test("Custom Theme is resolved before page content becomes visible",()=>{
+ assert.ok(html.includes("worthItCustomTheme:v1:"));
+ assert.ok(html.includes("sb-[a-z0-9]+-auth-token"));
+ assert.ok(html.includes("worth_it_auth_remember_until_v1"));
+ assert.ok(html.includes("worth-it-boot-background"));
+ assert.ok(html.includes("html.worth-it-initial-paint body {\n    visibility: hidden !important;"));
+ assert.ok(js.includes("let initialThemeHydrationPending"));
+ assert.ok(js.includes("await window.worthItAuthReady"));
+ assert.ok(js.includes("await loadThemeForSession()"));
+ assert.ok(js.includes('classList.remove("worth-it-initial-paint")'));
+ assert.ok(js.includes("themeRequest+=1"));
+ assert.ok(js.includes("if(initialThemeHydrationPending||document.hidden)return;"));
+});
+
+test("Custom Theme text and controls use surface-specific accessible foregrounds",()=>{
+ [
+  "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading",
+  "--worth-it-theme-page-link","--worth-it-theme-card-text","--worth-it-theme-card-muted",
+  "--worth-it-theme-card-heading","--worth-it-theme-card-link","--worth-it-theme-surface-text",
+  "--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted"
+ ].forEach(token=>assert.ok(js.includes('setProperty("'+token+'"'),"missing computed theme token "+token));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[theme.background])"));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[cardSurface])"));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[theme.surface])"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-page-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-card-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-surface-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-soft-text"));
+ assert.ok(themeSystemCss.includes("background: var(--card-solid) !important;"));
+ assert.ok(themeSystemCss.includes("color: #FFFFFF !important;"));
+ assert.ok(js.includes('"--worth-it-theme-card-text"'));
+});
+
+test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button contrast",()=>{
+ const extract=name=>{
+  const start=js.indexOf("function "+name+"(");
+  assert.ok(start>=0,"missing production helper "+name);
+  const end=js.indexOf("\n}",start);
+  assert.ok(end>start,"could not isolate production helper "+name);
+  return js.slice(start,end+2);
+ };
+ const helpers=runInNewContext([
+  "function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||\"\"));}",
+  extract("hexRgb"),extract("relativeLuminance"),extract("contrastRatio"),
+  extract("accessibleThemeText"),extract("mixHex"),
+  extract("accessibleButtonBackground"),extract("gradientForeground"),extract("contrastForeground"),
+  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground,contrastForeground,mixHex})"
+ ].join("\n"));
+ const surfaces=[
+  "#FFFFFF","#F4F6FA","#E9EEF5","#080B18","#141A31","#1D1028",
+  "#777777","#A7B3C6","#10B981","#F97316","#3157D5"
+ ];
+ for(const surface of surfaces){
+  const foreground=helpers.accessibleThemeText("#AAB4D0",[surface]);
+  assert.ok(helpers.contrastRatio(foreground,surface)>=4.5,
+   "text contrast should pass on "+surface+" with "+foreground);
+ }
+ const gradients=[
+  ["#8B5CF6","#38BDF8"],["#F97316","#EC4899"],["#10B981","#A3E635"],
+  ["#777777","#999999"],["#F4F6FA","#FFFFFF"],["#101010","#202020"]
+ ];
+ const presetStart=js.indexOf("const THEME_PRESETS=[");
+ const presetEnd=js.indexOf("\n];",presetStart);
+ assert.ok(presetStart>=0&&presetEnd>presetStart,"the built-in Custom Theme palettes must be discoverable");
+ const presets=runInNewContext(js.slice(presetStart,presetEnd+3)+"\nTHEME_PRESETS");
+ assert.ok(presets.length>=18,"all built-in palettes should receive a contrast test");
+ for(const preset of presets){
+  const theme=preset.theme;
+  const pageText=helpers.accessibleThemeText(theme.text,[theme.background]);
+  const pageHeading=helpers.accessibleThemeText(theme.heading,[theme.background]);
+  const pageLink=helpers.accessibleThemeText(theme.link,[theme.background]);
+  assert.ok(helpers.contrastRatio(pageText,theme.background)>=4.5,preset.name+" page text");
+  assert.ok(helpers.contrastRatio(pageHeading,theme.background)>=4.5,preset.name+" page heading");
+  assert.ok(helpers.contrastRatio(pageLink,theme.background)>=4.5,preset.name+" page link");
+  const cardStyle=theme.cardStyle||"glass";
+  const cardAlpha=cardStyle==="flat"?0.68:cardStyle==="glass"?0.82:1;
+  const cardBackground=helpers.mixHex(theme.background,cardStyle==="flat"?theme.surfaceAlt:theme.surface,cardAlpha);
+  const cardText=helpers.accessibleThemeText(theme.text,[cardBackground]);
+  const cardHeading=helpers.accessibleThemeText(theme.heading,[cardBackground]);
+  assert.ok(helpers.contrastRatio(cardText,cardBackground)>=4.5,preset.name+" card text");
+  assert.ok(helpers.contrastRatio(cardHeading,cardBackground)>=4.5,preset.name+" card heading");
+  const inputText=helpers.accessibleThemeText(theme.text,[theme.surface]);
+  assert.ok(helpers.contrastRatio(inputText,theme.surface)>=4.5,preset.name+" input text");
+  const activeBackground=helpers.mixHex(theme.surface,theme.primary,0.18);
+  const activeText=helpers.accessibleThemeText(theme.text,[activeBackground]);
+  assert.ok(helpers.contrastRatio(activeText,activeBackground)>=4.5,preset.name+" active button");
+  const solidForeground=helpers.contrastForeground(theme.primary);
+  const solidBackground=helpers.accessibleButtonBackground(theme.primary,solidForeground);
+  assert.ok(helpers.contrastRatio(solidForeground,solidBackground)>=4.5,preset.name+" solid button");
+  const primaryText=helpers.gradientForeground(theme.primary,theme.secondary);
+  const stops=[theme.primary,theme.secondary].map(colour=>helpers.accessibleButtonBackground(colour,primaryText));
+  for(let step=0;step<=20;step+=1){
+   const sample=helpers.mixHex(stops[0],stops[1],step/20);
+   assert.ok(helpers.contrastRatio(primaryText,sample)>=4.5,preset.name+" gradient button step "+step);
+  }
+ }
+ for(const [primary,secondary] of gradients){
+  const foreground=helpers.gradientForeground(primary,secondary);
+  const safeStops=[primary,secondary].map(endpoint=>helpers.accessibleButtonBackground(endpoint,foreground));
+  for(let step=0;step<=20;step+=1){
+   const sample=helpers.mixHex(safeStops[0],safeStops[1],step/20);
+   assert.ok(helpers.contrastRatio(foreground,sample)>=4.5,
+    "gradient button foreground must pass at step "+step+" on "+sample);
+  }
+ }
 });
