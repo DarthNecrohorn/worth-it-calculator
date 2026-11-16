@@ -50,5 +50,5 @@ test("mobile chat header separates direct identity, global chat, and group roste
 
 test("the site navigation is hidden while the chat overlay is open", () => {
   const css = read("style.css");
-  assert.match(css, /body\\.worth-it-chat-open\\s*>\\s*nav\\.nav\\s*\\{\\s*display:none\\s*!important/);
+  assert.ok(css.includes("body.worth-it-chat-open > nav.nav { display:none !important; }"));
 });
