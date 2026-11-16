@@ -50,11 +50,21 @@ test("profile sections appear in Friends, Badges, Favorite Calculators order", (
     assert.ok(friends >= 0 && badges > friends && favorites > badges);
 });
 
-test("badge collection explains each badge on click and prevents equipping locked badges", () => {
-    assert.match(profileUi, /worth-it-badge-detail/);
-    assert.match(profileUi, /toggle\.disabled=!badge\.earned/);
-    assert.match(profileUi, /badge\.earned\?\(badge\.equipped\?"Unequip":"Equip"\):"Locked"/);
-    assert.match(profileUi, /badge\.earned===false/);
-    assert.match(ugcCss, /\.worth-it-member-badge\.is-locked/);
-    assert.match(ugcCss, /\.worth-it-badge-detail>summary/);
+test("badge collections show every badge vertically and use an explicit read-only details dialog", () => {
+    assert.match(profileUi, /badges\|\|\[\]\)\.filter\(badge=>badge&&badge\.earned===true&&badge\.equipped===true\)\.slice\(0,1\)/);
+    assert.match(profileUi, /manage\.hidden=false/);
+    assert.match(profileUi, /createWorthItBadgeTrigger\(badge,false\)/);
+    assert.match(profileUi, /canEquip:info\.is_own_profile===true/);
+    assert.match(profileUi, /badge\.how_to_get/);
+    assert.match(profileUi, /badge\.type/);
+    assert.match(profileUi, /badge\.duration/);
+    assert.match(profileUi, /set_worth_it_profile_badge_equipped/);
+    assert.match(profileUi, /worthItBadgeInfoClose/);
+    assert.match(profileUi, /worthItBadgeInfoClose.*addEventListener\("click",closeWorthItBadgeInfo\)/);
+    assert.match(html, /id="worthItBadgeInfoOverlay"/);
+    assert.match(html, /id="worthItBadgeInfoClose"/);
+    assert.match(ugcCss, /\.worth-it-profile-badge-row\.is-locked[\s\S]*?opacity:\.34/);
+    assert.match(ugcCss, /backdrop-filter:blur\(14px\)/);
+    assert.match(ugcCss, /\.worth-it-badge-info-close/);
+    assert.doesNotMatch(ugcCss, /\.worth-it-badge-info-overlay[^}]*cursor:\s*pointer/);
 });
