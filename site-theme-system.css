@@ -1060,7 +1060,7 @@ html[data-worth-it-custom-theme] :is(
  .ugc-manual-controls,.ugc-maker-schema-group,.ugc-dynamic-group,
  .ugc-maker-dynamic-field-editor,.ugc-maker-scenario-editor,
  .ugc-maker-scenarios,.ugc-blueprint-import,.ugc-catalog-tools,
- .ugc-detail-description-editor,.ugc-maker-preview,.ugc-maker-edit-grid
+ .ugc-detail-title-editor,.ugc-detail-description-editor,.ugc-maker-preview,.ugc-maker-edit-grid
 ){
  color:var(--text)!important;
  background:var(--surface-soft)!important;
@@ -1074,7 +1074,7 @@ html[data-worth-it-custom-theme] :is(
 html[data-worth-it-custom-theme] :is(
  .ugc-catalog-tools input,.ugc-catalog-tools select,
  .ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,
- .ugc-detail-description-editor textarea,.ugc-input-field input,
+ .ugc-detail-title-editor input,.ugc-detail-description-editor textarea,.ugc-input-field input,
  .ugc-maker-input-grid input,.ugc-maker-input-grid textarea,.ugc-maker-input-grid select
 ){
  color:var(--text)!important;
