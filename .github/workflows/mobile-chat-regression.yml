@@ -7,6 +7,10 @@ on:
       - "index.html"
       - "style.css"
       - "chat-ux-polish.css"
+      - "chat-ui.js"
+      - "chat-actions.css"
+      - "chat-enhancements.js"
+      - "tests/chat-sidebar-navigation.test.mjs"
       - "tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs"
       - "tests/responsive-information-panels.test.mjs"
       - "tests/detail-panels-overlay-layer.test.mjs"
@@ -30,4 +34,4 @@ jobs:
         with:
           node-version: 22
       - name: Run focused layout regression tests
-        run: node --test tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs tests/responsive-information-panels.test.mjs tests/detail-panels-overlay-layer.test.mjs
+        run: node --test tests/mobile-chat-shortcut-desktop-fullscreen.test.mjs tests/responsive-information-panels.test.mjs tests/detail-panels-overlay-layer.test.mjs tests/chat-sidebar-navigation.test.mjs

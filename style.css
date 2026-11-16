@@ -24460,3 +24460,196 @@ body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility
  .worth-it-chat-group-member-avatar { width:36px; height:36px; flex-basis:36px; }
  .worth-it-chat-group-member-kick { padding:7px 9px; }
 }
+
+/* Chat header actions: the hidden attribute must win over icon/button display rules. */
+#worthItChatAudioCallBtn[hidden],
+#worthItChatVideoCallBtn[hidden],
+#worthItChatHeaderNotifications[hidden],
+#worthItChatMessageSearchBtn[hidden],
+#worthItChatShareInviteBtn[hidden] {
+    display: none !important;
+}
+
+/* Mobile-only Chat list drawer. The main conversation stays mounted underneath,
+   so closing the drawer returns to the exact active conversation and draft. */
+@media (max-width: 540px) {
+    .worth-it-chat-window > .worth-it-chat-sidebar {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 20 !important;
+        display: flex !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        transform: translate3d(-102%, 0, 0) !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        box-shadow: none !important;
+        will-change: transform;
+        transition: transform .28s cubic-bezier(.22,.8,.24,1), visibility 0s linear .28s !important;
+    }
+    .worth-it-chat-window.is-mobile-sidebar > .worth-it-chat-sidebar {
+        transform: translate3d(0, 0, 0) !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        box-shadow: 18px 0 48px rgba(0,0,0,.28) !important;
+        transition: transform .28s cubic-bezier(.22,.8,.24,1), visibility 0s !important;
+    }
+    .worth-it-chat-window.is-mobile-sidebar > .worth-it-chat-main {
+        display: flex !important;
+        visibility: visible !important;
+    }
+    .worth-it-chat-window .worth-it-chat-mobile-close {
+        display: grid !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-mobile-list-btn {
+        display: grid !important;
+    }
+}
+
+/* Group titles are actionable: opening the member roster should not depend on
+   hitting the small group avatar. Keep the heading typography unchanged. */
+.worth-it-chat-group-title-trigger {
+    display: inline-block;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.worth-it-chat-group-title-trigger:hover {
+    color: #c4b5fd;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.worth-it-chat-group-title-trigger:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+/* Mobile conversation header: ❯, identity and actions share one row.
+   The identity's title and subtitle stay stacked; direct chats retain the
+   profile avatar, while Global and Group use the title without an extra icon. */
+@media (max-width: 540px) {
+    .worth-it-chat-header {
+        display: grid !important;
+        grid-template-columns: 34px minmax(0, 1fr) auto !important;
+        grid-template-rows: minmax(38px, auto) !important;
+        align-items: center !important;
+        justify-content: initial !important;
+        gap: 4px 9px !important;
+        min-height: 0 !important;
+        padding: 10px 10px 10px 12px !important;
+        box-sizing: border-box !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-mobile-list-btn {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        align-self: center !important;
+        justify-self: start !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        margin: 0 !important;
+        transform: none !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-header-person {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        align-self: center !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        gap: 8px !important;
+        transform: none !important;
+    }
+    .worth-it-chat-header-person.is-global-chat .worth-it-chat-header-avatar,
+    .worth-it-chat-header-person.is-group-chat .worth-it-chat-header-avatar {
+        display: none !important;
+    }
+    .worth-it-chat-header-person > div:last-child {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 3px !important;
+    }
+    .worth-it-chat-header-avatar {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        flex: 0 0 38px !important;
+        border-radius: 12px !important;
+    }
+    .worth-it-chat-header h2 {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
+    .worth-it-chat-header p {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        font-size: 10px !important;
+        line-height: 1.25 !important;
+    }
+    .worth-it-chat-header > .worth-it-chat-header-actions {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        position: static !important;
+        display: flex !important;
+        align-self: center !important;
+        align-items: center !important;
+        justify-self: end !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 5px !important;
+        transform: none !important;
+    }
+    .worth-it-chat-header-actions > .worth-it-chat-header-notifications {
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        max-width: 34px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+    }
+    .worth-it-chat-header-notifications .worth-it-chat-notification-label {
+        display: none !important;
+    }
+    .worth-it-chat-header-actions > .worth-it-chat-icon-btn {
+        width: 34px !important;
+        min-width: 34px !important;
+        flex-basis: 34px !important;
+        height: 34px !important;
+    }
+}
