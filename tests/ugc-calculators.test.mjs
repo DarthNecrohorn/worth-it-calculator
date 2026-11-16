@@ -33,9 +33,11 @@ const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql"
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const editDetailsSql = read("supabase/worth-it-ugc-edit-details.sql");
+const titleCooldownSql = read("supabase/worth-it-ugc-profile-title-cooldown.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
+const communityCss = read("community-features.css");
 const webShopCss = read("web-shop.css");
 const paginationFixture = read("tests/fixtures/ugc-badges-postgres-smoke.sql");
 const publishNotificationsSql = read("supabase/worth-it-ugc-publish-notifications.sql");
@@ -386,6 +388,25 @@ test("saved UGC calculators allow owner title edits while keeping category fixed
     assert.doesNotMatch(editDetailsSql,/cannot be changed into a different calculator/);
     assert.match(editDetailsSql,/old\.description_changed_at \+ interval '10 minutes'/);
     assert.match(editDetailsSql,/new\.description_changed_at := v_now/);
+});
+
+test("UGC calculator profile title editing is owner-only, limited to 75 characters and cooled down for 10 minutes", () => {
+    assert.ok(html.includes('id="ugcDetailTitleEditor"'));
+    assert.ok(html.includes('id="ugcDetailTitleInput" type="text" maxlength="75"'));
+    assert.ok(html.includes('id="ugcDetailSaveTitle"'));
+    assert.ok(maker.includes("update_worth_it_ugc_calculator_title"));
+    assert.ok(maker.includes("get_worth_it_ugc_title_status"));
+    assert.ok(titleCooldownSql.includes("add column if not exists title_changed_at timestamptz"));
+    assert.ok(titleCooldownSql.includes("check (char_length(btrim(title)) between 3 and 75)"));
+    assert.ok(titleCooldownSql.includes("not between 3 and 75"));
+    assert.ok(titleCooldownSql.includes("old.title_changed_at + interval '10 minutes'"));
+    assert.ok(titleCooldownSql.includes("where c.id=p_id and c.owner_user_id=v_user_id"));
+    assert.ok(titleCooldownSql.includes("where id=p_id and owner_user_id=v_user_id"));
+    assert.ok(titleCooldownSql.includes("for update"));
+    assert.ok(titleCooldownSql.includes("grant execute on function public.update_worth_it_ugc_calculator_title(uuid,text) to authenticated"));
+    assert.ok(paginationCss.includes("ugc-maker-description-field"));
+    assert.ok(paginationCss.includes("translateY(-10px)"));
+    assert.ok(communityCss.includes(".calc-favorite-icon{display:inline-block;line-height:1;transform:translateY(0px)}"));
 });
 
 test("Subscriptions show only UGC calculator save quotas without selling Free", () => {
@@ -1196,18 +1217,16 @@ test("Basic and UGC panels allow page scroll chaining and desktop cards show lon
 });
 
 
-test("UGC catalogue descriptions use the same 120-character preview and placement on every calculator card", () => {
+test("UGC catalogue descriptions use the same 91-character preview and placement on every calculator card", () => {
     const helperStart = maker.indexOf("function cardDescriptionPreview(description){");
     const helperEnd = maker.indexOf("\n}", helperStart) + 2;
     assert.ok(helperStart >= 0 && helperEnd > helperStart, "The shared UGC description preview helper must exist.");
     const preview = runInNewContext("(" + maker.slice(helperStart, helperEnd) + ")");
     const longDescription = "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current monthly amount and compare it with another plan.";
-    assert.equal(
-        preview(longDescription),
-        "Compare the cost of keeping your current monthly subscription with switching to a cheaper alternative. Enter the current..."
-    );
+    const expectedPreview = longDescription.slice(0, 91).trimEnd().replace(/[.!?…]+$/, "") + "...";
+    assert.equal(preview(longDescription), expectedPreview);
     assert.equal(preview("A short calculator description."), "A short calculator description.");
-    assert.ok(maker.includes("const limit=120"));
+    assert.ok(maker.includes("const limit=91"));
     assert.ok(maker.includes('replace(/[.!?…]+$/,"")+"..."'));
     assert.ok(maker.includes("descriptionNode.title=fullDescription"));
     assert.ok(maker.includes('description.textContent=calculator.description||"No description provided."'));
