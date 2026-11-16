@@ -279,7 +279,7 @@ function setMoreThemePresetsExpanded(expanded){
  if(panel)panel.hidden=!themeExtraPresetsExpanded;
  if(button){
   button.setAttribute("aria-expanded",String(themeExtraPresetsExpanded));
-  button.textContent=themeExtraPresetsExpanded?"Hide extra palettes ↑":"Explore 24 more palettes ↓";
+  button.textContent=themeExtraPresetsExpanded?"Hide extra palettes ↑":"View 24 more palette themes ↓";
  }
 }
 function setupMobileThemeAccordions(){
