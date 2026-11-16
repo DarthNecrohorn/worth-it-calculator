@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const html=read("index.html"), js=read("community-features.js"), css=read("community-features.css");
 const admin=read("admin-panel.js"), sql=read("supabase/worth-it-community-extras.sql");
@@ -10,6 +11,7 @@ const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const themeDesignMigration=read("supabase/worth-it-community-theme-design-system.sql");
 const siteCss=read("style.css");
+const themeSystemCss=read("site-theme-system.css");
 const webShopCss=read("web-shop.css");
 const ugcCss=read("ugc-calculators.css");
 const ugcJs=read("ugc-calculators.js");
@@ -274,4 +276,75 @@ test("Custom Theme includes twelve distinct extra presets with an accessible exp
  assert.ok(js.includes('preset.group==="more"'));
  assert.ok(css.includes(".worth-it-theme-preset-extra-grid"));
  assert.ok(css.includes("#worthItThemePresetMoreGrid[hidden]"));
+});
+
+
+test("Custom Theme is resolved before page content becomes visible",()=>{
+ assert.ok(html.includes("worthItCustomTheme:v1:"));
+ assert.ok(html.includes("sb-[a-z0-9]+-auth-token"));
+ assert.ok(html.includes("worth_it_auth_remember_until_v1"));
+ assert.ok(html.includes("worth-it-boot-background"));
+ assert.ok(html.includes("html.worth-it-initial-paint body {\\n    visibility: hidden !important;"));
+ assert.ok(js.includes("let initialThemeHydrationPending"));
+ assert.ok(js.includes("await window.worthItAuthReady"));
+ assert.ok(js.includes("await loadThemeForSession()"));
+ assert.ok(js.includes('classList.remove("worth-it-initial-paint")'));
+ assert.ok(js.includes("themeRequest+=1"));
+ assert.ok(js.includes("if(initialThemeHydrationPending||document.hidden)return;"));
+});
+
+test("Custom Theme text and controls use surface-specific accessible foregrounds",()=>{
+ [
+  "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading",
+  "--worth-it-theme-page-link","--worth-it-theme-card-text","--worth-it-theme-card-muted",
+  "--worth-it-theme-card-heading","--worth-it-theme-card-link","--worth-it-theme-surface-text",
+  "--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted"
+ ].forEach(token=>assert.ok(js.includes('setProperty("'+token+'"'),"missing computed theme token "+token));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[theme.background])"));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[cardSurface])"));
+ assert.ok(js.includes("accessibleThemeText(theme.text,[theme.surface])"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-page-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-card-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-surface-text"));
+ assert.ok(themeSystemCss.includes("var(--worth-it-theme-soft-text"));
+ assert.ok(themeSystemCss.includes("color: #FFFFFF !important;"));
+ assert.ok(js.includes('"--worth-it-theme-card-text"'));
+});
+
+test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button contrast",()=>{
+ const extract=name=>{
+  const start=js.indexOf("function "+name+"(");
+  assert.ok(start>=0,"missing production helper "+name);
+  const end=js.indexOf("\\n}",start);
+  assert.ok(end>start,"could not isolate production helper "+name);
+  return js.slice(start,end+2);
+ };
+ const helpers=runInNewContext([
+  "function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||\"\"));}",
+  extract("hexRgb"),extract("relativeLuminance"),extract("contrastRatio"),
+  extract("accessibleThemeText"),extract("mixHex"),
+  extract("accessibleButtonBackground"),extract("gradientForeground"),
+  "({accessibleThemeText,contrastRatio,accessibleButtonBackground,gradientForeground})"
+ ].join("\\n"));
+ const surfaces=[
+  "#FFFFFF","#F4F6FA","#E9EEF5","#080B18","#141A31","#1D1028",
+  "#777777","#A7B3C6","#10B981","#F97316","#3157D5"
+ ];
+ for(const surface of surfaces){
+  const foreground=helpers.accessibleThemeText("#AAB4D0",[surface]);
+  assert.ok(helpers.contrastRatio(foreground,surface)>=4.5,
+   "text contrast should pass on "+surface+" with "+foreground);
+ }
+ const gradients=[
+  ["#8B5CF6","#38BDF8"],["#F97316","#EC4899"],["#10B981","#A3E635"],
+  ["#777777","#999999"],["#F4F6FA","#FFFFFF"],["#101010","#202020"]
+ ];
+ for(const [primary,secondary] of gradients){
+  const foreground=helpers.gradientForeground(primary,secondary);
+  for(const endpoint of [primary,secondary]){
+   const safe=helpers.accessibleButtonBackground(endpoint,foreground);
+   assert.ok(helpers.contrastRatio(foreground,safe)>=4.5,
+    "gradient button foreground must pass on "+safe);
+  }
+ }
 });
