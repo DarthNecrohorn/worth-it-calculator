@@ -572,6 +572,7 @@ function updateAuthUI(user) {
     // against the main auth initialization.
     window.worthItCurrentAuthUser = currentAuthUser;
     window.worthItAuthStateResolved = true;
+    window.worthItAuthResolutionFailed = false;
 
     const btn =
         $("authBtn");
@@ -2782,13 +2783,19 @@ window.worthItAuthReady = (async function initializeSupabaseAuth() {
                 error
             );
 
-            updateAuthUI(null);
+            // A failed lookup is not proof that the user is signed out.
+            // Keep the shared auth state unresolved; a later auth event or
+            // retry can still restore the existing account session.
+            if (!window.worthItAuthStateResolved) {
+                window.worthItAuthResolutionFailed = true;
+            }
 
             return;
 
         }
 
 
+        window.worthItAuthResolutionFailed = false;
         updateAuthUI(
             data.session?.user || null
         );
@@ -2801,7 +2808,11 @@ window.worthItAuthReady = (async function initializeSupabaseAuth() {
             error
         );
 
-        updateAuthUI(null);
+        // Do not clear a possibly valid account session after a transient
+        // network/storage failure. The auth-state listener remains authoritative.
+        if (!window.worthItAuthStateResolved) {
+            window.worthItAuthResolutionFailed = true;
+        }
 
     }
 
