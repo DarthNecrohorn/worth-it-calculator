@@ -22,6 +22,88 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     );
 }
 
+// Remember me is opt-in. Without it, Supabase stores the session in
+// sessionStorage so it is cleared when the browser tab/session ends.
+// When enabled, the local session has a strict 30-day absolute lifetime.
+const AUTH_REMEMBER_UNTIL_KEY = "worth_it_auth_remember_until_v1";
+const AUTH_REMEMBER_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const AUTH_STORAGE_KEY = (() => {
+    try {
+        const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
+        return "sb-" + projectRef + "-auth-token";
+    } catch (_) {
+        return "worth-it-auth-token-v1";
+    }
+})();
+
+function getAuthRememberUntil() {
+    const value = Number(window.localStorage.getItem(AUTH_REMEMBER_UNTIL_KEY) || 0);
+    if (!Number.isFinite(value) || value <= Date.now()) {
+        window.localStorage.removeItem(AUTH_REMEMBER_UNTIL_KEY);
+        return 0;
+    }
+    return value;
+}
+
+let authRememberMeActive = Boolean(getAuthRememberUntil());
+
+// Migrate an existing pre-Remember-me session into this browser session
+// instead of unexpectedly signing everyone out on the first deployment.
+if (!authRememberMeActive) {
+    const legacySession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (legacySession && !window.sessionStorage.getItem(AUTH_STORAGE_KEY)) {
+        window.sessionStorage.setItem(AUTH_STORAGE_KEY, legacySession);
+    }
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+const worthItAuthStorage = {
+    getItem(key) {
+        if (authRememberMeActive) {
+            const expiresAt = getAuthRememberUntil();
+            if (!expiresAt) {
+                authRememberMeActive = false;
+                window.localStorage.removeItem(key);
+                return window.sessionStorage.getItem(key);
+            }
+            return window.localStorage.getItem(key);
+        }
+        return window.sessionStorage.getItem(key);
+    },
+    setItem(key, value) {
+        if (authRememberMeActive && getAuthRememberUntil()) {
+            window.localStorage.setItem(key, value);
+            window.sessionStorage.removeItem(key);
+        } else {
+            authRememberMeActive = false;
+            window.sessionStorage.setItem(key, value);
+            window.localStorage.removeItem(key);
+        }
+    },
+    removeItem(key) {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+        if (key === AUTH_STORAGE_KEY) {
+            window.localStorage.removeItem(AUTH_REMEMBER_UNTIL_KEY);
+            authRememberMeActive = false;
+        }
+    }
+};
+
+function setAuthRememberMe(enabled) {
+    authRememberMeActive = Boolean(enabled);
+    if (authRememberMeActive) {
+        window.localStorage.setItem(
+            AUTH_REMEMBER_UNTIL_KEY,
+            String(Date.now() + AUTH_REMEMBER_DURATION_MS)
+        );
+        window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    } else {
+        window.localStorage.removeItem(AUTH_REMEMBER_UNTIL_KEY);
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+}
 
 window.supabaseClient =
     window.supabase.createClient(
@@ -33,7 +115,8 @@ window.supabaseClient =
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
                 flowType: "implicit",
-                storage: window.localStorage
+                storageKey: AUTH_STORAGE_KEY,
+                storage: worthItAuthStorage
             }
         }
     );
@@ -1338,6 +1421,9 @@ function renderAuthModal() {
     const legalCheck =
         $("authLegalCheck");
 
+    const rememberWrap = $("authRememberWrap");
+    const rememberCheck = $("authRememberMe");
+
     const authOverlay =
         $("authModalOverlay");
 
@@ -1379,6 +1465,8 @@ function renderAuthModal() {
     mfaWrap.style.display = "none";
     mfaInput.required = false;
     passwordWrap.style.display = "block";
+    if (rememberWrap) rememberWrap.style.display = "none";
+    if (rememberCheck) rememberCheck.checked = false;
 
     if (authModalMode === "mfa") {
         title.textContent = "Verify two-factor authentication";
@@ -1559,6 +1647,8 @@ function renderAuthModal() {
             "none";
 
     } else {
+
+        if (rememberWrap) rememberWrap.style.display = "flex";
 
         title.textContent =
             "Sign in to Worth It";
@@ -1944,6 +2034,10 @@ async function submitAuthForm(event) {
 
 
         } else {
+
+            // Apply the user's opt-in choice before the authenticated session
+            // is handed to the primary Supabase client (including after MFA).
+            setAuthRememberMe(Boolean($("authRememberMe")?.checked));
 
             const response =
                 await fetch(

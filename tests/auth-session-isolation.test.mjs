@@ -40,7 +40,7 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a&rev=auth-email-confirmation-inbox-links-20261104a/);
+    assert.match(html, /app\.js\?v=auth-remember-me-30d-20261115a&rev=compact-auth-modal-20261115a/);
     assert.ok(html.includes("guest-mode.js?v=guest-webshop-ugc-guards-20261031a"));
 });
 
@@ -78,4 +78,34 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
     assert.match(app, /link\.rel = "noopener noreferrer"/);
     assert.match(app, /error\?\.code === "EMAIL_NOT_CONFIRMED"/);
     assert.match(css, /\.auth-modal-status \.auth-email-inbox-link/);
+});
+
+
+test("Remember me is opt-in and stores unchecked sign-ins only for the browser session", () => {
+    assert.match(app, /const AUTH_REMEMBER_UNTIL_KEY = "worth_it_auth_remember_until_v1"/);
+    assert.match(app, /const AUTH_REMEMBER_DURATION_MS = 30 \* 24 \* 60 \* 60 \* 1000/);
+    assert.match(app, /storage: worthItAuthStorage/);
+    assert.match(app, /storageKey: AUTH_STORAGE_KEY/);
+    assert.match(app, /window\.sessionStorage\.setItem\(key, value\)/);
+    assert.match(app, /window\.localStorage\.setItem\(key, value\)/);
+    assert.match(app, /function setAuthRememberMe\(enabled\)/);
+    assert.match(app, /if \(key === AUTH_STORAGE_KEY\)[\s\S]*?removeItem\(AUTH_REMEMBER_UNTIL_KEY\)/);
+    assert.match(app, /window\.sessionStorage\.removeItem\(AUTH_STORAGE_KEY\)/);
+    assert.match(app, /setAuthRememberMe\(Boolean\(\$\("authRememberMe"\)\?\.checked\)\)/);
+    assert.match(html, /id="authRememberMe" name="rememberMe" value="yes"/);
+    assert.match(html, /id="authRememberWrap" style="display:none;"/);
+    const signInButtonEnd = html.indexOf('id="authSubmitBtn"');
+    const rememberRow = html.indexOf('id="authRememberWrap"');
+    const statusRow = html.indexOf('id="authModalStatus"');
+    assert.ok(signInButtonEnd >= 0 && rememberRow > signInButtonEnd && statusRow > rememberRow);
+});
+
+test("Create account modal removes its internal scrollbar and keeps email status between guest and sign-in link", () => {
+    const submit = html.indexOf('id="authSubmitBtn"');
+    const guestInsert = guest.indexOf('submit.insertAdjacentElement("afterend", choice)');
+    const status = html.indexOf('id="authModalStatus"');
+    const mode = html.indexOf('id="authModeToggle"');
+    assert.ok(submit >= 0 && guestInsert >= 0 && status > submit && mode > status);
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?overflow-y:visible!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?max-height:none!important/);
 });

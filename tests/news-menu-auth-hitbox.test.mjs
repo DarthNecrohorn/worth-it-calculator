@@ -59,7 +59,7 @@ test("open hamburger blocks header actions from receiving clicks behind the drop
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(css, /\.nav-inner:has\(> #navLinks\.nav-links\.open\) > \.nav-right-stack \*\s*\{\s*pointer-events:\s*none !important;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=deployment-supabase-config-20261031a/);
+    assert.match(html, /app\.js\?v=auth-remember-me-30d-20261115a/);
 });
 
 test("the open hamburger shields every header sibling, including Sign out", () => {
