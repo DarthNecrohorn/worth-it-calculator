@@ -1563,3 +1563,24 @@ button.worth-it-chat-travel-present:not([disabled]):active {
 .worth-it-member-badge .worth-it-owner-emblem{width:1.35em;height:1.35em}
 .worth-it-member-badge .worth-it-owner-emblem-svg{width:100%;height:100%}
 html[data-worth-it-custom-theme] .worth-it-owner-emblem,html[data-worth-it-custom-theme] .worth-it-owner-emblem-svg{color:var(--primary)}
+
+
+/* Detail-panel arrows have a permanent top:50% anchor.
+   Keep that centering when Custom Theme disables generic button transforms,
+   and use only a subtle scale on hover/focus for these four controls. */
+body button:is(
+    .worth-it-market-detail-navigation,
+    .currency-detail-nav,
+    .crypto-detail-nav,
+    .water-levels-detail-nav
+):is(:hover,:focus-visible):not(:disabled) {
+    transform:translateY(-50%) scale(1.025) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-hover-effect="none"] body button:is(
+    .worth-it-market-detail-navigation,
+    .currency-detail-nav,
+    .crypto-detail-nav,
+    .water-levels-detail-nav
+):is(:hover,:focus-visible):not(:disabled) {
+    transform:translateY(-50%) scale(1.025) !important;
+}
