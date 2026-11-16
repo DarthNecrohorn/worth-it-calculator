@@ -63,7 +63,7 @@ html[data-theme="light"].worth-it-initial-paint::before {
 })();
 </script>
 
-<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&desktop-profile-avatar=20261109a">
+<link rel="stylesheet" href="style.css?v=worth-it-custom-palette-20261104c&rev=auth-modal-compact-remember-me-20261115&signup-close-right-standard-hover=20261115b&desktop-profile-avatar=20261109a">
 <link rel="stylesheet" href="chat-enhancements.css?v=chat-safety-note-wallpaper-density-20261029a">
 <link rel="stylesheet" href="chat-ux-polish.css?v=chat-message-profile-hit-targets-20261029a">
 <link rel="stylesheet" href="chat-actions.css?v=chat-message-actions-20261028c">
@@ -3789,7 +3789,7 @@ try{
                         <h2 id="authModalTitle">Sign in to Worth It</h2>
                         <p id="authModalSubtitle">Use your Worth It username and password.</p>
                     </div>
-                    <button type="button" class="auth-modal-close" onclick="closeAuthModal()" aria-label="Close">✕</button>
+                    <button type="button" class="auth-modal-close" id="authModalCloseButton" onclick="closeAuthModal()" aria-label="Close"><span class="auth-modal-close-glyph" id="authModalCloseGlyph" aria-hidden="true">✕</span></button>
                 </div>
 
                 <form id="authForm" onsubmit="submitAuthForm(event)">
@@ -3887,7 +3887,7 @@ try{
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
 <script src="/api/runtime-config"></script>
-<script src="app.js?v=auth-remember-me-30d-20261115a&rev=compact-auth-modal-20261115a"></script>
+<script src="app.js?v=auth-email-confirmation-success-20261115a&rev=compact-auth-modal-20261115a"></script>
 <script src="/ai-ui.js?v=worthit-ai-chat-restored-20261114a"></script>
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 ,<script src="calculators.js"></script>

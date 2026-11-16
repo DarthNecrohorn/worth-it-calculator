@@ -40,7 +40,7 @@ test("the hamburger menu overlays header actions instead of overlapping them", (
     assert.match(css, /@media\(max-width:1000px\)[\s\S]*?\.nav-links\.open\s*\{[\s\S]*?z-index:\s*800/);
     assert.match(css, /\.nav-links\.open button\s*\{\s*width:\s*100%;/);
     assert.match(html, /style\.css\?v=[^"']+/);
-    assert.match(html, /app\.js\?v=auth-remember-me-30d-20261115a&rev=compact-auth-modal-20261115a/);
+    assert.match(html, /app\.js\?v=auth-email-confirmation-success-20261115a/);
     assert.ok(html.includes("guest-mode.js?v=guest-webshop-ugc-guards-20261031a"));
 });
 
@@ -80,6 +80,29 @@ test("email confirmation guidance gives safe provider-specific inbox links witho
     assert.match(css, /\.auth-modal-status \.auth-email-inbox-link/);
 });
 
+
+test("Create account close button shifts right 10px and uses the shared site-wide button hover and active effects", () => {
+    assert.doesNotMatch(css, /#authModalOverlay\.signup-mode \.auth-modal-card\s*\{[^}]*left:\s*-10px!important/);
+    assert.match(html, /id="authModalCloseButton"/);
+    assert.match(html, /id="authModalCloseGlyph" aria-hidden="true">✕<\/span>/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*top:0!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*left:10px!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton\s*\{[^}]*transform:translateX\(-10px\)!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton:hover,[\s\S]*?transform:translate\(-10px,-2px\) scale\(1\.015\)!important/);
+    assert.match(css, /#authModalOverlay\.signup-mode #authModalCloseButton:active\s*\{[^}]*scale\(\.995\)!important/);
+    assert.match(css, /#authModalOverlay.signup-mode #authModalCloseGlyph\s*\{[^}]*top:1px!important/);
+    assert.match(html, /signup-close-right-standard-hover=20261115b/);
+});
+
+test("email confirmation callback clears the one-time session and presents the sign-in flow", () => {
+    assert.match(app, /function handleEmailConfirmationLanding\(event, session\)/);
+    assert.match(app, /callbackParams\.get\("type"\) !== "signup"/);
+    assert.match(app, /window\.history\.replaceState\([\s\S]*?window\.location\.pathname \+ window\.location\.search/);
+    assert.match(app, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+    assert.match(app, /Your email has been successfully confirmed\. You can now log in to your Worth It account\./);
+    assert.match(app, /if \(handleEmailConfirmationLanding\(event, session\)\) \{\s*return;\s*\}/);
+    assert.match(html, /app\.js\?v=auth-email-confirmation-success-20261115a/);
+});
 
 test("Remember me is opt-in and stores unchecked sign-ins only for the browser session", () => {
     assert.match(app, /const AUTH_REMEMBER_UNTIL_KEY = "worth_it_auth_remember_until_v1"/);

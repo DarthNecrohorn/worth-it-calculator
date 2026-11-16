@@ -180,8 +180,67 @@ EARLY AUTH STATE LISTENER
  * The listener is registered immediately so account state changes
  * are reflected as soon as Supabase initializes.
  */
+let authEmailConfirmationHandled = false;
+
+function handleEmailConfirmationLanding(event, session) {
+    if (
+        authEmailConfirmationHandled ||
+        !session?.user ||
+        !["INITIAL_SESSION", "SIGNED_IN"].includes(event)
+    ) {
+        return false;
+    }
+
+    const callbackParams = new URLSearchParams(
+        window.location.hash.replace(/^#/, "")
+    );
+    if (callbackParams.get("type") !== "signup") {
+        return false;
+    }
+
+    authEmailConfirmationHandled = true;
+
+    // Remove Supabase's one-time tokens from the address bar before showing UI.
+    window.history.replaceState(
+        null,
+        document.title,
+        window.location.pathname + window.location.search
+    );
+
+    // Do not keep the implicit confirmation session: require the user to sign in
+    // explicitly after the email address has been verified.
+    window.setTimeout(async () => {
+        try {
+            const { error } = await window.supabaseClient.auth.signOut({
+                scope: "local"
+            });
+            if (error) throw error;
+
+            setAuthRememberMe(false);
+            openAuthModal("signin");
+            setAuthStatus(
+                "Your email has been successfully confirmed. You can now log in to your Worth It account.",
+                "success"
+            );
+        } catch (error) {
+            console.error("Email confirmation completed, but the temporary session could not be cleared:", error);
+            openAuthModal("signin");
+            setAuthStatus(
+                "Your email has been confirmed. Please sign in to continue.",
+                "success"
+            );
+        }
+    }, 0);
+
+    return true;
+}
+
 window.supabaseClient.auth.onAuthStateChange((event, session) => {
     updateAuthUI(session?.user || null);
+
+    if (handleEmailConfirmationLanding(event, session)) {
+        return;
+    }
 
     if (event === "PASSWORD_RECOVERY") {
         authMfaRequired = false;
