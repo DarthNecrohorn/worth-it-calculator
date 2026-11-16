@@ -213,6 +213,9 @@ test("each of the 30 Custom Theme palettes supplies its own full-site typography
     assert.match(html, /id="worthItThemeBodyTextStyle"/);
     assert.match(html, /option value="humanist"/);
     assert.match(html, /option value="technical"/);
+    assert.match(html, /option value="elegant"/);
+    assert.match(community, /humanist:\{family:/);
+    assert.match(community, /elegant:\{family:/);
     assert.match(siteThemeCss, /--worth-it-theme-body-font-family/);
     assert.match(siteThemeCss, /--worth-it-theme-body-text-letter-spacing/);
 });

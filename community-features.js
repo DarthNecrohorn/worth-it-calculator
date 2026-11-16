@@ -24,7 +24,7 @@ const THEME_COLOR_FIELDS = Object.freeze([
 ]);
 const THEME_SELECT_FIELDS = Object.freeze([
  ["worthItThemeFontFamily","fontFamily",["inter","system","arial","georgia","mono","verdana","trebuchet","palatino","garamond","tahoma"]],
- ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical","minimal","geometric","bookish","cinematic","rounded","condensed"]],
+ ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical","minimal","geometric","bookish","cinematic","rounded","condensed","humanist","elegant"]],
  ["worthItThemeBodyTextStyle","bodyTextStyle",["neutral","humanist","editorial","geometric","technical","soft","condensed","rounded"]],
  ["worthItThemeBodyStyle","bodyStyle",["standard","comfortable","compact"]],
  ["worthItThemeFontSize","fontSize",["small","default","large"]],
@@ -404,6 +404,8 @@ function applyTheme(value){
    geometric:{family:'"Century Gothic",Futura,Arial,sans-serif',weight:"750",spacing:"-.035em",transform:"none"},
    bookish:{family:'"Palatino Linotype","Book Antiqua",Palatino,serif',weight:"700",spacing:".005em",transform:"none"},
    cinematic:{family:'Georgia,"Times New Roman",serif',weight:"800",spacing:"-.02em",transform:"none"},
+   humanist:{family:'"Trebuchet MS",Verdana,Arial,sans-serif',weight:"700",spacing:"-.01em",transform:"none"},
+   elegant:{family:'"Palatino Linotype","Book Antiqua",Palatino,serif',weight:"700",spacing:".005em",transform:"none"},
    rounded:{family:'"Trebuchet MS",Arial,sans-serif',weight:"700",spacing:"-.015em",transform:"none"},
    condensed:{family:'"Arial Narrow",Tahoma,Arial,sans-serif',weight:"800",spacing:".005em",transform:"uppercase"}
   }[theme.headingStyle];
