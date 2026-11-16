@@ -78,6 +78,14 @@ body.ugc-maker-open{overflow:hidden}
 .worth-it-profile-badges h2,.worth-it-profile-favourites h2{font-size:17px;margin:0 0 12px}
 .worth-it-profile-badge-list{display:flex;flex-wrap:wrap;gap:8px}
 .worth-it-member-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid rgba(124,92,255,.35);border-radius:999px;background:rgba(124,92,255,.1);color:var(--text);font-size:9px;font-weight:900;letter-spacing:.04em;white-space:nowrap}
+.worth-it-member-badge.is-locked{filter:grayscale(1);opacity:.38;background:transparent!important;border-style:dashed!important;color:var(--muted)!important}
+.worth-it-badge-detail>summary{list-style:none;display:inline-flex;cursor:pointer;outline-offset:3px}
+.worth-it-badge-detail>summary::-webkit-details-marker{display:none}
+.worth-it-badge-detail[open]>summary .worth-it-member-badge{box-shadow:0 0 0 2px color-mix(in srgb,var(--primary2) 28%,transparent)}
+.worth-it-badge-detail>p{max-width:420px;margin:7px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.worth-it-badge-copy{min-width:0}
+.worth-it-badge-equip-row.is-locked{opacity:.82}
+.worth-it-badge-equip-toggle:disabled{opacity:.42;cursor:not-allowed}
 .worth-it-member-badge[data-badge="owner"]{border-color:rgba(245,190,75,.55);background:rgba(245,190,75,.12);color:#edc76c}
 .worth-it-member-badge[data-badge="premium"]{border-color:rgba(85,160,255,.5);background:rgba(85,160,255,.12)}
 .worth-it-member-badge[data-badge="premium_lite"]{border-color:rgba(168,130,255,.5);background:rgba(168,130,255,.13)}

@@ -6,6 +6,8 @@ const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8"
 const profileUi = readFileSync(new URL("../profile-ui.js", import.meta.url), "utf8");
 const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
 const themeCss = readFileSync(new URL("../site-theme-system.css", import.meta.url), "utf8");
+const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const ugcCss = readFileSync(new URL("../ugc-calculators.css", import.meta.url), "utf8");
 
 test("Settings tries the scoped own-profile RPC first and only falls back for an unapplied migration", () => {
     const rpcIndex = settings.indexOf('client.rpc("get_worth_it_own_profile")');
@@ -39,4 +41,20 @@ test("member profiles keep the saved Custom Theme while preserving the uploaded 
     assert.match(themeCss, /worth-it-profile-stat/);
     assert.match(themeCss, /backdrop-filter: blur\(13px\)/);
     assert.match(themeCss, /worth-it-profile-cover\.has-banner/);
+});
+
+test("profile sections appear in Friends, Badges, Favorite Calculators order", () => {
+    const friends = html.indexOf('id="worthItProfileFriendsPreview"');
+    const badges = html.indexOf('id="worthItProfileBadgesSection"');
+    const favorites = html.indexOf('id="worthItProfileFavouritesSection"');
+    assert.ok(friends >= 0 && badges > friends && favorites > badges);
+});
+
+test("badge collection explains each badge on click and prevents equipping locked badges", () => {
+    assert.match(profileUi, /worth-it-badge-detail/);
+    assert.match(profileUi, /toggle\.disabled=!badge\.earned/);
+    assert.match(profileUi, /badge\.earned\?\(badge\.equipped\?"Unequip":"Equip"\):"Locked"/);
+    assert.match(profileUi, /badge\.earned===false/);
+    assert.match(ugcCss, /\.worth-it-member-badge\.is-locked/);
+    assert.match(ugcCss, /\.worth-it-badge-detail>summary/);
 });
