@@ -801,6 +801,54 @@ async function resetCustomTheme(){
 }
 
 
+async function resetCustomThemeFromSettings(){
+ // The account-wide Reset settings action must work even when the Appearance editor is not open.
+ const resetRequest=++themeRequest;
+ let session=null;
+ try{
+  const sessionResult=await sb()?.auth?.getSession?.();
+  if(sessionResult?.error)throw sessionResult.error;
+  session=sessionResult?.data?.session||null;
+ }catch(error){
+  setThemeStatus("Your account session could not be verified. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+  console.error("Could not verify the account before resetting Worth It settings:",error);
+  return false;
+ }
+ const userId=String(session?.user?.id||"");
+ if(!userId&&themeUserId){
+  setThemeStatus("Your account session could not be confirmed. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+  return false;
+ }
+ if(userId){
+  try{
+   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",userId);
+   if(result.error)throw result.error;
+   themeRemoteAvailable=true;
+  }catch(error){
+   if(isMissingCommunitySchema(error)){
+    themeRemoteAvailable=false;
+   }else{
+    setThemeStatus("The saved Custom Theme could not be removed from your account. Your current theme has been kept; check your connection and try Reset settings again.",true);
+    console.error("Could not permanently reset the Worth It Custom Theme:",error);
+    return false;
+   }
+  }
+  removeLocal(scopedKey(THEME_KEY,userId));
+ }else{
+  themeRemoteAvailable=false;
+ }
+ // Invalidate requests that started while the account row was being deleted.
+ themeRequest=Math.max(themeRequest,resetRequest)+1;
+ themeUserId=userId;
+ savedTheme=DEFAULT_THEME;
+ themePreviewActive=false;
+ applyTheme(DEFAULT_THEME);
+ setThemeStatus(userId
+  ?"The saved Custom Theme was removed from your account. Standard Dark and Light appearance is available again."
+  :"The standard Worth It appearance has been restored.",false);
+ return true;
+}
+
 // UGC cards must opt in explicitly. Built-in calculators do not get social actions.
 function ugcCalculatorId(card){
  if(!(card instanceof Element) || card.dataset.calculatorOrigin!=="ugc")return "";
@@ -1174,6 +1222,8 @@ function init(){
 window.refreshWorthItCommunityFeatures=function(){void loadFavouritesForSession();void loadThemeForSession();scheduleReportButtonUpdate();};
 window.refreshWorthItCustomTheme=loadThemeForSession;
 window.resetWorthItCustomTheme=resetCustomTheme;
+window.resetWorthItCustomThemeFromSettings=resetCustomThemeFromSettings;
+window.updateWorthItAppearanceModeControls=updateAppearanceModeControls;
 window.isWorthItCustomThemeActive=()=>Boolean(document.documentElement?.hasAttribute("data-worth-it-custom-theme"));
 window.openWorthItThemeUpgrade=async function(){
  let session=null;try{session=(await sb()?.auth?.getSession?.())?.data?.session||null;}catch(_){}

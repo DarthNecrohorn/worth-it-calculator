@@ -117,7 +117,7 @@ test("custom appearance cannot be mixed with standard Dark/Light until a full re
     const community = readFileSync(new URL("../community-features.js", import.meta.url), "utf8");
     assert.match(settings, /root\?\.hasAttribute\("data-worth-it-custom-theme"\)/);
     assert.match(settings, /window\.resetWorthItCustomTheme/);
-    assert.match(settings, /customThemeReset = await window\.resetWorthItCustomTheme\(\)/);
+    assert.match(settings, /resetWorthItCustomThemeFromSettings \|\| window\.resetWorthItCustomTheme/);
     assert.match(settings, /showToast\(customThemeReset/);
     assert.match(settings, /removeAttribute\("data-worth-it-custom-theme"\)/);
     assert.match(community, /window\.resetWorthItCustomTheme=resetCustomTheme/);
