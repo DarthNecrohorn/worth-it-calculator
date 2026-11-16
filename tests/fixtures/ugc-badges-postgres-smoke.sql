@@ -144,16 +144,43 @@ select (public.publish_worth_it_ugc_calculator(:'calculator_id'::uuid,'public')-
 -- Free accounts receive one successful new calculator per UTC day.
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 do $free_quota$
-declare q jsonb; blocked boolean:=false;
+declare q jsonb; blocked boolean:=false; category_blocked boolean:=false; cooldown_blocked boolean:=false;
 begin
-    -- Editing an existing calculator must not consume another daily creation.
+    -- Owners can edit the saved title and description in Edit Calculator.
+    -- The category remains immutable and the description cooldown is unchanged.
     perform public.save_worth_it_ugc_calculator(
         current_setting('test.ugc_id')::uuid,
-        'Monthly savings growth',
-        'Updated description.',
+        'Monthly savings growth — revised',
+        'Updated description with clearer assumptions.',
         'money',
         '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
     );
+    if not exists(select 1 from private.worth_it_user_calculators
+        where id=current_setting('test.ugc_id')::uuid and title='Monthly savings growth — revised') then
+        raise exception 'Editing an existing UGC calculator did not update its title.';
+    end if;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            current_setting('test.ugc_id')::uuid,
+            'Monthly savings growth — revised',
+            'Updated description with clearer assumptions.',
+            'cars',
+            '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
+        );
+    exception when sqlstate '22023' then category_blocked:=true;
+    end;
+    if not category_blocked then raise exception 'An existing UGC calculator was allowed to change its primary category.'; end if;
+    begin
+        perform public.save_worth_it_ugc_calculator(
+            current_setting('test.ugc_id')::uuid,
+            'Monthly savings growth — revised',
+            'A second description edit inside the cooldown window.',
+            'money',
+            '{"inputs":[{"key":"starting_amount","label":"Starting savings","min":0,"max":1000000,"default":1000,"step":1,"unit":"EUR"},{"key":"monthly_deposit","label":"Monthly deposit","min":0,"max":100000,"default":300,"step":1,"unit":"EUR"},{"key":"years","label":"Years","min":1,"max":80,"default":5,"step":1,"unit":"years"}],"results":[{"label":"Total deposits","expression":"starting_amount + monthly_deposit * 12 * years","format":"currency","currency":"EUR"}]}'::jsonb
+        );
+    exception when sqlstate '55000' then cooldown_blocked:=true;
+    end;
+    if not cooldown_blocked then raise exception 'The UGC description cooldown was not enforced for Edit Calculator.'; end if;
     q:=public.get_worth_it_ugc_creation_quota();
     if (q->>'daily_limit')::integer<>1 or (q->>'creations_used')::integer<>1 or (q->>'remaining')::integer<>0 then
         raise exception 'Free daily creation allowance is incorrect: %',q;
@@ -1142,7 +1169,7 @@ begin
         select 1 from jsonb_array_elements(notices) n
          where n->>'type'='ugc_published'
            and n->>'ugc_calculator_id'=current_setting('test.ugc_id')
-           and n->>'calculator_title'='Monthly savings growth'
+           and n->>'calculator_title'='Monthly savings growth — revised'
            and n->>'calculator_number'='51'
     ) then raise exception 'A follower did not receive the new public UGC calculator notification: %',notices; end if;
 end

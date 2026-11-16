@@ -144,3 +144,53 @@ test("hamburger drawer items use the drawer surface contrast rather than header 
     assert.match(siteThemeCss, /#navLinks\.nav-links button\s*\{[\s\S]*?color: var\(--text\)/);
     assert.match(siteThemeCss, /\.nav \.logo\s*\{[\s\S]*?color: var\(--worth-it-header-foreground\)/);
 });
+
+
+test("Custom Theme styles sign-out, search, Admin Panel and other modal backdrops and surfaces", () => {
+    for (const selector of [
+        ".worth-it-signout-confirm-dialog",
+        ".worth-it-signout-confirm-card",
+        ".worth-it-user-search-overlay",
+        ".worth-it-user-search-card",
+        ".admin-panel-overlay",
+        ".admin-panel-card",
+        ".admin-panel-section-button",
+        ".admin-panel-inline-button",
+        ".worth-it-report-overlay",
+        ".worth-it-chat-manage-dialog"
+    ]) {
+        assert.ok(siteThemeCss.includes(selector), "missing theme coverage for " + selector);
+    }
+    assert.match(siteThemeCss, /worth-it-signout-confirm-yes[\s\S]*?var\(--worth-it-gradient-foreground\)/);
+    assert.match(siteThemeCss, /worth-it-signout-confirm-kicker[\s\S]*?var\(--worth-it-theme-surface-link/);
+    assert.match(siteThemeCss, /worth-it-user-search-card[\s\S]*?var\(--worth-it-theme-surface-text/);
+    assert.match(siteThemeCss, /admin-panel-card[\s\S]*?var\(--worth-it-theme-surface-text/);
+    assert.match(siteThemeCss, /admin-panel-section-button[\s\S]*?var\(--worth-it-primary-readable/);
+});
+
+test("Custom Theme calculates surface-specific heading and link contrast for modal surfaces", () => {
+    assert.match(community, /const surfaceLink=accessibleThemeText\(theme\.link,\[theme\.surface\]\)/);
+    assert.match(community, /--worth-it-theme-surface-link",surfaceLink/);
+    assert.match(siteThemeCss, /var\(--worth-it-theme-surface-link,var\(--worth-it-theme-surface-text/);
+});
+
+test("Custom Theme calculates separate heading contrast for modal surfaces", () => {
+    assert.match(community, /const surfaceHeading=accessibleThemeText\(theme\.heading,\[theme\.surface\]\)/);
+    assert.match(community, /--worth-it-theme-surface-heading",surfaceHeading/);
+    assert.match(siteThemeCss, /var\(--worth-it-theme-surface-heading,var\(--worth-it-theme-surface-text/);
+});
+
+test("Custom Theme hydration preserves the bootstrap account appearance during temporary session or wallet failures", () => {
+    assert.match(html, /root\.dataset\.worthItBootUserId = sessionUserId/);
+    assert.match(community, /function readCachedCustomTheme\(userId\)/);
+    assert.match(community, /const bootstrapUserId=String\(document\.documentElement\?\.dataset\?\.worthItBootUserId\|\|previousThemeUserId\|\|""\)/);
+    assert.match(community, /Your current account theme is being kept locally/);
+    assert.match(community, /const previousThemeUserId=themeUserId/);
+    assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
+    assert.match(community, /const cachedTheme=readCachedCustomTheme\(userId\)/);
+    assert.match(community, /previouslyAppliedTheme&&isCustomTheme\(previouslyAppliedTheme\)/);
+    assert.match(community, /applyTheme\(livePreview\|\|retainedTheme\)/);
+    assert.match(community, /your current account theme is being kept/);
+    assert.match(community, /bootstrapTheme\|\|DEFAULT_THEME/);
+    assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
+});

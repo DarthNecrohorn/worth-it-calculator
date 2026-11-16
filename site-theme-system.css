@@ -1272,3 +1272,217 @@ html[data-worth-it-custom-theme] body :is(
     color: var(--worth-it-theme-soft-text, var(--worth-it-theme-surface-text, var(--text))) !important;
     background: var(--card-solid) !important;
 }
+
+/* Dialogs and overlays share the active Custom Theme instead of keeping
+   isolated dark/light defaults from their original component styles. */
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-signout-confirm-dialog,.worth-it-user-search-overlay,
+    .worth-it-chat-manage-dialog,.worth-it-chat-call-overlay,
+    .admin-panel-overlay,.feedback-overlay,.worth-it-report-overlay,
+    .worth-it-badge-info-overlay,.worth-it-display-name-overlay,
+    .worth-it-unfriend-overlay
+) {
+    background:
+        radial-gradient(ellipse at 50% 28%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 50%),
+        color-mix(in srgb,var(--bg) 82%,#000 18%) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(120%) !important;
+    backdrop-filter:blur(16px) saturate(120%) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-signout-confirm-card,.worth-it-user-search-card,
+    .worth-it-chat-manage-card,.worth-it-chat-call-card,
+    .admin-panel-card,.feedback-modal-card,.worth-it-report-card,
+    .worth-it-badge-info-card,.worth-it-unfriend-dialog
+) {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--card-solid) !important;
+    border-color:var(--border) !important;
+    border-radius:var(--radius) !important;
+    box-shadow:0 26px 90px color-mix(in srgb,var(--bg) 55%,transparent) !important;
+    font-family:var(--worth-it-theme-font-family,inherit) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-signout-confirm-card,.worth-it-user-search-card,
+    .worth-it-chat-manage-card,.worth-it-chat-call-card,
+    .admin-panel-card,.feedback-modal-card,.worth-it-report-card,
+    .worth-it-badge-info-card,.worth-it-unfriend-dialog
+) :is(h1,h2,h3,h4,h5,h6,strong,legend) {
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
+    font-family:var(--worth-it-theme-heading-font-family,var(--worth-it-theme-font-family,inherit)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-signout-confirm-card,.worth-it-user-search-card,
+    .worth-it-chat-manage-card,.worth-it-chat-call-card,
+    .admin-panel-card,.feedback-modal-card,.worth-it-report-card,
+    .worth-it-badge-info-card,.worth-it-unfriend-dialog
+) :is(p,small,label,li,dt,dd,.muted,.settings-note,.account-settings-status) {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+}
+
+/* Sign-out confirmation: both the dimmed page and the dialog surface follow
+   the selected palette, and both actions use contrast-tested foregrounds. */
+html[data-worth-it-custom-theme] body .worth-it-signout-confirm-kicker {
+    color:var(--worth-it-theme-surface-link,var(--worth-it-theme-surface-text,var(--primary))) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-signout-confirm-actions button {
+    min-height:42px;
+    border-radius:var(--worth-it-theme-control-radius,10px) !important;
+    font-family:var(--worth-it-theme-font-family,inherit) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-signout-confirm-yes {
+    background:var(--worth-it-theme-gradient) !important;
+    border-color:transparent !important;
+    color:var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body .worth-it-signout-confirm-yes {
+    background:var(--worth-it-button-primary-background) !important;
+    border-color:var(--worth-it-button-primary-background) !important;
+    color:var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body .worth-it-signout-confirm-yes {
+    background:transparent !important;
+    border:1px solid var(--primary) !important;
+    color:var(--worth-it-primary-readable) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-signout-confirm-no {
+    background:var(--surface-soft) !important;
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-signout-confirm-actions button:focus-visible {
+    outline:3px solid var(--primary) !important;
+    outline-offset:3px;
+}
+
+/* People search: its backdrop, card, input and result rows all inherit the
+   same theme tokens, including text colours for unusually bright/dark palettes. */
+html[data-worth-it-custom-theme] body .worth-it-user-search-card {
+    background:var(--card-solid) !important;
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-card :is(h2,strong) {
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-card :is(p,.worth-it-user-search-hint,.worth-it-user-search-status) {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-card :is(input,.worth-it-user-search-input) {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--surface-soft) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-card input::placeholder {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+    opacity:1 !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-result {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--surface-soft) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-result :is(strong,span) {
+    color:inherit !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-result small {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+}
+html[data-worth-it-custom-theme] body .worth-it-user-search-close {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--surface-soft) !important;
+    border-color:var(--border) !important;
+}
+
+/* Private Admin Panel. Its older stylesheet has high-priority default gradients;
+   these targeted rules supersede them only while a Custom Theme is active. */
+html[data-worth-it-custom-theme] body .admin-panel-card {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--card-solid) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    h1,h2,h3,h4,h5,h6,.admin-panel-section-copy strong,
+    .admin-panel-head-copy strong,.admin-panel-head-copy h3
+) {
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    p,small,label,span,.admin-panel-status,.admin-panel-section-copy small,
+    .admin-panel-section-head p,.admin-panel-empty small,.admin-panel-error span
+) {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    .admin-panel-welcome,.admin-feedback-modern-item,.admin-usage-card,
+    .admin-usage-summary-card,.admin-usage-metrics>div,
+    .admin-panel-empty,.admin-panel-error,.admin-panel-section-button,
+    .admin-panel-list,.admin-panel-table-wrap,.admin-panel-section-head
+) {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--surface-soft) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card .admin-panel-section-button:is(:hover,.active) {
+    background:color-mix(in srgb,var(--primary) 18%,var(--card-solid)) !important;
+    color:var(--worth-it-primary-readable,var(--text)) !important;
+    border-color:var(--primary) !important;
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 24%,transparent) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    input:not([type="checkbox"]):not([type="radio"]),select,textarea
+) {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    background:var(--card-solid) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(input,textarea)::placeholder {
+    color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
+    opacity:1 !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    .admin-panel-close,.admin-panel-back-button,.admin-panel-inline-button,
+    .admin-panel-section-button,button:not([class*="danger"]):not([class*="delete"])
+) {
+    font-family:var(--worth-it-theme-font-family,inherit) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    .admin-panel-inline-button,.admin-panel-back-button,.admin-panel-close
+) {
+    background:var(--surface-soft) !important;
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(
+    button[class*="primary"],.admin-panel-section-button.active
+) {
+    background:var(--worth-it-theme-gradient) !important;
+    color:var(--worth-it-gradient-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="solid"] body .admin-panel-card :is(
+    button[class*="primary"],.admin-panel-section-button.active
+) {
+    background:var(--worth-it-button-primary-background) !important;
+    color:var(--worth-it-primary-foreground) !important;
+}
+html[data-worth-it-custom-theme][data-worth-it-button-style="outline"] body .admin-panel-card :is(
+    button[class*="primary"],.admin-panel-section-button.active
+) {
+    background:transparent !important;
+    color:var(--worth-it-primary-readable) !important;
+    border:1px solid var(--primary) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card table {
+    color:var(--worth-it-theme-surface-text,var(--text)) !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card :is(th,td) {
+    color:inherit !important;
+    border-color:var(--border) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card th {
+    background:var(--surface-soft) !important;
+}
+html[data-worth-it-custom-theme] body .admin-panel-card a:not([class*="button"]):not([class*="-btn"]) {
+    color:var(--worth-it-theme-surface-link,var(--worth-it-theme-surface-text,var(--text))) !important;
+}

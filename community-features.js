@@ -389,6 +389,8 @@ function applyTheme(value){
   const cardHeading=accessibleThemeText(theme.heading,[cardSurface]);
   const cardLink=accessibleThemeText(theme.link,[cardSurface]);
   const surfaceText=accessibleThemeText(theme.text,[theme.surface]);
+  const surfaceHeading=accessibleThemeText(theme.heading,[theme.surface]);
+  const surfaceLink=accessibleThemeText(theme.link,[theme.surface]);
   const surfaceMuted=accessibleThemeText(theme.muted,[theme.surface]);
   const softText=surfaceText;
   const softMuted=surfaceMuted;
@@ -412,6 +414,8 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-theme-card-heading",cardHeading);
   root.style.setProperty("--worth-it-theme-card-link",cardLink);
   root.style.setProperty("--worth-it-theme-surface-text",surfaceText);
+  root.style.setProperty("--worth-it-theme-surface-heading",surfaceHeading);
+  root.style.setProperty("--worth-it-theme-surface-link",surfaceLink);
   root.style.setProperty("--worth-it-theme-surface-muted",surfaceMuted);
   root.style.setProperty("--worth-it-theme-soft-text",softText);
   root.style.setProperty("--worth-it-theme-soft-muted",softMuted);
@@ -469,7 +473,7 @@ function applyTheme(value){
    "--worth-it-primary-foreground","--worth-it-secondary-foreground","--worth-it-button-primary-background","--worth-it-button-secondary-background","--worth-it-theme-heading-color","--worth-it-theme-link-color",
    "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading","--worth-it-theme-page-link",
    "--worth-it-theme-card-text","--worth-it-theme-card-muted","--worth-it-theme-card-heading","--worth-it-theme-card-link",
-   "--worth-it-theme-surface-text","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
+   "--worth-it-theme-surface-text","--worth-it-theme-surface-heading","--worth-it-theme-surface-link","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
@@ -533,6 +537,15 @@ function scheduleThemeExpiry(wallet,userId){
   void loadThemeForSession();
  },delay);
 }
+function readCachedCustomTheme(userId){
+ if(!userId)return null;
+ try{
+  const raw=readLocal(scopedKey(THEME_KEY,userId));
+  if(!raw)return null;
+  const cached=cleanTheme(JSON.parse(raw));
+  return isCustomTheme(cached)?cached:null;
+ }catch(_){return null;}
+}
 async function loadThemeForSession(){
  const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
  const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
@@ -543,12 +556,21 @@ async function loadThemeForSession(){
  }catch(error){console.warn("Could not verify the Worth It session for Custom Themes:",error);}
  if(request!==themeRequest)return;
  const userId=session?.user?.id||"";
+ const previousThemeUserId=themeUserId;
+ const previouslyAppliedTheme=previousThemeUserId===userId?activeTheme:null;
  themeUserId=userId;
  if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
  if(!sessionResolved){
+  const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||previousThemeUserId||"");
+  const cachedTheme=readCachedCustomTheme(bootstrapUserId);
+  const retainedTheme=previousThemeUserId===bootstrapUserId&&isCustomTheme(activeTheme)
+   ?activeTheme:cachedTheme||DEFAULT_THEME;
+  if(bootstrapUserId)themeUserId=bootstrapUserId;
   themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
-  applyTheme(livePreview||DEFAULT_THEME);
-  setThemeStatus("Your account status could not be verified. No saved theme was deleted; try again when your connection is restored.",true);
+  // Reuse only the theme cached for the browser's bootstrap session account.
+  // Session failure never grants permission to save or sync a Custom Theme.
+  applyTheme(livePreview||retainedTheme);
+  setThemeStatus("Your account status could not be verified. Your current account theme is being kept locally; no saved theme was changed. Please retry when your connection is restored.",true);
   return;
  }
  if(!userId){
@@ -565,8 +587,14 @@ async function loadThemeForSession(){
  if(request!==themeRequest||themeUserId!==userId)return;
  if(!walletResolved){
   themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
-  applyTheme(livePreview||DEFAULT_THEME);
-  setThemeStatus("Your subscription could not be verified. You can still preview colours, but no saved theme has been changed. Please retry when the account service is available.",true);
+  const cachedTheme=readCachedCustomTheme(userId);
+  const retainedTheme=previouslyAppliedTheme&&isCustomTheme(previouslyAppliedTheme)
+   ?previouslyAppliedTheme
+   :cachedTheme||DEFAULT_THEME;
+  // A transient wallet/network failure is not proof that the user lost their
+  // entitlement. Keep this account-scoped theme while verification retries.
+  applyTheme(livePreview||retainedTheme);
+  setThemeStatus("Your subscription could not be verified; no saved theme has been changed, and your current account theme is being kept. Please retry when the account service is available.",true);
   return;
  }
  themeEntitled=hasPremiumThemeAccess(wallet);
@@ -627,7 +655,8 @@ async function hydrateInitialThemeBeforePaint(){
   // Do not leave the site blank forever if the account service is unreachable.
   // Invalidate the stalled request so it cannot apply a late, incorrect theme.
   themeRequest+=1;
-  applyTheme(DEFAULT_THEME);
+  const bootstrapTheme=readCachedCustomTheme(String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||""));
+  applyTheme(bootstrapTheme||DEFAULT_THEME);
   releaseInitialThemeCover();
  },12000);
  try{
@@ -636,7 +665,8 @@ async function hydrateInitialThemeBeforePaint(){
   await loadThemeForSession();
  }catch(error){
   console.warn("Initial Worth It theme hydration failed:",error);
-  applyTheme(DEFAULT_THEME);
+  const bootstrapTheme=readCachedCustomTheme(String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||""));
+  applyTheme(bootstrapTheme||DEFAULT_THEME);
  }finally{
   releaseInitialThemeCover();
  }
