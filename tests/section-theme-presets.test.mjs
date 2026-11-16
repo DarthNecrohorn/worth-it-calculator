@@ -144,3 +144,33 @@ test("hamburger drawer items use the drawer surface contrast rather than header 
     assert.match(siteThemeCss, /#navLinks\.nav-links button\s*\{[\s\S]*?color: var\(--text\)/);
     assert.match(siteThemeCss, /\.nav \.logo\s*\{[\s\S]*?color: var\(--worth-it-header-foreground\)/);
 });
+
+
+test("Custom Theme styles sign-out, search, Admin Panel and other modal backdrops and surfaces", () => {
+    for (const selector of [
+        ".worth-it-signout-confirm-dialog",
+        ".worth-it-signout-confirm-card",
+        ".worth-it-user-search-overlay",
+        ".worth-it-user-search-card",
+        ".admin-panel-overlay",
+        ".admin-panel-card",
+        ".admin-panel-section-button",
+        ".admin-panel-inline-button",
+        ".worth-it-report-overlay",
+        ".worth-it-chat-manage-dialog"
+    ]) {
+        assert.ok(siteThemeCss.includes(selector), "missing theme coverage for " + selector);
+    }
+    assert.match(siteThemeCss, /worth-it-signout-confirm-yes[\s\S]*?var\(--worth-it-gradient-foreground\)/);
+    assert.match(siteThemeCss, /worth-it-user-search-card[\s\S]*?var\(--worth-it-theme-surface-text/);
+    assert.match(siteThemeCss, /admin-panel-card[\s\S]*?var\(--worth-it-theme-surface-text/);
+    assert.match(siteThemeCss, /admin-panel-section-button[\s\S]*?var\(--worth-it-primary-readable/);
+});
+
+test("Custom Theme hydration preserves the same account's cached appearance during temporary wallet failures", () => {
+    assert.match(community, /const previousThemeUserId=themeUserId/);
+    assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
+    assert.match(community, /const cached=readLocal\(scopedKey\(THEME_KEY,userId\)\)/);
+    assert.match(community, /A transient wallet\/network failure is not proof that the user lost their entitlement/);
+    assert.match(community, /if\(initialThemeHydrationPending\|\|document\.hidden\)return;/);
+});
