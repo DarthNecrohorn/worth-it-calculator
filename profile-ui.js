@@ -236,6 +236,7 @@ async function getWorthItProfileBadgeInfo(worthItId){
 function createWorthItBadgeNode(badge,compact){
  const node=document.createElement("span");
  node.className="worth-it-member-badge"+(compact?" is-compact":"");
+ if(badge.earned===false)node.classList.add("is-locked");
  node.dataset.badge=String(badge.key||"");
  node.title=String(badge.description||badge.label||"");
  const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
@@ -274,10 +275,14 @@ async function loadWorthItProfileBadges(worthItId,isOwn){
     const heading=document.createElement("h3");heading.textContent="Your badge collection";manage.appendChild(heading);
     if(!badges.length)manage.appendChild(textBadgeMessage("No badges unlocked yet. Membership badges unlock automatically as your account gets older."));
     badges.forEach(badge=>{
-     const row=document.createElement("div");row.className="worth-it-badge-equip-row";
-     const copy=document.createElement("div");copy.appendChild(createWorthItBadgeNode({...badge,equipped:false},false));
-     const description=document.createElement("small");description.textContent=badge.description||"";copy.appendChild(description);
-     const toggle=document.createElement("button");toggle.type="button";toggle.className="worth-it-badge-equip-toggle";toggle.textContent=badge.equipped?"Unequip":"Equip";
+     const row=document.createElement("div");row.className="worth-it-badge-equip-row"+(badge.earned?"":" is-locked");
+     const copy=document.createElement("div");copy.className="worth-it-badge-copy";
+     const details=document.createElement("details");details.className="worth-it-badge-detail";
+     const summary=document.createElement("summary");summary.appendChild(createWorthItBadgeNode({...badge,equipped:false},false));
+     const description=document.createElement("p");description.textContent=badge.description||"";
+     details.append(summary,description);copy.appendChild(details);
+     const toggle=document.createElement("button");toggle.type="button";toggle.className="worth-it-badge-equip-toggle";
+     toggle.disabled=!badge.earned;toggle.textContent=badge.earned?(badge.equipped?"Unequip":"Equip"):"Locked";
      toggle.addEventListener("click",async()=>{
       toggle.disabled=true;
       try{
