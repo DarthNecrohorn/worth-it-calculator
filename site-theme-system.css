@@ -1307,7 +1307,7 @@ html[data-worth-it-custom-theme] body :is(
     .admin-panel-card,.feedback-modal-card,.worth-it-report-card,
     .worth-it-badge-info-card,.worth-it-unfriend-dialog
 ) :is(h1,h2,h3,h4,h5,h6,strong,legend) {
-    color:var(--worth-it-theme-heading-color,var(--worth-it-theme-surface-text,var(--text))) !important;
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
     font-family:var(--worth-it-theme-heading-font-family,var(--worth-it-theme-font-family,inherit)) !important;
 }
 html[data-worth-it-custom-theme] body :is(
@@ -1363,7 +1363,7 @@ html[data-worth-it-custom-theme] body .worth-it-user-search-card {
     border-color:var(--border) !important;
 }
 html[data-worth-it-custom-theme] body .worth-it-user-search-card :is(h2,strong) {
-    color:var(--worth-it-theme-heading-color,var(--worth-it-theme-surface-text,var(--text))) !important;
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
 }
 html[data-worth-it-custom-theme] body .worth-it-user-search-card :is(p,.worth-it-user-search-hint,.worth-it-user-search-status) {
     color:var(--worth-it-theme-surface-muted,var(--muted)) !important;
@@ -1405,7 +1405,7 @@ html[data-worth-it-custom-theme] body .admin-panel-card :is(
     h1,h2,h3,h4,h5,h6,.admin-panel-section-copy strong,
     .admin-panel-head-copy strong,.admin-panel-head-copy h3
 ) {
-    color:var(--worth-it-theme-heading-color,var(--worth-it-theme-surface-text,var(--text))) !important;
+    color:var(--worth-it-theme-surface-heading,var(--worth-it-theme-surface-text,var(--text))) !important;
 }
 html[data-worth-it-custom-theme] body .admin-panel-card :is(
     p,small,label,span,.admin-panel-status,.admin-panel-section-copy small,
