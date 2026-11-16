@@ -353,8 +353,9 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
   assert.ok(helpers.contrastRatio(pageText,theme.background)>=4.5,preset.name+" page text");
   assert.ok(helpers.contrastRatio(pageHeading,theme.background)>=4.5,preset.name+" page heading");
   assert.ok(helpers.contrastRatio(pageLink,theme.background)>=4.5,preset.name+" page link");
-  const cardAlpha=theme.cardStyle==="flat"?0.68:theme.cardStyle==="glass"?0.82:1;
-  const cardBackground=helpers.mixHex(theme.background,theme.cardStyle==="flat"?theme.surfaceAlt:theme.surface,cardAlpha);
+  const cardStyle=theme.cardStyle||"glass";
+  const cardAlpha=cardStyle==="flat"?0.68:cardStyle==="glass"?0.82:1;
+  const cardBackground=helpers.mixHex(theme.background,cardStyle==="flat"?theme.surfaceAlt:theme.surface,cardAlpha);
   const cardText=helpers.accessibleThemeText(theme.text,[cardBackground]);
   const cardHeading=helpers.accessibleThemeText(theme.heading,[cardBackground]);
   assert.ok(helpers.contrastRatio(cardText,cardBackground)>=4.5,preset.name+" card text");
