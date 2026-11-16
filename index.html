@@ -462,6 +462,10 @@ html.worth-it-initial-paint::before {
                 <h2 id="worthItChatGroupManageTitle">Group options</h2>
                 <p id="worthItChatGroupManageCopy">Manage this group chat.</p>
                 <div class="worth-it-chat-manage-actions">
+                    <select id="worthItChatGroupKickSelect" aria-label="Select a group member to remove" hidden>
+                        <option value="">Select a member to remove</option>
+                    </select>
+                    <button type="button" class="worth-it-chat-manage-delete" id="worthItChatGroupKickBtn" onclick="performWorthItGroupAction('kick')" hidden>Kick member</button>
                     <button type="button" class="worth-it-chat-manage-leave" id="worthItChatGroupLeaveBtn" onclick="performWorthItGroupAction('leave')">Leave group</button>
                     <button type="button" class="worth-it-chat-manage-delete" id="worthItChatGroupDeleteBtn" onclick="performWorthItGroupAction('delete')" hidden>Delete group permanently</button>
                     <button type="button" class="worth-it-chat-manage-cancel" id="worthItChatGroupManageCancelBtn" onclick="closeWorthItGroupManageDialog()">Cancel</button>
