@@ -259,6 +259,17 @@ async function getWorthItProfileBadgeInfo(worthItId){
  profileBadgesCache.set(key,promise);
  try{return await promise;}catch(error){profileBadgesCache.delete(key);throw error;}
 }
+function setWorthItBadgeIcon(icon,badge){
+ const key=String(badge?.key||"").toLowerCase();
+ const label=String(badge?.label||"").toLowerCase();
+ const isOwner=key.includes("owner")||label.includes("owner");
+ icon.classList.toggle("worth-it-owner-emblem",isOwner);
+ if(isOwner){
+  icon.innerHTML='<svg class="worth-it-owner-emblem-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M4 18.5h16l-1.4-9-4.1 3.1L12 5l-2.5 7.6L5.4 9.5 4 18.5Z" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 21h13M7 18.5v2.5m10-2.5v2.5m-5-19v1.2" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/></svg>';
+  return;
+ }
+ icon.textContent=String(badge?.icon||"✦");
+}
 function createWorthItBadgeNode(badge,compact){
  const node=document.createElement("span");
  node.className="worth-it-member-badge"+(compact?" is-compact":"");
@@ -266,7 +277,7 @@ function createWorthItBadgeNode(badge,compact){
  if(badge.equipped===true)node.classList.add("is-equipped");
  node.dataset.badge=String(badge.key||"");
  node.title=String(badge.description||badge.label||"");
- const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
+ const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");setWorthItBadgeIcon(icon,badge);
  const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
  node.append(icon,label);return node;
 }
@@ -278,7 +289,7 @@ function createWorthItBadgeTrigger(badge,compact){
  if(badge.equipped===true)node.classList.add("is-equipped");
  node.dataset.badge=String(badge.key||"");
  node.title=String(badge.description||badge.label||"View badge details");
- const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");icon.textContent=String(badge.icon||"✦");
+ const icon=document.createElement("span");icon.setAttribute("aria-hidden","true");setWorthItBadgeIcon(icon,badge);
  const label=document.createElement("span");label.textContent=String(badge.label||badge.key||"BADGE");
  node.append(icon,label);return node;
 }
@@ -343,7 +354,7 @@ function openWorthItBadgeInfo(badge,context){
  if(!overlay||!badge)return;
  activeWorthItBadgeTrigger=context?.trigger||document.activeElement;
  if(title)title.textContent=String(badge.label||badge.key||"Badge");
- if(icon){icon.textContent=String(badge.icon||"✦");icon.dataset.badge=String(badge.key||"");}
+ if(icon){setWorthItBadgeIcon(icon,badge);icon.dataset.badge=String(badge.key||"");}
  if(fields){
   fields.replaceChildren();
   addWorthItBadgeInfoField(fields,"Badge type",badge.type||"Permanent");

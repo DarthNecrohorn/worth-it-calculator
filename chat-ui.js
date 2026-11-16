@@ -1061,7 +1061,7 @@ function updateChatHeaderNotificationButton() {
     button.setAttribute("aria-pressed", String(!enabled));
     const icon = button.querySelector(".worth-it-chat-notification-icon");
     const label = button.querySelector(".worth-it-chat-notification-label");
-    if (icon) icon.textContent = enabled ? "🔔" : "🔕";
+    if (icon) icon.innerHTML = enabled ? '<svg class="worth-it-icon worth-it-icon-notifications" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m18.5 3 .8-1.5M21 6h1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' : '<svg class="worth-it-icon worth-it-icon-notifications is-muted" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M18 9a6 6 0 0 0-10.9-3.5M6 9c0 7-3 7-3 9h18c0-1.1-1-1.7-1.8-3M10 21h4M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     if (label) label.textContent = labelText;
 }
 function updateChatHeaderShareButton() {

@@ -2511,3 +2511,8 @@ html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tool
  .ugc-manual-mode-help{transition:none!important}
  .ugc-manual-mode-help-toggle{transition:none!important}
 }
+
+
+.worth-it-member-badge .worth-it-owner-emblem{display:inline-flex;align-items:center;justify-content:center;color:var(--primary);flex:0 0 auto}
+.worth-it-member-badge .worth-it-owner-emblem-svg{display:block;width:1.25em;height:1.25em;color:var(--primary);filter:drop-shadow(0 0 5px color-mix(in srgb,var(--primary) 38%,transparent))}
+html[data-worth-it-custom-theme] .worth-it-member-badge .worth-it-owner-emblem-svg{color:var(--primary)}
