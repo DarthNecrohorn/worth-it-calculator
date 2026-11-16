@@ -258,6 +258,20 @@ function updateWorthItChatVisualViewport() {
     overlay.style.setProperty("--worthit-chat-visible-top", Math.max(0, Math.round(viewport.offsetTop || 0)) + "px");
     overlay.classList.add("is-visual-viewport-adjusted");
 }
+function setWorthItChatMobileSidebar(open) {
+    const windowNode = $("worthItChatWindow");
+    const button = $("worthItChatMobileListBtn");
+    if (!windowNode) return false;
+    const shouldOpen = window.matchMedia("(max-width: 540px)").matches && Boolean(open);
+    const changed = windowNode.classList.contains("is-mobile-sidebar") !== shouldOpen;
+    windowNode.classList.toggle("is-mobile-sidebar", shouldOpen);
+    if (button) {
+        button.setAttribute("aria-expanded", String(shouldOpen));
+        button.setAttribute("aria-label", shouldOpen ? "Close chat list" : "Open chat list");
+        button.title = shouldOpen ? "Close chat list" : "Chat list";
+    }
+    return changed;
+}
 function showChatOverlay(open, options) {
     const overlay = $("worthItChatOverlay");
     const button = $("worthItChatNavBtn");
@@ -283,10 +297,10 @@ function showChatOverlay(open, options) {
     if (chatOpen) {
         document.body.classList.add("worth-it-chat-open");
         // On phones, open the conversation immediately; the list remains one tap away.
-        $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+        setWorthItChatMobileSidebar(false);
     } else {
         document.body.classList.remove("worth-it-chat-open");
-        $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+        setWorthItChatMobileSidebar(false);
         setWorthItChatFullscreen(false, {persist:false});
         closeWorthItGroupChatDialog();
         closeWorthItGroupInviteDialog();
@@ -1017,7 +1031,7 @@ function updateChatHeaderNotificationButton() {
     const button = $("worthItChatHeaderNotifications");
     if (!button) return;
     const chatKey = getActiveChatNotificationKey();
-    const available = Boolean(chatUser && chatKey);
+    const available = Boolean(chatUser && chatKey && activeConversationType !== "direct");
     button.hidden = !available;
     button.dataset.chatKey = chatKey;
     const categoryEnabled = chatNotificationCategoryEnabled(chatKey);
@@ -2209,7 +2223,7 @@ async function activateConversation(id, type, title, person, inviteToken) {
     rememberLastWorthItChatConversation();
     restoreWorthItChatDraft(worthItChatDraftKey());
     syncChatUrlForConversation(activeConversationType, activeConversationId, activeConversationPerson, activeConversationInviteToken);
-    if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.remove("is-mobile-sidebar");
+    if (window.matchMedia("(max-width: 540px)").matches) setWorthItChatMobileSidebar(false);
     document.querySelectorAll(".worth-it-chat-side-item").forEach(node => node.classList.toggle("is-active", node.id === "worthItGlobalChatBtn" && activeConversationType === "global"));
     renderFriends(); renderConversations();
     const subtitle = activeConversationType === "global" ? "A shared space for the Worth It community" : activeConversationType === "group" ? "Group conversation · " + (chatConversations.find(c => c.id === id)?.members?.length || 2) + " members" : (window.getWorthItPresenceInfo ? window.getWorthItPresenceInfo(activeConversationPerson).label : "Private conversation with your friend");
@@ -2221,7 +2235,11 @@ async function activateConversation(id, type, title, person, inviteToken) {
     await syncWorthItChatRealtimeChannel();
     await loadWorthItChatMessages(true, true);
 }
-window.showWorthItChatSidebar = function () { if (window.matchMedia("(max-width: 540px)").matches) $("worthItChatWindow")?.classList.add("is-mobile-sidebar"); };
+window.showWorthItChatSidebar = function () { setWorthItChatMobileSidebar(true); };
+window.hideWorthItChatSidebar = function () {
+    setWorthItChatMobileSidebar(false);
+    $("worthItChatMobileListBtn")?.focus?.({ preventScroll: true });
+};
 window.openWorthItGlobalChat = async function () {
     if (!chatUser) { renderMessages(); return; }
     await activateConversation(null, "global", GLOBAL_TITLE, null);
@@ -4232,7 +4250,10 @@ function setupChatUI() {
             if ($("worthItChatGroupManageDialog") && !$("worthItChatGroupManageDialog").hidden) closeWorthItGroupManageDialog();
             else if ($("worthItChatInviteDialog") && !$("worthItChatInviteDialog").hidden) window.dismissWorthItGroupInvite();
             else if ($("worthItChatGroupDialog") && !$("worthItChatGroupDialog").hidden) closeWorthItGroupChatDialog();
-            else showChatOverlay(false);
+            else if ($("worthItChatWindow")?.classList.contains("is-mobile-sidebar") && window.matchMedia("(max-width: 540px)").matches) {
+                setWorthItChatMobileSidebar(false);
+                $("worthItChatMobileListBtn")?.focus?.({ preventScroll: true });
+            } else showChatOverlay(false);
         }
     });
     updateCharacterCount();
