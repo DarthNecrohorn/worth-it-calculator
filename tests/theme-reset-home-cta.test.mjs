@@ -22,6 +22,13 @@ test("chat Travel back to present remains centred and only scales on hover", () 
     assert.match(html, /class="worth-it-chat-travel-present" id="worthItChatTravelPresentBtn"/);
     assert.match(themeCss, /button\.worth-it-chat-travel-present:not\(\[disabled\]\):hover[\s\S]*?transform: translateX\(-50%\) scale\(1\.045\) !important/);
     assert.match(themeCss, /button\.worth-it-chat-travel-present:not\(\[disabled\]\):active[\s\S]*?transform: translateX\(-50%\) scale\(\.96\) !important/);
+    assert.match(themeCss, /#worthItChatTravelPresentBtn:not\(\[disabled\]\):hover[\s\S]*?transform: translateX\(-50%\) scale\(1\.045\) !important/);
+    assert.match(themeCss, /#worthItChatTravelPresentBtn:not\(\[disabled\]\):active[\s\S]*?transform: translateX\(-50%\) scale\(\.96\) !important/);
+    assert.ok(
+        themeCss.lastIndexOf("#worthItChatTravelPresentBtn:not([disabled]):hover") >
+        themeCss.lastIndexOf('data-worth-it-hover-effect="none"'),
+        "ID-specific anchor override must come after the generic Custom Theme hover rules"
+    );
 });
 
 test("Reset settings permanently removes the current account's saved Custom Theme", () => {
