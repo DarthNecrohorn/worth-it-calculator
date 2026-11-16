@@ -1877,7 +1877,8 @@ html[data-theme="light"] .ai-chat-nav-btn{color:#0f172a;background:rgba(15,23,42
         min-width:40px;
         min-height:40px;
         padding:9px 11px;
-        transform:translateY(5px)!important;
+        position:relative;
+        top:5px;
     }
 }
 
