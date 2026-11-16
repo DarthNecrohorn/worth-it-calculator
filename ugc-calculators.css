@@ -2374,3 +2374,65 @@ html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tool
  .worth-it-badge-info-equip{width:100%}
  .worth-it-badge-info-readonly{text-align:left}
 }
+
+
+/* Compact phone layout for the UGC Calculator Creator.
+   Keep the close control and save/publish actions reachable while the form scrolls. */
+@media(max-width:700px){
+ .ugc-maker-overlay{padding:max(5px,env(safe-area-inset-top)) 5px max(5px,env(safe-area-inset-bottom))}
+ .ugc-maker-card{
+  width:100%;max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 10px);
+  padding:11px;border-radius:14px;overscroll-behavior:contain;
+ }
+ .ugc-maker-head{
+  position:sticky;top:-11px;z-index:8;align-items:center;gap:8px;
+  margin:-11px -11px 8px;padding:10px 11px 8px;
+  border-bottom:1px solid var(--border);border-radius:14px 14px 0 0;
+  background:var(--card-solid);
+ }
+ .ugc-maker-head h2{font-size:17px;line-height:1.2;margin:2px 0 3px}
+ .ugc-maker-head p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:10px;line-height:1.35}
+ .ugc-maker-close{width:34px;height:34px;flex-basis:34px}
+ .ugc-maker-card label{gap:5px;margin:7px 0;font-size:10px}
+ .ugc-maker-card input,.ugc-maker-card select,.ugc-maker-card textarea{font-size:12px}
+ .ugc-maker-card textarea{min-height:76px}
+ .ugc-maker-card textarea#ugcBlueprintImportJson{min-height:112px}
+ .ugc-maker-card .ugc-maker-status{min-height:0;margin:5px 0 7px;font-size:10px;line-height:1.4}
+ .ugc-maker-card .ugc-blueprint-import{padding:9px}
+ .ugc-maker-card .ugc-blueprint-import-note{font-size:9px;line-height:1.4;margin:6px 0}
+ .ugc-maker-card .ugc-blueprint-import-actions{gap:6px}
+ .ugc-maker-card .ugc-blueprint-import-actions button{min-height:36px;padding:7px 9px;font-size:10px}
+ .ugc-maker-card .ugc-maker-preview{padding:10px;margin-top:8px}
+ .ugc-maker-card .ugc-maker-actions{
+  position:sticky;bottom:-11px;z-index:7;
+  margin:8px -11px -11px;padding:9px 11px max(9px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);background:color-mix(in srgb,var(--card-solid) 96%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+ }
+ .ugc-maker-card .ugc-maker-actions button{flex:1 1 0;min-width:0;min-height:39px;padding:8px 7px;font-size:11px}
+ .ugc-manual-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .ugc-manual-controls>label{min-width:0;margin:5px 0}
+ .ugc-manual-controls>label select{min-height:38px;padding:7px 8px;font-size:11px}
+ .ugc-manual-controls>.ugc-maker-status{grid-column:1/-1}
+ .ugc-maker-visibility{padding:9px;margin:7px 0}
+ .ugc-maker-visibility select{min-height:37px}
+ .ugc-maker-schema-group{margin:6px 0;padding:8px}
+ .ugc-maker-schema-heading{margin:12px 0 6px;font-size:12px}
+ .ugc-maker-input-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .ugc-maker-input-grid label{margin:3px 0;font-size:9px}
+ .ugc-maker-input-grid input,.ugc-maker-input-grid textarea,.ugc-maker-input-grid select{padding:7px;font-size:11px}
+ .ugc-maker-input-grid textarea{min-height:58px}
+ .ugc-maker-test-panel{padding:9px;margin:8px 0 5px}
+ .ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .ugc-maker-test-input{padding:7px}
+ .ugc-maker-test-input input{padding:7px;font-size:12px}
+ .ugc-maker-test-result{padding:8px;gap:4px}
+ .ugc-maker-test-result>strong{font-size:15px}
+}
+@media(max-width:380px){
+ .ugc-maker-card{padding:9px}
+ .ugc-maker-head{top:-9px;margin:-9px -9px 7px;padding:8px 9px 7px}
+ .ugc-maker-card .ugc-maker-actions{bottom:-9px;margin:7px -9px -9px;padding:8px 9px max(8px,env(safe-area-inset-bottom))}
+ .ugc-manual-controls{grid-template-columns:1fr}
+ .ugc-maker-input-grid,.ugc-maker-test-inputs,.ugc-maker-test-results-grid{grid-template-columns:1fr}
+}
