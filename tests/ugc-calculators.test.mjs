@@ -382,7 +382,8 @@ test("saved UGC calculators allow owner title edits while keeping category fixed
     assert.match(maker,/You can update the title and description here/);
     assert.match(maker,/p_title:title,p_description:description,p_category:category/);
     assert.match(editDetailsSql,/new\.category is distinct from old\.category/);
-    assert.doesNotMatch(editDetailsSql,/new\.title is distinct from old\.title/);
+    assert.match(editDetailsSql,/new\.title is distinct from old\.title[\s\S]*?not between 3 and 70/);
+    assert.doesNotMatch(editDetailsSql,/cannot be changed into a different calculator/);
     assert.match(editDetailsSql,/old\.description_changed_at \+ interval '10 minutes'/);
     assert.match(editDetailsSql,/new\.description_changed_at := v_now/);
 });
