@@ -11,8 +11,8 @@
 .ugc-sort-tab{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:8px 13px;background:var(--surface-soft);color:var(--muted);font-size:12px;font-weight:750;cursor:pointer}
 .ugc-sort-tab.active{border-color:rgba(124,92,255,.65);color:var(--text);background:rgba(124,92,255,.14);box-shadow:0 0 0 1px rgba(124,92,255,.12) inset}
 .ugc-catalog-tools{display:flex;gap:10px;align-items:center;margin:0 0 16px}
-.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea{min-width:0;width:100%;border:1px solid var(--border);border-radius:11px;background:var(--card,var(--surface-soft));color:var(--text);padding:10px 12px;outline:none}
-.ugc-catalog-tools input:focus,.ugc-catalog-tools select:focus,.ugc-maker-card input:focus,.ugc-maker-card textarea:focus,.ugc-maker-card select:focus,.ugc-detail-description-editor textarea:focus{border-color:var(--primary);box-shadow:var(--focus-ring)}
+.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-title-editor input,.ugc-detail-description-editor textarea{min-width:0;width:100%;border:1px solid var(--border);border-radius:11px;background:var(--card,var(--surface-soft));color:var(--text);padding:10px 12px;outline:none}
+.ugc-catalog-tools input:focus,.ugc-catalog-tools select:focus,.ugc-maker-card input:focus,.ugc-maker-card textarea:focus,.ugc-maker-card select:focus,.ugc-detail-title-editor input:focus,.ugc-detail-description-editor textarea:focus{border-color:var(--primary);box-shadow:var(--focus-ring)}
 .ugc-catalog-tools select{max-width:210px}
 .ugc-catalog-status,.ugc-detail-status,.ugc-maker-status{min-height:20px;margin:0 0 12px;color:var(--muted);font-size:12px}
 .ugc-catalog-status.is-error,.ugc-detail-status.is-error,.ugc-maker-status.is-error{color:var(--danger)}
@@ -40,10 +40,14 @@
 .ugc-detail-header h1{margin:4px 0 8px}
 .ugc-detail-owner{display:inline-flex;margin-top:10px;color:var(--primary2);font-size:12px;font-weight:800;text-decoration:none}
 .ugc-detail-stats{margin-top:10px;color:var(--muted);font-size:11px}
-.ugc-detail-description-editor{margin:14px 0 18px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft)}
-.ugc-detail-description-editor[hidden]{display:none}
-.ugc-detail-description-editor label{display:block;margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:750}
+.ugc-detail-title-editor,.ugc-detail-description-editor{display:grid;gap:8px;margin:14px 0 18px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft)}
+.ugc-detail-title-editor[hidden],.ugc-detail-description-editor[hidden]{display:none!important}
+.ugc-detail-title-editor label,.ugc-detail-description-editor label{display:block;margin:0 0 2px;color:var(--muted);font-size:11px;font-weight:750}
+.ugc-detail-title-editor input{min-height:42px}
+.ugc-detail-description-editor{position:relative;top:-10px}
 .ugc-detail-description-editor textarea{resize:vertical;min-height:74px}
+.ugc-detail-title-editor .ugc-maker-status,.ugc-detail-description-editor .ugc-maker-status{margin:0}
+.ugc-detail-title-editor button,.ugc-detail-description-editor button{justify-self:start}
 .ugc-detail-calculator-card,.ugc-results-panel{padding:20px;border:1px solid var(--border);border-radius:18px;background:var(--card);margin:14px 0}
 .ugc-detail-calculator-card h2,.ugc-results-panel h3{font-size:18px;margin:0 0 14px}
 .ugc-detail-calculator-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
@@ -73,6 +77,7 @@ body.ugc-maker-open{overflow:hidden}
 .ugc-maker-edit-grid label:last-child{grid-column:1/-1}
 .ugc-maker-preview-list{padding-left:18px;color:var(--muted);font-size:11px;display:grid;gap:5px}
 .ugc-maker-schema-summary{color:var(--primary2);font-size:11px;margin:10px 0}
+.ugc-maker-description-field,.ugc-maker-description-help{position:relative;top:-10px}
 .ugc-maker-quick-fix-note{padding:10px 12px;border-left:3px solid var(--primary2);border-radius:8px;background:color-mix(in srgb,var(--primary2) 8%,transparent);line-height:1.55}
 .worth-it-profile-badges,.worth-it-profile-favourites{padding:17px 18px;border:1px solid var(--border);border-radius:17px;background:var(--card);margin-top:14px}
 .worth-it-profile-badges h2,.worth-it-profile-favourites h2{font-size:17px;margin:0 0 12px}
