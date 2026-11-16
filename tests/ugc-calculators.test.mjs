@@ -374,12 +374,10 @@ test("UGC enhancement migration enforces private favourites, description cooldow
 });
 
 test("saved UGC calculators allow owner title edits while keeping category fixed and the description cooldown enforced", () => {
-    const titleField = maker.match(/titleInput=document\.createElement\("input"\)[^;]+;/)?.[0] || "";
-    const descriptionField = maker.match(/descInput=document\.createElement\("textarea"\)[^;]+;/)?.[0] || "";
-    assert.match(titleField,/id="ugcMakerTitle"/);
-    assert.doesNotMatch(titleField,/disabled/);
-    assert.match(descriptionField,/id="ugcMakerDescription"/);
-    assert.doesNotMatch(descriptionField,/disabled/);
+    assert.match(maker,/const titleInput=document\.createElement\("input"\);titleInput\.id="ugcMakerTitle"/);
+    assert.doesNotMatch(maker,/titleInput\.disabled=existing/);
+    assert.match(maker,/const descInput=document\.createElement\("textarea"\);descInput\.id="ugcMakerDescription"/);
+    assert.doesNotMatch(maker,/descInput\.disabled=existing/);
     assert.match(maker,/categorySelect\.disabled=Boolean\(state\.editingId\)/);
     assert.match(maker,/You can update the title and description here/);
     assert.match(maker,/p_title:title,p_description:description,p_category:category/);
