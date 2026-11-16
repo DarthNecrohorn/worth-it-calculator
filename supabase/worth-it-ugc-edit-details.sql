@@ -5,6 +5,15 @@ begin;
 alter table private.worth_it_user_calculators
     add column if not exists title_changed_at timestamptz;
 
+-- The original table constraint limited titles to 70 characters. Replace it
+-- with the profile editor's 75-character contract; existing titles all remain valid.
+alter table private.worth_it_user_calculators
+    drop constraint if exists worth_it_user_calculators_title_check;
+
+alter table private.worth_it_user_calculators
+    add constraint worth_it_user_calculators_title_check
+    check (char_length(btrim(title)) between 3 and 75);
+
 create or replace function private.worth_it_guard_ugc_calculator_update()
 returns trigger
 language plpgsql
