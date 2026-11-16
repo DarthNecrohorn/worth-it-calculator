@@ -32,6 +32,7 @@ const uniqueViewsSql = read("supabase/worth-it-ugc-unique-views.sql");
 const creatorLeaderboardsSql = read("supabase/worth-it-creator-leaderboards.sql");
 const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.sql");
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
+const editDetailsSql = read("supabase/worth-it-ugc-edit-details.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
@@ -370,6 +371,22 @@ test("UGC enhancement migration enforces private favourites, description cooldow
     assert.match(sqlEnhancements,/update_worth_it_ugc_calculator_description/);
     assert.match(sqlEnhancements,/interval '10 minutes'/);
     assert.match(sqlEnhancements,/private\.worth_it_guard_ugc_calculator_update/);
+});
+
+test("saved UGC calculators allow owner title edits while keeping category fixed and the description cooldown enforced", () => {
+    const titleField = maker.match(/titleInput=document\.createElement\("input"\)[^;]+;/)?.[0] || "";
+    const descriptionField = maker.match(/descInput=document\.createElement\("textarea"\)[^;]+;/)?.[0] || "";
+    assert.match(titleField,/id="ugcMakerTitle"/);
+    assert.doesNotMatch(titleField,/disabled/);
+    assert.match(descriptionField,/id="ugcMakerDescription"/);
+    assert.doesNotMatch(descriptionField,/disabled/);
+    assert.match(maker,/categorySelect\.disabled=Boolean\(state\.editingId\)/);
+    assert.match(maker,/You can update the title and description here/);
+    assert.match(maker,/p_title:title,p_description:description,p_category:category/);
+    assert.match(editDetailsSql,/new\.category is distinct from old\.category/);
+    assert.doesNotMatch(editDetailsSql,/new\.title is distinct from old\.title/);
+    assert.match(editDetailsSql,/old\.description_changed_at \+ interval '10 minutes'/);
+    assert.match(editDetailsSql,/new\.description_changed_at := v_now/);
 });
 
 test("Subscriptions show only UGC calculator save quotas without selling Free", () => {
