@@ -45,6 +45,7 @@ function getCategoryLabels(item){
  return [main,...extras.filter(label=>label!==main)];
 }
 let state={userId:"",session:null,blueprintImportActive:false,creationSource:"manual",manualMode:"quick",aiOperationId:"",sort:"latest",period:"12y",category:"all",search:"",pages:{},lastPage:1,totalPages:1,totalCount:0,catalog:[],myCalculators:[],activeId:"",activeCalculator:null,detailRequest:0,catalogRequest:0,creatorRequest:0,creatorPeriod:"7d",topCreatorSort:"overall",risingCreatorSort:"growth",communityMemberSort:"followers",creatorData:null,discoverySearch:"",aiDraft:null,regionalDefaults:null,editingId:null,editingVisibility:"",editingStatus:"draft",exploreView:"basic",exploreBusy:false,basicScrollTop:0,communityScrollTop:0,discoveryScrollTop:0,descriptionStatusRequest:0,descriptionStatusTimer:null,v2PersistenceAvailable:false,v2CapabilitiesChecked:false,v2CapabilitiesRequest:0};
+let manualModeHelpExpanded=false;
 let pendingExploreTransitionFinish=null;
 const toast=message=>{if(typeof window.showToast==="function")window.showToast(String(message||""));};
 const text=(tag,className,value)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(value==null?"":value);return node;};
@@ -1905,6 +1906,7 @@ async function setCalculatorVisibility(id,visibility){
 function openMaker(){
  if(!requireAccount()||!verifyConfirmed())return;
  const modal=$("ugcMakerModal");if(!modal)return;
+ manualModeHelpExpanded=false;
  state.creationSource="manual";
  modal.hidden=false;modal.setAttribute("aria-hidden","false");
  document.body.classList.add("ugc-maker-open");
@@ -2401,6 +2403,31 @@ function createManualDraft(templateKey){
    inputs:JSON.parse(JSON.stringify(template.inputs)),results:JSON.parse(JSON.stringify(template.results)).map((result,index)=>({...result,key:result.key||"result_"+(index+1)})),
    groups:JSON.parse(JSON.stringify(template.groups||[])),scenarios:JSON.parse(JSON.stringify(template.scenarios||[]))}};
 }
+function setManualModeHelpExpanded(expanded){
+ manualModeHelpExpanded=Boolean(expanded);
+ const modeHelp=$("ugcManualModeHelp"),toggle=$("ugcManualModeHelpToggle");
+ if(!modeHelp)return;
+ const isMobile=window.matchMedia?.("(max-width:700px)")?.matches===true;
+ modeHelp.hidden=false;
+ if(isMobile){
+  modeHelp.classList.toggle("is-expanded",manualModeHelpExpanded);
+  modeHelp.setAttribute("aria-hidden",manualModeHelpExpanded?"false":"true");
+  if(toggle){
+   toggle.hidden=false;
+   toggle.classList.toggle("is-expanded",manualModeHelpExpanded);
+   toggle.setAttribute("aria-expanded",String(manualModeHelpExpanded));
+   toggle.textContent=manualModeHelpExpanded?"Hide builder explanations":"Show builder explanations";
+  }
+ }else{
+  modeHelp.classList.remove("is-expanded");
+  modeHelp.removeAttribute("aria-hidden");
+  if(toggle){
+   toggle.hidden=true;
+   toggle.classList.remove("is-expanded");
+   toggle.setAttribute("aria-expanded","true");
+  }
+ }
+}
 function setMakerModeUI(){
  const manualControls=$("ugcManualControls");
  const kicker=$("ugcMakerKicker"),heading=$("ugcMakerTitleHeading"),intro=$("ugcMakerIntro");
@@ -2416,6 +2443,7 @@ function setMakerModeUI(){
    card.classList.toggle("is-active",active);
    card.setAttribute("aria-current",active?"true":"false");
   });
+  setManualModeHelpExpanded(manualModeHelpExpanded);
  }
  const blueprintImportPanel=$("ugcBlueprintImportPanel");
  if(blueprintImportPanel)blueprintImportPanel.hidden=Boolean(state.editingId);
@@ -3780,6 +3808,7 @@ async function init(){
  $("ugcPageInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();goToCatalogPage(event.target.value);}});
  $("ugcSearch")?.addEventListener("input",event=>{state.search=String(event.target.value||"").trim();clearTimeout(init.searchTimer);init.searchTimer=setTimeout(()=>void loadCatalog(),220);});
  $("ugcCreateManualButton")?.addEventListener("click",openManualCalculatorMaker);
+ $("ugcManualModeHelpToggle")?.addEventListener("click",()=>setManualModeHelpExpanded(!manualModeHelpExpanded));
  $("ugcManualMode")?.addEventListener("change",event=>changeManualMode(event.target.value));
  $("ugcManualTemplate")?.addEventListener("change",event=>loadManualTemplate(event.target.value));
  $("ugcBlueprintCopyPrompt")?.addEventListener("click",()=>void copyBlueprintPrompt());
