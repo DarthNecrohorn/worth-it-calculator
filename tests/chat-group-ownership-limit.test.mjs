@@ -48,7 +48,11 @@ test("mobile chat header separates direct identity, global chat, and group roste
   assert.match(html, /<button[^>]*id="worthItChatHeaderAvatar"/);
 });
 
-test("the site navigation is hidden while the chat overlay is open", () => {
+test("the site navigation is hidden without hiding its nested chat overlay", () => {
   const css = read("style.css");
-  assert.ok(css.includes("body.worth-it-chat-open > nav.nav { display:none !important; }"));
+  const html = read("index.html");
+  assert.ok(css.includes("body.worth-it-chat-open > nav.nav { visibility:hidden !important; pointer-events:none !important; }"));
+  assert.ok(css.includes("body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility:visible !important; pointer-events:auto !important; }"));
+  assert.match(html, /<div class="worth-it-chat-overlay" id="worthItChatOverlay" hidden/);
+  assert.match(css, /\.worth-it-chat-overlay\[hidden\][^{]*\{display:none!important\}/);
 });
