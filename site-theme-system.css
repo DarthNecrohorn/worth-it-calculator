@@ -1555,7 +1555,7 @@ button.worth-it-chat-travel-present:not([disabled]):active {
 /* Crisp SVG icons inherit the active palette rather than emoji colours. */
 .worth-it-icon{display:inline-block;width:1.22em;height:1.22em;flex:0 0 auto;vertical-align:-.2em;color:currentColor;stroke:currentColor}
 .worth-it-icon-wrap{display:inline-flex;align-items:center;justify-content:center;line-height:0}
-.ai-chat-nav-btn .worth-it-icon{width:1.28em;height:1.28em}
+.ai-chat-nav-btn .worth-it-icon{width:clamp(22px,1.55em,26px);height:clamp(22px,1.55em,26px)}
 #aiChatTitle .worth-it-icon,.ai-chat-login-icon .worth-it-icon{width:1.5em;height:1.5em}
 .worth-it-chat-notification-icon .worth-it-icon{width:1.1em;height:1.1em}
 .worth-it-owner-emblem{display:inline-flex;align-items:center;justify-content:center;color:var(--primary);line-height:1}
