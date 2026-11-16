@@ -1134,3 +1134,121 @@ html[data-worth-it-custom-theme][data-worth-it-shadow-intensity="strong"] :is(
  #shipTrackingSection .ship-tracking-dataset-card,#shipTrackingSection .ship-tracking-map-card,
  #shipTrackingSection .ship-tracking-vessel-card
 ){box-shadow:0 16px 38px color-mix(in srgb,var(--primary) 20%,transparent)!important}
+
+
+/* Contrast-safe foregrounds for each real Custom Theme surface.
+   Foreground colours are calculated separately for page, card, input and control
+   backgrounds so mixed light/dark palettes never inherit one unsafe global colour. */
+html[data-worth-it-custom-theme] body {
+    color: var(--worth-it-theme-page-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,
+    .account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,
+    .worth-it-report-card,.ugc-calculator-card,.ugc-maker-card,
+    .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,
+    .worth-it-profile-favourites,.worth-it-profile-favourite-card,
+    #marketsSection .market-card,#cryptoSection .crypto-stat-card,#cryptoSection .crypto-card,
+    #waterLevelsSection .water-level-card,#moneySection .money-card,
+    #carsSection .cars-section-block,#carsSection .car-card,#carsSection .cars-category-card,
+    #weatherSection .weather-card,#weatherSection .weather-forecast-card,
+    #newsSection .news-card,#shopSection .shop-card,#shopSection .shop-partner-card,
+    #shipTrackingSection .ship-tracking-dataset-card,#shipTrackingSection .ship-tracking-map-card,
+    #shipTrackingSection .ship-tracking-vessel-card
+) {
+    color: var(--worth-it-theme-card-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,
+    .account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,
+    .worth-it-report-card,.ugc-calculator-card,.ugc-maker-card,
+    .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,
+    .worth-it-profile-favourites,.worth-it-profile-favourite-card,
+    #marketsSection .market-card,#cryptoSection .crypto-stat-card,#cryptoSection .crypto-card,
+    #waterLevelsSection .water-level-card,#moneySection .money-card,
+    #carsSection .cars-section-block,#carsSection .car-card,#carsSection .cars-category-card,
+    #weatherSection .weather-card,#weatherSection .weather-forecast-card,
+    #newsSection .news-card,#shopSection .shop-card,#shopSection .shop-partner-card,
+    #shipTrackingSection .ship-tracking-dataset-card,#shipTrackingSection .ship-tracking-map-card,
+    #shipTrackingSection .ship-tracking-vessel-card
+) :is(h1,h2,h3,h4,h5,h6) {
+    color: var(--worth-it-theme-card-heading, var(--worth-it-theme-card-text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,textarea,[contenteditable="true"]
+) {
+    color: var(--worth-it-theme-surface-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(input,textarea,[contenteditable="true"])::placeholder {
+    color: var(--worth-it-theme-surface-muted, var(--muted)) !important;
+    opacity: 1 !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    button,input[type="button"],input[type="submit"],.settings-option
+):not(
+    .btn-primary,.open-calc,.ai-chat-nav-btn,.ai-chat-send,.worth-it-chat-nav-btn,
+    .worth-it-chat-send-btn,.shop-buy-button,.shop-deal-button,.web-shop-action,
+    .auth-modal-submit,.worth-it-report-submit,.worth-it-display-name-save,
+    .calc-shop-nav,.calc-wallet-nav,.calc-wip-nav,.active,.is-active,
+    .calc-favorite-toggle,.worth-it-profile-avatar-remove,
+    .worth-it-chat-call-end,.worth-it-chat-call-reject,.worth-it-chat-manage-delete,
+    .worth-it-chat-manage-leave,.is-recording,[aria-pressed="true"],
+    [aria-selected="true"],[aria-expanded="true"],
+    [class*="danger"],[class*="delete"],[class*="remove"],[class*="reject"]
+) {
+    color: var(--worth-it-theme-soft-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    button.active,button.is-active,button[aria-pressed="true"],
+    button[aria-selected="true"],button[aria-expanded="true"]
+) {
+    color: var(--worth-it-primary-readable, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .settings-option.danger,[class*="danger"],[class*="delete"],
+    [class*="remove"],[class*="reject"],.worth-it-chat-call-end,
+    .worth-it-chat-call-reject,.worth-it-chat-manage-delete,
+    .worth-it-chat-manage-leave,.worth-it-profile-avatar-remove
+) {
+    color: #FFFFFF !important;
+    background: #B91C1C !important;
+    border-color: #991B1B !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-chat-window,.ai-chat-card,.worth-it-chat-call-card,
+    .auth-modal-card,.worth-it-badge-info-card,.worth-it-confirm-dialog
+) {
+    color: var(--worth-it-theme-surface-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-chat-window,.ai-chat-card,.worth-it-chat-call-card,
+    .auth-modal-card,.worth-it-badge-info-card,.worth-it-confirm-dialog
+) :is(h1,h2,h3,h4,h5,h6) {
+    color: var(--worth-it-theme-surface-text, var(--text)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .worth-it-chat-window,.ai-chat-card,.worth-it-chat-call-card,
+    .auth-modal-card,.worth-it-badge-info-card,.worth-it-confirm-dialog
+) :is(p,small,label,li,dt,dd,.muted,.settings-note,.account-settings-status) {
+    color: var(--worth-it-theme-surface-muted, var(--muted)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,
+    .account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,
+    .worth-it-report-card,.ugc-calculator-card,.ugc-maker-card,
+    .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,
+    .worth-it-profile-favourites,.worth-it-profile-favourite-card
+) :is(.muted,.muted-text,.settings-note,.settings-hint,.calculator-description,
+     .ugc-calculator-description,.ugc-card-description,.profile-meta,.stat-label,.metric-label) {
+    color: var(--worth-it-theme-card-muted, var(--muted)) !important;
+}
+html[data-worth-it-custom-theme] body :is(
+    .calc-card,.panel,.stat,.metric,.chart-card,.score-card,.faq-item,
+    .account-page-card,.settings-panel,.worth-it-settings-panel,.worth-it-settings-card,
+    .worth-it-report-card,.ugc-calculator-card,.ugc-maker-card,
+    .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,
+    .worth-it-profile-favourites,.worth-it-profile-favourite-card
+) a:not([class*="button"]):not([class*="-btn"]) {
+    color: var(--worth-it-theme-card-link, var(--worth-it-theme-link-color)) !important;
+}
