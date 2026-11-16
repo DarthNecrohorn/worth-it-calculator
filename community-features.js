@@ -543,6 +543,8 @@ async function loadThemeForSession(){
  }catch(error){console.warn("Could not verify the Worth It session for Custom Themes:",error);}
  if(request!==themeRequest)return;
  const userId=session?.user?.id||"";
+ const previousThemeUserId=themeUserId;
+ const previouslyAppliedTheme=previousThemeUserId===userId?activeTheme:null;
  themeUserId=userId;
  if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
  if(!sessionResolved){
@@ -565,8 +567,18 @@ async function loadThemeForSession(){
  if(request!==themeRequest||themeUserId!==userId)return;
  if(!walletResolved){
   themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
-  applyTheme(livePreview||DEFAULT_THEME);
-  setThemeStatus("Your subscription could not be verified. You can still preview colours, but no saved theme has been changed. Please retry when the account service is available.",true);
+  let cachedTheme=DEFAULT_THEME;
+  try{
+   const cached=readLocal(scopedKey(THEME_KEY,userId));
+   if(cached)cachedTheme=cleanTheme(JSON.parse(cached));
+  }catch(_){}
+  const retainedTheme=previouslyAppliedTheme&&isCustomTheme(previouslyAppliedTheme)
+   ?previouslyAppliedTheme
+   :isCustomTheme(cachedTheme)?cachedTheme:DEFAULT_THEME;
+  // A transient wallet/network failure is not proof that the user lost their
+  // entitlement. Keep this account-scoped theme while verification retries.
+  applyTheme(livePreview||retainedTheme);
+  setThemeStatus("Your subscription could not be verified. Your current theme is being kept; no saved theme was changed. Please retry when the account service is available.",true);
   return;
  }
  themeEntitled=hasPremiumThemeAccess(wallet);
