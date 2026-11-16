@@ -20,6 +20,7 @@ const community = read("community-features.js");
 const economy = read("calc-economy.js");
 const calcEconomySource = economy;
 const sql = read("supabase/worth-it-ugc-badges.sql");
+const badgeMilestonesSql = read("supabase/worth-it-profile-badge-milestones.sql");
 const makerQuotaSql = read("supabase/worth-it-ugc-maker-generation-refunds.sql");
 const ugcAiDisableSql = read("supabase/worth-it-ugc-ai-creator-disable.sql");
 const manualBuilderSql = read("supabase/worth-it-ugc-manual-builder-ai-costs.sql");
@@ -793,22 +794,25 @@ test("profile favourites are account-owned and profile visibility is respected",
     assert.match(community, /#ugcCalculatorGrid/);
 });
 
-test("OWNER, PREMIUM, PREMIUM LITE and tenure badges are earned server-side and equipable", () => {
-    for (const key of ["owner", "premium", "premium_lite", "member_1m", "member_3m", "member_6m", "member_12m", "member_2y", "member_3y", "member_4y", "member_5y"]) {
-        assert.ok(sql.includes("'" + key + "'"), key + " is in the badge system");
+test("profile badges allow one equipped selection and provide permanent or expiring metadata", () => {
+    for (const key of ["owner","premium","premium_lite","calculator_5","calculator_10","member_1m","member_6m","member_12m","member_2y","member_3y","member_5y","member_10y"]) {
+        assert.ok(badgeMilestonesSql.includes("'" + key + "'"),key+" is in the active badge catalogue");
     }
-    assert.match(sql, /pedjasebez3545@gmail\.com/);
-    assert.match(sql, /private\.worth_it_badge_is_earned/);
-    assert.match(sql, /set_worth_it_profile_badge_equipped/);
-    assert.match(sql, /This badge has not been unlocked/);
-    assert.match(sql, /premium_lite.*premium_expires_at/is);
-    assert.match(economy, /PREMIUM LITE/);
-    assert.match(profile, /set_worth_it_profile_badge_equipped/);
-    assert.match(profile, /Unequip/);
-    assert.match(profile, /Equip/);
-    assert.match(profile, /worthItProfileNameBadges/);
-    assert.match(chat, /worth-it-chat-member-badges/);
-    assert.match(chat, /loadWorthItPublicBadges/);
+    assert.match(sql,/private\.worth_it_badge_is_earned/);
+    assert.match(badgeMilestonesSql,/create unique index if not exists worth_it_profile_badge_equips_one_per_user_idx/);
+    assert.match(badgeMilestonesSql,/pg_advisory_xact_lock/);
+    assert.match(badgeMilestonesSql,/entitlement_expires_at/);
+    assert.match(badgeMilestonesSql,/sync_worth_it_profile_premium_badge_entitlement/);
+    assert.match(badgeMilestonesSql,/'15 days per purchase\.'/);
+    assert.match(badgeMilestonesSql,/'Temporary'/);
+    assert.match(badgeMilestonesSql,/'Permanent'/);
+    assert.match(badgeMilestonesSql,/'how_to_get'/);
+    assert.match(badgeMilestonesSql,/language plpgsql[\s\S]*?volatile/);
+    assert.match(profile,/set_worth_it_profile_badge_equipped/);
+    assert.match(profile,/scheduleWorthItBadgeExpiry/);
+    assert.match(profile,/One badge is equipped/);
+    assert.match(chat,/worth-it-chat-member-badges/);
+    assert.match(chat,/loadWorthItPublicBadges/);
 });
 
 test("migration and browser scripts are included in CI parsing and regression checks", () => {
@@ -816,6 +820,7 @@ test("migration and browser scripts are included in CI parsing and regression ch
     assert.match(workflow, /ugc-calculators\.js/);
     assert.match(workflow, /functions\/api\/ugc-maker\.js/);
     assert.match(workflow, /supabase\/worth-it-ugc-badges\.sql/);
+    assert.match(workflow, /supabase\/worth-it-profile-badge-milestones\.sql/);
     assert.match(workflow, /ugc-badges-postgres-setup\.sql/);
     assert.match(workflow, /ugc-badges-postgres-smoke\.sql/);
 });
