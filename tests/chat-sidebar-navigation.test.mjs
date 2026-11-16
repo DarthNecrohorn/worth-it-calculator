@@ -72,6 +72,26 @@ test("mobile chat arrows open and close a sliding chat-list drawer without repla
     assert.ok(style.includes("transform: translate3d(0, 0, 0) !important;"));
 });
 
+test("mobile chat header places the active conversation identity beside the drawer arrow", () => {
+    const arrowIndex = html.indexOf('id="worthItChatMobileListBtn"');
+    const identityIndex = html.indexOf('class="worth-it-chat-header-person"', arrowIndex);
+    assert.ok(arrowIndex >= 0 && identityIndex > arrowIndex, "drawer arrow comes immediately before the conversation identity");
+    assert.ok(style.includes("grid-template-columns: 34px minmax(0, 1fr) auto !important;"));
+    assert.ok(style.includes(".worth-it-chat-header-person.is-global-chat .worth-it-chat-header-avatar,"));
+    assert.ok(style.includes(".worth-it-chat-header-person.is-group-chat .worth-it-chat-header-avatar"));
+    assert.ok(style.includes("transform: none !important;"));
+    assert.ok(client.includes('makeChatProfileLink(person, "worth-it-chat-header-profile-link"'));
+});
+
+test("clicking the group name opens the member roster with presence and Owner-only Kick controls", () => {
+    assert.ok(client.includes('groupTitleButton.className = "worth-it-chat-group-title-trigger";'));
+    assert.ok(client.includes('groupTitleButton.setAttribute("aria-label", "View members of "'));
+    assert.ok(client.includes('openWorthItGroupMembers(groupConversation.id);'));
+    assert.ok(client.includes('window.getWorthItPresenceInfo(member).label'));
+    assert.ok(client.includes("if (conversation.is_creator === true) {"));
+    assert.ok(client.includes('kick.className = "worth-it-chat-group-member-kick"'));
+});
+
 test("call buttons are limited to direct chats and the notification toggle is absent from private chats", () => {
     assert.ok(enhancements.includes('currentContext?.conversationType === "direct"'));
     assert.ok(enhancements.includes("if (button) button.hidden = !direct;"));
