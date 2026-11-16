@@ -187,7 +187,7 @@ test("Custom Theme hydration preserves the bootstrap account appearance during t
     assert.match(community, /Your current account theme is being kept locally/);
     assert.match(community, /const previousThemeUserId=themeUserId/);
     assert.match(community, /previouslyAppliedTheme=previousThemeUserId===userId\?activeTheme:null/);
-    assert.match(community, /const cached=readCachedCustomTheme\(userId\)/);
+    assert.match(community, /const cachedTheme=readCachedCustomTheme\(userId\)/);
     assert.match(community, /previouslyAppliedTheme&&isCustomTheme\(previouslyAppliedTheme\)/);
     assert.match(community, /applyTheme\(livePreview\|\|retainedTheme\)/);
     assert.match(community, /your current account theme is being kept/);
