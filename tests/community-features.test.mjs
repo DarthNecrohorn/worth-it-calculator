@@ -307,6 +307,7 @@ test("Custom Theme text and controls use surface-specific accessible foregrounds
  assert.ok(themeSystemCss.includes("var(--worth-it-theme-card-text"));
  assert.ok(themeSystemCss.includes("var(--worth-it-theme-surface-text"));
  assert.ok(themeSystemCss.includes("var(--worth-it-theme-soft-text"));
+ assert.ok(themeSystemCss.includes("background: var(--card-solid) !important;"));
  assert.ok(themeSystemCss.includes("color: #FFFFFF !important;"));
  assert.ok(js.includes('"--worth-it-theme-card-text"'));
 });
@@ -341,10 +342,11 @@ test("Custom Theme contrast fallback maintains WCAG AA text and gradient-button 
  ];
  for(const [primary,secondary] of gradients){
   const foreground=helpers.gradientForeground(primary,secondary);
-  for(const endpoint of [primary,secondary]){
-   const safe=helpers.accessibleButtonBackground(endpoint,foreground);
-   assert.ok(helpers.contrastRatio(foreground,safe)>=4.5,
-    "gradient button foreground must pass on "+safe);
+  const safeStops=[primary,secondary].map(endpoint=>helpers.accessibleButtonBackground(endpoint,foreground));
+  for(let step=0;step<=20;step+=1){
+   const sample=helpers.mixHex(safeStops[0],safeStops[1],step/20);
+   assert.ok(helpers.contrastRatio(foreground,sample)>=4.5,
+    "gradient button foreground must pass at step "+step+" on "+sample);
   }
  }
 });
