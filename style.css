@@ -24431,7 +24431,8 @@ html[data-worth-it-custom-theme] .worth-it-settings-kicker{
 }
 
 /* Chat-only navigation suppression and compact mobile identity/roster layout. */
-body.worth-it-chat-open > nav.nav { display:none !important; }
+body.worth-it-chat-open > nav.nav { visibility:hidden !important; pointer-events:none !important; }
+body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility:visible !important; pointer-events:auto !important; }
 .worth-it-chat-header-avatar { padding:0; color:inherit; cursor:default; font:inherit; appearance:none; -webkit-appearance:none; }
 .worth-it-chat-header-avatar.is-group-members-trigger { cursor:pointer; }
 .worth-it-chat-header-avatar.is-group-members-trigger:hover { border-color:rgba(165,180,252,.55); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
