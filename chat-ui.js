@@ -837,12 +837,35 @@ function openWorthItGroupManageDialog(conversationId) {
     const title = $("worthItChatGroupManageTitle");
     const copy = $("worthItChatGroupManageCopy");
     const remove = $("worthItChatGroupDeleteBtn");
+    const kickSelect = $("worthItChatGroupKickSelect");
+    const kickButton = $("worthItChatGroupKickBtn");
     const status = $("worthItChatGroupManageStatus");
     if (title) title.textContent = conversationLabel(conversation);
     if (copy) copy.textContent = conversation.is_creator
-        ? "Leave the group and hand ownership to another member, or permanently delete the group and all its messages for everyone."
-        : "Leave this group to remove it from your chat list. You can join again only if someone shares a valid group invitation with you.";
+        ? "You are the group Owner. You can remove members, leave and transfer ownership to the next member in join order, or permanently delete the group."
+        : "Leave this group to remove it from your chat list. The Owner manages membership and group settings.";
     if (remove) remove.hidden = conversation.is_creator !== true;
+    if (kickSelect) {
+        kickSelect.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select a member to remove";
+        kickSelect.appendChild(placeholder);
+        (Array.isArray(conversation.members) ? conversation.members : []).forEach(member => {
+            if (!member?.worth_it_id) return;
+            const option = document.createElement("option");
+            option.value = String(member.worth_it_id);
+            option.textContent = member.display_name || member.username || ("Worth It member #" + member.worth_it_id);
+            kickSelect.appendChild(option);
+        });
+        kickSelect.hidden = conversation.is_creator !== true || kickSelect.options.length <= 1;
+        kickSelect.value = "";
+    }
+    if (kickButton) {
+        kickButton.hidden = conversation.is_creator !== true || !kickSelect || kickSelect.options.length <= 1;
+        kickButton.disabled = false;
+        kickButton.textContent = "Kick member";
+    }
     if (status) { status.textContent = ""; status.classList.remove("is-error"); }
     dialog.dataset.conversationId = String(conversation.id);
     if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
@@ -859,44 +882,71 @@ async function performWorthItGroupAction(action) {
     const conversationId = String(dialog?.dataset.conversationId || "");
     const conversation = chatConversations.find(item => String(item.id) === conversationId && item.type === "group");
     const status = $("worthItChatGroupManageStatus");
-    const button = $(action === "delete" ? "worthItChatGroupDeleteBtn" : "worthItChatGroupLeaveBtn");
+    const button = $(action === "delete" ? "worthItChatGroupDeleteBtn" : action === "kick" ? "worthItChatGroupKickBtn" : "worthItChatGroupLeaveBtn");
     if (!chatUser || !conversation || !button || button.disabled) return;
     if (action === "delete" && conversation.is_creator !== true) {
-        if (status) { status.textContent = "Only the group creator can permanently delete this group."; status.classList.add("is-error"); }
+        if (status) { status.textContent = "Only the current group Owner can permanently delete this group."; status.classList.add("is-error"); }
+        return;
+    }
+    if (action === "kick" && conversation.is_creator !== true) {
+        if (status) { status.textContent = "Only the current group Owner can remove members."; status.classList.add("is-error"); }
+        return;
+    }
+    const targetId = action === "kick" ? Number($("worthItChatGroupKickSelect")?.value) : null;
+    if (action === "kick" && (!Number.isSafeInteger(targetId) || targetId <= 0)) {
+        if (status) { status.textContent = "Choose a group member first."; status.classList.add("is-error"); }
         return;
     }
     const groupName = conversationLabel(conversation);
+    const targetName = action === "kick"
+        ? ($("worthItChatGroupKickSelect")?.selectedOptions?.[0]?.textContent || "this member") : "";
     const confirmed = action === "delete"
         ? window.confirm("Permanently delete “" + groupName + "” for everyone? All group messages and its invitation link will be deleted and cannot be recovered.")
-        : window.confirm("Leave “" + groupName + "”? It will disappear from your group list. You may need a new invitation to join again.");
+        : action === "kick"
+            ? window.confirm("Remove " + targetName + " from “" + groupName + "”? They will need a new invitation to rejoin.")
+            : window.confirm("Leave “" + groupName + "”? It will disappear from your group list. You may need a new invitation to join again.");
     if (!confirmed) return;
     const priorText = button.textContent;
     button.disabled = true;
-    button.textContent = action === "delete" ? "Deleting…" : "Leaving…";
+    button.textContent = action === "delete" ? "Deleting…" : action === "kick" ? "Removing…" : "Leaving…";
     if (status) { status.textContent = ""; status.classList.remove("is-error"); }
     try {
-        const rpcName = action === "delete" ? "delete_worth_it_group_chat" : "leave_worth_it_group_chat";
-        const result = await sb().rpc(rpcName, {p_conversation_id:conversation.id});
+        const rpcName = action === "delete" ? "delete_worth_it_group_chat" : action === "kick" ? "kick_worth_it_group_member" : "leave_worth_it_group_chat";
+        const args = action === "kick"
+            ? {p_conversation_id:conversation.id,p_target_worth_it_id:targetId}
+            : {p_conversation_id:conversation.id};
+        const result = await sb().rpc(rpcName, args);
         if (result.error) throw result.error;
         if (!result.data?.success) {
             const codes = {
-                NOT_GROUP_CREATOR: "Only the group creator can delete this group.",
-                NOT_A_GROUP_MEMBER: "You are no longer a member of this group.",
+                NOT_GROUP_CREATOR: "Only the current group Owner can delete this group.",
+                NOT_GROUP_OWNER: "Only the current group Owner can remove members.",
+                NOT_A_GROUP_MEMBER: "This member is no longer in the group.",
+                INVALID_GROUP_MEMBER: "Choose a valid group member.",
                 GROUP_NOT_FOUND: "This group no longer exists."
             };
             throw new Error(codes[result.data?.code] || result.data?.code || "The group action could not be completed.");
+        }
+        if (action === "kick") {
+            await refreshWorthItChatData();
+            openWorthItGroupManageDialog(conversation.id);
+            if (status) status.textContent = targetName + " was removed from the group.";
+            return;
         }
         const wasActive = activeConversationType === "group" && String(activeConversationId) === conversationId;
         closeWorthItGroupManageDialog();
         await refreshWorthItChatData();
         if (wasActive) await activateConversation(null, "global", GLOBAL_TITLE, null);
-        const message = action === "delete" ? "Group permanently deleted." : (result.data.owner_transferred ? "You left the group. Ownership was transferred to another member." : "You left the group.");
+        const message = action === "delete" ? "Group permanently deleted." : (result.data.owner_transferred ? "You left the group. Ownership was transferred to the next member." : "You left the group.");
         if (chatOpen) setStatus(message, false);
         else if (typeof window.showToast === "function") window.showToast(message);
     } catch (error) {
         if (status) { status.textContent = rpcError(error); status.classList.add("is-error"); }
     } finally {
-        if (button.isConnected) { button.disabled = false; button.textContent = priorText; }
+        if (button.isConnected) {
+            button.disabled = false;
+            button.textContent = priorText;
+        }
     }
 }
 window.openWorthItGroupManageDialog = openWorthItGroupManageDialog;
