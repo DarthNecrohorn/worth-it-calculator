@@ -9,7 +9,7 @@ const DEFAULT_THEME = {
  primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120",
  background:"#070B14",surface:"#11192A",surfaceAlt:"#151F33",
  text:"#F8FAFC",heading:"#FFFFFF",muted:"#94A3B8",link:"#A99BFF",border:"#334155",
- fontFamily:"inter",headingStyle:"modern",bodyStyle:"standard",
+ fontFamily:"inter",headingStyle:"modern",bodyTextStyle:"neutral",bodyStyle:"standard",
  fontSize:"default",headingScale:"balanced",lineHeight:"normal",
  corners:"soft",buttonStyle:"gradient",cardStyle:"glass",
  buttonAnimation:"none",hoverEffect:"none",shadowIntensity:"none",borderThickness:"normal",focusAppearance:"standard"
@@ -23,8 +23,9 @@ const THEME_COLOR_FIELDS = Object.freeze([
  ["worthItThemeLink","link"],["worthItThemeBorder","border"]
 ]);
 const THEME_SELECT_FIELDS = Object.freeze([
- ["worthItThemeFontFamily","fontFamily",["inter","system","arial","georgia","mono"]],
- ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical"]],
+ ["worthItThemeFontFamily","fontFamily",["inter","system","arial","georgia","mono","verdana","trebuchet","palatino","garamond","tahoma"]],
+ ["worthItThemeHeadingStyle","headingStyle",["modern","bold","editorial","technical","minimal","geometric","bookish","cinematic","rounded","condensed"]],
+ ["worthItThemeBodyTextStyle","bodyTextStyle",["neutral","humanist","editorial","geometric","technical","soft","condensed","rounded"]],
  ["worthItThemeBodyStyle","bodyStyle",["standard","comfortable","compact"]],
  ["worthItThemeFontSize","fontSize",["small","default","large"]],
  ["worthItThemeHeadingScale","headingScale",["compact","balanced","large"]],
@@ -245,6 +246,38 @@ const THEME_PRESETS=[
  {id:"indigo-ink",name:"Indigo Ink",group:"more",subtitle:"Ink · Periwinkle",swatches:["#7186E8","#9CA9F5","#0E1530"],theme:{primary:"#7186E8",secondary:"#9CA9F5",hover:"#91A2FF",header:"#1A2448",background:"#0E1530",surface:"#1A2545",surfaceAlt:"#263357",border:"#485B91",text:"#F0F3FF",heading:"#FFFFFF",muted:"#BAC5E8",link:"#B9C5FF",fontFamily:"inter",headingStyle:"bold",bodyStyle:"standard",fontSize:"default",headingScale:"balanced",lineHeight:"normal",corners:"soft",buttonStyle:"solid",cardStyle:"glass",buttonAnimation:"subtle",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}},
  {id:"pastel-pop",name:"Pastel Pop",group:"more",subtitle:"Pastel · Playful",swatches:["#B66B9A","#6F91C7","#FFF5F8"],theme:{primary:"#B66B9A",secondary:"#6F91C7",hover:"#CE8DB2",header:"#F4EAF1",background:"#FFF5F8",surface:"#FFFFFF",surfaceAlt:"#F4EAF1",border:"#E4CBD9",text:"#44313D",heading:"#2A1C26",muted:"#715C69",link:"#8B4D75",fontFamily:"arial",headingStyle:"modern",bodyStyle:"comfortable",fontSize:"default",headingScale:"large",lineHeight:"relaxed",corners:"rounded",buttonStyle:"gradient",cardStyle:"glass",buttonAnimation:"smooth",hoverEffect:"lift",shadowIntensity:"soft",borderThickness:"normal",focusAppearance:"prominent"}}
 ];
+const PRESET_TYPOGRAPHY = Object.freeze({
+ midnight:{fontFamily:"inter",headingStyle:"modern",bodyTextStyle:"neutral"},
+ minimal:{fontFamily:"system",headingStyle:"minimal",bodyTextStyle:"geometric"},
+ emerald:{fontFamily:"trebuchet",headingStyle:"humanist",bodyTextStyle:"humanist"},
+ sunset:{fontFamily:"arial",headingStyle:"cinematic",bodyTextStyle:"editorial"},
+ ocean:{fontFamily:"verdana",headingStyle:"geometric",bodyTextStyle:"neutral"},
+ rose:{fontFamily:"palatino",headingStyle:"bookish",bodyTextStyle:"editorial"},
+ graphite:{fontFamily:"mono",headingStyle:"technical",bodyTextStyle:"technical"},
+ "lavender-mist":{fontFamily:"garamond",headingStyle:"elegant",bodyTextStyle:"editorial"},
+ terracotta:{fontFamily:"tahoma",headingStyle:"bold",bodyTextStyle:"soft"},
+ matcha:{fontFamily:"trebuchet",headingStyle:"rounded",bodyTextStyle:"rounded"},
+ champagne:{fontFamily:"palatino",headingStyle:"elegant",bodyTextStyle:"editorial"},
+ berry:{fontFamily:"garamond",headingStyle:"cinematic",bodyTextStyle:"editorial"},
+ arctic:{fontFamily:"system",headingStyle:"minimal",bodyTextStyle:"neutral"},
+ retro:{fontFamily:"mono",headingStyle:"technical",bodyTextStyle:"technical"},
+ royal:{fontFamily:"inter",headingStyle:"bold",bodyTextStyle:"geometric"},
+ mocha:{fontFamily:"palatino",headingStyle:"bookish",bodyTextStyle:"editorial"},
+ sakura:{fontFamily:"georgia",headingStyle:"elegant",bodyTextStyle:"soft"},
+ "neon-pulse":{fontFamily:"mono",headingStyle:"technical",bodyTextStyle:"technical"},
+ "cobalt-night":{fontFamily:"inter",headingStyle:"geometric",bodyTextStyle:"geometric"},
+ "copper-dusk":{fontFamily:"garamond",headingStyle:"cinematic",bodyTextStyle:"editorial"},
+ "glacier-blue":{fontFamily:"verdana",headingStyle:"humanist",bodyTextStyle:"humanist"},
+ "citrus-grove":{fontFamily:"trebuchet",headingStyle:"rounded",bodyTextStyle:"rounded"},
+ "plum-noir":{fontFamily:"garamond",headingStyle:"bookish",bodyTextStyle:"editorial"},
+ "coral-reef":{fontFamily:"tahoma",headingStyle:"geometric",bodyTextStyle:"soft"},
+ "sand-dune":{fontFamily:"palatino",headingStyle:"elegant",bodyTextStyle:"editorial"},
+ cyberpunk:{fontFamily:"mono",headingStyle:"technical",bodyTextStyle:"technical"},
+ "alpine-meadow":{fontFamily:"trebuchet",headingStyle:"humanist",bodyTextStyle:"humanist"},
+ "ruby-velvet":{fontFamily:"garamond",headingStyle:"cinematic",bodyTextStyle:"editorial"},
+ "indigo-ink":{fontFamily:"inter",headingStyle:"bold",bodyTextStyle:"geometric"},
+ "pastel-pop":{fontFamily:"trebuchet",headingStyle:"rounded",bodyTextStyle:"rounded"}
+});
 function renderThemePreview(){
  const node=$("worthItThemePreview");if(!node)return;
  const views={
@@ -313,7 +346,7 @@ function updateThemeDesigner(theme){
  const clean=cleanTheme(theme);
  THEME_COLOR_FIELDS.forEach(([id,key])=>{const input=$(id),hex=$(id+"Hex"),rgb=$(id+"Rgb");if(input&&hex&&document.activeElement!==hex)hex.value=clean[key];if(rgb)rgb.textContent="RGB "+hexRgb(clean[key]).join(", ");});
  renderRecentThemeColours();renderThemeContrastAudit(clean);renderThemePreview();
- document.querySelectorAll("[data-theme-preset]").forEach(button=>{const preset=THEME_PRESETS.find(item=>item.id===button.dataset.themePreset);const active=Boolean(preset)&&Object.entries(preset.theme).every(([key,value])=>clean[key]===value);button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+ document.querySelectorAll("[data-theme-preset]").forEach(button=>{const preset=THEME_PRESETS.find(item=>item.id===button.dataset.themePreset);const active=Boolean(preset)&&Object.entries({...preset.theme,...(PRESET_TYPOGRAPHY[preset.id]||{})}).every(([key,value])=>clean[key]===value);button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
  if(THEME_PRESETS.some(preset=>preset.group==="more"&&Object.entries(preset.theme).every(([key,value])=>clean[key]===value)))setMoreThemePresetsExpanded(true);
 }
 function decorateThemeColourFields(preview){
@@ -331,10 +364,10 @@ function decorateThemeColourFields(preview){
   hex.addEventListener("blur",()=>{if(!validHex(hex.value))hex.value=input.value.toUpperCase();});
  });renderRecentThemeColours();
 }
-function applyThemePreset(id){const preset=THEME_PRESETS.find(item=>item.id===id);if(!preset)return;lastAppliedThemePresetId=id;if(preset.group==="more")setMoreThemePresetsExpanded(true);const theme=cleanTheme({...DEFAULT_THEME,...preset.theme,name:preset.name});setThemeFormValues(theme);applyTheme(theme);themePreviewActive=true;setThemeStatus(preset.name+" preset applied. You can still customize every setting before saving.",false);}
+function applyThemePreset(id){const preset=THEME_PRESETS.find(item=>item.id===id);if(!preset)return;lastAppliedThemePresetId=id;if(preset.group==="more")setMoreThemePresetsExpanded(true);const theme=cleanTheme({...DEFAULT_THEME,...preset.theme,...(PRESET_TYPOGRAPHY[id]||{}),name:preset.name});setThemeFormValues(theme);applyTheme(theme);themePreviewActive=true;setThemeStatus(preset.name+" preset applied with its own typography. You can still customize every setting before saving.",false);}
 function resetThemeGroup(group){
  const current=readThemeFromForm();
- const groups={colours:THEME_COLOR_FIELDS.map(([,key])=>key),typography:["fontFamily","headingStyle","bodyStyle","fontSize","headingScale","lineHeight"],effects:["corners","buttonStyle","cardStyle","buttonAnimation","hoverEffect","shadowIntensity","borderThickness","focusAppearance"]};
+ const groups={colours:THEME_COLOR_FIELDS.map(([,key])=>key),typography:["fontFamily","headingStyle","bodyTextStyle","bodyStyle","fontSize","headingScale","lineHeight"],effects:["corners","buttonStyle","cardStyle","buttonAnimation","hoverEffect","shadowIntensity","borderThickness","focusAppearance"]};
  (groups[group]||[]).forEach(key=>{current[key]=DEFAULT_THEME[key];});
  const next=cleanTheme(current);setThemeFormValues(next);applyTheme(next);themePreviewActive=true;
  setThemeStatus(group==="colours"?"Website colours restored to their Worth It defaults.":group==="typography"?"Typography settings restored to their defaults.":"Interaction and shape settings restored to their defaults.",false);
@@ -355,14 +388,35 @@ function applyTheme(value){
    system:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
    arial:'Arial,Helvetica,sans-serif',
    georgia:'Georgia,"Times New Roman",serif',
-   mono:'"SFMono-Regular",Consolas,"Liberation Mono",monospace'
+   mono:'"SFMono-Regular",Consolas,"Liberation Mono",monospace',
+   verdana:'Verdana,Geneva,sans-serif',
+   trebuchet:'"Trebuchet MS",Arial,sans-serif',
+   palatino:'"Palatino Linotype","Book Antiqua",Palatino,serif',
+   garamond:'Garamond,"Times New Roman",serif',
+   tahoma:'Tahoma,Geneva,sans-serif'
   }[theme.fontFamily];
   const headingStyles={
    modern:{family:bodyFont,weight:"800",spacing:"-.025em",transform:"none"},
    bold:{family:bodyFont,weight:"950",spacing:"-.045em",transform:"none"},
    editorial:{family:'Georgia,"Times New Roman",serif',weight:"700",spacing:"-.015em",transform:"none"},
-   technical:{family:'"SFMono-Regular",Consolas,"Liberation Mono",monospace',weight:"800",spacing:".035em",transform:"uppercase"}
+   technical:{family:'"SFMono-Regular",Consolas,"Liberation Mono",monospace',weight:"800",spacing:".035em",transform:"uppercase"},
+   minimal:{family:bodyFont,weight:"600",spacing:"-.01em",transform:"none"},
+   geometric:{family:'"Century Gothic",Futura,Arial,sans-serif',weight:"750",spacing:"-.035em",transform:"none"},
+   bookish:{family:'"Palatino Linotype","Book Antiqua",Palatino,serif',weight:"700",spacing:".005em",transform:"none"},
+   cinematic:{family:'Georgia,"Times New Roman",serif',weight:"800",spacing:"-.02em",transform:"none"},
+   rounded:{family:'"Trebuchet MS",Arial,sans-serif',weight:"700",spacing:"-.015em",transform:"none"},
+   condensed:{family:'"Arial Narrow",Tahoma,Arial,sans-serif',weight:"800",spacing:".005em",transform:"uppercase"}
   }[theme.headingStyle];
+  const bodyTextStyles={
+   neutral:{family:bodyFont,weight:"400",spacing:"normal"},
+   humanist:{family:'"Trebuchet MS",Verdana,Arial,sans-serif',weight:"400",spacing:".005em"},
+   editorial:{family:'"Palatino Linotype","Book Antiqua",Palatino,serif',weight:"400",spacing:".005em"},
+   geometric:{family:'"Century Gothic",Futura,Arial,sans-serif',weight:"400",spacing:"-.01em"},
+   technical:{family:'"SFMono-Regular",Consolas,"Liberation Mono",monospace',weight:"400",spacing:".015em"},
+   soft:{family:'Tahoma,Verdana,Geneva,sans-serif',weight:"400",spacing:".008em"},
+   condensed:{family:'"Arial Narrow",Tahoma,Arial,sans-serif',weight:"400",spacing:"-.015em"},
+   rounded:{family:'"Trebuchet MS",Arial,sans-serif',weight:"500",spacing:".005em"}
+  }[theme.bodyTextStyle];
   const bodyStyles={
    standard:{line:"1.55",spacing:"normal"},
    comfortable:{line:"1.72",spacing:".01em"},
@@ -441,6 +495,9 @@ function applyTheme(value){
   root.style.setProperty("--worth-it-theme-heading-color",pageHeading);
   root.style.setProperty("--worth-it-theme-link-color",pageLink);
   root.style.setProperty("--worth-it-theme-font-family",bodyFont);
+  root.style.setProperty("--worth-it-theme-body-font-family",bodyTextStyles.family);
+  root.style.setProperty("--worth-it-theme-body-font-weight",bodyTextStyles.weight);
+  root.style.setProperty("--worth-it-theme-body-text-letter-spacing",bodyTextStyles.spacing);
   root.style.setProperty("--worth-it-theme-heading-font-family",headingStyles.family);
   root.style.setProperty("--worth-it-theme-heading-weight",headingStyles.weight);
   root.style.setProperty("--worth-it-theme-heading-letter-spacing",headingStyles.spacing);
@@ -474,6 +531,7 @@ function applyTheme(value){
    "--worth-it-theme-page-text","--worth-it-theme-page-muted","--worth-it-theme-page-heading","--worth-it-theme-page-link",
    "--worth-it-theme-card-text","--worth-it-theme-card-muted","--worth-it-theme-card-heading","--worth-it-theme-card-link",
    "--worth-it-theme-surface-text","--worth-it-theme-surface-heading","--worth-it-theme-surface-link","--worth-it-theme-surface-muted","--worth-it-theme-soft-text","--worth-it-theme-soft-muted","--worth-it-theme-font-family",
+   "--worth-it-theme-body-font-family","--worth-it-theme-body-font-weight","--worth-it-theme-body-text-letter-spacing",
    "--worth-it-theme-heading-font-family","--worth-it-theme-heading-weight","--worth-it-theme-heading-letter-spacing",
    "--worth-it-theme-heading-transform","--worth-it-theme-body-line-height","--worth-it-theme-body-letter-spacing",
    "--worth-it-theme-color-scheme",
