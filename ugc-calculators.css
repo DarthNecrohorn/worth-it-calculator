@@ -2517,12 +2517,3 @@ html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tool
  transform:translateY(-10px);
 }
 
-/* All desktop UGC catalogue cards show a single, consistent 91-character preview. */
-@media(min-width:701px){
- .ugc-calculator-card .ugc-card-description{
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:1;
-  overflow:hidden;
- }
-}
