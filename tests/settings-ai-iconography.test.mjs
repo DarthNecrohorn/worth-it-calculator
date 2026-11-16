@@ -32,5 +32,5 @@ test("Settings gear drawing is enlarged without changing the Settings button or 
   assert.match(button, /width="22" height="22"/);
   assert.match(styleCss, /\.settings-btn\s*>\s*\.worth-it-icon-settings\s*\{[^}]*transform:\s*scale\(1\.18\)[^}]*transform-box:\s*fill-box[^}]*transform-origin:\s*center/s);
   const buttonRule = styleCss.match(/\.settings-btn\s*\{([^}]*)\}/)?.[1] || "";
-  assert.doesNotMatch(buttonRule, /\\b(?:width|height|min-width|max-width|min-height|max-height)\\s*:/);
+  assert.doesNotMatch(buttonRule, /\b(?:width|height|min-width|max-width|min-height|max-height)\s*:/);
 });
