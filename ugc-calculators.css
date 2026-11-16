@@ -116,12 +116,10 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-maker-edit-grid label:last-child{grid-column:auto}
  .worth-it-profile-favourite-grid{grid-template-columns:1fr 1fr}
 }
-@media(prefers-color-scheme:light){
- .ugc-calculator-card{background:linear-gradient(145deg,#fff,#f4f6ff)!important}
- .ugc-maker-card{background:#fff}
- .ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites{background:#fff}
- .ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea,.ugc-input-field input{background:#f7f8ff;color:#17213e}
-}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) .ugc-calculator-card{background:linear-gradient(145deg,#fff,#f4f6ff)!important}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) .ugc-maker-card{background:#fff}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-detail-calculator-card,.ugc-results-panel,.worth-it-profile-badges,.worth-it-profile-favourites){background:#fff}
+html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tools input,.ugc-catalog-tools select,.ugc-maker-card input,.ugc-maker-card textarea,.ugc-maker-card select,.ugc-detail-description-editor textarea,.ugc-input-field input){background:#f7f8ff;color:#17213e}
 .ugc-maker-schema-heading{margin:18px 0 8px;font-size:13px;font-weight:850;letter-spacing:-.01em}
 .ugc-maker-schema-group{min-width:0;margin:9px 0;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(124,92,255,.035)}
 .ugc-maker-schema-group legend{padding:0 6px;color:var(--primary2);font-size:10px;font-weight:850}
@@ -2183,3 +2181,17 @@ body.ugc-maker-open{overflow:hidden}
  .ugc-blueprint-import-actions button{width:100%}
  .ugc-blueprint-import textarea{min-height:170px;font-size:11px}
 }
+
+
+/* Keep the badge collection compact; older and locked badges scroll inside this panel. */
+.worth-it-profile-badge-manage{
+ max-height:280px;
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ padding-right:7px;
+}
+.worth-it-profile-badge-manage::-webkit-scrollbar{width:7px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 38%,transparent);border-radius:999px}
+.worth-it-profile-badge-manage::-webkit-scrollbar-track{background:transparent}
+
