@@ -289,6 +289,28 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_enhancements_test
 
+      - name: Create isolated database for group ownership and membership-limit tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: createdb --maintenance-db="$TEST_DATABASE_URL" --owner=postgres worth_it_chat_group_ownership_test
+
+      - name: Execute and smoke-test group ownership migration in isolated PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_chat_group_ownership_test
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-group-ownership-postgres-setup.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-chat-group-ownership-and-limit.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/fixtures/chat-group-ownership-postgres-smoke.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF NOT has_function_privilege('authenticated','public.leave_worth_it_group_chat(uuid)','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.create_worth_it_group_chat(text,bigint[])','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.accept_worth_it_group_invite(text)','EXECUTE')
+              OR NOT has_function_privilege('authenticated','public.kick_worth_it_group_member(uuid,bigint)','EXECUTE')
+              OR has_function_privilege('anon','public.leave_worth_it_group_chat(uuid)','EXECUTE')
+              OR has_function_privilege('anon','public.kick_worth_it_group_member(uuid,bigint)','EXECUTE')
+            THEN RAISE EXCEPTION 'Group RPC execute grants are incorrect'; END IF;
+          END \$\$;"
+
       - name: Execute and smoke-test chat-enhancements migration in isolated PostgreSQL
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/worth_it_chat_enhancements_test
