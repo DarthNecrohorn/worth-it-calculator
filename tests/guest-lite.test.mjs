@@ -81,13 +81,14 @@ test("Search, social actions and all chat types are account-gated", () => {
     assert.match(html, /sending messages, joining groups and using group invitations/i);
 });
 
-test("the automatic account prompt is delayed until auth state is known and repeats daily", () => {
-    assert.match(guest, /await Promise\.resolve\(window\.worthItAuthReady\)/);
-    assert.match(guest, /NEXT_PROMPT_KEY = "worthItGuestLiteNextPromptAtV1"/);
-    assert.match(guest, /DAY_MS = 24 \* 60 \* 60 \* 1000/);
-    assert.match(guest, /window\.setTimeout\(\(\) => \{\s*promptTimer = null;/);
-    assert.match(guest, /if \(isAuthenticated\) \{/);
-    assert.match(guest, /promptTimer !== null/);
+test("automatic signup prompts never appear on initial load, refresh or pageshow", () => {
+    assert.match(guest, /await Promise\\.resolve\\(window\\.worthItAuthReady\\)/);
+    assert.match(guest, /function showSignupModal\\(automatic\\)/);
+    assert.match(guest, /if \\(isAuthenticated \\|\\| !authStateKnown\\) return/);
+    assert.doesNotMatch(guest, /scheduleDailyPrompt|NEXT_PROMPT_KEY|pageshow|worthItGuestLiteNextPromptAtV1/);
+    assert.match(guest, /if \\(isRestrictedPath\\(window\\.location\\.pathname\\)\\) \\{[\\s\\S]*?showSignupForRestrictedFeature/);
+    assert.match(guest, /showAccountPrompt: \\(\\) => \\{/);
+    assert.match(guest, /if \\(authStateKnown\\) return isAuthenticated \\? false : showSignupModal\\(false\\)/);
 });
 
 test("the signup modal offers Guest Lite only in signup mode", () => {
