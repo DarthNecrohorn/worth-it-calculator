@@ -2,8 +2,6 @@
 (function () {
     "use strict";
 
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const NEXT_PROMPT_KEY = "worthItGuestLiteNextPromptAtV1";
     const LAST_ACCEPTED_KEY = "worthItGuestLiteAcceptedAtV1";
     const AUTH_OVERLAY_ID = "authModalOverlay";
     const GUEST_OVERLAY_ID = "worthItGuestLimitsOverlay";
@@ -46,7 +44,6 @@
     let isAuthenticated = false;
     let autoPromptActive = false;
     let guestLimitsOpen = false;
-    let promptTimer = null;
     let authSubscription = null;
 
     const $ = id => document.getElementById(id);
@@ -66,15 +63,6 @@
         } catch (_) {
             // Guest Lite should still work when local storage is blocked.
         }
-    }
-
-    function nextPromptAt() {
-        return readTimestamp(NEXT_PROMPT_KEY);
-    }
-
-    function setNextPromptAt(timestamp) {
-        writeTimestamp(NEXT_PROMPT_KEY, timestamp);
-        scheduleDailyPrompt();
     }
 
     function authOverlay() {
@@ -155,12 +143,10 @@
         const existingOverlay = authOverlay();
         if (isAuthModalOpen() && !isSignupModalOpen()) {
             // Respect an explicit sign-in, password recovery or MFA flow already in progress.
-            if (automatic) setNextPromptAt(Date.now() + DAY_MS);
             return;
         }
 
         autoPromptActive = Boolean(automatic);
-        if (automatic) writeTimestamp(NEXT_PROMPT_KEY, Date.now() + DAY_MS);
 
         if (typeof window.openAuthModal === "function") {
             window.openAuthModal("signup");
@@ -187,10 +173,6 @@
         if (guestLimitsOpen) closeGuestLimits(false);
         restoreHomeIfOnRestrictedPath();
         closeNavMenus();
-
-        if (nextPromptAt() <= Date.now()) {
-            writeTimestamp(NEXT_PROMPT_KEY, Date.now() + DAY_MS);
-        }
 
         if (isSignupModalOpen()) {
             installSignupGuestChoice();
@@ -274,7 +256,6 @@
         }
 
         writeTimestamp(LAST_ACCEPTED_KEY, Date.now());
-        setNextPromptAt(Date.now() + DAY_MS);
         closeGuestLimits(false);
     }
 
@@ -326,8 +307,6 @@
         // A transport or initialization failure must not be interpreted as a
         // confirmed sign-out. Keep the last known state and suppress prompts.
         if (eventName === "AUTH_UNAVAILABLE") {
-            if (promptTimer !== null) window.clearTimeout(promptTimer);
-            promptTimer = null;
             return;
         }
 
@@ -337,8 +316,6 @@
         isAuthenticated = Boolean(user);
 
         if (isAuthenticated) {
-            if (promptTimer !== null) window.clearTimeout(promptTimer);
-            promptTimer = null;
             closeGuestLimits(false);
             if (autoPromptActive && isSignupModalOpen() && typeof window.closeAuthModal === "function") {
                 window.closeAuthModal(true);
@@ -357,29 +334,6 @@
             return;
         }
 
-        scheduleDailyPrompt();
-    }
-
-    function scheduleDailyPrompt() {
-        if (!authStateKnown || isAuthenticated) return;
-        if (promptTimer !== null) window.clearTimeout(promptTimer);
-        promptTimer = null;
-
-        const due = nextPromptAt();
-        if (due > Date.now()) {
-            promptTimer = window.setTimeout(() => {
-                promptTimer = null;
-                if (authStateKnown && !isAuthenticated) scheduleDailyPrompt();
-            }, Math.min(due - Date.now(), DAY_MS));
-            return;
-        }
-
-        if (isAuthModalOpen()) {
-            writeTimestamp(NEXT_PROMPT_KEY, Date.now() + DAY_MS);
-            return;
-        }
-
-        showSignupModal(true);
     }
 
     function denyGuestAction(reason) {
@@ -609,22 +563,8 @@
             if (user === false && isRestrictedPath(window.location.pathname)) {
                 restoreHomeIfOnRestrictedPath();
                 showSignupForRestrictedFeature("This section requires a Worth It account.");
-            } else if (user === false) {
-                scheduleDailyPrompt();
             }
         });
-
-        window.addEventListener("storage", event => {
-            if (event.key === NEXT_PROMPT_KEY && authStateKnown && !isAuthenticated) scheduleDailyPrompt();
-        });
-
-        window.addEventListener("pageshow", () => {
-            if (authStateKnown && !isAuthenticated) scheduleDailyPrompt();
-        });
-
-        window.addEventListener("beforeunload", () => {
-            if (promptTimer !== null) window.clearTimeout(promptTimer);
-        }, {once:true});
 
         window.WorthItGuestLite = Object.freeze({
             isAuthenticated: () => authStateKnown && isAuthenticated,
@@ -636,7 +576,6 @@
                 return false;
             },
             showGuestLimitations: showGuestLimits,
-            getNextPromptAt: nextPromptAt,
             allowedDefaultCalculators: Object.freeze(Array.from(GUEST_BILLABLE_CALCULATORS)),
             isBillableCalculator: type => GUEST_BILLABLE_CALCULATORS.has(String(type || "").toLowerCase()),
             getActiveCalculator: () => activeCalculatorKey
