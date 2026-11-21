@@ -29,7 +29,7 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
     assert.match(html, /I agree to these Guest Lite limits and want to continue/);
     assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
     assert.match(guest, /if \(!checkbox\?\.checked\)/);
-    assert.match(guest, /setNextPromptAt\(Date\.now\(\) \+ DAY_MS\)/);
+    assert.match(guest, /writeTimestamp\(LAST_ACCEPTED_KEY, Date\.now\(\)\)/);
 });
 
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
@@ -81,13 +81,14 @@ test("Search, social actions and all chat types are account-gated", () => {
     assert.match(html, /sending messages, joining groups and using group invitations/i);
 });
 
-test("the automatic account prompt is delayed until auth state is known and repeats daily", () => {
+test("automatic signup prompts never appear on initial load, refresh or pageshow", () => {
     assert.match(guest, /await Promise\.resolve\(window\.worthItAuthReady\)/);
-    assert.match(guest, /NEXT_PROMPT_KEY = "worthItGuestLiteNextPromptAtV1"/);
-    assert.match(guest, /DAY_MS = 24 \* 60 \* 60 \* 1000/);
-    assert.match(guest, /window\.setTimeout\(\(\) => \{\s*promptTimer = null;/);
-    assert.match(guest, /if \(isAuthenticated\) \{/);
-    assert.match(guest, /promptTimer !== null/);
+    assert.match(guest, /function showSignupModal\(automatic\)/);
+    assert.match(guest, /if \(isAuthenticated \|\| !authStateKnown\) return/);
+    assert.doesNotMatch(guest, /scheduleDailyPrompt|NEXT_PROMPT_KEY|pageshow|worthItGuestLiteNextPromptAtV1/);
+    assert.match(guest, /if \(isRestrictedPath\(window\.location\.pathname\)\) \{[\s\S]*?showSignupForRestrictedFeature/);
+    assert.match(guest, /showAccountPrompt: \(\) => \{/);
+    assert.match(guest, /if \(authStateKnown\) return isAuthenticated \? false : showSignupModal\(false\)/);
 });
 
 test("the signup modal offers Guest Lite only in signup mode", () => {
@@ -174,7 +175,7 @@ test("a temporary Supabase session lookup failure never turns an existing sessio
     assert.match(guest, /eventName === "AUTH_UNAVAILABLE"[\s\S]*?return;/);
     assert.match(guest, /if \(user === false\) return denyGuestAction\(reason\)/);
     assert.match(guest, /if \(user === null \|\| !authStateKnown\) return/);
-    assert.match(guest, /event\.key === NEXT_PROMPT_KEY && authStateKnown && !isAuthenticated/);
+    assert.doesNotMatch(guest, /NEXT_PROMPT_KEY|pageshow|scheduleDailyPrompt/);
     assert.match(app, /failed lookup is not proof that the user is signed out/i);
     assert.match(app, /if \(!window\.worthItAuthStateResolved\) \{[\s\S]*?worthItAuthResolutionFailed = true/);
 });
