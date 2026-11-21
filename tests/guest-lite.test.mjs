@@ -29,7 +29,7 @@ test("a dedicated Guest Lite explanation contains the required consent checkbox"
     assert.match(html, /I agree to these Guest Lite limits and want to continue/);
     assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
     assert.match(guest, /if \(!checkbox\?\.checked\)/);
-    assert.match(guest, /setNextPromptAt\(Date\.now\(\) \+ DAY_MS\)/);
+    assert.match(guest, /writeTimestamp\(LAST_ACCEPTED_KEY, Date\.now\(\)\)/);
 });
 
 test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
@@ -175,7 +175,7 @@ test("a temporary Supabase session lookup failure never turns an existing sessio
     assert.match(guest, /eventName === "AUTH_UNAVAILABLE"[\s\S]*?return;/);
     assert.match(guest, /if \(user === false\) return denyGuestAction\(reason\)/);
     assert.match(guest, /if \(user === null \|\| !authStateKnown\) return/);
-    assert.match(guest, /event\.key === NEXT_PROMPT_KEY && authStateKnown && !isAuthenticated/);
+    assert.doesNotMatch(guest, /NEXT_PROMPT_KEY|pageshow|scheduleDailyPrompt/);
     assert.match(app, /failed lookup is not proof that the user is signed out/i);
     assert.match(app, /if \(!window\.worthItAuthStateResolved\) \{[\s\S]*?worthItAuthResolutionFailed = true/);
 });
