@@ -6,6 +6,7 @@ const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
 const THEME_BOOT_KEY = "worthItCustomThemeBoot:v1:";
 const THEME_RESET_PENDING_KEY = "worthItCustomThemeResetPending:v1:";
+const THEME_COMMIT_KEY = "worthItCustomThemeCommit:v1:";
 const DEFAULT_THEME = {
  name:"Worth It",
  primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120",
@@ -89,6 +90,14 @@ function readLocal(key){ try{return localStorage.getItem(key);}catch(_){return n
 function writeLocal(key,value){ try{localStorage.setItem(key,value);}catch(_){} }
 function removeLocal(key){ try{localStorage.removeItem(key);}catch(_){} }
 function scopedKey(prefix,userId){return prefix+(userId||"guest");}
+function readThemeCommit(userId){
+ if(!userId)return null;
+ try{const value=JSON.parse(readLocal(scopedKey(THEME_COMMIT_KEY,userId))||"null");const time=Date.parse(value?.updatedAt||"");return Number.isFinite(time)?{updatedAt:time}:null;}catch(_){return null;}
+}
+function writeThemeCommit(userId,updatedAt){
+ const time=Date.parse(String(updatedAt||""));
+ if(userId&&Number.isFinite(time))writeLocal(scopedKey(THEME_COMMIT_KEY,userId),JSON.stringify({updatedAt:new Date(time).toISOString()}));
+}
 function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||""));}
 
 function isMissingCommunitySchema(error){
@@ -828,11 +837,19 @@ async function loadThemeForSession(){
  }catch(_){savedTheme=DEFAULT_THEME;applyTheme(livePreview||DEFAULT_THEME);}
  try{
   const result=await sb().from("worth_it_user_themes")
-   .select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
+   .select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at")
    .eq("user_id",userId).maybeSingle();
   if(request!==themeRequest||themeUserId!==userId)return;
   if(result.error)throw result.error;
   if(result.data){
+   const commit=readThemeCommit(userId);
+   const remoteUpdatedAt=Date.parse(String(result.data.updated_at||""));
+   if(commit&&Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt<commit.updatedAt){
+    // A lagging read replica/cache must never roll back a more recent confirmed save.
+    applyTheme(livePreview||savedTheme);
+    return;
+   }
+   if(commit&&Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt>=commit.updatedAt)removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
    const config=result.data.theme_config&&typeof result.data.theme_config==="object"?result.data.theme_config:{};
    savedTheme=cleanTheme({
     name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,
@@ -924,7 +941,7 @@ async function saveCustomTheme(){
   // Verify independently from the RPC response. This catches stale reads,
   // rejected writes, and an older palette surviving a later Save.
   const verified=await sb().from("worth_it_user_themes")
-   .select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
+   .select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at")
    .eq("user_id",themeUserId).single();
   if(verified.error)throw verified.error;
 
@@ -939,6 +956,7 @@ async function saveCustomTheme(){
 
   themeRemoteAvailable=true;
   clearThemeResetPending(themeUserId);
+  writeThemeCommit(themeUserId,persisted.updated_at||saved.data?.updated_at);
   savedTheme=theme;
   writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
   themePreviewActive=false;
