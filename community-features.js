@@ -729,10 +729,11 @@ async function loadThemeForSession(){
  if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
  if(!sessionResolved){
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||previousThemeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const cachedTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  const retainedTheme=validBootSnapshot&&previousThemeUserId===bootstrapUserId&&isCustomTheme(activeTheme)
-   ?activeTheme:cachedTheme||DEFAULT_THEME;
+  const retainedTheme=resetPending?DEFAULT_THEME:(validBootSnapshot&&previousThemeUserId===bootstrapUserId&&isCustomTheme(activeTheme)
+   ?activeTheme:cachedTheme||DEFAULT_THEME);
   if(bootstrapUserId)themeUserId=bootstrapUserId;
   themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
   // Reuse only the theme cached for the browser's bootstrap session account.
@@ -851,9 +852,10 @@ async function hydrateInitialThemeBeforePaint(){
   // Invalidate the stalled request so it cannot apply a late, incorrect theme.
   themeRequest+=1;
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const bootstrapTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  applyTheme(bootstrapTheme||DEFAULT_THEME);
+  applyTheme(resetPending?DEFAULT_THEME:(bootstrapTheme||DEFAULT_THEME));
   releaseInitialThemeCover();
  },12000);
  try{
@@ -863,9 +865,10 @@ async function hydrateInitialThemeBeforePaint(){
  }catch(error){
   console.warn("Initial Worth It theme hydration failed:",error);
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const bootstrapTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  applyTheme(bootstrapTheme||DEFAULT_THEME);
+  applyTheme(resetPending?DEFAULT_THEME:(bootstrapTheme||DEFAULT_THEME));
  }finally{
   releaseInitialThemeCover();
  }
