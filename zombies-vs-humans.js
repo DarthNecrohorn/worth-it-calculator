@@ -999,9 +999,11 @@ function drawActor(ctx,e,isPlayer){
     ctx.fillStyle=e.team==="friend"?"#89d68c":"#e48e78";ctx.fillRect(-r,-r-10,r*2*Math.max(0,e.hp/e.maxHp),4);
   }
   if(run.mode==="human"&&e.team==="enemy"){
-    const labels={walker:"WALKER",runner:"FAST RUNNER",brute:"BRUTE",armored:"ARMORED",boss:"MUTANT BOSS"};
+    const labels={walker:"LUNGE BITE",runner:"RUSH",brute:"GROUND SLAM",armored:"IRON PLATING",boss:"SUMMON"};
     if(e.type==="armored"&&run.elapsed<(e.armorUntil||0)){ctx.strokeStyle="rgba(165,211,238,.9)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r+8,0,Math.PI*2);ctx.stroke();}
     if(e.type==="brute"&&e.slamWindup>0){ctx.strokeStyle="rgba(255,145,80,.9)";ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,r+10+(0.62-e.slamWindup)*80,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+    if(e.type==="runner"&&e.lungeTime>0){ctx.strokeStyle="rgba(178,230,111,.82)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-r*.7,r*.35);ctx.lineTo(-r*1.65,r*1.25);ctx.moveTo(r*.7,r*.35);ctx.lineTo(r*1.65,r*1.25);ctx.stroke();}
+    if(e.type==="walker"&&e.lungeTime>0){ctx.strokeStyle="rgba(151,207,130,.7)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r+6,0,Math.PI*2);ctx.stroke();}
     if(e.type==="boss"){ctx.strokeStyle="rgba(196,91,117,.68)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r+9+Math.sin(performance.now()*.006)*3,0,Math.PI*2);ctx.stroke();}
     ctx.font="bold 8px sans-serif";ctx.textAlign="center";ctx.fillStyle="#f4e6c8";ctx.fillText(labels[e.type]||"INFECTED",0,-r-18);
   }
