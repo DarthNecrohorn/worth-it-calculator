@@ -44,7 +44,7 @@ test("the zombie discovery button sits beside the hero slogan and unlocks the ga
     assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
     assert.ok(!js.includes("scheduleEgg("));
     assert.ok(!js.includes("IS_PAGES_PREVIEW"));
-    assert.ok(html.includes("zvh-controls-animation-abilities-20261123h"));
+    assert.ok(html.includes("zvh-survival-maps-20261123i"));
     assert.ok(js.includes('STORAGE_PREFIX = "worthItZvhSave:v1:"'));
     assert.ok(js.includes('zvhNavEntry","zvhMoreMenuEntry'));
 });
@@ -80,6 +80,9 @@ test("actors animate limbs, zombies reach forward, armed humans carry guns and p
   assert.match(js,/const stride=moving\?Math\.sin\(phase\)/);assert.match(js,/if\(armed\)/);assert.match(js,/b\.radius\*2\.6/);assert.match(js,/WEAK HOWL/);
 });
 test("maps draw roads and spawn wrecked or burning vehicles",()=>{assert.match(js,/Broad asphalt avenues/);assert.match(js,/burning:vehicle/);assert.match(js,/p\.scorch/);});
+test("each battlefield has its own map details and indoor maps do not use the city road grid",()=>{assert.ok(js.includes("function drawMapDetails(ctx)"));for(const label of ["APARTMENTS","FOOD COURT","WAREHOUSE 01","SAFE ZONE · KEEP OUTBREAK OUT","LANDING ZONE","UNDERGROUND · PLATFORM 02"])assert.ok(js.includes(label));assert.ok(js.includes('run.mapId!=="mall"&&run.mapId!=="metro"'));});
+test("burning vehicles render smoke and explode with area damage when destroyed",()=>{assert.ok(js.includes("for(let n=0;n<3;n++)"));assert.ok(js.includes("BURNING VEHICLE · EXPLOSION"));assert.ok(js.includes("baseDamage*(1-distance/radius*.45)"));});
+test("the game lobby uses survival-game deployment and armory language",()=>{assert.ok(html.includes("DEPLOYMENT ZONES"));assert.ok(html.includes("FIELD ARMORY"));assert.ok(css.includes("Faction-select lobby treatment"));});
 test("PC controls are explained below the game and update when bindings change",()=>{assert.match(html,/id="zvhPcKeyGuide"/);assert.match(css,/\.zvh-pc-key-guide/);assert.match(js,/function updatePcKeyGuide\(/);assert.match(js,/HORDE · FOLLOW/);});
 test("each human-mode zombie class has a distinct combat ability",()=>{for(const ability of ["LUNGE BITE","RUSH","GROUND SLAM","IRON PLATING","SUMMON"])assert.ok(js.includes(ability));assert.match(js,/enemy\.lungeTime/);assert.match(js,/enemy\.slamWindup/);assert.match(js,/enemy\.armorUntil/);assert.match(js,/MUTANT OVERLORD · SUMMONING/);});
 test("starter zombie howl provides a weak but real temporary horde buff",()=>{assert.match(js,/WEAK HOWL/);assert.match(js,/rallyUntil/);assert.match(js,/rallied\?1\.18:1/);assert.match(js,/rallied\?2:0/);});
