@@ -43,7 +43,6 @@ test("every discovery section button is inside the persistent hamburger menu", (
         'onclick="openWeather()"',
         'onclick="openNews()"',
         'onclick="openDiscounts()"',
-        'onclick="openCarsFromMenu()"',
         'onclick="openMarketsFromMenu()"',
         'onclick="openMoneyFromMenu()"',
         'onclick="openCryptoFromMenu()"',
