@@ -72,6 +72,14 @@ test("the game has separate mode maps, upgrade catalogues and local save isolati
     assert.match(js, /Math\.max\(0,Math\.min\(10000000/);
 });
 
+test("PC controls can be remapped uniquely and mobile horde commands are visible",()=>{
+  for(const id of ["zvhKeyFollow","zvhKeyAttack","zvhKeySmash","zvhKeySpecial","zvhTouchFollow","zvhTouchAttack","zvhTouchSmash","zvhTouchSpecial"])assert.ok(html.includes('id="'+id+'"'));
+  assert.match(js,/const validKeys=/);assert.match(js,/That key is already assigned/);assert.match(js,/bindings\.special/);
+});
+test("actors animate limbs, zombies reach forward, armed humans carry guns and projectiles glow",()=>{
+  assert.match(js,/const stride=moving\?Math\.sin\(phase\)/);assert.match(js,/if\(armed\)/);assert.match(js,/b\.radius\*2\.6/);assert.match(js,/WEAK HOWL/);
+});
+test("maps draw roads and spawn wrecked or burning vehicles",()=>{assert.match(js,/Broad asphalt avenues/);assert.match(js,/burning:vehicle/);assert.match(js,/p\.scorch/);});
 test("the game contains touch controls and configurable visual effects", () => {
     assert.match(html, /id="zvhJoystick"/);
     assert.match(html, /id="zvhTouchAttack"/);
