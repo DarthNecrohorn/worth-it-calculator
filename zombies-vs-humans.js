@@ -33,7 +33,7 @@ const upgradeCatalog = {
   ]
 };
 const defaults = {
-  unlocked:false,coins:0,
+  unlocked:false,coins:100,
   maps:{zombie:["city"],human:["safehouse"]},
   selected:{zombie:"city",human:"safehouse"},
   upgrades:{zombie:{health:0,damage:0,horde:0,speed:0},human:{health:0,damage:0,fire:0,squad:0}},
@@ -185,6 +185,7 @@ async function loadProfileForSession(session){
     }catch(error){console.warn("ZVH save load failed:",error);}
   }
   profile=mergeProfiles(local,remote||defaults);
+  if(userId){profile=mergeProfiles(profile,readLocal("guest"));}
   if(!userId&&previousUser){
     writeLocal(previousUser);
   }
@@ -487,7 +488,6 @@ function damageActor(actor,amount){
     if(actor.team==="enemy"){
       run.kills++;
       addEarned(actor.type==="boss"?55:actor.type==="tank"||actor.type==="heli"?35:14);
-      if(run.mode==="human")profile.totalKills++;
     }else if(actor.team==="friend"){
       run.friends=run.friends.filter(item=>item!==actor);
     }
