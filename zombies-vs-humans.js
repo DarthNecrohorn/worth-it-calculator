@@ -1141,7 +1141,7 @@ function drawHouses(ctx){
     ctx.fillStyle="#756451";ctx.fillRect(x+28,y+87,42,15);
     ctx.fillStyle="#c2a77f";ctx.fillRect(x+29,y+83,40,6);
     // Ammunition crate placed on the floor, visible only through the translucent roof.
-    if(house.ammo&&!house.ammo.collected){
+    if(run.mode==="human"&&house.ammo&&!house.ammo.collected){
       ctx.fillStyle="#252f30";ctx.fillRect(house.ammo.x-10,house.ammo.y-8,20,16);
       ctx.fillStyle="#b99a4d";ctx.fillRect(house.ammo.x-8,house.ammo.y-6,16,12);
       ctx.fillStyle="#f2d77d";ctx.fillRect(house.ammo.x-4,house.ammo.y-4,8,8);
