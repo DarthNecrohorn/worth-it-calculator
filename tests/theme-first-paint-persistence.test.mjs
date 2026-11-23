@@ -75,8 +75,8 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     const resetBody = community.slice(resetStart, accountResetStart);
     assert.ok(resetBody.includes("++themeRequest"));
     assert.ok(resetBody.includes("themeMutationInProgress=true"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,themeUserId))"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,knownUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
     assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
