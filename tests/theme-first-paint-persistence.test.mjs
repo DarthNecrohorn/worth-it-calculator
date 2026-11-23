@@ -100,7 +100,7 @@ test("Custom Theme save requires a verified database row and reports unconfirmed
     assert.match(save, /\.single\(\)/);
     assert.match(save, /const confirmed=Boolean\(/);
     assert.match(save, /if\(!confirmed\)throw new Error/);
-    assert.match(save, /Your new theme is only a preview\. It was not confirmed as saved to your account/);
+    assert.match(save, /Your latest theme is only a preview\. The account did not confirm that it was saved/);
 });
 
 test("Custom Theme reset clears snapshots and restores explicit standard Dark mode without a Premium gate", () => {
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-reset-pending-confirm=20261123d/);
+    assert.match(html, /theme-save-atomic-readback=20261123e/);
 });
 
 
