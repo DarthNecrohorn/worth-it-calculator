@@ -62,30 +62,34 @@
         const expiresAt = Date.parse(String(snapshot.expiresAt || ""));
         const hasAccess = snapshot.owner === true ||
             (["premium", "premium_lite"].includes(plan) && Number.isFinite(expiresAt) && expiresAt > Date.now());
-        if (!hasAccess || !snapshot.properties || typeof snapshot.properties !== "object") return false;
+        if (!hasAccess ||
+            !snapshot.properties || typeof snapshot.properties !== "object" ||
+            !snapshot.dataset || typeof snapshot.dataset !== "object" ||
+            typeof snapshot.dataset.worthItCustomTheme !== "string" ||
+            !snapshot.dataset.worthItCustomTheme.trim()) return false;
 
-        const root = document.documentElement;
-        Object.entries(snapshot.properties).forEach(([name, value]) => {
-            if (!/^--[a-z0-9-]+$/i.test(name) ||
-                name === "--worth-it-boot-background" ||
-                name === "--ui-scale" ||
-                typeof value !== "string" || value.length > 500) return;
-            root.style.setProperty(name, value);
-        });
+        const propertyEntries = Object.entries(snapshot.properties);
+        if (propertyEntries.some(([name, value]) =>
+            !/^--[a-z0-9-]+$/i.test(name) ||
+            name === "--worth-it-boot-background" ||
+            name === "--ui-scale" ||
+            typeof value !== "string" || value.length > 500
+        )) return false;
 
         const allowedData = [
             "worthItCustomTheme", "worthItButtonStyle", "worthItCardStyle", "worthItCorners",
             "worthItButtonAnimation", "worthItHoverEffect", "worthItShadowIntensity",
             "worthItBorderThickness", "worthItFocusAppearance"
         ];
-        if (!snapshot.dataset || typeof snapshot.dataset !== "object") return false;
+        if (allowedData.some(name => snapshot.dataset[name] !== undefined &&
+            (typeof snapshot.dataset[name] !== "string" || snapshot.dataset[name].length > 60))) return false;
+
+        const root = document.documentElement;
+        propertyEntries.forEach(([name, value]) => root.style.setProperty(name, value));
         allowedData.forEach(name => {
             const value = snapshot.dataset[name];
-            if (typeof value === "string" && value.length > 0 && value.length <= 60) {
-                root.dataset[name] = value;
-            }
+            if (typeof value === "string" && value.length > 0) root.dataset[name] = value;
         });
-        if (!root.dataset.worthItCustomTheme) return false;
         if (/^#[0-9a-f]{6}$/i.test(String(snapshot.background || ""))) {
             bootBackground = snapshot.background;
         }
