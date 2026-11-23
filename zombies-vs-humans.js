@@ -1009,61 +1009,68 @@ function drawActor(ctx,e,isPlayer){
 }
 function drawMapDetails(ctx){
   const id=run.mapId;
-  const building=(x,y,w,h,wall,accent,label)=>{
-    ctx.save();ctx.fillStyle="rgba(0,0,0,.28)";ctx.fillRect(x+10,y+12,w,h);
-    ctx.fillStyle=wall;ctx.fillRect(x,y,w,h);ctx.strokeStyle="rgba(225,230,220,.24)";ctx.lineWidth=4;ctx.strokeRect(x,y,w,h);
-    ctx.fillStyle="#202a30";ctx.fillRect(x+12,y+12,w-24,h-24);
-    for(let wx=x+24;wx<x+w-20;wx+=42){
-      ctx.fillStyle=(Math.floor(wx/42)%3===0)?"rgba(255,201,117,.7)":"rgba(111,164,178,.36)";
-      ctx.fillRect(wx,y+18,22,8);ctx.fillRect(wx,y+h-26,22,8);
-    }
-    ctx.fillStyle=accent;ctx.fillRect(x+16,y+14,Math.min(w-32,112),6);
-    ctx.fillStyle="rgba(7,12,16,.72)";ctx.fillRect(x+w*.56,y+h*.22, w*.3, h*.36);
-    ctx.fillStyle="#66757a";ctx.fillRect(x+w*.2,y+h*.35,34,24);ctx.fillRect(x+w*.34,y+h*.58,28,22);
-    ctx.fillStyle=accent;ctx.fillRect(x+w*.58,y+h*.68,w*.25,5);
-    ctx.fillStyle="rgba(235,240,230,.5)";ctx.font="bold 9px sans-serif";ctx.fillText(label,x+18,y+h-8);
-    ctx.restore();
+  const label=(text,x,y,color)=>{
+    ctx.save();ctx.font="bold 11px sans-serif";ctx.textAlign="left";ctx.fillStyle="rgba(7,13,16,.58)";ctx.fillRect(x-7,y-14,Math.max(112,text.length*7)+14,22);
+    ctx.fillStyle=color||"rgba(229,219,194,.68)";ctx.fillText(text,x,y);ctx.restore();
+  };
+  const shrub=(x,y,r)=>{
+    ctx.save();ctx.fillStyle="rgba(7,13,12,.22)";ctx.beginPath();ctx.ellipse(x+3,y+4,r*1.1,r*.75,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#455e47";ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="rgba(169,190,126,.34)";ctx.beginPath();ctx.arc(x-r*.22,y-r*.25,r*.48,0,Math.PI*2);ctx.fill();ctx.restore();
   };
   const hazard=(x,y,w)=>{
-    ctx.save();ctx.fillStyle="#d1a64f";ctx.fillRect(x,y,w,9);ctx.strokeStyle="#272d30";ctx.lineWidth=4;
-    for(let sx=x+4;sx<x+w;sx+=18){ctx.beginPath();ctx.moveTo(sx,y+9);ctx.lineTo(sx+10,y);ctx.stroke();}
+    ctx.save();ctx.fillStyle="#d1a64f";ctx.fillRect(x,y,w,8);ctx.strokeStyle="#272d30";ctx.lineWidth=3;
+    for(let sx=x+4;sx<x+w;sx+=18){ctx.beginPath();ctx.moveTo(sx,y+8);ctx.lineTo(sx+9,y);ctx.stroke();}
     ctx.restore();
   };
   if(id==="city"){
-    [[75,75,245,190,"#59645e","#cf7654","APARTMENTS"],[520,80,390,190,"#5b6260","#d2a15d","CITY BLOCK"],[1135,80,390,190,"#515d64","#78a6ad","OFFICES"],[75,465,245,195,"#515d60","#c36d58","PHARMACY"],[520,465,390,195,"#625c55","#d2a15d","ARCADE"],[1135,465,390,195,"#4c5960","#83a8b5","PARKING"],[75,1045,245,190,"#535c59","#c36d58","APARTMENTS"],[520,1045,390,190,"#5a6258","#d2a15d","WAREHOUSE"],[1135,1045,390,190,"#4e5d62","#83a8b5","STATION"]].forEach(v=>building(...v));
-    for(let x=390;x<run.worldW;x+=620)for(let y=330;y<run.worldH;y+=570){
-      ctx.fillStyle="rgba(235,235,218,.62)";
-      for(let n=-3;n<=3;n++)ctx.fillRect(x+n*15-3,y-61,7,23);
-      for(let n=-3;n<=3;n++)ctx.fillRect(x+n*15-3,y+38,7,23);
-      ctx.fillStyle="rgba(239,177,84,.45)";ctx.fillRect(x-3,y-8,6,16);
+    // Residential street scene: lawns, footpaths, zebra crossings and roadside planting.
+    for(let x=70;x<run.worldW;x+=620){
+      ctx.fillStyle="rgba(89,116,85,.25)";ctx.fillRect(x,90,82,220);ctx.fillRect(x+230,700,66,200);
+      for(let y=125;y<285;y+=48)shrub(x+39,y,12);
     }
+    for(let y=210;y<run.worldH;y+=570){
+      ctx.fillStyle="rgba(190,181,151,.16)";ctx.fillRect(90,y,170,22);ctx.fillRect(1120,y+105,200,18);
+      ctx.fillStyle="rgba(235,235,218,.48)";
+      for(let n=-3;n<=3;n++){ctx.fillRect(390+n*15-3,y-61,7,23);ctx.fillRect(390+n*15-3,y+38,7,23);}
+      ctx.fillStyle="rgba(239,177,84,.42)";ctx.fillRect(387,y-8,6,16);
+    }
+    label("RESIDENTIAL BOULEVARD",95,355);
+    label("ABANDONED NEIGHBOURHOOD",1050,1010);
   }else if(id==="mall"){
-    ctx.fillStyle="rgba(206,217,220,.1)";ctx.fillRect(0,360,run.worldW,590);
-    ctx.strokeStyle="rgba(209,222,224,.16)";ctx.lineWidth=2;
-    for(let x=0;x<run.worldW;x+=70){ctx.beginPath();ctx.moveTo(x,350);ctx.lineTo(x,970);ctx.stroke();}
-    for(let y=370;y<970;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(run.worldW,y);ctx.stroke();}
-    const stores=[[90,80,"FOOD COURT","#bd7651"],[520,80,"ELECTRONICS","#6a9bab"],[1100,80,"PHARMACY","#78a87b"],[1540,80,"FASHION","#9e83b2"],[90,1030,"SUPERMARKET","#b89a58"],[520,1030,"ARCADE","#bf795d"],[1100,1030,"BOOKS","#7d9bb8"],[1540,1030,"CINEMA","#9c7d9c"]];
-    stores.forEach(([x,y,label,color])=>{
-      ctx.fillStyle="#424b54";ctx.fillRect(x,y,270,205);ctx.fillStyle="#222d36";ctx.fillRect(x+10,y+12,250,180);
-      ctx.fillStyle=color;ctx.fillRect(x+10,y+12,250,23);ctx.fillStyle="#f4e8d0";ctx.font="bold 13px sans-serif";ctx.fillText(label,x+20,y+29);
-      for(let n=0;n<4;n++){ctx.fillStyle="rgba(144,185,190,.28)";ctx.fillRect(x+18+n*58,y+55,42,78);ctx.fillStyle="#4d5960";ctx.fillRect(x+18+n*58,y+138,42,20);}
-    });
-    ctx.fillStyle="#d8bd71";ctx.fillRect(880,405,140,330);ctx.fillStyle="#5d666b";ctx.fillRect(895,420,110,300);
-    ctx.strokeStyle="rgba(241,220,147,.7)";ctx.lineWidth=5;ctx.strokeRect(900,430,100,280);
-    ctx.fillStyle="#d9e3e0";ctx.font="bold 12px sans-serif";ctx.fillText("ATRIUM",918,570);
+    // Open-air shopping district car park, not a multi-storey mall block.
+    ctx.fillStyle="rgba(206,217,220,.08)";ctx.fillRect(0,360,run.worldW,590);
+    ctx.strokeStyle="rgba(235,224,192,.31)";ctx.lineWidth=3;
+    for(let x=70;x<run.worldW;x+=115){
+      ctx.beginPath();ctx.moveTo(x,390);ctx.lineTo(x,920);ctx.stroke();
+    }
+    for(let y=390;y<930;y+=92){
+      ctx.beginPath();ctx.moveTo(45,y);ctx.lineTo(run.worldW-45,y);ctx.stroke();
+    }
+    ctx.setLineDash([18,12]);ctx.strokeStyle="rgba(219,190,121,.42)";
+    for(let x=0;x<run.worldW;x+=300){ctx.beginPath();ctx.moveTo(x,660);ctx.lineTo(x+185,660);ctx.stroke();}
+    ctx.setLineDash([]);
+    ctx.fillStyle="rgba(105,139,111,.25)";ctx.fillRect(850,410,180,500);
+    for(let y=455;y<880;y+=82){shrub(875,y,10);shrub(1005,y,10);}
+    label("OPEN-AIR MARKET PARKING",95,335);
+    label("DELIVERY / PICKUP AREA",1180,990);
   }else if(id==="industrial"){
-    [[85,85,350,245,"#535e5e","#d2a24f","WAREHOUSE 01"],[560,85,355,245,"#4d585b","#c98951","LOADING BAY"],[1175,85,355,245,"#4a5559","#d2a24f","FACTORY"],[85,985,350,245,"#535e5e","#c98951","STORAGE"],[560,985,355,245,"#4d585b","#d2a24f","DEPOT"],[1175,985,355,245,"#4a5559","#c98951","GENERATOR"]].forEach(v=>{
-      building(...v);
-      for(let x=v[0]+24;x<v[0]+v[2]-15;x+=22){ctx.strokeStyle="rgba(12,17,20,.34)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,v[1]+34);ctx.lineTo(x,v[1]+v[3]-34);ctx.stroke();}
-      hazard(v[0]+10,v[1]+v[3]-18,v[2]-20);
-    });
-    [[450,420],[980,420],[450,820],[980,820],[1500,420],[1500,820]].forEach(([x,y],i)=>{
-      ctx.fillStyle=i%2?"#526a76":"#8a6850";ctx.fillRect(x,y,120,56);ctx.strokeStyle="#1f2a30";ctx.lineWidth=4;ctx.strokeRect(x,y,120,56);
-      ctx.fillStyle="rgba(220,225,215,.3)";for(let n=0;n<5;n++)ctx.fillRect(x+12+n*21,y+7,12,42);
-    });
+    // Gravel yard markings, loading-zone paint and oil stains around roadside props.
+    ctx.fillStyle="rgba(36,44,43,.2)";ctx.fillRect(0,0,run.worldW,run.worldH);
+    ctx.strokeStyle="rgba(205,183,128,.28)";ctx.lineWidth=4;ctx.setLineDash([28,16]);
+    for(let x=250;x<run.worldW;x+=530){ctx.beginPath();ctx.moveTo(x,60);ctx.lineTo(x,run.worldH-60);ctx.stroke();}
+    ctx.setLineDash([]);
+    for(let x=130;x<run.worldW;x+=420)for(let y=150;y<run.worldH;y+=390){
+      ctx.fillStyle="rgba(17,22,23,.2)";ctx.beginPath();ctx.ellipse(x,y,42,20,Math.sin(x+y)*.4,0,Math.PI*2);ctx.fill();
+    }
+    for(let x=470;x<run.worldW-180;x+=530){hazard(x,335,125);hazard(x,930,125);}
+    ctx.fillStyle="rgba(143,151,122,.18)";ctx.fillRect(460,420,90,340);ctx.fillRect(1000,420,90,340);
+    label("INDUSTRIAL SERVICE ROAD",90,355);
+    label("LOADING / STORAGE YARD",1190,990);
   }else if(id==="safehouse"){
-    ctx.fillStyle="rgba(15,25,29,.38)";ctx.fillRect(620,385,660,540);ctx.strokeStyle="#9a9a77";ctx.lineWidth=7;ctx.setLineDash([20,9]);ctx.strokeRect(640,405,620,500);ctx.setLineDash([]);
-    building(800,485,310,190,"#5c655d","#d6ac69","LAST SAFEHOUSE");
+    // A defensive residential perimeter built from low sandbags and portable barriers.
+    ctx.fillStyle="rgba(15,25,29,.2)";ctx.fillRect(620,385,660,540);
+    ctx.strokeStyle="#9a9a77";ctx.lineWidth=7;ctx.setLineDash([20,9]);ctx.strokeRect(640,405,620,500);ctx.setLineDash([]);
     for(let x=690;x<1200;x+=58){
       ctx.fillStyle="#a9a28a";ctx.beginPath();ctx.ellipse(x,425,21,11,0,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.ellipse(x,885,21,11,0,0,Math.PI*2);ctx.fill();
@@ -1072,10 +1079,13 @@ function drawMapDetails(ctx){
       ctx.fillStyle="#a9a28a";ctx.beginPath();ctx.ellipse(665,y,11,21,0,0,Math.PI*2);ctx.fill();
       ctx.beginPath();ctx.ellipse(1235,y,11,21,0,0,Math.PI*2);ctx.fill();
     }
-    ctx.fillStyle="#dfb56e";ctx.font="bold 15px sans-serif";ctx.fillText("SAFE ZONE · KEEP OUTBREAK OUT",760,950);
     ctx.fillStyle="rgba(114,178,142,.1)";ctx.fillRect(680,440,540,435);
+    label("SAFEHOUSE PERIMETER",705,960);
+    label("SANDBAG DEFENCE LINE",90,350);
   }else if(id==="military"){
-    ctx.fillStyle="rgba(15,24,19,.38)";ctx.fillRect(560,390,780,570);ctx.strokeStyle="#78866e";ctx.lineWidth=9;ctx.setLineDash([24,8]);ctx.strokeRect(580,410,740,530);ctx.setLineDash([]);
+    // Ground-level military barricades, sandbag firing positions and a painted landing zone.
+    ctx.fillStyle="rgba(15,24,19,.24)";ctx.fillRect(560,390,780,570);
+    ctx.strokeStyle="#78866e";ctx.lineWidth=9;ctx.setLineDash([24,8]);ctx.strokeRect(580,410,740,530);ctx.setLineDash([]);
     [[605,435],[1260,435],[605,890],[1260,890]].forEach(([x,y])=>{
       ctx.fillStyle="#59664e";ctx.fillRect(x,y,62,62);ctx.fillStyle="#202b27";ctx.fillRect(x+12,y+12,38,38);ctx.fillStyle="#c6b66b";ctx.fillRect(x+28,y-12,7,30);
     });
@@ -1085,9 +1095,11 @@ function drawMapDetails(ctx){
     });
     ctx.beginPath();ctx.arc(1190,790,76,0,Math.PI*2);ctx.strokeStyle="#c2c9bd";ctx.lineWidth=5;ctx.stroke();
     ctx.beginPath();ctx.arc(1190,790,48,0,Math.PI*2);ctx.stroke();ctx.moveTo(1114,790);ctx.lineTo(1266,790);ctx.moveTo(1190,714);ctx.lineTo(1190,866);ctx.stroke();
-    ctx.fillStyle="#cbd4bf";ctx.font="bold 12px sans-serif";ctx.fillText("LANDING ZONE",1127,888);
+    label("LANDING ZONE",1127,888);
     for(let x=680;x<1320;x+=100)hazard(x,965,84);
+    label("MILITARY ROADBLOCK",80,355);
   }else if(id==="metro"){
+    // An open-air station forecourt with painted platform lanes; all building silhouettes remain houses.
     ctx.fillStyle="#353c46";ctx.fillRect(0,515,run.worldW,290);
     ctx.fillStyle="#626973";ctx.fillRect(0,535,run.worldW,250);
     ctx.fillStyle="#252a31";ctx.fillRect(0,465,run.worldW,70);ctx.fillRect(0,805,run.worldW,70);
@@ -1100,11 +1112,8 @@ function drawMapDetails(ctx){
       ctx.fillStyle="#40464f";ctx.fillRect(x,570,34,178);ctx.fillStyle="#87909a";ctx.fillRect(x+5,575,7,168);
       ctx.fillStyle="rgba(229,195,111,.5)";ctx.fillRect(x+40,570,4,178);
     }
-    [[170,425],[520,425],[1190,425]].forEach(([x,y])=>{
-      ctx.fillStyle="#4b5862";ctx.fillRect(x,y,300,46);ctx.fillStyle="#a0b3bb";for(let n=0;n<5;n++)ctx.fillRect(x+16+n*56,y+8,40,24);
-      ctx.fillStyle="#202a31";ctx.fillRect(x+6,y+42,288,5);
-    });
-    ctx.fillStyle="#d9dce0";ctx.font="bold 13px sans-serif";ctx.fillText("UNDERGROUND · PLATFORM 02",740,730);
+    label("UNDERGROUND SERVICE ROAD",80,430);
+    label("PLATFORM / PEDESTRIAN LANE",740,900);
   }
 }
 
