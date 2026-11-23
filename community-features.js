@@ -62,6 +62,7 @@ let themeEntitled = false;
 let themeEntitlementResolved = false;
 let themeBootAccess = null;
 let themeMutationInProgress = false;
+let themeReloadAfterMutation = false;
 let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
@@ -76,6 +77,13 @@ let reportVisibilityTimer = null;
 let reportVisibilitySequence = 0;
 
 function toast(message){ if(typeof window.showToast === "function") window.showToast(String(message || "")); }
+function finishThemeMutation(){
+ themeMutationInProgress=false;
+ if(themeReloadAfterMutation){
+  themeReloadAfterMutation=false;
+  window.setTimeout(()=>{void loadThemeForSession();},0);
+ }
+}
 function readLocal(key){ try{return localStorage.getItem(key);}catch(_){return null;} }
 function writeLocal(key,value){ try{localStorage.setItem(key,value);}catch(_){} }
 function removeLocal(key){ try{localStorage.removeItem(key);}catch(_){} }
@@ -670,7 +678,7 @@ function persistThemeBootSnapshot(value){
 }
 async function loadThemeForSession(){
  // Never let a stale hydration overwrite a theme while Save or Reset is in flight.
- if(themeMutationInProgress)return;
+ if(themeMutationInProgress){themeReloadAfterMutation=true;return;}
  const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
  const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
  try{
@@ -847,7 +855,7 @@ async function saveCustomTheme(){
    console.error("Could not save Worth It custom theme:",error);
   }
  }finally{
-  themeMutationInProgress=false;
+  finishThemeMutation();
   if(button)button.disabled=false;
  }
 }
@@ -899,7 +907,7 @@ async function resetCustomTheme(){
   console.error("Could not reset Worth It custom theme:",error);
   return false;
  }finally{
-  themeMutationInProgress=false;
+  finishThemeMutation();
  }
 }
 
@@ -914,7 +922,7 @@ async function resetCustomThemeFromSettings(){
  try{
   return await performResetCustomThemeFromSettings();
  }finally{
-  themeMutationInProgress=false;
+  finishThemeMutation();
  }
 }
 async function performResetCustomThemeFromSettings(){
