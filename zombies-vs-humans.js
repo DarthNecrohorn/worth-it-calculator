@@ -1074,6 +1074,77 @@ function drawMapDetails(ctx){
   }
 }
 
+function drawHouses(ctx){
+  (run.houses||[]).forEach(house=>{
+    const inside=pointInsideHouse(house,run.player.x,run.player.y,8);
+    const x=house.x,y=house.y,w=house.w,h=house.h,doorX=x+w/2;
+    const roofAlpha=inside?.12:1;
+    ctx.save();
+    // Exterior wall and soft shadow.
+    ctx.fillStyle="rgba(0,0,0,.3)";ctx.fillRect(x+8,y+10,w,h);
+    ctx.fillStyle="#b7a486";ctx.fillRect(x+5,y+5,w-10,h-10);
+    ctx.fillStyle="#826e5c";ctx.fillRect(x+11,y+11,w-22,h-22);
+    // Interior floor, furniture and floorboard detail.
+    ctx.fillStyle="#b6a184";ctx.fillRect(x+17,y+17,w-34,h-34);
+    ctx.save();ctx.beginPath();ctx.rect(x+17,y+17,w-34,h-34);ctx.clip();
+    ctx.fillStyle="rgba(64,47,35,.12)";
+    for(let yy=y+22;yy<y+h-20;yy+=10)ctx.fillRect(x+18,yy,w-36,1);
+    // Rug / bed
+    ctx.fillStyle="#65756a";ctx.fillRect(x+44,y+37,58,38);
+    ctx.strokeStyle="#d0b68c";ctx.lineWidth=3;ctx.strokeRect(x+44,y+37,58,38);
+    ctx.fillStyle="#c9b79a";ctx.fillRect(x+48,y+41,50,29);
+    // Table / cabinets
+    ctx.fillStyle="#5d5045";ctx.fillRect(x+104,y+30,25,13);ctx.fillRect(x+108,y+26,17,5);
+    ctx.fillStyle="#756451";ctx.fillRect(x+28,y+87,42,15);
+    ctx.fillStyle="#c2a77f";ctx.fillRect(x+29,y+83,40,6);
+    // Ammunition crate placed on the floor, visible only through the translucent roof.
+    if(house.ammo&&!house.ammo.collected){
+      ctx.fillStyle="#252f30";ctx.fillRect(house.ammo.x-10,house.ammo.y-8,20,16);
+      ctx.fillStyle="#b99a4d";ctx.fillRect(house.ammo.x-8,house.ammo.y-6,16,12);
+      ctx.fillStyle="#f2d77d";ctx.fillRect(house.ammo.x-4,house.ammo.y-4,8,8);
+      ctx.fillStyle="#f5e6b4";ctx.font="bold 8px sans-serif";ctx.textAlign="center";
+      ctx.fillText("AMMO",house.ammo.x,house.ammo.y+19);
+    }
+    ctx.restore();
+    // Tiled single-storey pitched roof and ridge.
+    ctx.globalAlpha=roofAlpha;
+    ctx.fillStyle=house.roofTone;ctx.beginPath();
+    ctx.moveTo(x+3,y+18);ctx.lineTo(x+w/2,y-8);ctx.lineTo(x+w-3,y+18);
+    ctx.lineTo(x+w-3,y+h-5);ctx.lineTo(x+3,y+h-5);ctx.closePath();ctx.fill();
+    ctx.strokeStyle="rgba(231,217,190,.3)";ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle="rgba(22,29,29,.32)";ctx.lineWidth=1;
+    for(let row=0;row<5;row++){
+      const yy=y+25+row*17;
+      ctx.beginPath();ctx.moveTo(x+10,yy);ctx.lineTo(x+w-10,yy);ctx.stroke();
+      for(let col=0;col<4;col++){
+        const xx=x+12+col*34+(row%2)*16;
+        if(xx<x+w-13){ctx.beginPath();ctx.moveTo(xx,yy);ctx.lineTo(xx+13,yy+8);ctx.stroke();}
+      }
+    }
+    ctx.strokeStyle="rgba(232,214,181,.55)";ctx.lineWidth=4;ctx.beginPath();
+    ctx.moveTo(x+9,y+18);ctx.lineTo(x+w/2,y-4);ctx.lineTo(x+w-9,y+18);ctx.stroke();
+    ctx.fillStyle="#51483d";ctx.fillRect(x+w-31,y+18,18,20);
+    // Windows.
+    ctx.fillStyle="#8a7660";ctx.fillRect(x+18,y+37,23,18);ctx.fillRect(x+w-41,y+37,23,18);
+    ctx.fillStyle="#91b5b2";ctx.fillRect(x+21,y+40,17,12);ctx.fillRect(x+w-38,y+40,17,12);
+    ctx.strokeStyle="#d4c7aa";ctx.lineWidth=3;ctx.strokeRect(x+18,y+37,23,18);ctx.strokeRect(x+w-41,y+37,23,18);
+    ctx.globalAlpha=1;
+    // Front door and damage indicator.
+    if(house.doorOpen){
+      ctx.fillStyle="#202722";ctx.fillRect(doorX-14,y+h-13,28,13);
+      ctx.strokeStyle="#c3a77c";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(doorX-17,y+h-13);ctx.lineTo(doorX+17,y+h-13);ctx.stroke();
+    }else{
+      ctx.fillStyle="#49382e";ctx.fillRect(doorX-13,y+h-20,26,20);
+      ctx.strokeStyle="#c7a77a";ctx.lineWidth=2;ctx.strokeRect(doorX-13,y+h-20,26,20);
+      ctx.fillStyle="#e3bd6e";ctx.beginPath();ctx.arc(doorX+7,y+h-10,2,0,Math.PI*2);ctx.fill();
+      const hp=house.doorHp||house.doorMaxHp;
+      ctx.fillStyle="#1b2021";ctx.fillRect(doorX-17,y+h+4,34,4);
+      ctx.fillStyle="#d69a65";ctx.fillRect(doorX-17,y+h+4,34*(hp/house.doorMaxHp),4);
+    }
+    ctx.restore();
+  });
+}
+
 function drawGame(){
   const canvas=$("zvhCanvas");if(!canvas||!run)return;
   const ctx=canvas.getContext("2d");if(!ctx)return;
@@ -1099,6 +1170,7 @@ function drawGame(){
   ctx.setLineDash([]);
   }
   drawMapDetails(ctx);
+  drawHouses(ctx);
   ctx.strokeStyle="rgba(225,229,212,.13)";ctx.lineWidth=7;ctx.strokeRect(0,0,run.worldW,run.worldH);
   run.props.forEach(p=>{if(!p.dead)drawProp(ctx,p);});
   run.bullets.forEach(b=>{ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy||0,b.vx||0));ctx.shadowBlur=12;ctx.shadowColor=b.team==="friendly"?"#7fd4ff":"#ff9c57";ctx.fillStyle=b.team==="friendly"?"#d9f5ff":"#ffe1a1";ctx.beginPath();ctx.ellipse(0,0,b.radius*2.6,b.radius*.72,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=b.team==="friendly"?"#5cbcff":"#ff713f";ctx.beginPath();ctx.arc(-b.radius*1.5,0,b.radius*.65,0,Math.PI*2);ctx.fill();ctx.restore();});
