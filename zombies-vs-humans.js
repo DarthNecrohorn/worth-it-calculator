@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const TABLE = "worth_it_zvh_game_saves";
 const STORAGE_PREFIX = "worthItZvhSave:v1:";
 const ROUTE = "/zombiesvshumans";
-const IS_PAGES_PREVIEW = /\\.worth-it-calculator\\.pages\\.dev$/i.test(String(window.location.hostname||"")) &&
+const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i.test(String(window.location.hostname||"")) &&
   String(window.location.hostname||"").toLowerCase() !== "worth-it-calculator.pages.dev";
 function nextEggDelay(initial){
   if(IS_PAGES_PREVIEW&&!userId)return initial?4500+Math.random()*6500:8000+Math.random()*10000;
@@ -947,7 +947,7 @@ function init(){
       window.setTimeout(()=>{void loadProfileForSession(session);},0);
     });
   }
-  scheduleEgg(25000+Math.random()*40000);
+
 }
 window.initZvhCanvas=resizeCanvas;
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
