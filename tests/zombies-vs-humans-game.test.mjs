@@ -39,9 +39,14 @@ test("the easter egg is random, unlocks once, and removes itself after the persi
     assert.match(js, /if\(profile\.unlocked\)return/);
     assert.ok(js.includes(String.raw`const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i`));
     assert.ok(js.includes("if(IS_PAGES_PREVIEW)return initial?3500+Math.random()*2500:6500+Math.random()*5500;"));
-    assert.ok(js.includes("IS_PAGES_PREVIEW?18000:10500"));
+    assert.ok(js.includes("const previewGuest=IS_PAGES_PREVIEW&&!userId;"));
+    assert.ok(js.includes('button.style.right="22px"'));
+    assert.ok(js.includes('button.style.bottom="110px"'));
+    assert.ok(js.includes("if(!previewGuest){"));
+    assert.ok(js.includes("Preview guest QA: keep the discovery target visible until clicked."));
+    assert.ok(!js.includes('if(IS_PAGES_PREVIEW&&!readLocal("guest").unlocked)scheduleEgg(nextEggDelay(true));'));
     assert.ok(js.includes('document.addEventListener("visibilitychange"'));
-    assert.ok(html.includes("zvh-preview-egg-visible-20261123c"));
+    assert.ok(html.includes("zvh-preview-egg-pinned-guest-20261123d"));
     assert.ok(js.includes("button.style.zIndex=\"2147483000\""));
     assert.ok(js.includes("else scheduleEgg(nextEggDelay(true))"));
 
