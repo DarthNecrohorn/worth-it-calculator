@@ -264,17 +264,7 @@ html.worth-it-initial-paint::before {
         scrollable mobile navigation menu.
     -->
     <div class="nav-overflow-items" id="navOverflowItems">
-        <button
-            type="button"
-            class="nav-overflow-item"
-            onclick="openCarsFromMenu()"
-        >
-            <span>🚗</span>
-            <span>
-                <strong>Compare cars</strong>
-                <small>Explore, discover &amp; compare cars</small>
-            </span>
-        </button>
+        
 
         <button
             type="button"
@@ -643,13 +633,7 @@ html.worth-it-initial-paint::before {
             </span>
         </button>
 
-        <button type="button" class="more-menu-item" onclick="openCarsFromMenu()">
-            <span>🚗</span>
-            <span>
-                <strong>Compare cars</strong>
-                <small>Explore, discover &amp; compare cars</small>
-            </span>
-        </button>
+        
 
         <button type="button" class="more-menu-item" onclick="openMarketsFromMenu()">
             <span>📊</span>
@@ -2360,81 +2344,6 @@ html.worth-it-initial-paint::before {
 
 </section>
 
-<section class="section" id="carsSection" style="display:none;">
-
-    <div class="container">
-
-        <div class="section-header">
-            <h2>🚗 Vehicles</h2>
-            <p>Search and explore cars, motorcycles, vans, trucks and buses.</p>
-        </div>
-
-        <div id="carsContent">
-
-    <!-- Search -->
-    <div class="cars-search">
-        <input
-            type="text"
-            id="carsSearchInput"
-            placeholder="🔍 Search make or model..."
-            autocomplete="off"
-        >
-    </div>
-
-    <!-- Browse / vehicle categories removed: the Cars section now uses one unified catalog. -->
-        <!-- Popular Cars -->
-    <div class="cars-section-block">
-
-    <div class="cars-block-header">
-        <h3 id="carsResultsTitle">🚗 All Vehicles</h3>
-        <p id="carsResultsDescription">
-            <span id="carsCatalogCount">Loading current catalog count…</span> from the connected VehiclesDB dataset.
-        </p>
-        <div class="cars-last-updated" id="carsLastUpdated">
-            Dataset update: checking latest VehiclesDB release…
-        </div>
-    </div>
-
-    <div class="cars-grid" id="popularCarsGrid"></div>
-
-</div>
-
-    <!-- Compare Cars -->
-    <div class="cars-section-block">
-
-        <div class="cars-block-header">
-            <h3>⚖️ Compare Cars</h3>
-            <p>Choose cars and compare their specifications.</p>
-        </div>
-
-        <div
-            class="cars-compare-placeholder"
-            id="carsComparePanel"
-        >
-
-            <div class="cars-compare-live-empty">
-                <div class="cars-compare-live-icon">⚖️</div>
-
-                <div>
-                    <strong>Choose cars to compare</strong>
-
-                    <p>
-                        Select up to 3 vehicles and compare their available
-                        specifications in one place.
-                    </p>
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-    </div>
-
-</section>
-
 <section class="section" id="weatherSection" style="display:none;">
 
     <div class="container">
@@ -4046,8 +3955,6 @@ try{
 <script src="section-data-cache.js?v=sectioncache20261015a"></script>
 ,<script src="calculators.js"></script>
 <script src="calc-economy.js?v=calc-premium-lite-history-purchases-20261104c"></script>
-<script src="cars-ui.js?v=carsperf20261025b"></script>
-<script src="cars-levels-ui.js?v=cars20261007f"></script>
 <script src="weather-ui.js?v=weather-details-back-to-top-20261030a"></script>
 <script src="news-ui.js?v=newscache20261012a"></script>
 <script src="shop-affiliates.js?v=shopdetails20261010d"></script>
