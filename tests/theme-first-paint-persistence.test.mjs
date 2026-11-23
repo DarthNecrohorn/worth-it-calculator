@@ -14,7 +14,7 @@ test("a returning Premium member's saved theme is applied synchronously before f
     assert.match(boot, /snapshot\.userId !== expectedUserId/);
     assert.match(boot, /\["premium", "premium_lite"\]\.includes\(plan\)/);
     assert.match(boot, /expiresAt > Date\.now\(\)/);
-    assert.match(boot, /root\.style\.setProperty\(name, value\)/);
+        assert.match(boot, /snapshot\.dataset\.worthItCustomTheme/);
     assert.match(boot, /root\.dataset\.worthItCustomTheme/);
     assert.match(html, /worthItCustomThemeBoot:v1:/);
     assert.match(html, /root\.classList\.add\("worth-it-initial-paint"\)/);
