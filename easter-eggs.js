@@ -38,11 +38,11 @@
   secret_worth_it_message:["Some things are worth discovering.","You found a little moment of wonder.","Worth It has a secret. You just became part of it."],
   cosmic_event:["A tiny cosmic event just happened. No telescope required.","The stars aligned for a moment. You noticed.","Cosmic update: the universe remains wonderfully weird."]
  };
- let state={loaded:false,enabled:true,discoveries:new Set()},timer=null,lastEvent=0,sessionUser="";
+ let state={loaded:false,enabled:true,discoveries:new Set()},timer=null,lastEvent=0,lastActivity=Date.now(),lastScrollAt=0,sessionUser="";
  const $=id=>document.getElementById(id);
  const client=()=>window.supabaseClient;
  const signedIn=async()=>{const c=client();if(!c?.auth)return null;try{const r=await c.auth.getSession();return r?.data?.session?.user||null;}catch(_){return null;}};
- function active(){return !document.hidden&&document.visibilityState!=="hidden";}
+ function active(){return !document.hidden&&document.visibilityState!=="hidden"&&Date.now()-lastActivity<10*60*1000&&Date.now()-lastScrollAt>1500;}
  function toast(egg,message){
   let host=$("worthItEasterEggToast");
   if(!host){host=document.createElement("aside");host.id="worthItEasterEggToast";host.className="worth-it-easter-toast";host.setAttribute("role","status");host.setAttribute("aria-live","polite");document.body.appendChild(host);}
@@ -116,6 +116,8 @@
   }catch(error){console.warn("Public Easter Egg collection is unavailable:",error);}
  }
  window.WorthItEasterEggs={load,saveEnabled,renderProfile,catalog:CATALOG};
+ ["pointerdown","keydown","touchstart"].forEach(type=>document.addEventListener(type,()=>{lastActivity=Date.now();},{passive:true}));
+ document.addEventListener("scroll",()=>{lastActivity=Date.now();lastScrollAt=Date.now();},{passive:true,capture:true});
  document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();else if(state.loaded&&state.enabled)start();});
  window.addEventListener("pageshow",()=>void load());
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>void load(),{once:true});else void load();
