@@ -56,6 +56,42 @@
         return "";
     }
 
+    function applyCachedThemeBootSnapshot(snapshot, expectedUserId) {
+        if (!snapshot || snapshot.version !== 1 || snapshot.userId !== expectedUserId) return false;
+        const plan = String(snapshot.plan || "");
+        const expiresAt = Date.parse(String(snapshot.expiresAt || ""));
+        const hasAccess = snapshot.owner === true ||
+            (["premium", "premium_lite"].includes(plan) && Number.isFinite(expiresAt) && expiresAt > Date.now());
+        if (!hasAccess || !snapshot.properties || typeof snapshot.properties !== "object") return false;
+
+        const root = document.documentElement;
+        Object.entries(snapshot.properties).forEach(([name, value]) => {
+            if (!/^--[a-z0-9-]+$/i.test(name) ||
+                name === "--worth-it-boot-background" ||
+                name === "--ui-scale" ||
+                typeof value !== "string" || value.length > 500) return;
+            root.style.setProperty(name, value);
+        });
+
+        const allowedData = [
+            "worthItCustomTheme", "worthItButtonStyle", "worthItCardStyle", "worthItCorners",
+            "worthItButtonAnimation", "worthItHoverEffect", "worthItShadowIntensity",
+            "worthItBorderThickness", "worthItFocusAppearance"
+        ];
+        if (!snapshot.dataset || typeof snapshot.dataset !== "object") return false;
+        allowedData.forEach(name => {
+            const value = snapshot.dataset[name];
+            if (typeof value === "string" && value.length > 0 && value.length <= 60) {
+                root.dataset[name] = value;
+            }
+        });
+        if (!root.dataset.worthItCustomTheme) return false;
+        if (/^#[0-9a-f]{6}$/i.test(String(snapshot.background || ""))) {
+            bootBackground = snapshot.background;
+        }
+        return true;
+    }
+
     try {
         root.dataset.theme = localStorage.getItem("worthItTheme") === "light" ? "light" : "dark";
         const rememberUntil = Number(localStorage.getItem("worth_it_auth_remember_until_v1") || 0);
@@ -66,11 +102,15 @@
         if (!sessionUserId) {
             bootBackground = root.dataset.theme === "light" ? "#FFFFFF" : "#070B14";
         } else {
-            // This is only the loading veil's background. The saved theme is not activated
-            // until Supabase confirms the current account's Premium entitlement.
-            const cachedTheme = JSON.parse(localStorage.getItem("worthItCustomTheme:v1:" + sessionUserId) || "null");
-            if (/^#[0-9a-f]{6}$/i.test(String(cachedTheme?.background || ""))) {
-                bootBackground = cachedTheme.background;
+            // Apply the last server-verified Premium theme snapshot synchronously so a
+            // returning member never sees the standard palette before the page is painted.
+            // The normal Supabase entitlement check still decides whether the page may reveal it.
+            const snapshot = JSON.parse(localStorage.getItem("worthItCustomThemeBoot:v1:" + sessionUserId) || "null");
+            if (!applyCachedThemeBootSnapshot(snapshot, sessionUserId)) {
+                const cachedTheme = JSON.parse(localStorage.getItem("worthItCustomTheme:v1:" + sessionUserId) || "null");
+                if (/^#[0-9a-f]{6}$/i.test(String(cachedTheme?.background || ""))) {
+                    bootBackground = cachedTheme.background;
+                }
             }
         }
     } catch (_) {
@@ -6059,6 +6099,6 @@ if($("carResults")){
     </section>
     
 <script src="/chat-enhancements.js?v=chat-wallpaper-collision-packed-20261030a&amp;theme-wallpaper=20261105a"></script>
-<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b&amp;profile-theme-global=20261105b&amp;button-contrast-aa=20261105c&amp;ugc-detail-favorite=20261106a&amp;theme-first-paint-contrast=20261116a&amp;more-palettes-mobile-creator=20261116a&amp;theme-hydration-stability=20261116a&amp;theme-dialog-coverage=20261116a&amp;typography-mixer=20261116a&amp;persist-theme-reset=20261116a"></script>
+<script src="/community-features.js?v=fourth-header-theme-colour-20261104b&amp;rev=header-colour-contrast-premium-gate-20261104a&amp;profile-isolation=20261104a&amp;design-system=20261105b&amp;theme-designer=20261105a&amp;button-contrast=20261105b&amp;profile-theme-global=20261105b&amp;button-contrast-aa=20261105c&amp;ugc-detail-favorite=20261106a&amp;theme-first-paint-contrast=20261116a&amp;more-palettes-mobile-creator=20261116a&amp;theme-hydration-stability=20261116a&amp;theme-dialog-coverage=20261116a&amp;typography-mixer=20261116a&amp;persist-theme-reset=20261116a&amp;theme-boot-snapshot=20261123a"></script>
 </body>
 </html>
