@@ -37,10 +37,10 @@ test("the easter egg is random, unlocks once, and removes itself after the persi
     assert.match(js, /function unlockGame\(\)/);
     assert.match(js, /profile\.unlocked=true/);
     assert.match(js, /if\(profile\.unlocked\)return/);
-    assert.match(js, /const IS_PAGES_PREVIEW = \\\/\\.worth-it-calculator\\\//);
-    assert.match(js, /if\\(IS_PAGES_PREVIEW&&!userId\\)return initial\\?4500\\+Math\\.random\\(\\)\\*6500:8000\\+Math\\.random\\(\\)\\*10000/);
-    assert.match(js, /IS_PAGES_PREVIEW&&!userId\\?14000:10500/);
-    assert.match(js, /else scheduleEgg\\(nextEggDelay\\(true\\)\\)/);
+    assert.ok(js.includes(String.raw`const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i`));
+    assert.ok(js.includes("if(IS_PAGES_PREVIEW&&!userId)return initial?4500+Math.random()*6500:8000+Math.random()*10000;"));
+    assert.ok(js.includes("IS_PAGES_PREVIEW&&!userId?14000:10500"));
+    assert.ok(js.includes("else scheduleEgg(nextEggDelay(true))"));
 
     assert.match(js, /STORAGE_PREFIX = "worthItZvhSave:v1:"/);
     assert.match(js, /zvhNavEntry","zvhMoreMenuEntry/);
