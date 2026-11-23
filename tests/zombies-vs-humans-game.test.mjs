@@ -44,7 +44,7 @@ test("the zombie discovery button sits beside the hero slogan and unlocks the ga
     assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
     assert.ok(!js.includes("scheduleEgg("));
     assert.ok(!js.includes("IS_PAGES_PREVIEW"));
-    assert.ok(html.includes("zvh-controls-animation-map-20261123f"));
+    assert.ok(html.includes("zvh-controls-animation-abilities-20261123g"));
     assert.ok(js.includes('STORAGE_PREFIX = "worthItZvhSave:v1:"'));
     assert.ok(js.includes('zvhNavEntry","zvhMoreMenuEntry'));
 });
@@ -80,6 +80,9 @@ test("actors animate limbs, zombies reach forward, armed humans carry guns and p
   assert.match(js,/const stride=moving\?Math\.sin\(phase\)/);assert.match(js,/if\(armed\)/);assert.match(js,/b\.radius\*2\.6/);assert.match(js,/WEAK HOWL/);
 });
 test("maps draw roads and spawn wrecked or burning vehicles",()=>{assert.match(js,/Broad asphalt avenues/);assert.match(js,/burning:vehicle/);assert.match(js,/p\.scorch/);});
+test("PC controls are explained below the game and update when bindings change",()=>{assert.match(html,/id="zvhPcKeyGuide"/);assert.match(css,/\\.zvh-pc-key-guide/);assert.match(js,/function updatePcKeyGuide\\(/);assert.match(js,/HORDE · FOLLOW/);});
+test("each human-mode zombie class has a distinct combat ability",()=>{for(const ability of ["LUNGE BITE","RUSH","GROUND SLAM","IRON PLATING","SUMMON"])assert.ok(js.includes(ability));assert.match(js,/enemy\\.lungeTime/);assert.match(js,/enemy\\.slamWindup/);assert.match(js,/enemy\\.armorUntil/);assert.match(js,/MUTANT OVERLORD · SUMMONING/);});
+test("starter zombie howl provides a weak but real temporary horde buff",()=>{assert.match(js,/WEAK HOWL/);assert.match(js,/rallyUntil/);assert.match(js,/rallied\\?1\\.18:1/);assert.match(js,/rallied\\?2:0/);});
 test("the game contains touch controls and configurable visual effects", () => {
     assert.match(html, /id="zvhJoystick"/);
     assert.match(html, /id="zvhTouchAttack"/);
