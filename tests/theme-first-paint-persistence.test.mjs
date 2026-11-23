@@ -34,7 +34,8 @@ test("lost Premium access and explicit resets remove the cached theme snapshot",
     const expiry = community.match(/async function clearThemeAfterExpiry\(userId,request\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
     assert.match(expiry, /removeLocal\(scopedKey\(THEME_BOOT_KEY,userId\)\)/);
     const reset = community.match(/async function resetCustomThemeFromSettings\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
-    assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,userId\)\)/);
+    assert.match(reset, /clearLocalThemeState\(userId\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
 });
 
 
@@ -44,7 +45,7 @@ test("network and timeout fallbacks never reveal an expired or unverified custom
     assert.match(valid, /snapshot\.userId!==userId/);
     assert.match(valid, /expiry>Date\.now\(\)/);
     assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(userId\)/);
-    assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(bootstrapUserId\)/);
+    assert.match(community, /const validBootSnapshot=resetPending\?null:readValidThemeBootSnapshot\(bootstrapUserId\)/);
     assert.match(community, /validBootSnapshot\?readCachedCustomTheme\(/);
 });
 
@@ -75,14 +76,14 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     const resetBody = community.slice(resetStart, accountResetStart);
     assert.ok(resetBody.includes("++themeRequest"));
     assert.ok(resetBody.includes("themeMutationInProgress=true"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,knownUserId))"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
+    assert.ok(resetBody.includes("markThemeResetPending(knownUserId)"));
+    assert.match(community, /function markThemeResetPending\(userId\)[\s\S]*?clearLocalThemeState\(userId\)/);
     assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
     assert.ok(accountReset.includes("sb()?.auth?.getSession?.()"));
-    assert.ok(accountReset.includes('.from("worth_it_user_themes").delete()'));
-    assert.ok(accountReset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,userId))"));
+    assert.ok(accountReset.includes("deleteAndVerifySavedTheme(userId)"));
+    assert.ok(accountReset.includes("markThemeResetPending(knownUserId)"));
     assert.ok(accountReset.includes("finishThemeMutation()"));
 });
 
@@ -113,12 +114,38 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
     assert.match(helper, /writeLocal\("worthItTheme","dark"\)/);
     assert.match(reset, /applyStandardDarkTheme\(\)/);
     assert.match(reset, /sb\(\)\?\.auth\?\.getSession\?\.\(\)/);
-    assert.match(reset, /\.delete\(\)\.eq\("user_id",userId\)\.select\("user_id"\)/);
+    assert.match(reset, /deleteAndVerifySavedTheme\(userId\)/);
     assert.doesNotMatch(reset, /if\(!themeEntitled/);
     assert.doesNotMatch(reset, /if\(!themeSettingsOpen/);
-    assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,knownUserId\)\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
     assert.match(html, /theme-reset-save-confirm=20261123a/);
+});
+
+
+test("first paint does not reveal a cached Custom Theme while its account reset is pending", () => {
+    assert.match(html, /const resetPending = localStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\) === "1"/);
+    assert.match(html, /const snapshot = resetPending \? null/);
+    assert.match(html, /if \(!resetPending && !applyCachedThemeBootSnapshot/);
+});
+
+
+test("first-paint cache key changes for the durable pending-reset guard", () => {
+    assert.match(html, /theme-reset-pending-confirm=20261123d/);
+});
+
+
+test("pending reset always wins over cached themes when auth hydration fails or times out", () => {
+    const unresolvedStart = community.indexOf("if(!sessionResolved)");
+    const unresolvedEnd = community.indexOf("if(!userId)", unresolvedStart);
+    const unresolved = community.slice(unresolvedStart, unresolvedEnd);
+    assert.match(unresolved, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
+    assert.match(unresolved, /resetPending\?DEFAULT_THEME/);
+    const hydrateStart = community.indexOf("async function hydrateInitialThemeBeforePaint()");
+    const hydrate = community.slice(hydrateStart, community.indexOf("function releaseInitialThemeCover()", hydrateStart));
+    assert.match(hydrate, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
+    assert.match(hydrate, /applyTheme\(resetPending\?DEFAULT_THEME/);
 });

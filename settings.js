@@ -244,7 +244,7 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         window.updateWorthItAppearanceModeControls?.();
         showToast(customThemeReset
             ? "Settings reset. Your original Dark appearance and Worth It colours have been restored."
-            : "Other local settings were reset, but your saved Custom Theme could not be removed. Your current theme was kept; reconnect and try again.");
+            : "Other local settings were reset and standard Dark is active on this device, but account theme removal is pending. Reconnect; Worth It will retry automatically.");
         return customThemeReset;
     };
 

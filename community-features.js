@@ -5,6 +5,7 @@ const sb = () => window.supabaseClient || null;
 const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
 const THEME_BOOT_KEY = "worthItCustomThemeBoot:v1:";
+const THEME_RESET_PENDING_KEY = "worthItCustomThemeResetPending:v1:";
 const DEFAULT_THEME = {
  name:"Worth It",
  primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120",
@@ -579,6 +580,40 @@ function setThemeStatus(message,isError){
  node.textContent=String(message||"");
  node.classList.toggle("is-error",Boolean(isError));
 }
+function isThemeResetPending(userId){
+ if(!userId)return false;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ try{return localStorage.getItem(key)==="1"||sessionStorage.getItem(key)==="1";}catch(_){return false;}
+}
+function clearLocalThemeState(userId){
+ if(!userId)return;
+ removeLocal(scopedKey(THEME_KEY,userId));
+ removeLocal(scopedKey(THEME_BOOT_KEY,userId));
+}
+function markThemeResetPending(userId){
+ if(!userId)return true;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ let persisted=false;
+ try{localStorage.setItem(key,"1");persisted=localStorage.getItem(key)==="1";}catch(_){}
+ if(!persisted){try{sessionStorage.setItem(key,"1");persisted=sessionStorage.getItem(key)==="1";}catch(_){}}
+ if(!persisted)return false;
+ clearLocalThemeState(userId);
+ return true;
+}
+function clearThemeResetPending(userId){
+ if(!userId)return;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ removeLocal(key);
+ try{sessionStorage.removeItem(key);}catch(_){}
+}
+async function deleteAndVerifySavedTheme(userId){
+ const deleted=await sb().from("worth_it_user_themes").delete().eq("user_id",userId).select("user_id");
+ if(deleted.error)throw deleted.error;
+ const remaining=await sb().from("worth_it_user_themes").select("user_id").eq("user_id",userId).maybeSingle();
+ if(remaining.error)throw remaining.error;
+ if(remaining.data?.user_id===userId)throw new Error("The saved Custom Theme is still present on the account after the reset request.");
+ return true;
+}
 function applyStandardDarkTheme(){
  // Reset must restore both the Custom Theme tokens and the standard appearance mode.
  themePreviewActive=false;
@@ -708,10 +743,11 @@ async function loadThemeForSession(){
  if(themeExpiryTimer){window.clearTimeout(themeExpiryTimer);themeExpiryTimer=null;}
  if(!sessionResolved){
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||previousThemeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const cachedTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  const retainedTheme=validBootSnapshot&&previousThemeUserId===bootstrapUserId&&isCustomTheme(activeTheme)
-   ?activeTheme:cachedTheme||DEFAULT_THEME;
+  const retainedTheme=resetPending?DEFAULT_THEME:(validBootSnapshot&&previousThemeUserId===bootstrapUserId&&isCustomTheme(activeTheme)
+   ?activeTheme:cachedTheme||DEFAULT_THEME);
   if(bootstrapUserId)themeUserId=bootstrapUserId;
   themeEntitled=false;themeEntitlementResolved=false;updateThemeAccessUI();
   // Reuse only the theme cached for the browser's bootstrap session account.
@@ -725,6 +761,31 @@ async function loadThemeForSession(){
   updateThemeAccessUI();applyTheme(livePreview||DEFAULT_THEME);
   setThemeStatus("You can preview all Custom Theme options here. Sign in with Premium Lite or Premium to save a theme.",false);
   return;
+ }
+ if(isThemeResetPending(userId)){
+  try{
+   await deleteAndVerifySavedTheme(userId);
+   if(request!==themeRequest||themeUserId!==userId)return;
+   clearLocalThemeState(userId);
+   clearThemeResetPending(userId);
+   savedTheme=DEFAULT_THEME;
+   themeRemoteAvailable=true;
+  }catch(error){
+   if(isMissingCommunitySchema(error)){
+    clearLocalThemeState(userId);
+    clearThemeResetPending(userId);
+    themeRemoteAvailable=false;
+   }else{
+    if(request!==themeRequest||themeUserId!==userId)return;
+    themeEntitled=false;themeEntitlementResolved=false;themeBootAccess=null;
+    clearLocalThemeState(userId);
+    updateThemeAccessUI();
+    applyStandardDarkTheme();
+    setThemeStatus("Your standard Dark theme is active. The account reset is still pending because the saved theme could not be removed; reconnect and it will be retried automatically.",true);
+    console.error("Pending Worth It Custom Theme reset could not be confirmed:",error);
+    return;
+   }
+  }
  }
  themeRemoteAvailable=null;
  try{
@@ -805,9 +866,10 @@ async function hydrateInitialThemeBeforePaint(){
   // Invalidate the stalled request so it cannot apply a late, incorrect theme.
   themeRequest+=1;
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const bootstrapTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  applyTheme(bootstrapTheme||DEFAULT_THEME);
+  applyTheme(resetPending?DEFAULT_THEME:(bootstrapTheme||DEFAULT_THEME));
   releaseInitialThemeCover();
  },12000);
  try{
@@ -817,9 +879,10 @@ async function hydrateInitialThemeBeforePaint(){
  }catch(error){
   console.warn("Initial Worth It theme hydration failed:",error);
   const bootstrapUserId=String(document.documentElement?.dataset?.worthItBootUserId||themeUserId||"");
-  const validBootSnapshot=readValidThemeBootSnapshot(bootstrapUserId);
+  const resetPending=isThemeResetPending(bootstrapUserId);
+  const validBootSnapshot=resetPending?null:readValidThemeBootSnapshot(bootstrapUserId);
   const bootstrapTheme=validBootSnapshot?readCachedCustomTheme(bootstrapUserId):null;
-  applyTheme(bootstrapTheme||DEFAULT_THEME);
+  applyTheme(resetPending?DEFAULT_THEME:(bootstrapTheme||DEFAULT_THEME));
  }finally{
   releaseInitialThemeCover();
  }
@@ -838,6 +901,10 @@ async function saveCustomTheme(){
  const theme=readThemeFromForm();
  if(!isCustomTheme(theme)){setThemeStatus("Choose at least one setting that differs from the default Worth It theme before saving.",true);return;}
  if(!themeUserId){setThemeStatus("Sign in with your Premium account to save and sync your custom theme.",true);return;}
+ if(isThemeResetPending(themeUserId)){
+  setThemeStatus("Your previous reset is still waiting for account confirmation. Reconnect so Worth It can finish the reset before saving another theme.",true);
+  return;
+ }
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
  ++themeRequest;
  themeMutationInProgress=true;
@@ -866,6 +933,7 @@ async function saveCustomTheme(){
    Object.keys(expectedConfig).every(key=>persisted.theme_config[key]===expectedConfig[key]));
   if(!confirmed)throw new Error("The database did not return the saved Custom Theme for verification.");
   themeRemoteAvailable=true;
+  clearThemeResetPending(themeUserId);
   savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
   themePreviewActive=false;applyTheme(theme);
   setThemeStatus("Your complete custom theme is saved and verified on your account. It will stay active across Worth It.",false);
@@ -895,57 +963,66 @@ async function resetCustomTheme(){
  }
  ++themeRequest;
  themeMutationInProgress=true;
- // Clear the first-paint snapshot immediately so a reload cannot flash the old theme.
  const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
- if(knownUserId)removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId));
- removeLocal(scopedKey(THEME_BOOT_KEY,"guest"));
+ let resetTargetUserId=knownUserId;
  applyStandardDarkTheme();
  try{
+  if(knownUserId&&!markThemeResetPending(knownUserId)){
+   setThemeStatus("Dark theme is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   toast("Reset safeguard could not be stored. Account theme was not changed.");
+   return false;
+  }
+  clearLocalThemeState("guest");
   let session=null;
   try{
    const sessionResult=await sb()?.auth?.getSession?.();
    if(sessionResult?.error)throw sessionResult.error;
    session=sessionResult?.data?.session||null;
   }catch(error){
-   setThemeStatus("The standard Dark theme is active on this page, but your account could not be verified. The saved account theme was not deleted; reconnect and try Reset again.",true);
-   toast("Dark theme applied locally; account reset still needs verification.");
+   setThemeStatus("The standard Dark theme is active on this device. Account deletion is pending until your session reconnects; Worth It will retry it automatically.",true);
+   toast("Dark theme applied. Account reset will retry when connected.");
    console.error("Could not verify the account before resetting the Custom Theme:",error);
    return false;
   }
   const userId=String(session?.user?.id||"");
-  themeUserId=userId;
+  resetTargetUserId=knownUserId||userId;
+  if(knownUserId&&userId&&knownUserId!==userId){
+   setThemeStatus("The signed-in account changed during reset. The standard Dark theme is active, and the previous account reset remains pending until that account signs in again.",true);
+   return false;
+  }
   if(!userId){
-   removeLocal(scopedKey(THEME_KEY,"guest"));
+   if(knownUserId){
+    setThemeStatus("The standard Dark theme is active locally. Sign in to the account that owns the saved theme so Worth It can finish removing it.",true);
+    return false;
+   }
    savedTheme=DEFAULT_THEME;
-   setThemeStatus("The standard Dark theme has been restored. Sign in to remove a theme saved to an account.",false);
+   setThemeStatus("The standard Dark theme has been restored.",false);
    toast("Default Dark theme restored.");
    return true;
   }
-  // Deleting a user's own saved theme does not require Premium entitlement.
-  const result=await sb().from("worth_it_user_themes")
-   .delete().eq("user_id",userId).select("user_id");
-  if(result.error)throw result.error;
-  removeLocal(scopedKey(THEME_KEY,userId));
-  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
-  savedTheme=DEFAULT_THEME;
-  themeRemoteAvailable=true;
-  setThemeStatus("The saved Custom Theme was removed from your account. The standard Dark theme is now active.",false);
+  if(!knownUserId&&!markThemeResetPending(userId)){
+   setThemeStatus("Dark theme is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
+  await deleteAndVerifySavedTheme(userId);
+  clearLocalThemeState(userId);
+  clearThemeResetPending(userId);
+  themeUserId=userId;savedTheme=DEFAULT_THEME;themeRemoteAvailable=true;themeBootAccess=null;
+  setThemeStatus("The saved Custom Theme was removed and verified on your account. The standard Dark theme is now active.",false);
   toast("Custom Theme removed. Default Dark theme restored.");
   return true;
  }catch(error){
   if(isMissingCommunitySchema(error)){
+   clearThemeResetPending(resetTargetUserId);
    themeRemoteAvailable=false;
-   if(knownUserId){
-    removeLocal(scopedKey(THEME_KEY,knownUserId));
-    removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId));
-   }
    savedTheme=DEFAULT_THEME;
-   setThemeStatus("The standard Dark theme is active on this device. Account storage was unavailable, so only the local Custom Theme cache could be cleared.",false);
+   setThemeStatus("The standard Dark theme is active on this device. Account theme storage is unavailable here, so only the local theme cache could be cleared.",false);
    toast("Default Dark theme restored on this device.");
    return true;
   }
-  setThemeStatus("The standard Dark theme is active for now, but the saved Custom Theme could not be removed from your account. Check your connection and try Reset again.",true);
-  toast("The account Custom Theme could not be removed. Please try Reset again.");
+  applyStandardDarkTheme();
+  setThemeStatus("The standard Dark theme is active locally, but account deletion is still pending. Worth It will retry automatically when the account service is available.",true);
+  toast("Dark theme restored locally. Account reset is pending.");
   console.error("Could not reset Worth It custom theme:",error);
   return false;
  }finally{
@@ -959,54 +1036,61 @@ async function resetCustomThemeFromSettings(){
  }
  themeMutationInProgress=true;
  ++themeRequest;
+ const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
+ let resetTargetUserId=knownUserId;
+ applyStandardDarkTheme();
  try{
-  // The account-wide Reset settings action must work even when the Appearance editor is not open.
-  const resetRequest=++themeRequest;
+  if(knownUserId&&!markThemeResetPending(knownUserId)){
+   setThemeStatus("Standard Dark is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
+  clearLocalThemeState("guest");
   let session=null;
   try{
    const sessionResult=await sb()?.auth?.getSession?.();
    if(sessionResult?.error)throw sessionResult.error;
    session=sessionResult?.data?.session||null;
   }catch(error){
-   setThemeStatus("Your account session could not be verified. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+   setThemeStatus("Standard Dark is active on this device. Account deletion is pending until your session reconnects; Worth It will retry it automatically.",true);
    console.error("Could not verify the account before resetting Worth It settings:",error);
    return false;
   }
   const userId=String(session?.user?.id||"");
-  if(!userId&&themeUserId){
-   setThemeStatus("Your account session could not be confirmed. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+  resetTargetUserId=knownUserId||userId;
+  if(knownUserId&&userId&&knownUserId!==userId){
+   setThemeStatus("The signed-in account changed during reset. Standard Dark is active, and the previous account reset remains pending until that account signs in again.",true);
    return false;
   }
-  if(userId){
-   try{
-    const result=await sb().from("worth_it_user_themes").delete().eq("user_id",userId);
-    if(result.error)throw result.error;
-    themeRemoteAvailable=true;
-   }catch(error){
-    if(isMissingCommunitySchema(error)){
-     themeRemoteAvailable=false;
-    }else{
-     setThemeStatus("The saved Custom Theme could not be removed from your account. Your current theme has been kept; check your connection and try Reset settings again.",true);
-     console.error("Could not permanently reset the Worth It Custom Theme:",error);
-     return false;
-    }
+  if(!userId){
+   if(knownUserId){
+    setThemeStatus("Standard Dark is active locally. Sign in to the account that owns the saved theme so Worth It can finish removing it.",true);
+    return false;
    }
-   removeLocal(scopedKey(THEME_KEY,userId));
-   removeLocal(scopedKey(THEME_BOOT_KEY,userId));
-  }else{
-   themeRemoteAvailable=false;
+   savedTheme=DEFAULT_THEME;
+   setThemeStatus("The standard Worth It appearance has been restored.",false);
+   return true;
   }
-  // Invalidate requests that started while the account row was being deleted.
-  themeRequest=Math.max(themeRequest,resetRequest)+1;
-  themeUserId=userId;
-  themeBootAccess=null;
-  savedTheme=DEFAULT_THEME;
-  themePreviewActive=false;
-  applyTheme(DEFAULT_THEME);
-  setThemeStatus(userId
-   ?"The saved Custom Theme was removed from your account. Standard Dark and Light appearance is available again."
-   :"The standard Worth It appearance has been restored.",false);
+  if(!knownUserId&&!markThemeResetPending(userId)){
+   setThemeStatus("Standard Dark is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
+  await deleteAndVerifySavedTheme(userId);
+  clearLocalThemeState(userId);
+  clearThemeResetPending(userId);
+  themeUserId=userId;themeBootAccess=null;savedTheme=DEFAULT_THEME;themePreviewActive=false;themeRemoteAvailable=true;
+  setThemeStatus("The saved Custom Theme was removed and verified on your account. Standard Dark and Light appearance is available again.",false);
   return true;
+ }catch(error){
+  if(isMissingCommunitySchema(error)){
+   clearThemeResetPending(resetTargetUserId);
+   themeRemoteAvailable=false;savedTheme=DEFAULT_THEME;themePreviewActive=false;
+   setThemeStatus("Standard Dark is active on this device. Account theme storage is unavailable here, so only the local theme cache could be cleared.",false);
+   return true;
+  }
+  applyStandardDarkTheme();
+  setThemeStatus("Standard Dark is active locally, but account deletion is still pending. Worth It will retry automatically when the account service is available.",true);
+  console.error("Could not permanently reset the Worth It Custom Theme:",error);
+  return false;
  }finally{
   finishThemeMutation();
  }
