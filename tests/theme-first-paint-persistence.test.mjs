@@ -195,3 +195,20 @@ test("confirmed Custom Theme saves verify and retain the database update timesta
     assert.match(save, /theme_config,updated_at/);
     assert.match(save, /writeThemeCommit\(themeUserId,persisted\.updated_at/);
 });
+
+
+test("the last independently verified complete theme snapshot wins over stale or empty later reads", () => {
+    assert.match(community, /function writeThemeCommit\(userId,updatedAt,theme\)/);
+    assert.match(community, /theme:cleanTheme\(theme\)/);
+    assert.match(community, /function sameThemeSnapshot\(left,right\)/);
+    assert.match(community, /if\(commit\?\.theme&&!sameThemeSnapshot\(remoteTheme,commit\.theme\)\)/);
+    assert.match(community, /if\(commit\?\.theme\)\s*\{[\s\S]*?A temporarily empty\/stale read must not turn a confirmed custom theme into Dark/);
+    assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
+});
+
+test("reset and expired entitlement clear the committed theme snapshot", () => {
+    const clear = community.match(/function clearLocalThemeState\(userId\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(clear, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
+    const expiry = community.match(/async function clearThemeAfterExpiry\(userId,request\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(expiry, /THEME_COMMIT_KEY/);
+});
