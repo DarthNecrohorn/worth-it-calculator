@@ -650,12 +650,12 @@ function updateAI(dt){
           spawnParticles(enemy.x,enemy.y,"#e58a52",profile.settings.effects?24:6);
           showStageMessage(enemy.type==="boss"?"MUTANT OVERLORD · SHOCKWAVE":"BRUTE · GROUND SLAM",800);
         }
-        continue;
+        return;
       }
       if(enemy.type==="brute"&&d<150&&enemy.abilityCd<=0){
         enemy.slamWindup=.62;enemy.abilityCd=6.8;
         showStageMessage("BRUTE WINDING UP · DODGE!",650);
-        continue;
+        return;
       }
       if(enemy.type==="armored"&&enemy.abilityCd<=0){
         enemy.armorUntil=run.elapsed+2.6;enemy.abilityCd=8.2;
