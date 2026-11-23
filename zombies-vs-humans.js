@@ -341,8 +341,20 @@ function applyMobileControlVisibility(){
   if(attack)attack.textContent=zombie?"ATTACK":"SHOOT";
 }
 
+function updatePcKeyGuide(){
+  const node=$("zvhPcKeyGuide");if(!node)return;
+  const keys=profile.settings.keys||{follow:"q",attack:"e",smash:"r",special:"2"};
+  const key=value=>String(value||"").toUpperCase();
+  const item=(label,value)=>'<span><b>'+label+'</b><kbd>'+key(value)+'</kbd></span>';
+  if(run?.mode==="human"){
+    node.innerHTML='<span><b>MOVE</b><kbd>W A S D</kbd><small>or arrow keys</small></span><span><b>SHOOT</b><kbd>CLICK / SPACE / '+key(keys.attack)+'</kbd></span>'+item("SPECIAL · GRENADE",keys.special);
+  }else{
+    node.innerHTML='<span><b>MOVE</b><kbd>W A S D</kbd><small>or arrow keys</small></span>'+item("HORDE · FOLLOW",keys.follow)+item("HORDE · ATTACK",keys.attack)+item("HORDE · SMASH",keys.smash)+item("SPECIAL",keys.special)+'<span><b>INFECT</b><kbd>MOUSE CLICK</kbd></span>';
+  }
+}
+
 function entity(team,type,x,y,extra){
-  const e={id:nextEntityId++,team,type,x,y,hp:50,maxHp:50,speed:55,radius:13,damage:8,attackCd:0,shotCd:0,fireRange:230,wander:Math.random()*Math.PI*2,order:"follow",angle:0,dead:false};
+  const e={id:nextEntityId++,team,type,x,y,hp:50,maxHp:50,speed:55,radius:13,damage:8,attackCd:0,shotCd:0,abilityCd:0,fireRange:230,wander:Math.random()*Math.PI*2,order:"follow",angle:0,dead:false};
   return Object.assign(e,extra||{});
 }
 function mapConfig(){
@@ -381,6 +393,7 @@ function startRun(){
     $("zvhZombieCommands").hidden=true;$("zvhHumanCommands").hidden=false;
     $("zvhControlHint").textContent="WASD / arrows to move · click / SPACE to shoot · recruit survivor allies";
   }
+  updatePcKeyGuide();
   for(let i=0;i<6;i++)spawnEnemy();
   $("zvhLobby").hidden=true;$("zvhGameView").hidden=false;$("zvhRunResult").hidden=true;
   applyMobileControlVisibility();
@@ -412,7 +425,8 @@ function spawnEnemy(){
       tank:{hp:390+wave*20,speed:34,damage:24+wave*2,radius:31,fireRange:490,shotCd:2.7},
       heli:{hp:260+wave*14,speed:94,damage:18+wave, radius:26,fireRange:440,shotCd:1.8}
     };
-    run.enemies.push(entity("enemy",type,p.x,p.y,specs[type]));
+    const abilityCd=type==="walker"?2.6:type==="runner"?3.8:type==="brute"?4.8:type==="armored"?1.4:7.5;
+    run.enemies.push(entity("enemy",type,p.x,p.y,{...specs[type],abilityCd}));
   }else{
     const wave=run.wave;let type="walker",roll=Math.random();
     if(wave>=6&&roll<.07)type="boss";
@@ -463,6 +477,7 @@ function chooseThreat(x,y,enemyTeam){
 }
 function damageActor(actor,amount){
   if(!actor||actor.dead)return;
+  if(actor.team==="enemy"&&actor.type==="armored"&&run.mode==="human"&&run.elapsed<(actor.armorUntil||0))amount*=.35;
   actor.hp-=amount;
   if(actor===run.player&&profile.settings.shake)run.shake=Math.min(7,(run.shake||0)+2.5);
   if(actor.hp<=0){
@@ -562,6 +577,13 @@ function updateAI(dt){
   run.friends.forEach(friend=>{
     if(friend.dead)return;
     friend.attackCd=Math.max(0,friend.attackCd-dt);
+    if(friend.type==="zombie"){
+      friend.baseSpeed=friend.baseSpeed||friend.speed;
+      friend.baseDamage=friend.baseDamage||friend.damage;
+      const rallied=(friend.rallyUntil||0)>run.elapsed;
+      friend.speed=friend.baseSpeed*(rallied?1.18:1);
+      friend.damage=friend.baseDamage+(rallied?2:0);
+    }
     const target=nearestTargetForFriend(friend);
     if(friend.type==="zombie"){
       if(friend.order==="smash"){
@@ -596,6 +618,7 @@ function updateAI(dt){
     if(enemy.dead)return;
     enemy.attackCd=Math.max(0,enemy.attackCd-dt);
     enemy.shotCd=Math.max(0,enemy.shotCd-dt);
+    enemy.abilityCd=Math.max(0,(enemy.abilityCd||0)-dt);
     if(run.mode==="zombie"){
       const threat=chooseThreat(enemy.x,enemy.y,"zombie");
       const dx=threat.x-enemy.x,dy=threat.y-enemy.y,d=Math.hypot(dx,dy)||1;
@@ -616,10 +639,55 @@ function updateAI(dt){
     }else{
       const threat=chooseThreat(enemy.x,enemy.y,"human"),dx=threat.x-enemy.x,dy=threat.y-enemy.y,d=Math.hypot(dx,dy)||1;
       const range=enemy.radius+threat.radius+5;
-      if(d>range)moveActor(enemy,dx/d,dy/d,dt);
+      enemy.lungeTime=Math.max(0,(enemy.lungeTime||0)-dt);
+      const previousWindup=enemy.slamWindup||0;
+      if(previousWindup>0){
+        enemy.slamWindup=Math.max(0,previousWindup-dt);
+        if(enemy.slamWindup===0){
+          const radius=enemy.type==="boss"?148:116;
+          [run.player,...run.friends].filter(actor=>!actor.dead&&Math.hypot(actor.x-enemy.x,actor.y-enemy.y)<radius)
+            .forEach(actor=>damageActor(actor,enemy.damage*(enemy.type==="boss"?1.45:1.3)));
+          spawnParticles(enemy.x,enemy.y,"#e58a52",profile.settings.effects?24:6);
+          showStageMessage(enemy.type==="boss"?"MUTANT OVERLORD · SHOCKWAVE":"BRUTE · GROUND SLAM",800);
+        }
+        continue;
+      }
+      if(enemy.type==="brute"&&d<150&&enemy.abilityCd<=0){
+        enemy.slamWindup=.62;enemy.abilityCd=6.8;
+        showStageMessage("BRUTE WINDING UP · DODGE!",650);
+        continue;
+      }
+      if(enemy.type==="armored"&&enemy.abilityCd<=0){
+        enemy.armorUntil=run.elapsed+2.6;enemy.abilityCd=8.2;
+        spawnParticles(enemy.x,enemy.y,"#a9c7db",profile.settings.effects?12:3);
+      }
+      if(enemy.type==="boss"&&d<560&&enemy.abilityCd<=0){
+        enemy.abilityCd=13;
+        for(let i=0;i<2;i++){
+          const angle=(i/2)*Math.PI*2+Math.random()*.7;
+          const x=Math.max(45,Math.min(run.worldW-45,enemy.x+Math.cos(angle)*54));
+          const y=Math.max(45,Math.min(run.worldH-45,enemy.y+Math.sin(angle)*54));
+          const hp=58+run.wave*4;
+          run.enemies.push(entity("enemy","walker",x,y,{hp,maxHp:hp,speed:84+run.wave,damage:10+run.wave,radius:13,abilityCd:3.2}));
+        }
+        spawnParticles(enemy.x,enemy.y,"#b96b80",profile.settings.effects?20:5);
+        showStageMessage("MUTANT OVERLORD · SUMMONING",900);
+      }
+      if((enemy.type==="walker"||enemy.type==="runner")&&d>range&&d<330&&enemy.abilityCd<=0){
+        enemy.lungeTime=enemy.type==="runner"?.95:.55;
+        enemy.abilityCd=enemy.type==="runner"?5.3:6.6;
+        spawnParticles(enemy.x,enemy.y,enemy.type==="runner"?"#a9dd70":"#92b77c",profile.settings.effects?8:2);
+      }
+      if(d>range){
+        const baseSpeed=enemy.speed;
+        if(enemy.lungeTime>0)enemy.speed=baseSpeed*(enemy.type==="runner"?2.05:1.55);
+        moveActor(enemy,dx/d,dy/d,dt);
+        enemy.speed=baseSpeed;
+      }
       if(d<=range+5&&enemy.attackCd<=0){
         enemy.attackCd=enemy.type==="boss"?.75:enemy.type==="runner"?.55:1.05;
-        damageActor(threat,enemy.damage);
+        const biteDamage=enemy.type==="walker"&&enemy.lungeTime>0?enemy.damage*1.35:enemy.damage;
+        damageActor(threat,biteDamage);
       }
     }
   });
@@ -669,7 +737,7 @@ function spawnBossOnce(){
   if(run.spawnedBossWave===run.wave)return;
   run.spawnedBossWave=run.wave;
   const p=spawnAtEdge();
-  run.enemies.push(entity("enemy","boss",p.x,p.y,{hp:700+run.wave*40,maxHp:700+run.wave*40,speed:54,damage:34+run.wave*2,radius:34}));
+  run.enemies.push(entity("enemy","boss",p.x,p.y,{hp:700+run.wave*40,maxHp:700+run.wave*40,speed:54,damage:34+run.wave*2,radius:34,abilityCd:7.5}));
 }
 function update(dt){
   run.elapsed+=dt;
@@ -746,6 +814,22 @@ function drawActor(ctx,e,isPlayer){
   if(e.team!=="player"&&e.type!=="civilian"&&e.hp<e.maxHp){
     ctx.fillStyle="#141a22";ctx.fillRect(-e.radius,-e.radius-9,e.radius*2,4);
     ctx.fillStyle=e.team==="friend"?"#89d68c":"#e48e78";ctx.fillRect(-e.radius,-e.radius-9,e.radius*2*Math.max(0,e.hp/e.maxHp),4);
+  }
+  if(run.mode==="human"&&e.team==="enemy"){
+    const labels={walker:"LUNGE BITE",runner:"RUSH",brute:"GROUND SLAM",armored:"IRON PLATING",boss:"SUMMON"};
+    if(e.type==="armored"&&run.elapsed<(e.armorUntil||0)){
+      ctx.strokeStyle="rgba(165,211,238,.9)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.radius+8,0,Math.PI*2);ctx.stroke();
+    }
+    if(e.type==="brute"&&e.slamWindup>0){
+      ctx.strokeStyle="rgba(255,145,80,.9)";ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,e.radius+10+(0.62-e.slamWindup)*80,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    }
+    if(e.type==="boss"){
+      ctx.strokeStyle="rgba(196,91,117,.68)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,e.radius+9+Math.sin(performance.now()*.006)*3,0,Math.PI*2);ctx.stroke();
+    }
+    if(e.lungeTime>0){
+      ctx.strokeStyle=e.type==="runner"?"rgba(178,230,111,.75)":"rgba(151,207,130,.65)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-e.radius*.6,e.radius*.45);ctx.lineTo(-e.radius*1.7,e.radius*1.3);ctx.moveTo(e.radius*.6,e.radius*.45);ctx.lineTo(e.radius*1.7,e.radius*1.3);ctx.stroke();
+    }
+    ctx.font="bold 8px sans-serif";ctx.textAlign="center";ctx.fillStyle="#f4e6c8";ctx.fillText(labels[e.type]||"INFECTED",0,-e.radius-17);
   }
   ctx.restore();
 }
@@ -866,7 +950,7 @@ function bindSettings(){
   $("zvhGoreToggle")?.addEventListener("change",event=>{profile.settings.effects=Boolean(event.target.checked);persist();});
   $("zvhShakeToggle")?.addEventListener("change",event=>{profile.settings.shake=Boolean(event.target.checked);persist();});
   $("zvhMobileToggle")?.addEventListener("change",event=>{profile.settings.mobile=Boolean(event.target.checked);persist();applyMobileControlVisibility();});
-  [["follow","zvhKeyFollow"],["attack","zvhKeyAttack"],["smash","zvhKeySmash"],["special","zvhKeySpecial"]].forEach(([name,id])=>{$(id)?.addEventListener("change",event=>{const candidate=String(event.target.value||"").toLowerCase();const duplicate=Object.keys(profile.settings.keys).find(other=>other!==name&&profile.settings.keys[other]===candidate);if(duplicate){event.target.value=profile.settings.keys[name];toast("That key is already assigned to "+duplicate.toUpperCase()+". Choose a different key.");return;}profile.settings.keys[name]=candidate;persist();syncSettingsForm();});});
+  [["follow","zvhKeyFollow"],["attack","zvhKeyAttack"],["smash","zvhKeySmash"],["special","zvhKeySpecial"]].forEach(([name,id])=>{$(id)?.addEventListener("change",event=>{const candidate=String(event.target.value||"").toLowerCase();const duplicate=Object.keys(profile.settings.keys).find(other=>other!==name&&profile.settings.keys[other]===candidate);if(duplicate){event.target.value=profile.settings.keys[name];toast("That key is already assigned to "+duplicate.toUpperCase()+". Choose a different key.");return;}profile.settings.keys[name]=candidate;persist();syncSettingsForm();updatePcKeyGuide();});});
   $("zvhSettingsOpen")?.addEventListener("click",openSettings);
   $("zvhSettingsClose")?.addEventListener("click",closeSettings);
   $("zvhSettingsOverlay")?.addEventListener("click",event=>{if(event.target===$("zvhSettingsOverlay"))closeSettings();});
