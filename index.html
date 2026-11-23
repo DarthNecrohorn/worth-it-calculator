@@ -3902,7 +3902,7 @@ try{
             <div>
                 <span class="worth-it-guest-kicker">WORTH IT · GUEST LITE</span>
                 <h2 id="worthItGuestLimitsTitle">Continue with limited guest access</h2>
-                <p id="worthItGuestLimitsIntro">Guest Lite lets you try Worth It with a small daily CALC Lite allowance. You can use only the first 50 built-in calculators provided by the site owner.</p>
+                <p id="worthItGuestLimitsIntro">Explore Worth It with a limited daily CALC Lite balance. Guest access includes the first 50 built-in calculators; the sections and community features below require an account.</p>
             </div>
             <button type="button" class="worth-it-guest-close" id="worthItGuestCloseBtn" aria-label="Return to account creation">✕</button>
         </header>
@@ -3911,9 +3911,9 @@ try{
             <section class="worth-it-guest-list worth-it-guest-allowed">
                 <h3><span aria-hidden="true">✓</span> Available as a guest</h3>
                 <ul>
-                    <li>Use only the <strong>first 50 built-in Worth It calculators</strong> provided by the site owner. Search, filter, enter values and view results.</li>
-                    <li><strong>Each paid calculation costs 0.1 CALC Lite.</strong> Your daily Guest Lite balance is 0.5 CALC Lite.</li>
-                    <li>Your balance resets to exactly <strong>0.5 CALC Lite each UTC day</strong> when you visit Worth It. Unused CALC Lite does not roll over or accumulate.</li>
+                    <li>Access the <strong>first 50 built-in Worth It calculators</strong>. You can browse, search, filter, enter values and view results.</li>
+                    <li><strong>Basic, Advanced and Scientific</strong> calculators are free. Each paid built-in calculation costs <strong>0.1 CALC Lite</strong>.</li>
+                    <li>Guest Lite provides <strong>0.5 CALC Lite per UTC day</strong>. The daily balance refreshes on the next UTC day; unused balance does not roll over.</li>
                 </ul>
             </section>
 
@@ -3921,23 +3921,17 @@ try{
                 <h3><span aria-hidden="true">🔒</span> Requires a Worth It account</h3>
                 <ul>
                     <li><strong>Website sections:</strong> Weather, News, Shop, Web Shop, Compare Cars, Markets, Currencies, Cryptocurrencies, Water Levels and Ship Tracking.</li>
-                    <li><strong>User-generated calculators:</strong> creating, editing, publishing, opening, using, favouriting, liking, disliking or reporting any calculator made by another user or the community. Those social actions are reserved for signed-in members and UGC calculators only. Only the first 50 site-owner calculators are available to guests.</li>
-                    ,                    <li><strong>People and social features:</strong> searching for users, opening user profiles, sending or receiving friend requests, following or being followed, and accessing friends, followers or following lists. Guest users do not have a public Worth It profile.</li>
+                    <li><strong>Community calculators:</strong> creating, editing, publishing, opening, using, favouriting, liking, disliking or reporting user-created calculators.</li>
+                    <li><strong>People and social features:</strong> searching for users, viewing profiles, sending or receiving friend requests, following members, and viewing friends, followers or following lists. Guest users do not have a public profile.</li>
                     <li><strong>Community chat:</strong> Global Chat, private one-to-one chats, group chats, sending messages, joining groups and using group invitations.</li>
                     <li><strong>Account features:</strong> profile management, account-linked community activity, the notification inbox, privacy controls, account data export and account deletion.</li>
                 </ul>
             </section>
         </div>
 
-        <label class="worth-it-guest-consent" for="worthItGuestConsentCheck">
-            <input type="checkbox" id="worthItGuestConsentCheck">
-            <span><strong>I agree to these Guest Lite limits and want to continue.</strong><small>We may remind you to create an account again after 24 hours. Signing in removes the guest restrictions.</small></span>
-        </label>
-        <p class="worth-it-guest-consent-status" id="worthItGuestConsentStatus" role="status" aria-live="polite">Review the available features and limitations, then check the box to continue.</p>
-
         <footer class="worth-it-guest-actions">
             <button type="button" class="worth-it-guest-create-account" id="worthItGuestCreateAccountBtn">Create an account instead</button>
-            <button type="button" class="worth-it-guest-continue" id="worthItGuestContinueButton" disabled>Continue as a guest <span aria-hidden="true">→</span></button>
+            <button type="button" class="worth-it-guest-continue" id="worthItGuestContinueButton">Continue as a guest <span aria-hidden="true">→</span></button>
         </footer>
     </section>
 </div>
@@ -6073,7 +6067,7 @@ if($("carResults")){
 <script src="/profile-ui.js?v=presence-tooltip-scale-20261019a&amp;owner-badge-emblem-20261116a&amp;rev=profile-member-badges-favourites-20261031a&amp;profile-isolation=20261104a&amp;free-preview=20261104a&amp;ugc-publish-notifications=20261105b&amp;profile-rich-ugc-cards=20261108a&amp;route-back-20261109a&amp;profile-badge-svg=20261116a"></script>
 <script src="/chat-ui.js?v=chat-private-media-signed-access-20261030a&amp;vector-chat-notification-icons-20261116a&amp;rev=chat-member-badges-20261031a&amp;group-roster-header-mobile-nav=20261116b&amp;mobile-chat-list-drawer=20261116a"></script>
 <script src="/user-search.js?v=worthitusersearch20261014a"></script>
-<script src="/guest-mode.js?v=guest-webshop-ugc-guards-20261031a&amp;rev=disable-auto-signup-prompt-20261121a"></script>
+<script src="/guest-mode.js?v=guest-lite-dialog-polish-20261123a"></script>
 <script src="/ugc-blueprint-import.js?v=blueprint-quick-fix-draft-20261113a"></script>
 <script src="/ugc-calculator-currency-data.js?v=shared-currency-data-20261113a"></script>
 <script src="/ugc-calculator-engine.js?v=shared-v1-extraction-20261113a"></script>

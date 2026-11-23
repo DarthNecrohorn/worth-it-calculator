@@ -235,9 +235,8 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .feedbac
  }
 }
 
-/* Mobile Guest Lite: use explicit grid rows so consent and buttons can never
-   sit on top of the scrollable limits list. The height override also beats the
-   legacy 78dvh cap still present in the base stylesheet. */
+/* Mobile Guest Lite: reserve one flexible row for the scrollable limits
+   list and keep the two action buttons together in the final row. */
 @media(max-width:650px){
  .worth-it-guest-overlay{
   align-items:center!important;
@@ -249,7 +248,7 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] .feedbac
  html[data-ui-scale] .worth-it-guest-card{
   display:grid!important;
   grid-template-columns:minmax(0,1fr)!important;
-  grid-template-rows:auto minmax(0,1fr) auto auto auto!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
   width:min(100%,540px)!important;
   height:min(94dvh,720px)!important;
   max-height:calc(100dvh - 16px)!important;

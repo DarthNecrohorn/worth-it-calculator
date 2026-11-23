@@ -22,22 +22,21 @@ const restrictedSections = [
     ["Ship tracking", "openShipTracking"]
 ];
 
-test("a dedicated Guest Lite explanation contains the required consent checkbox", () => {
+test("Guest Lite limits can be reviewed and continued without obsolete consent or reminder UI", () => {
     assert.match(html, /id="worthItGuestLimitsOverlay"[^>]*hidden/);
     assert.match(html, /id="worthItGuestLimitsTitle">Continue with limited guest access/);
-    assert.match(html, /id="worthItGuestConsentCheck"/);
-    assert.match(html, /I agree to these Guest Lite limits and want to continue/);
-    assert.match(html, /id="worthItGuestContinueButton" disabled>Continue as a guest/);
-    assert.match(guest, /if \(!checkbox\?\.checked\)/);
-    assert.match(guest, /writeTimestamp\(LAST_ACCEPTED_KEY, Date\.now\(\)\)/);
+    assert.match(html, /id="worthItGuestContinueButton">Continue as a guest/);
+    assert.doesNotMatch(html, /worthItGuestConsentCheck|worthItGuestConsentStatus|I agree to these Guest Lite limits|remind you to create an account again after 24 hours/i);
+    assert.doesNotMatch(guest, /worthItGuestConsentCheck|worthItGuestConsentStatus|LAST_ACCEPTED_KEY|writeTimestamp\(LAST_ACCEPTED_KEY/);
+    assert.match(guest, /function acceptGuestLimits\(\)[\s\S]*?closeGuestLimits\(false\)/);
 });
 
-test("Guest Lite explicitly lists the default calculator catalogue as the only available feature", () => {
+test("Guest Lite clearly explains its calculator access and daily CALC Lite allowance", () => {
     assert.match(html, /first 50 built-in Worth It calculators/);
-    assert.match(html, /first 50 built-in Worth It calculators/);
-    assert.match(html, /Each paid calculation costs 0\.1 CALC Lite/);
-    assert.match(html, /resets to exactly <strong>0\.5 CALC Lite each UTC day/);
-    assert.match(html, /Unused CALC Lite does not roll over or accumulate/);
+    assert.match(html, /Basic, Advanced and Scientific/);
+    assert.match(html, /Each paid built-in calculation costs <strong>0\.1 CALC Lite/);
+    assert.match(html, /0\.5 CALC Lite per UTC day/);
+    assert.match(html, /unused balance does not roll over/);
     assert.match(guest, /const BUILT_IN_CALCULATORS = new Set/);
     assert.match(guest, /GUEST_BILLABLE_CALCULATORS/);
     assert.match(guest, /isBillableCalculator/);
@@ -102,8 +101,9 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
+    assert.match(css, /\.worth-it-guest-actions\{[\s\S]*?padding:15px 0 0;/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+    assert.match(html, /guest-mode\.js\?v=guest-lite-dialog-polish-20261123a/);
     assert.match(workflow, /guest-mode\.js/);
 });
 
@@ -112,12 +112,14 @@ test("mobile calculator catalogue keeps three cards per row and Guest Lite conse
     const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
     assert.ok(communityCss.includes("grid-template-columns:repeat(3,minmax(0,1fr)) !important"));
     assert.match(communityCss, /\.calc-favorite-icon\s*\{[^}]*translateY\(0px\)/);
-    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto auto auto!important"));
+    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto!important"));
     assert.ok(communityCss.includes("html[data-ui-scale] .worth-it-guest-card"));
     assert.ok(communityCss.includes("overflow-y:auto!important"));
     assert.ok(communityCss.includes("position:static!important"));
+    assert.doesNotMatch(html, /worthItGuestConsentCheck|worthItGuestConsentStatus/);
+    assert.doesNotMatch(css, /\.worth-it-guest-consent/);
     assert.match(html, /community-features\.css\?v=hamburger-instant-20261105a/);
-    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+    assert.match(html, /guest-mode\.js\?v=guest-lite-dialog-polish-20261123a/);
 });
 
 test("Guest Lite modal stacks above the sticky header while open", () => {
