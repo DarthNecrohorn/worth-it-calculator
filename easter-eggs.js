@@ -30,7 +30,7 @@
  const $=id=>document.getElementById(id);
  const client=()=>window.supabaseClient;
  const signedIn=async()=>{const c=client();if(!c?.auth)return null;try{const r=await c.auth.getSession();return r?.data?.session?.user||null;}catch(_){return null;}};
- function active(){return !document.hidden&&document.visibilityState!=="hidden"&&window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches!==true;}
+ function active(){return !document.hidden&&document.visibilityState!=="hidden";}
  function toast(egg,message){
   let host=$("worthItEasterEggToast");
   if(!host){host=document.createElement("aside");host.id="worthItEasterEggToast";host.className="worth-it-easter-toast";host.setAttribute("role","status");host.setAttribute("aria-live","polite");document.body.appendChild(host);}
@@ -76,7 +76,7 @@
    if(state.enabled)start();else stop();
   }catch(error){state.loaded=false;stop();console.warn("Easter Eggs require the reviewed database migration:",error);}
  }
- function start(){stop();timer=window.setInterval(()=>{if(active()&&Date.now()-lastEvent>20*60*1000){lastEvent=Date.now();void encounter();}},60*1000);}
+ function start(){stop();if(!lastEvent)lastEvent=Date.now();timer=window.setInterval(()=>{if(active()&&Date.now()-lastEvent>20*60*1000){lastEvent=Date.now();void encounter();}},60*1000);}
  function stop(){if(timer!==null)window.clearInterval(timer);timer=null;const host=$("worthItEasterEggToast");if(host)host.hidden=true;}
  async function saveEnabled(enabled){
   const c=client();if(!c?.rpc)throw new Error("Sign in to save this setting.");
@@ -94,7 +94,7 @@
    const found=new Set(Array.isArray(r.data?.discoveries)?r.data.discoveries:[]);
    CATALOG.forEach(egg=>{
     const isFound=found.has(egg.id),card=document.createElement("div");card.className="worth-it-easter-egg-card "+(isFound?"is-discovered":"is-unknown");
-    const symbol=document.createElement("span");symbol.className="worth-it-easter-egg-symbol";symbol.setAttribute("aria-hidden","true");symbol.textContent=isFound?egg.icon:"?";
+    const symbol=document.createElement("span");symbol.className="worth-it-easter-egg-symbol";symbol.setAttribute("aria-hidden","true");symbol.textContent=isFound?egg.icon:"👤";
     const title=document.createElement("strong");title.className="worth-it-easter-egg-name";title.textContent=isFound?egg.name:"Undiscovered";
     const rarity=document.createElement("small");rarity.className="worth-it-easter-egg-rarity";rarity.textContent=egg.rarity;
     card.append(symbol,title,rarity);host.appendChild(card);
