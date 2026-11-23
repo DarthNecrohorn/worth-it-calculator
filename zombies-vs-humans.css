@@ -5,7 +5,7 @@
 .zvh-section *{box-sizing:border-box}
 .zvh-shell{width:min(1320px,100%);margin:0 auto}
 .zvh-topbar{display:flex;align-items:center;gap:16px;min-height:58px;margin-bottom:22px;padding:10px 14px;border:1px solid rgba(148,163,184,.22);border-radius:16px;background:rgba(14,21,36,.88);box-shadow:0 12px 32px rgba(0,0,0,.2)}
-.zvh-back-button,.zvh-icon-button,.zvh-pause-button,.zvh-end-run{border:1px solid rgba(148,163,184,.25);border-radius:10px;background:#182238;color:#eef2ff;font:700 12px inherit;cursor:pointer}
+.zvh-back-button,.zvh-icon-button,.zvh-pause-button,.zvh-end-run{border:1px solid rgba(148,163,184,.25);border-radius:10px;background:#182238;color:#eef2ff;font:700 12px system-ui,sans-serif;cursor:pointer}
 .zvh-back-button{padding:10px 13px;white-space:nowrap}
 .zvh-brand{display:flex;align-items:center;gap:10px;margin:0 auto 0 0}
 .zvh-brand-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,#6d4de6,#1f9b91);font-size:23px}
@@ -135,3 +135,11 @@
  .zvh-end-run{margin-left:auto}
 }
 @media(prefers-reduced-motion:reduce){.zvh-mode-card,.zvh-discovery-egg{animation:none!important;transition:none!important}}
+
+.zvh-mode-card.is-selected{outline:2px solid rgba(170,153,255,.75);outline-offset:2px}
+.zvh-lobby-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:18px 0 4px;padding:13px 15px;border:1px solid rgba(139,118,240,.24);border-radius:13px;background:rgba(104,83,188,.08)}
+.zvh-lobby-actions button{min-height:43px;padding:10px 19px;border:1px solid rgba(180,164,255,.52);border-radius:11px;background:linear-gradient(110deg,#614bd1,#237e80);color:#fff;font-size:12px;font-weight:950;letter-spacing:.04em;cursor:pointer}
+.zvh-lobby-actions button:hover{filter:brightness(1.1)}
+.zvh-lobby-actions span{color:#99a7bc;font-size:10px}
+.zvh-discovery-egg:focus-visible{outline:3px solid #e6ffe5;outline-offset:4px}
+@media(max-width:600px){.zvh-lobby-actions{align-items:stretch}.zvh-lobby-actions button{width:100%}.zvh-lobby-actions span{text-align:center}}
