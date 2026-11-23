@@ -77,13 +77,12 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     assert.ok(resetBody.includes("++themeRequest"));
     assert.ok(resetBody.includes("themeMutationInProgress=true"));
     assert.ok(resetBody.includes("markThemeResetPending(knownUserId)"));
-    assert.ok(resetBody.includes("clearLocalThemeState(knownUserId)"));
+    assert.match(community, /function markThemeResetPending\(userId\)[\s\S]*?clearLocalThemeState\(userId\)/);
     assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
     assert.ok(accountReset.includes("sb()?.auth?.getSession?.()"));
     assert.ok(accountReset.includes("deleteAndVerifySavedTheme(userId)"));
-    assert.ok(accountReset.includes("clearLocalThemeState(userId)"));
     assert.ok(accountReset.includes("markThemeResetPending(knownUserId)"));
     assert.ok(accountReset.includes("finishThemeMutation()"));
 });
@@ -119,7 +118,7 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
     assert.doesNotMatch(reset, /if\(!themeEntitled/);
     assert.doesNotMatch(reset, /if\(!themeSettingsOpen/);
     assert.match(reset, /markThemeResetPending\(knownUserId\)/);
-    assert.match(reset, /clearLocalThemeState\(knownUserId\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
