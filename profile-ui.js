@@ -549,7 +549,7 @@ function renderProfile(p,s,isOwn){
  renderProfileDescription(p.description,id,Boolean(isOwn));
  void loadWorthItProfileBadges(id,Boolean(isOwn));
  void loadWorthItProfileFavorites(id);
- if(window.WorthItEasterEggs?.renderProfile)void window.WorthItEasterEggs.renderProfile(id);
+ if(currentUser&&window.WorthItEasterEggs?.renderProfile)void window.WorthItEasterEggs.renderProfile(id);else{const eggsSection=$("worthItProfileEasterEggs");if(eggsSection)eggsSection.hidden=true;}
  const avatarControls=$("worthItProfileAvatarControls");if(avatarControls)avatarControls.hidden=!isOwn;
  const bannerControls=$("worthItProfileBannerControls");if(bannerControls)bannerControls.hidden=!isOwn;
  const removePhoto=$("worthItProfileAvatarRemove");if(removePhoto)removePhoto.hidden=!isOwn||!safeAvatarUrl(p.avatar_url);
