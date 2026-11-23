@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const sb = () => window.supabaseClient || null;
 const FAVOURITES_KEY = "worthItCalculatorFavorites:v1:";
 const THEME_KEY = "worthItCustomTheme:v1:";
+const THEME_BOOT_KEY = "worthItCustomThemeBoot:v1:";
 const DEFAULT_THEME = {
  name:"Worth It",
  primary:"#7C5CFF",secondary:"#38BDF8",hover:"#8B5CF6",header:"#0B1120",
@@ -59,6 +60,7 @@ let themeRequest = 0;
 let themeRemoteAvailable = null;
 let themeEntitled = false;
 let themeEntitlementResolved = false;
+let themeBootAccess = null;
 let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
@@ -551,6 +553,7 @@ function applyTheme(value){
  if(preview)preview.classList.toggle("is-custom",isCustomTheme(selectedTheme));
  updateThemeDesigner(selectedTheme);
  updateAppearanceModeControls();
+ persistThemeBootSnapshot(selectedTheme);
  // Notify theme-aware modules (notably the generated chat wallpaper) after
  // all root tokens have been updated.
  try{window.dispatchEvent(new Event("worthit-theme-change"));}catch(_){}
@@ -569,7 +572,9 @@ function setThemeStatus(message,isError){
 }
 async function clearThemeAfterExpiry(userId,request){
  savedTheme=DEFAULT_THEME;
+ themeBootAccess=null;
  removeLocal(scopedKey(THEME_KEY,userId));
+ removeLocal(scopedKey(THEME_BOOT_KEY,userId));
  themeRemoteAvailable=userId?null:false;
  if(userId&&themeRemoteAvailable!==false){
   try{
@@ -606,6 +611,47 @@ function readCachedCustomTheme(userId){
   return isCustomTheme(cached)?cached:null;
  }catch(_){return null;}
 }
+function persistThemeBootSnapshot(value){
+ // The bootstrap snapshot is only a paint optimisation. It is written only after
+ // the current account's entitlement has been positively resolved and is never
+ // used to authorize saving, editing, or syncing a theme.
+ if(!themeEntitlementResolved||themePreviewActive||!themeUserId)return;
+ const key=scopedKey(THEME_BOOT_KEY,themeUserId);
+ if(!themeEntitled||!isCustomTheme(value)){
+  removeLocal(key);
+  return;
+ }
+ const access=themeBootAccess||{};
+ const owner=access.owner===true;
+ const plan=String(access.plan||"");
+ const expiry=String(access.expiresAt||"");
+ const expiresAt=Date.parse(expiry);
+ if(!owner&&(!["premium","premium_lite"].includes(plan)||!Number.isFinite(expiresAt)||expiresAt<=Date.now())){
+  removeLocal(key);
+  return;
+ }
+ const root=document.documentElement;
+ const properties={};
+ for(let index=0;index<root.style.length;index++){
+  const name=root.style.item(index);
+  if(!name.startsWith("--")||name==="--worth-it-boot-background"||name==="--ui-scale")continue;
+  properties[name]=root.style.getPropertyValue(name);
+ }
+ const dataset={};
+ [
+  "worthItCustomTheme","worthItButtonStyle","worthItCardStyle","worthItCorners",
+  "worthItButtonAnimation","worthItHoverEffect","worthItShadowIntensity",
+  "worthItBorderThickness","worthItFocusAppearance"
+ ].forEach(name=>{
+  if(root.dataset[name])dataset[name]=root.dataset[name];
+ });
+ writeLocal(key,JSON.stringify({
+  version:1,userId:themeUserId,owner,plan,expiresAt:expiry,
+  themeName:String(value?.name||"Custom").slice(0,60),
+  background:String(value?.background||""),
+  properties,dataset
+ }));
+}
 async function loadThemeForSession(){
  const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
  const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
@@ -634,7 +680,7 @@ async function loadThemeForSession(){
   return;
  }
  if(!userId){
-  themeRemoteAvailable=false;themeEntitled=false;themeEntitlementResolved=true;savedTheme=DEFAULT_THEME;
+  themeRemoteAvailable=false;themeEntitled=false;themeEntitlementResolved=true;themeBootAccess=null;savedTheme=DEFAULT_THEME;
   updateThemeAccessUI();applyTheme(livePreview||DEFAULT_THEME);
   setThemeStatus("You can preview all Custom Theme options here. Sign in with Premium Lite or Premium to save a theme.",false);
   return;
@@ -657,6 +703,7 @@ async function loadThemeForSession(){
   setThemeStatus("Your subscription could not be verified; no saved theme has been changed, and your current account theme is being kept. Please retry when the account service is available.",true);
   return;
  }
+ themeBootAccess={owner:wallet.is_owner===true,plan:String(wallet.premium_plan||""),expiresAt:String(wallet.premium_expires_at||"")};
  themeEntitled=hasPremiumThemeAccess(wallet);
  themeEntitlementResolved=true;
  updateThemeAccessUI();
@@ -834,12 +881,14 @@ async function resetCustomThemeFromSettings(){
    }
   }
   removeLocal(scopedKey(THEME_KEY,userId));
+  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
  }else{
   themeRemoteAvailable=false;
  }
  // Invalidate requests that started while the account row was being deleted.
  themeRequest=Math.max(themeRequest,resetRequest)+1;
  themeUserId=userId;
+ themeBootAccess=null;
  savedTheme=DEFAULT_THEME;
  themePreviewActive=false;
  applyTheme(DEFAULT_THEME);
