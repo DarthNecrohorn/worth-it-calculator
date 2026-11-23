@@ -9,7 +9,6 @@
 /disclaimer/ /disclaimer 301
 
 # Canonical app-section URLs.
-/compare-cars/ /compare-cars 301
 /weather/ /weather 301
 /news/ /news 301
 /shop/ /shop 301
@@ -20,7 +19,5 @@
 /ship-tracking/ /ship-tracking 301
 /calculators/ /calculators 301
 /faq/ /faq 301
-/cars/ /compare-cars 301
-/cars /compare-cars 301
 /crypto/ /cryptocurrencies 301
 /crypto /cryptocurrencies 301
