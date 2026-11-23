@@ -66,7 +66,7 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(html.includes("Example link"));
  assert.ok(js.includes("const THEME_COLOR_FIELDS"));
  assert.ok(js.includes("const THEME_SELECT_FIELDS"));
- assert.ok(js.includes("theme_config:themeConfig(theme)"));
+ assert.ok(js.includes('rpc("save_worth_it_custom_theme",{p_theme:theme})'));
  assert.ok(js.includes('select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")'));
  assert.ok(js.includes("--worth-it-theme-heading-font-family"));
  assert.ok(js.includes("--worth-it-theme-body-line-height"));
@@ -193,12 +193,17 @@ test("existing chat soft-delete keeps tombstones and per-user history behaviour"
  assert.ok(actions.includes("set body = ''"));
  assert.ok(actions.includes("'is_deleted', m.deleted_at is not null"));
 });
-test("Preview uses account-scoped local fallbacks when community tables are not installed",()=>{
+test("Community data keeps safe local fallbacks while Custom Theme account saves require verified RPC persistence",()=>{
  assert.ok(js.includes("isMissingCommunitySchema"));
  assert.ok(js.includes("favouritesRemoteAvailable===false"));
- assert.ok(js.includes("themeRemoteAvailable===false"));
+ assert.ok(js.includes("themeRemoteAvailable=false"));
  assert.ok(js.includes("scopedKey(FAVOURITES_KEY,userId)"));
  assert.ok(js.includes("scopedKey(THEME_KEY,userId)"));
+ const saveStart=js.indexOf("async function saveCustomTheme()");
+ const resetStart=js.indexOf("async function resetCustomTheme()",saveStart);
+ const save=js.slice(saveStart,resetStart);
+ assert.ok(save.includes('rpc("save_worth_it_custom_theme",{p_theme:theme})'));
+ assert.ok(!save.includes("saved on this device only"));
 });
 test("Admin report list stays read-only when new moderation columns are absent",()=>{
  assert.ok(admin.includes("isCommunityReportMigrationMissing"));
@@ -223,12 +228,17 @@ test("community migration is designed for repeat execution and has postgres smok
  assert.ok(smoke.includes("ordinary built-in calculator was allowed"));
  assert.ok(sql.includes("drop constraint if exists worth_it_calculator_favorites_ugc_key_check"));
 });
-test("Preview uses account-scoped local fallbacks when community tables are not installed",()=>{
+test("Community data keeps safe local fallbacks while Custom Theme account saves require verified RPC persistence",()=>{
  assert.ok(js.includes("isMissingCommunitySchema"));
  assert.ok(js.includes("favouritesRemoteAvailable===false"));
- assert.ok(js.includes("themeRemoteAvailable===false"));
+ assert.ok(js.includes("themeRemoteAvailable=false"));
  assert.ok(js.includes("scopedKey(FAVOURITES_KEY,userId)"));
  assert.ok(js.includes("scopedKey(THEME_KEY,userId)"));
+ const saveStart=js.indexOf("async function saveCustomTheme()");
+ const resetStart=js.indexOf("async function resetCustomTheme()",saveStart);
+ const save=js.slice(saveStart,resetStart);
+ assert.ok(save.includes('rpc("save_worth_it_custom_theme",{p_theme:theme})'));
+ assert.ok(!save.includes("saved on this device only"));
 });
 test("Admin report list stays read-only when new moderation columns are absent",()=>{
  assert.ok(admin.includes("isCommunityReportMigrationMissing"));
