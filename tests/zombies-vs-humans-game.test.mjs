@@ -31,29 +31,23 @@ test("the game has its own routed app section, menu asset references and a canon
     assert.match(js, /const ROUTE = "\/zombiesvshumans"/);
 });
 
-test("the easter egg is random, unlocks once, and removes itself after the persistent unlock", () => {
-    assert.match(js, /function scheduleEgg\(delay\)/);
-    assert.match(js, /function revealEgg\(\)/);
-    assert.match(js, /function unlockGame\(\)/);
-    assert.match(js, /profile\.unlocked=true/);
-    assert.match(js, /if\(profile\.unlocked\)return/);
-    assert.ok(js.includes(String.raw`const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i`));
-    assert.ok(js.includes("if(IS_PAGES_PREVIEW)return initial?3500+Math.random()*2500:6500+Math.random()*5500;"));
-    assert.ok(js.includes("const previewGuest=IS_PAGES_PREVIEW&&!userId;"));
-    assert.ok(js.includes('button.style.right="22px"'));
-    assert.ok(js.includes('button.style.bottom="110px"'));
-    assert.ok(js.includes("if(!previewGuest){"));
-    assert.ok(js.includes("Preview guest QA: keep the discovery target visible until clicked."));
-    assert.ok(!js.includes('if(IS_PAGES_PREVIEW&&!readLocal("guest").unlocked)scheduleEgg(nextEggDelay(true));'));
-    assert.ok(js.includes('document.addEventListener("visibilitychange"'));
-    assert.ok(html.includes("zvh-preview-egg-pinned-guest-20261123d"));
-    assert.ok(js.includes("button.style.zIndex=\"2147483000\""));
-    assert.ok(js.includes("else scheduleEgg(nextEggDelay(true))"));
-
+test("the zombie discovery button sits beside the hero slogan and unlocks the game", () => {
+    assert.match(html, /✦ Smart decisions made simple <button type="button" id="zvhDiscoveryEgg"/);
+    assert.match(html, /id="zvhDiscoveryEgg"[^>]*hidden>🧟<\\/button>/);
+    assert.match(css, /\\.zvh-discovery-egg\\{position:relative;display:inline-grid/);
+    assert.match(css, /\\.zvh-discovery-egg\\[hidden\\]\\{display:none!important\\}/);
+    assert.match(js, /function unlockGame\\(\\)/);
+    assert.match(js, /profile\\.unlocked=true/);
+    assert.match(js, /if\\(profile\\.unlocked\\)return/);
+    assert.ok(js.includes('const EGG_ID = "zvhDiscoveryEgg";'));
+    assert.ok(js.includes("discovery.hidden=visible"));
+    assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
+    assert.ok(!js.includes("scheduleEgg("));
+    assert.ok(!js.includes("IS_PAGES_PREVIEW"));
+    assert.ok(html.includes("zvh-hero-inline-discovery-egg-20261123e"));
     assert.match(js, /STORAGE_PREFIX = "worthItZvhSave:v1:"/);
     assert.match(js, /zvhNavEntry","zvhMoreMenuEntry/);
 });
-
 test("Zombie mode has orders and progressively stronger human military attackers", () => {
     for (const order of ["follow", "attack", "smash"]) assert.ok(html.includes('data-zvh-order="'+order+'"'));
     for (const type of ["civilian", "police", "soldier", "tank", "heli"]) assert.ok(js.includes(type+":{"));
