@@ -51,3 +51,34 @@ test("network and timeout fallbacks never reveal an expired or unverified custom
 test("the Custom Theme script cache key changes with the first-paint bootstrap", () => {
     assert.match(html, /theme-boot-snapshot=20261123a/);
 });
+
+
+test("saving a new preset invalidates older theme hydration and prevents concurrent loads", () => {
+    assert.match(community, /let themeMutationInProgress = false/);
+    const loadStart = community.indexOf("async function loadThemeForSession()");
+    const loadBody = community.slice(loadStart, loadStart + 260);
+    assert.match(loadBody, /if\(themeMutationInProgress\)return/);
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const saveBody = community.slice(saveStart, resetStart);
+    assert.match(saveBody, /\+\+themeRequest/);
+    assert.match(saveBody, /themeMutationInProgress=true/);
+    assert.match(saveBody, /finally\{themeMutationInProgress=false/);
+});
+
+test("reset invalidates pending reads, removes both caches, and serializes with saves", () => {
+    const resetStart = community.indexOf("async function resetCustomTheme()");
+    const accountResetStart = community.indexOf("async function resetCustomThemeFromSettings()", resetStart);
+    const resetBody = community.slice(resetStart, accountResetStart);
+    assert.match(resetBody, /\+\+themeRequest/);
+    assert.match(resetBody, /themeMutationInProgress=true/);
+    assert.match(resetBody, /removeLocal\(scopedKey\(THEME_KEY,themeUserId\)\)/);
+    assert.match(resetBody, /removeLocal\(scopedKey\(THEME_BOOT_KEY,themeUserId\)\)/);
+    assert.match(resetBody, /finally\{\s*themeMutationInProgress=false/);
+    assert.match(community, /async function performResetCustomThemeFromSettings\(\)/);
+    assert.match(community, /async function resetCustomThemeFromSettings\(\)[\s\S]*?themeMutationInProgress=true[\s\S]*?finally\{\s*themeMutationInProgress=false/);
+});
+
+test("theme script cache key is refreshed for the save/reset race fix", () => {
+    assert.match(html, /theme-save-race=20261123a/);
+});
