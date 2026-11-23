@@ -1,12 +1,12 @@
--- Save Custom Themes through a single server-side upsert.
--- This keeps insert and update behaviour identical and rechecks Premium access
--- at the database boundary on every save.
+-- Save Custom Themes through one authenticated, atomic upsert.
+-- SECURITY INVOKER keeps the existing per-user RLS policies in force while the
+-- private entitlement helper rechecks Premium access at the database boundary.
 begin;
 
 create or replace function public.save_worth_it_custom_theme(p_theme jsonb)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
