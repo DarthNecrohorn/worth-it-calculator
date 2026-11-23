@@ -68,7 +68,7 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(js.includes("const THEME_COLOR_FIELDS"));
  assert.ok(js.includes("const THEME_SELECT_FIELDS"));
  assert.ok(js.includes('rpc("save_worth_it_custom_theme",{p_theme:theme})'));
- assert.ok(js.includes('select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")'));
+ assert.ok(js.includes('select("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at")'));
  assert.ok(js.includes("--worth-it-theme-heading-font-family"));
  assert.ok(js.includes("--worth-it-theme-body-line-height"));
  assert.ok(js.includes("--worth-it-theme-link-color"));
