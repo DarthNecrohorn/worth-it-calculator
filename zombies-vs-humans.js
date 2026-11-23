@@ -383,6 +383,7 @@ function startRun(){
   }
   for(let i=0;i<6;i++)spawnEnemy();
   $("zvhLobby").hidden=true;$("zvhGameView").hidden=false;$("zvhRunResult").hidden=true;
+  applyMobileControlVisibility();
   $("zvhHudMode").textContent=mode==="zombie"?"ZOMBIE":"HUMAN";
   $("zvhHudWave").textContent="1";$("zvhHudHealth").textContent=String(Math.round(run.player.hp));
   $("zvhHealthFill").style.width="100%";$("zvhStageMessage").hidden=true;
