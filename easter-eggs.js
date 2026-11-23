@@ -15,16 +15,28 @@
   ["secret_worth_it_message","Secret Worth It Message","✦","Epic"],["cosmic_event","Cosmic Event","🌌","Mythic"]
  ].map(([id,name,icon,rarity])=>({id,name,icon,rarity}));
  const MESSAGES={
-  shooting_star:["A tiny reminder: even small wins count.","Make a wish. Keep moving."],
-  mystery_box:["Something good may be closer than you think.","Curiosity is its own reward."],
-  random_fact:["Octopuses have three hearts. Worth thinking about." ,"A day on Venus is longer than its year."],
-  fortune_cookie:["The next good idea may arrive when you least expect it.","Your future self says: keep going."],
-  worth_it_robot:["Beep boop. Your curiosity has been detected.","System note: you are doing better than you think."],
-  tiny_creature:["A tiny visitor wishes you a lovely day.","Psst… keep exploring."],
-  unexpected_cat:["Meow. This was not on the roadmap.","The cat has reviewed your choices. Purr approved."],
-  alien_message:["Greetings, Earthling. Your curiosity is impressive.","We come in peace. And excellent UI."],
-  "404_visitor":["404: ordinary day not found.","A visitor from the unknown says hello."],
-  secret_worth_it_message:["Some things are worth discovering.","You found a little moment of wonder."]
+  ufo_encounter:["Unidentified flying object spotted. It seems impressed by your choices.","The UFO paused, scanned Worth It, and gave a tiny thumbs-up.","Pilot report: curiosity levels are unusually high."],
+  secret_visitor:["Someone left a tiny hello from the other side of the screen.","A mysterious visitor stopped by. They said to keep this place curious.","You weren't expecting company. Neither were they."],
+  shooting_star:["A tiny reminder: even small wins count.","Make a wish. Keep moving.","Somewhere, a star just crossed your path."],
+  lost_astronaut:["Houston, we found a curious explorer.","An astronaut drifted by and asked if this is the way to the future.","Space log: one small step for a user, one giant leap for curiosity."],
+  mystery_box:["Something good may be closer than you think.","Curiosity is its own reward.","The box is empty. Just kidding — it contained this message."],
+  worth_it_glitch:["Reality briefly skipped a frame. Everything is fine. Probably.","W̷o̷r̷t̷h̷ ̷I̷t̷?̷ The glitch says yes.","A harmless glitch in the matrix. Carry on."],
+  secret_portal:["A portal opened for a moment. It smelled faintly of possibility.","You found a shortcut to absolutely nowhere. Still a great discovery.","The portal is closed again. It says thanks for visiting."],
+  golden_key:["A golden key appeared. It unlocks no doors… yet.","Some secrets are better discovered than explained.","You found a key. The mystery is what it opens."],
+  random_fact:["Octopuses have three hearts. Worth thinking about.","A day on Venus is longer than its year.","Bananas are berries, but strawberries aren't. Botany is strange."],
+  daily_mystery:["Today's mystery: what tiny thing will make you smile?","A riddle for today: what gets bigger the more you take away? A hole.","The answer can wait. Enjoy the question."],
+  fortune_cookie:["The next good idea may arrive when you least expect it.","Your future self says: keep going.","A pleasant surprise is closer than it looks."],
+  worth_it_robot:["Beep boop. Your curiosity has been detected.","System note: you are doing better than you think.","Robot wisdom #07: remember to take breaks, human."],
+  tiny_creature:["A tiny visitor wishes you a lovely day.","Psst… keep exploring.","The tiny creature has left a microscopic high-five."],
+  random_button:["The random button has selected… this exact moment.","You pressed absolutely nothing. Excellent timing.","Randomness says hello. It refuses to elaborate."],
+  lucky_coin:["A lucky coin rolled by. Heads: good vibes. Tails: also good vibes.","Fortune favours the curious. Apparently.","You found a coin. It is worth exactly one smile."],
+  unexpected_cat:["Meow. This was not on the roadmap.","The cat has reviewed your choices. Purr approved.","A cat appeared, judged the layout, and vanished."],
+  golden_ufo:["A golden UFO? That's not in the usual flight path.","Legend says the golden visitor appears only to the very curious.","A rare cosmic guest has acknowledged your existence."],
+  alien_message:["Greetings, Earthling. Your curiosity is impressive.","We come in peace. And excellent UI.","Our sensors detected a high concentration of curiosity here."],
+  "404_visitor":["404: ordinary day not found.","A visitor from the unknown says hello.","The page you seek is not here. But this little secret is."],
+  time_traveler:["A traveller from tomorrow says: this moment mattered.","Future you left a note: keep being curious.","Temporal scan complete. Your present is looking good."],
+  secret_worth_it_message:["Some things are worth discovering.","You found a little moment of wonder.","Worth It has a secret. You just became part of it."],
+  cosmic_event:["A tiny cosmic event just happened. No telescope required.","The stars aligned for a moment. You noticed.","Cosmic update: the universe remains wonderfully weird."]
  };
  let state={loaded:false,enabled:true,discoveries:new Set()},timer=null,lastEvent=0,sessionUser="";
  const $=id=>document.getElementById(id);
