@@ -122,3 +122,10 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
     assert.match(html, /theme-reset-save-confirm=20261123a/);
 });
+
+
+test("first paint does not reveal a cached Custom Theme while its account reset is pending", () => {
+    assert.match(html, /const resetPending = localStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\) === "1"/);
+    assert.match(html, /const snapshot = resetPending \? null/);
+    assert.match(html, /if \(!resetPending && !applyCachedThemeBootSnapshot/);
+});
