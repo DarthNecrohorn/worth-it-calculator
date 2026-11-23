@@ -861,10 +861,25 @@ async function loadThemeForSession(){
     hover:result.data.hover_color,header:result.data.header_color,...config
    });
    const remoteUpdatedAt=Date.parse(String(result.data.updated_at||""));
-   if(commit?.theme&&!sameThemeSnapshot(remoteTheme,commit.theme)){
-    // The last independently verified save is authoritative until the server
-    // returns that exact complete theme. Timestamp equality is not sufficient:
-    // Postgres transaction timestamps can collide at the application's precision.
+   if(commit?.theme){
+    if(sameThemeSnapshot(remoteTheme,commit.theme)){
+     // Keep the durable snapshot even after a matching read. A later request
+     // can hit a lagging replica/cache and return an older row again.
+     savedTheme=commit.theme;
+     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
+     applyTheme(livePreview||savedTheme);
+     return;
+    }
+    if(Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt>commit.updatedAt){
+     // A genuinely newer server save (for example, from another device) may
+     // replace this browser's committed snapshot.
+     savedTheme=remoteTheme;
+     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
+     writeThemeCommit(userId,result.data.updated_at,remoteTheme);
+     applyTheme(livePreview||savedTheme);
+     return;
+    }
+    // Different content with an equal/older timestamp is stale, not a new save.
     savedTheme=commit.theme;
     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
     applyTheme(livePreview||savedTheme);
@@ -875,7 +890,6 @@ async function loadThemeForSession(){
     applyTheme(livePreview||savedTheme);
     return;
    }
-   if(commit)removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
    savedTheme=remoteTheme;
    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
    applyTheme(livePreview||savedTheme);

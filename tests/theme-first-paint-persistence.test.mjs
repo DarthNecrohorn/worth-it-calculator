@@ -122,7 +122,7 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
-    assert.match(html, /theme-committed-snapshot=20261123a/);
+    assert.match(html, /theme-committed-snapshot=20261123b/);
 });
 
 
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-committed-snapshot=20261123a/);
+    assert.match(html, /theme-committed-snapshot=20261123b/);
 });
 
 
@@ -184,8 +184,13 @@ test("a stale remote theme read cannot roll back a newer independently verified 
     assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
     assert.match(community, /\.select\("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at"\)/);
     assert.match(community, /sameThemeSnapshot\(remoteTheme,commit\.theme\)/);
-    assert.match(community, /The last independently verified save is authoritative until the server/);
-    assert.match(community, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
+    assert.match(community, /A later request[\s\S]*?lagging replica/);
+    assert.match(community, /remoteUpdatedAt>commit\.updatedAt/);
+    assert.match(community, /writeThemeCommit\(userId,result\.data\.updated_at,remoteTheme\)/);
+    const hydrationStart = community.indexOf("async function loadThemeForSession()");
+    const hydrationEnd = community.indexOf("function releaseInitialThemeCover()", hydrationStart);
+    const hydration = community.slice(hydrationStart, hydrationEnd);
+    assert.doesNotMatch(hydration, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
 });
 
 test("confirmed Custom Theme saves verify and retain the database update timestamp", () => {
@@ -201,8 +206,8 @@ test("the last independently verified complete theme snapshot wins over stale or
     assert.match(community, /function writeThemeCommit\(userId,updatedAt,theme\)/);
     assert.match(community, /theme:cleanTheme\(theme\)/);
     assert.match(community, /function sameThemeSnapshot\(left,right\)/);
-    assert.match(community, /if\(commit\?\.theme&&!sameThemeSnapshot\(remoteTheme,commit\.theme\)\)/);
-    assert.match(community, /if\(commit\?\.theme\)\s*\{[\s\S]*?A temporarily empty\/stale read must not turn a confirmed custom theme into Dark/);
+    assert.match(community, /if\(commit\?\.theme\)\s*\{[\s\S]*?if\(sameThemeSnapshot\(remoteTheme,commit\.theme\)\)/);
+    assert.match(community, /else if\(commit\?\.theme\)\s*\{[\s\S]*?A temporarily empty\/stale read must not turn a confirmed custom theme into Dark/);
     assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
 });
 
