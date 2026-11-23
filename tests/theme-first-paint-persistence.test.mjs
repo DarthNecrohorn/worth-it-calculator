@@ -136,3 +136,16 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
     assert.match(html, /theme-reset-pending-confirm=20261123b/);
 });
+
+
+test("pending reset always wins over cached themes when auth hydration fails or times out", () => {
+    const unresolvedStart = community.indexOf("if(!sessionResolved)");
+    const unresolvedEnd = community.indexOf("if(!userId)", unresolvedStart);
+    const unresolved = community.slice(unresolvedStart, unresolvedEnd);
+    assert.match(unresolved, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
+    assert.match(unresolved, /resetPending\?DEFAULT_THEME/);
+    const hydrateStart = community.indexOf("async function hydrateInitialThemeBeforePaint()");
+    const hydrate = community.slice(hydrateStart, community.indexOf("function releaseInitialThemeCover()", hydrateStart));
+    assert.match(hydrate, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
+    assert.match(hydrate, /applyTheme\(resetPending\?DEFAULT_THEME/);
+});
