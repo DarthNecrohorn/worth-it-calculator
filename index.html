@@ -2821,7 +2821,7 @@ html.worth-it-initial-paint::before {
     <canvas id="zvhCanvas" width="1200" height="680" aria-label="Top-down Zombies vs Humans game. Use WASD to move and mouse to aim."></canvas>
     <div class="zvh-stage-message" id="zvhStageMessage" hidden></div>
     <div class="zvh-mobile-joystick" id="zvhJoystick" aria-label="Movement joystick"><span id="zvhJoystickKnob"></span></div>
-    <div class="zvh-mobile-actions" id="zvhMobileActions"><button type="button" id="zvhTouchAttack">ATTACK</button><button type="button" id="zvhTouchSpecial">SPECIAL</button></div>
+    <div class="zvh-mobile-actions" id="zvhMobileActions"><button type="button" id="zvhTouchFollow">FOLLOW</button><button type="button" id="zvhTouchAttack">ATTACK</button><button type="button" id="zvhTouchSmash">SMASH</button><button type="button" id="zvhTouchSpecial">SPECIAL</button></div>
    </div>
    <div class="zvh-game-controls">
     <div class="zvh-zombie-commands" id="zvhZombieCommands" hidden><span>HORDE ORDERS</span><button type="button" data-zvh-order="follow" class="is-active">↗ Follow</button><button type="button" data-zvh-order="attack">⚔ Attack</button><button type="button" data-zvh-order="smash">💥 Smash props</button></div>
@@ -2836,6 +2836,7 @@ html.worth-it-initial-paint::before {
     <label class="zvh-setting-row"><span><strong>Gore / impact effects</strong><small>Toggle stylised combat effects</small></span><input type="checkbox" id="zvhGoreToggle"></label>
     <label class="zvh-setting-row"><span><strong>Screen shake</strong><small>Camera feedback on heavy hits</small></span><input type="checkbox" id="zvhShakeToggle"></label>
     <label class="zvh-setting-row"><span><strong>Show mobile controls</strong><small>Touch joystick and action buttons</small></span><input type="checkbox" id="zvhMobileToggle" checked></label>
+    <div class="zvh-key-settings"><span class="zvh-eyebrow">PC KEYBOARD</span><label>Horde Follow <select id="zvhKeyFollow"></select></label><label>Horde Attack <select id="zvhKeyAttack"></select></label><label>Smash props <select id="zvhKeySmash"></select></label><label>Special ability <select id="zvhKeySpecial"></select></label><small>Every action must use a different key. Keyboard only.</small></div>
     <p>All purchases use Zombies vs Humans coins. They never use CALC or WIP.</p>
    </div>
   </div>
