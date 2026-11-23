@@ -77,9 +77,10 @@ test("Custom Theme Save confirms the exact row returned by Supabase before repor
     const saveStart = community.indexOf("async function saveCustomTheme()");
     const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
     const save = community.slice(saveStart, resetStart);
-    assert.ok(save.includes('.upsert({'));
+    assert.ok(save.includes('rpc("save_worth_it_custom_theme",{p_theme:theme})'));
     assert.ok(save.includes('.select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")'));
     assert.ok(save.includes('.single()'));
+    assert.ok(save.includes('const verified=await sb().from("worth_it_user_themes")'));
     assert.ok(save.includes("const confirmed=Boolean("));
     assert.ok(save.includes("if(!confirmed)throw new Error"));
     assert.ok(save.includes("Custom Theme saved to your account."));
