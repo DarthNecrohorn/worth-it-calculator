@@ -49,7 +49,13 @@ as $$
 declare actor uuid:=auth.uid(); is_enabled boolean:=true; inserted integer:=0;
 begin
  if actor is null then raise exception 'Authentication required'; end if;
- if p_egg_key is null or p_egg_key !~ '^[a-z0-9_]{2,48}$' then
+ if p_egg_key is null or p_egg_key not in (
+   'ufo_encounter','secret_visitor','shooting_star','lost_astronaut','mystery_box',
+   'worth_it_glitch','secret_portal','golden_key','random_fact','daily_mystery',
+   'fortune_cookie','worth_it_robot','tiny_creature','random_button','lucky_coin',
+   'unexpected_cat','golden_ufo','alien_message','404_visitor','time_traveler',
+   'secret_worth_it_message','cosmic_event'
+ ) then
    raise exception 'Invalid Easter Egg identifier';
  end if;
  select enabled into is_enabled from public.worth_it_easter_egg_preferences where user_id=actor;
