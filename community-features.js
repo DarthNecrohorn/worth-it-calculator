@@ -580,18 +580,32 @@ function setThemeStatus(message,isError){
  node.textContent=String(message||"");
  node.classList.toggle("is-error",Boolean(isError));
 }
-function isThemeResetPending(userId){return Boolean(userId&&readLocal(scopedKey(THEME_RESET_PENDING_KEY,userId))==="1");}
+function isThemeResetPending(userId){
+ if(!userId)return false;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ try{return localStorage.getItem(key)==="1"||sessionStorage.getItem(key)==="1";}catch(_){return false;}
+}
 function clearLocalThemeState(userId){
  if(!userId)return;
  removeLocal(scopedKey(THEME_KEY,userId));
  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
 }
 function markThemeResetPending(userId){
- if(!userId)return;
- writeLocal(scopedKey(THEME_RESET_PENDING_KEY,userId),"1");
+ if(!userId)return true;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ let persisted=false;
+ try{localStorage.setItem(key,"1");persisted=localStorage.getItem(key)==="1";}catch(_){}
+ if(!persisted){try{sessionStorage.setItem(key,"1");persisted=sessionStorage.getItem(key)==="1";}catch(_){}}
+ if(!persisted)return false;
  clearLocalThemeState(userId);
+ return true;
 }
-function clearThemeResetPending(userId){if(userId)removeLocal(scopedKey(THEME_RESET_PENDING_KEY,userId));}
+function clearThemeResetPending(userId){
+ if(!userId)return;
+ const key=scopedKey(THEME_RESET_PENDING_KEY,userId);
+ removeLocal(key);
+ try{sessionStorage.removeItem(key);}catch(_){}
+}
 async function deleteAndVerifySavedTheme(userId){
  const deleted=await sb().from("worth_it_user_themes").delete().eq("user_id",userId).select("user_id");
  if(deleted.error)throw deleted.error;
@@ -951,10 +965,14 @@ async function resetCustomTheme(){
  themeMutationInProgress=true;
  const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
  let resetTargetUserId=knownUserId;
- if(knownUserId)markThemeResetPending(knownUserId);
- clearLocalThemeState("guest");
  applyStandardDarkTheme();
  try{
+  if(knownUserId&&!markThemeResetPending(knownUserId)){
+   setThemeStatus("Dark theme is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   toast("Reset safeguard could not be stored. Account theme was not changed.");
+   return false;
+  }
+  clearLocalThemeState("guest");
   let session=null;
   try{
    const sessionResult=await sb()?.auth?.getSession?.();
@@ -982,7 +1000,10 @@ async function resetCustomTheme(){
    toast("Default Dark theme restored.");
    return true;
   }
-  if(!knownUserId)markThemeResetPending(userId);
+  if(!knownUserId&&!markThemeResetPending(userId)){
+   setThemeStatus("Dark theme is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
   await deleteAndVerifySavedTheme(userId);
   clearLocalThemeState(userId);
   clearThemeResetPending(userId);
@@ -1017,10 +1038,13 @@ async function resetCustomThemeFromSettings(){
  ++themeRequest;
  const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
  let resetTargetUserId=knownUserId;
- if(knownUserId)markThemeResetPending(knownUserId);
- clearLocalThemeState("guest");
  applyStandardDarkTheme();
  try{
+  if(knownUserId&&!markThemeResetPending(knownUserId)){
+   setThemeStatus("Standard Dark is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
+  clearLocalThemeState("guest");
   let session=null;
   try{
    const sessionResult=await sb()?.auth?.getSession?.();
@@ -1046,7 +1070,10 @@ async function resetCustomThemeFromSettings(){
    setThemeStatus("The standard Worth It appearance has been restored.",false);
    return true;
   }
-  if(!knownUserId)markThemeResetPending(userId);
+  if(!knownUserId&&!markThemeResetPending(userId)){
+   setThemeStatus("Standard Dark is active temporarily, but this browser could not store the reset safeguard. The saved account theme was not changed; restore storage access and try again before refreshing.",true);
+   return false;
+  }
   await deleteAndVerifySavedTheme(userId);
   clearLocalThemeState(userId);
   clearThemeResetPending(userId);
