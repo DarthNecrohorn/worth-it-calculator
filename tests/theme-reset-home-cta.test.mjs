@@ -64,11 +64,12 @@ test("Restore default theme always applies standard Dark and removes the account
     assert.ok(helper.includes('writeLocal("worthItTheme","dark")'));
     assert.ok(reset.includes("applyStandardDarkTheme()"));
     assert.ok(reset.includes("sb()?.auth?.getSession?.()"));
-    assert.ok(reset.includes('.from("worth_it_user_themes")'));
-    assert.ok(reset.includes('.delete().eq("user_id",userId).select("user_id")'));
+    assert.ok(reset.includes("deleteAndVerifySavedTheme(userId)"));
+    assert.match(community, /async function deleteAndVerifySavedTheme\(userId\)/);
     assert.ok(!reset.includes("if(!themeEntitled"));
     assert.ok(!reset.includes("if(!themeSettingsOpen"));
-    assert.ok(reset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
+    assert.ok(reset.includes("markThemeResetPending(knownUserId)"));
+    assert.ok(reset.includes("clearLocalThemeState(knownUserId)") || reset.includes("clearLocalThemeState(userId)"));
 });
 
 test("Custom Theme Save confirms the exact row returned by Supabase before reporting success", () => {
@@ -91,7 +92,7 @@ test("both reset entry points persist a pending reset before clearing local them
     assert.match(community, /writeLocal\(scopedKey\(THEME_RESET_PENDING_KEY,userId\),"1"\)/);
     for (const name of ["resetCustomTheme", "resetCustomThemeFromSettings"]) {
         const start = community.indexOf(`async function ${name}()`);
-        const end = community.indexOf("\\n}", start);
+        const end = community.indexOf("\n}", start);
         const body = community.slice(start, end);
         assert.match(body, /markThemeResetPending\(/);
         assert.match(body, /clearLocalThemeState\(/);
