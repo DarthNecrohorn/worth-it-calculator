@@ -61,6 +61,7 @@ let themeRemoteAvailable = null;
 let themeEntitled = false;
 let themeEntitlementResolved = false;
 let themeBootAccess = null;
+let themeMutationInProgress = false;
 let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
@@ -668,6 +669,8 @@ function persistThemeBootSnapshot(value){
  }));
 }
 async function loadThemeForSession(){
+ // Never let a stale hydration overwrite a theme while Save or Reset is in flight.
+ if(themeMutationInProgress)return;
  const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
  const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
  try{
@@ -838,38 +841,78 @@ async function saveCustomTheme(){
   }
  }finally{if(button)button.disabled=false;}
 }
+n.",true);
+   console.error("Could not save Worth It custom theme:",error);
+  }
+ }finally{themeMutationInProgress=false;if(button)button.disabled=false;}
+}
 async function resetCustomTheme(){
  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to change Custom Themes.",true);return false;}
  if(!themeEntitlementResolved||!themeEntitled){
+  // Cancel a pending hydration so it cannot replace this explicit preview reset.
+  ++themeRequest;
   themePreviewActive=false;applyTheme(DEFAULT_THEME);
   setThemeStatus("Preview reset to the default Worth It colours. You can try another combination; nothing is saved.",false);
   return true;
  }
- applyTheme(DEFAULT_THEME);themePreviewActive=true;
- if(!themeUserId){setThemeStatus("Sign in with your Premium account to reset the saved theme.",true);return false;}
- if(themeRemoteAvailable===false){
-  removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
-  setThemeStatus("Default colours restored on this device.",false);return true;
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before resetting.",true);
+  return false;
  }
+ // Cancel old reads and keep new reads out until the remote delete completes.
+ ++themeRequest;
+ themeMutationInProgress=true;
+ themePreviewActive=true;
+ applyTheme(DEFAULT_THEME);
  try{
+  if(!themeUserId){
+   setThemeStatus("Sign in with your Premium account to reset the saved theme.",true);
+   return false;
+  }
+  if(themeRemoteAvailable===false){
+   removeLocal(scopedKey(THEME_KEY,themeUserId));
+   removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+   savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+   setThemeStatus("Default colours restored on this device.",false);return true;
+  }
   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",themeUserId);
   if(result.error)throw result.error;
-  removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+  removeLocal(scopedKey(THEME_KEY,themeUserId));
+  removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+  savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
   setThemeStatus("Default Worth It colours restored on your account.",false);
   return true;
  }catch(error){
   if(isMissingCommunitySchema(error)){
-   themeRemoteAvailable=false;removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+   themeRemoteAvailable=false;
+   removeLocal(scopedKey(THEME_KEY,themeUserId));
+   removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+   savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
    setThemeStatus("Default colours restored on this device.",false);return true;
   }
   setThemeStatus("The default colours are previewed, but the saved account theme could not be reset. Check your connection and try again.",true);
   console.error("Could not reset Worth It custom theme:",error);
   return false;
+ }finally{
+  themeMutationInProgress=false;
  }
 }
 
 
 async function resetCustomThemeFromSettings(){
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before resetting Settings.",true);
+  return false;
+ }
+ themeMutationInProgress=true;
+ ++themeRequest;
+ try{
+  return await performResetCustomThemeFromSettings();
+ }finally{
+  themeMutationInProgress=false;
+ }
+}
+async function performResetCustomThemeFromSettings(){
  // The account-wide Reset settings action must work even when the Appearance editor is not open.
  const resetRequest=++themeRequest;
  let session=null;
