@@ -716,6 +716,7 @@ function drawProp(ctx,p){
 }
 function drawActor(ctx,e,isPlayer){
   ctx.save();ctx.translate(e.x,e.y);
+  if(Math.hypot(e.vx||0,e.vy||0)>5&&e.type!=="tank"&&e.type!=="heli")ctx.rotate(Math.atan2(e.vy,e.vx)+Math.PI/2);
   const moving=Math.hypot(e.vx||0,e.vy||0)>5,phase=performance.now()*.012+(e.id||0)*.7;
   const stride=moving?Math.sin(phase)*Math.min(1,Math.hypot(e.vx||0,e.vy||0)/70):0;
   const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||(e.team==="player"&&run.mode==="human");
