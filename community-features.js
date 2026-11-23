@@ -809,10 +809,17 @@ async function saveCustomTheme(){
   window.openWorthItThemeUpgrade?.();
   return;
  }
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before saving.",true);
+  return;
+ }
  const theme=readThemeFromForm();
  if(!isCustomTheme(theme)){setThemeStatus("Choose at least one setting that differs from the default Worth It theme before saving.",true);return;}
  if(!themeUserId){setThemeStatus("Sign in with your Premium account to save and sync your custom theme.",true);return;}
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
+ // Invalidate older reads and keep new reads out until this save settles.
+ ++themeRequest;
+ themeMutationInProgress=true;
  try{
   if(themeRemoteAvailable===false){
    savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
@@ -839,12 +846,10 @@ async function saveCustomTheme(){
    setThemeStatus("The preview is active, but your theme could not be saved to your account. Please try again.",true);
    console.error("Could not save Worth It custom theme:",error);
   }
- }finally{if(button)button.disabled=false;}
-}
-n.",true);
-   console.error("Could not save Worth It custom theme:",error);
-  }
- }finally{themeMutationInProgress=false;if(button)button.disabled=false;}
+ }finally{
+  themeMutationInProgress=false;
+  if(button)button.disabled=false;
+ }
 }
 async function resetCustomTheme(){
  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to change Custom Themes.",true);return false;}
