@@ -176,3 +176,22 @@ test("secure Custom Theme save migration authorizes Premium and atomically updat
     assert.match(sql, /revoke all on function public\.save_worth_it_custom_theme\(jsonb\) from public, anon/);
     assert.match(sql, /notify pgrst, 'reload schema'/);
 });
+
+
+test("a stale remote theme read cannot roll back a newer independently verified save", () => {
+    assert.match(community, /const THEME_COMMIT_KEY = "worthItCustomThemeCommit:v1:"/);
+    assert.match(community, /function writeThemeCommit\(userId,updatedAt\)/);
+    assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at\)/);
+    assert.match(community, /\.select\("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at"\)/);
+    assert.match(community, /remoteUpdatedAt<commit\.updatedAt/);
+    assert.match(community, /A lagging read replica\/cache must never roll back a more recent confirmed save/);
+    assert.match(community, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
+});
+
+test("confirmed Custom Theme saves verify and retain the database update timestamp", () => {
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.match(save, /theme_config,updated_at/);
+    assert.match(save, /writeThemeCommit\(themeUserId,persisted\.updated_at/);
+});
