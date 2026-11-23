@@ -60,7 +60,7 @@ test("Human mode supports paid follower recruitment and increasingly dangerous z
 test("the game has separate mode maps, upgrade catalogues and local save isolation from CALC", () => {
     for (const id of ["city", "mall", "industrial", "safehouse", "military", "metro"]) assert.ok(js.includes('id:"'+id+'"'));
     assert.match(js, /upgradeCatalog = \{/);
-    assert.match(js, /All purchases use Zombies vs Humans coins/);
+    assert.match(html, /All purchases use Zombies vs Humans coins/);
     assert.match(js, /TABLE = "worth_it_zvh_game_saves"/);
     assert.match(js, /Math\.max\(0,Math\.min\(10000000/);
 });
