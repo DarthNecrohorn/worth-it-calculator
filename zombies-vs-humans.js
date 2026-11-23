@@ -5,6 +5,12 @@ const $ = id => document.getElementById(id);
 const TABLE = "worth_it_zvh_game_saves";
 const STORAGE_PREFIX = "worthItZvhSave:v1:";
 const ROUTE = "/zombiesvshumans";
+const IS_PAGES_PREVIEW = /\\.worth-it-calculator\\.pages\\.dev$/i.test(String(window.location.hostname||"")) &&
+  String(window.location.hostname||"").toLowerCase() !== "worth-it-calculator.pages.dev";
+function nextEggDelay(initial){
+  if(IS_PAGES_PREVIEW&&!userId)return initial?4500+Math.random()*6500:8000+Math.random()*10000;
+  return initial?25000+Math.random()*40000:45000+Math.random()*85000;
+}
 const EGG_CLASS = "zvh-discovery-egg";
 const maps = {
   zombie: [
@@ -201,6 +207,8 @@ async function loadProfileForSession(session){
   updateWallet();
   renderLobby();
   syncSettingsForm();
+  if(profile.unlocked){window.clearTimeout(eggTimer);if(activeEgg){activeEgg.remove();activeEgg=null;}}
+  else scheduleEgg(nextEggDelay(true));
   if(profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
     showGame({fromUrl:true});
   }else if(!profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
@@ -224,7 +232,7 @@ function scheduleEgg(delay){
   eggTimer=window.setTimeout(()=>{
     if(profile.unlocked)return;
     if(document.visibilityState==="hidden"||isModalOpen()||$("navLinks")?.classList.contains("open")||$("zvhGameSection")?.style.display!=="none"){
-      scheduleEgg(18000);
+      scheduleEgg(IS_PAGES_PREVIEW&&!userId?3500+Math.random()*3500:18000);
       return;
     }
     revealEgg();
@@ -244,8 +252,8 @@ function revealEgg(){
   document.body.appendChild(button);
   activeEgg=button;
   window.setTimeout(()=>{
-    if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(45000+Math.random()*85000);}
-  },10500);
+    if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(nextEggDelay(false));}
+  },IS_PAGES_PREVIEW&&!userId?14000:10500);
 }
 function unlockGame(){
   if(profile.unlocked)return;
