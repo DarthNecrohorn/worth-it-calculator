@@ -76,14 +76,15 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     const resetBody = community.slice(resetStart, accountResetStart);
     assert.ok(resetBody.includes("++themeRequest"));
     assert.ok(resetBody.includes("themeMutationInProgress=true"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,knownUserId))"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
+    assert.ok(resetBody.includes("markThemeResetPending(knownUserId)"));
+    assert.ok(resetBody.includes("clearLocalThemeState(knownUserId)"));
     assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
     assert.ok(accountReset.includes("sb()?.auth?.getSession?.()"));
     assert.ok(accountReset.includes("deleteAndVerifySavedTheme(userId)"));
-    assert.ok(accountReset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,userId))"));
+    assert.ok(accountReset.includes("clearLocalThemeState(userId)"));
+    assert.ok(accountReset.includes("markThemeResetPending(knownUserId)"));
     assert.ok(accountReset.includes("finishThemeMutation()"));
 });
 
@@ -114,10 +115,11 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
     assert.match(helper, /writeLocal\("worthItTheme","dark"\)/);
     assert.match(reset, /applyStandardDarkTheme\(\)/);
     assert.match(reset, /sb\(\)\?\.auth\?\.getSession\?\.\(\)/);
-    assert.match(reset, /\.delete\(\)\.eq\("user_id",userId\)\.select\("user_id"\)/);
+    assert.match(reset, /deleteAndVerifySavedTheme\(userId\)/);
     assert.doesNotMatch(reset, /if\(!themeEntitled/);
     assert.doesNotMatch(reset, /if\(!themeSettingsOpen/);
-    assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,knownUserId\)\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
+    assert.match(reset, /clearLocalThemeState\(knownUserId\)/);
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
@@ -129,4 +131,9 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
     assert.match(html, /const resetPending = localStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\) === "1"/);
     assert.match(html, /const snapshot = resetPending \? null/);
     assert.match(html, /if \(!resetPending && !applyCachedThemeBootSnapshot/);
+});
+
+
+test("first-paint cache key changes for the durable pending-reset guard", () => {
+    assert.match(html, /theme-reset-pending-confirm=20261123b/);
 });
