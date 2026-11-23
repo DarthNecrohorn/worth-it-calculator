@@ -32,14 +32,15 @@ const upgradeCatalog = {
     {id:"damage",name:"Weapon damage",desc:"Deal more damage per shot",icon:"🎯",base:95},
     {id:"fire",name:"Rapid fire training",desc:"Shorter time between shots",icon:"⚡",base:125},
     {id:"squad",name:"Squad leadership",desc:"Recruit more survivor companions",icon:"🪖",base:160},
-    {id:"skin",name:"Survivor uniforms",desc:"Unlock a new visual survivor outfit",icon:"🎖️",base:115}
+    {id:"skin",name:"Survivor uniforms",desc:"Unlock a new visual survivor outfit",icon:"🎖️",base:115},
+    {id:"ammo",name:"Starting ammunition",desc:"+12 ammo at the start of every Human run",icon:"📦",base:105}
   ]
 };
 const defaults = {
   unlocked:false,coins:100,
   maps:{zombie:["city"],human:["safehouse"]},
   selected:{zombie:"city",human:"safehouse"},
-  upgrades:{zombie:{health:0,damage:0,horde:0,speed:0,elite:0,mutation:0},human:{health:0,damage:0,fire:0,squad:0,skin:0}},
+  upgrades:{zombie:{health:0,damage:0,horde:0,speed:0,elite:0,mutation:0},human:{health:0,damage:0,fire:0,squad:0,skin:0,ammo:0}},
   bestWave:{zombie:0,human:0},totalInfested:0,totalKills:0,
   settings:{effects:true,shake:false,mobile:true,keys:{follow:"q",attack:"e",smash:"r",special:"2"}}
 };
@@ -360,10 +361,66 @@ function entity(team,type,x,y,extra){
 function mapConfig(){
   return maps[run.mode].find(item=>item.id===run.mapId)||maps[run.mode][0];
 }
+function initHouses(){
+  const points=[
+    {x:860,y:500,open:true,ammo:true,roof:"#59645f"},
+    {x:345,y:190,open:false,ammo:true,roof:"#66564d"},
+    {x:1420,y:185,open:false,ammo:false,roof:"#78816d"},
+    {x:330,y:930,open:true,ammo:false,roof:"#8b755f"},
+    {x:1390,y:930,open:false,ammo:true,roof:"#6d7778"},
+    {x:1480,y:575,open:false,ammo:false,roof:"#8c6f5d"},
+    {x:570,y:620,open:true,ammo:false,roof:"#787d69"}
+  ];
+  return points.map((p,index)=>({id:index+1,x:p.x,y:p.y,w:150,h:118,doorOpen:Boolean(p.open),doorHp:0,doorMaxHp:84,roofTone:p.roof,ammo:p.ammo?{x:p.x+104,y:p.y+72,amount:18,collected:false}:null}));
+}
+function pointInsideHouse(house,x,y,padding){
+  const inset=padding||10;
+  return x>house.x+inset&&x<house.x+house.w-inset&&y>house.y+inset&&y<house.y+house.h-inset;
+}
+function houseMovementAllowed(actor,nx,ny){
+  if(!run?.houses?.length)return true;
+  for(const house of run.houses){
+    const wasInside=pointInsideHouse(house,actor.x,actor.y,8),willBeInside=pointInsideHouse(house,nx,ny,8),doorX=house.x+house.w/2;
+    if(!wasInside&&willBeInside){
+      if(!(house.doorOpen&&Math.abs(nx-doorX)<25&&actor.y>=house.y+house.h-13&&ny<house.y+house.h-5))return false;
+    }else if(wasInside&&!willBeInside){
+      if(!(house.doorOpen&&Math.abs(actor.x-doorX)<27&&ny>=house.y+house.h-9))return false;
+    }
+  }
+  return true;
+}
+function attackNearbyObject(damage){
+  const p=run.player;
+  const door=(run.houses||[]).filter(h=>!h.doorOpen).sort((a,b)=>Math.hypot(p.x-a.x-a.w/2,p.y-a.y-a.h-5)-Math.hypot(p.x-b.x-b.w/2,p.y-b.y-b.h-5))[0];
+  if(door){
+    const x=door.x+door.w/2,y=door.y+door.h+5;
+    if(Math.hypot(p.x-x,p.y-y)<72){
+      door.doorHp=Math.max(0,(door.doorHp||door.doorMaxHp)-damage*.82);
+      if(door.doorHp<=0){door.doorOpen=true;spawnParticles(x,y,"#d9b27c",profile.settings.effects?18:5);showStageMessage("DOOR BROKEN · HOUSE OPEN",950);}
+      else showStageMessage("LOCKED DOOR · "+Math.ceil(door.doorHp)+" HP",500);
+      return true;
+    }
+  }
+  const prop=nearest(run.props,p.x,p.y,76,item=>!item.dead);
+  if(prop){prop.hp-=damage;if(prop.hp<=0)destroyProp(prop);else showStageMessage("OBJECT DAMAGED",350);return true;}
+  return false;
+}
+function collectHouseAmmo(){
+  if(!run||run.mode!=="human")return;
+  run.houses.forEach(h=>{
+    const stash=h.ammo;if(!stash||stash.collected)return;
+    if(pointInsideHouse(h,run.player.x,run.player.y,8)&&Math.hypot(run.player.x-stash.x,run.player.y-stash.y)<38){
+      stash.collected=true;const old=run.ammo;run.ammo=Math.min(run.maxAmmo,run.ammo+stash.amount);
+      showStageMessage(run.ammo>old?"AMMO FOUND · +"+(run.ammo-old):"AMMO FOUND · POCKETS FULL",950);
+    }
+  });
+}
+
 function initProps(){
   const list=[],map=run.mapId;
   for(let i=0;i<54;i++){
-    const x=100+Math.random()*(run.worldW-200),y=100+Math.random()*(run.worldH-200);
+    let x=100+Math.random()*(run.worldW-200),y=100+Math.random()*(run.worldH-200),attempts=0;
+    while(run.houses?.some(h=>x>h.x-18&&x<h.x+h.w+18&&y>h.y-18&&y<h.y+h.h+18)&&attempts++<20){x=100+Math.random()*(run.worldW-200);y=100+Math.random()*(run.worldH-200);}
     let type=["car","bench","bin","crate","lamp"][i%5];
     if(map==="mall")type=["stall","bench","bin","crate","shop"][i%5];
     if(map==="industrial")type=["crate","barrel","forklift","lamp","pallet"][i%5];
@@ -379,13 +436,14 @@ function startRun(){
   const mode=selectedMode,mapId=profile.selected[mode];
   const up=profile.upgrades[mode];
   run={
-    mode,mapId,worldW:1900,worldH:1320,elapsed:0,wave:1,nextSpawn:2.5,
-    player:entity("player",mode,950,660,{hp:mode==="zombie"?145+up.health*25+up.mutation*35:125+up.health*25,maxHp:mode==="zombie"?145+up.health*25+up.mutation*35:125+up.health*25,speed:mode==="zombie"?176+up.speed*12:195,damage:mode==="zombie"?36+up.damage*16+up.mutation*4:24+up.damage*12,radius:17,attackCd:0,specialCd:0}),
-    friends:[],enemies:[],bullets:[],particles:[],props:[],earned:0,infested:0,kills:0,propCount:0,paused:false,finished:false,enemyCounter:0,spawnedBossWave:0
+    mode,mapId,worldW:1900,worldH:1320,elapsed:0,wave:1,nextSpawn:mode==="zombie"?5.8:2.5,
+    player:entity("player",mode,950,660,{hp:mode==="zombie"?240+up.health*28+up.mutation*35:125+up.health*25,maxHp:mode==="zombie"?240+up.health*28+up.mutation*35:125+up.health*25,speed:mode==="zombie"?176+up.speed*12:195,damage:mode==="zombie"?36+up.damage*16+up.mutation*4:24+up.damage*12,radius:17,attackCd:0,specialCd:0}),
+    friends:[],enemies:[],bullets:[],particles:[],props:[],houses:[],earned:0,infested:0,kills:0,propCount:0,ammo:mode==="human"?30+up.ammo*12:0,maxAmmo:mode==="human"?30+up.ammo*12:0,paused:false,finished:false,enemyCounter:0,spawnedBossWave:0
   };
+  run.houses=initHouses();
   run.props=initProps();
   if(mode==="zombie"){
-    const count=Math.min(2+up.horde,8+up.horde*2);
+    const count=Math.min(3+up.horde,9+up.horde*2);
     for(let i=0;i<count;i++)run.friends.push(entity("friend","zombie",930-i*25,680+(i%2)*24,{hp:68+up.elite*22,maxHp:68+up.elite*22,speed:112,damage:12+up.damage*2+up.elite*3,radius:13}));
     $("zvhZombieCommands").hidden=false;$("zvhHumanCommands").hidden=true;
     $("zvhControlHint").textContent="WASD / arrows to move · E or ATTACK to infect · command your horde";
@@ -462,8 +520,10 @@ function steerAroundProps(actor,dx,dy){
 function moveActor(actor,dx,dy,dt){
   const vector=steerAroundProps(actor,dx,dy);
   actor.vx=vector.x*actor.speed;actor.vy=vector.y*actor.speed;
-  actor.x=Math.max(30,Math.min(run.worldW-30,actor.x+vector.x*actor.speed*dt));
-  actor.y=Math.max(30,Math.min(run.worldH-30,actor.y+vector.y*actor.speed*dt));
+  if(Math.hypot(vector.x,vector.y)>.08)actor.facingAngle=Math.atan2(vector.y,vector.x)+Math.PI/2;
+  const nx=Math.max(30,Math.min(run.worldW-30,actor.x+vector.x*actor.speed*dt));
+  const ny=Math.max(30,Math.min(run.worldH-30,actor.y+vector.y*actor.speed*dt));
+  if(houseMovementAllowed(actor,nx,ny)){actor.x=nx;actor.y=ny;}else{actor.vx=0;actor.vy=0;}
 }
 function fireBullet(source,target,damage,speed,team){
   const dx=target.x-source.x,dy=target.y-source.y,len=Math.hypot(dx,dy)||1;
@@ -477,6 +537,7 @@ function chooseThreat(x,y,enemyTeam){
 }
 function damageActor(actor,amount){
   if(!actor||actor.dead)return;
+  if(actor===run.player&&run.mode==="zombie")amount*=.42;
   if(actor.team==="enemy"&&actor.type==="armored"&&run.mode==="human"&&run.elapsed<(actor.armorUntil||0))amount*=.35;
   actor.hp-=amount;
   if(actor===run.player&&profile.settings.shake)run.shake=Math.min(7,(run.shake||0)+2.5);
@@ -504,6 +565,7 @@ function convertHuman(target,source){
 }
 function infectAttack(){
   if(!run||run.paused||run.finished||run.mode!=="zombie"||run.player.attackCd>0)return;
+  if(attackNearbyObject(run.player.damage)){run.player.attackCd=.48;return;}
   run.player.attackCd=.48;
   const target=nearest(run.enemies,run.player.x,run.player.y,88);
   if(target){
@@ -515,13 +577,12 @@ function infectAttack(){
     }
     return;
   }
-  if(run.order==="smash"||run.friends.some(f=>f.order==="smash")){
-    const prop=nearest(run.props,run.player.x,run.player.y,100,p=>!p.dead);
-    if(prop){prop.hp-=run.player.damage*.75;if(prop.hp<=0)destroyProp(prop);}
-  }
 }
 function shootAttack(){
   if(!run||run.paused||run.finished||run.mode!=="human"||run.player.attackCd>0)return;
+  if(attackNearbyObject(run.player.damage)){run.player.attackCd=.42;return;}
+  if(run.ammo<=0){showStageMessage("OUT OF AMMO · SEARCH HOUSE INTERIORS",1100);run.player.attackCd=.3;return;}
+  run.ammo=Math.max(0,run.ammo-1);
   run.player.attackCd=Math.max(.12,.52-profile.upgrades.human.fire*.055);
   let target=null;
   if(pointerAim){
@@ -533,6 +594,7 @@ function shootAttack(){
     const damage=run.player.damage;
     fireBullet(run.player,target,damage,560,"friendly");
     run.player.angle=Math.atan2(target.y-run.player.y,target.x-run.player.x);
+    run.player.facingAngle=run.player.angle+Math.PI/2;
   }else if(pointerAim){
     const t={x:pointerAim.x,y:pointerAim.y};
     fireBullet(run.player,t,run.player.damage,560,"friendly");
@@ -597,16 +659,9 @@ function updateAI(dt){
     }
     const target=nearestTargetForFriend(friend);
     if(friend.type==="zombie"){
-      if(friend.order==="smash"){
-        const prop=nearest(run.props,friend.x,friend.y,430,p=>!p.dead);
-        if(prop){
-          const d=Math.hypot(prop.x-friend.x,prop.y-friend.y);
-          if(d>friend.radius+prop.radius+4){moveActor(friend,(prop.x-friend.x)/d,(prop.y-friend.y)/d,dt);}
-          else if(friend.attackCd<=0){friend.attackCd=.65;prop.hp-=friend.damage;if(prop.hp<=0)destroyProp(prop);}
-        }else{
-          const d=Math.hypot(player.x-friend.x,player.y-friend.y);
-          if(d>65)moveActor(friend,(player.x-friend.x)/d,(player.y-friend.y)/d,dt);
-        }
+      if(friend.order==="guard"){
+        const d=Math.hypot(player.x-friend.x,player.y-friend.y);
+        if(d>82)moveActor(friend,(player.x-friend.x)/d,(player.y-friend.y)/d,dt);
       }else if(friend.order==="attack"&&target){
         const d=Math.hypot(target.x-friend.x,target.y-friend.y);
         if(d>friend.radius+target.radius+7)moveActor(friend,(target.x-friend.x)/d,(target.y-friend.y)/d,dt);
@@ -731,7 +786,8 @@ function updatePlayer(dt){
   if(run.mode==="human"&&keys.has(" ")&&p.attackCd<=0)shootAttack();
 }
 function updateWave(dt){
-  const next=Math.floor(run.elapsed/28)+1;
+  const waveSeconds=run.mode==="zombie"?36:28;
+  const next=Math.floor(run.elapsed/waveSeconds)+1;
   if(next>run.wave){
     run.wave=next;showStageMessage("WAVE "+run.wave+" — "+(run.mode==="zombie"?"MILITARY RESPONSE ESCALATING":"THE HORDE IS EVOLVING"),1700);
     if(run.mode==="human"&&run.wave%5===0)spawnBossOnce();
@@ -741,7 +797,7 @@ function updateWave(dt){
   if(run.nextSpawn<=0){
     const count=Math.min(1+Math.floor(run.wave/3),4);
     for(let i=0;i<count;i++)spawnEnemy();
-    run.nextSpawn=Math.max(1.2,4.6-run.wave*.18);
+    run.nextSpawn=run.mode==="zombie"?Math.max(3.8,6.8-run.wave*.12):Math.max(1.2,4.6-run.wave*.18);
   }
 }
 function spawnBossOnce(){
@@ -752,8 +808,11 @@ function spawnBossOnce(){
 }
 function update(dt){
   run.elapsed+=dt;
+  [run.player,...run.friends,...run.enemies].forEach(a=>{a.vx=0;a.vy=0;});
+  if(run.mode==="zombie"&&run.player.hp>0)run.player.hp=Math.min(run.player.maxHp,run.player.hp+3.8*dt);
   updatePlayer(dt);
   updateAI(dt);
+  collectHouseAmmo();
   updateBullets(dt);
   updateWave(dt);
   run.particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;});
@@ -988,6 +1047,8 @@ function drawGame(){
 function updateHud(){
   if(!run)return;
   const p=run.player;
+  const ammoPanel=$("zvhHudAmmoPanel");if(ammoPanel)ammoPanel.hidden=run.mode!=="human";
+  const ammoNode=$("zvhHudAmmo");if(ammoNode)ammoNode.textContent=String(run.ammo);
   $("zvhHudWave").textContent=String(run.wave);
   $("zvhHudTime").textContent=formatTime(run.elapsed);
   $("zvhHudHealth").textContent=String(Math.max(0,Math.ceil(p.hp)));
@@ -1000,7 +1061,7 @@ function formatTime(seconds){
   const total=Math.floor(seconds);return String(Math.floor(total/60)).padStart(2,"0")+":"+String(total%60).padStart(2,"0");
 }
 function showStageMessage(text,duration){
-  const node=$("zvhStageMessage");if(!node)return;
+  const node=$("zvhStageMessage");if(!node||!text)return;
   node.textContent=text;node.hidden=false;
   window.clearTimeout(node._hideTimer);node._hideTimer=window.setTimeout(()=>{node.hidden=true;},duration||900);
 }
