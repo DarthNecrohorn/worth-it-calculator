@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../settings.js", import.meta.url), "utf8");
 
 test("dark/light theme and the standard UI scale initialize before content is painted", () => {
@@ -40,6 +41,16 @@ test("A+ and A++ modal and chat dimensions compensate for global UI zoom", () =>
     assert.match(guard, /height:\s*calc\(100dvh \/ var\(--ui-scale, 1\)\)\s*!important/);
     assert.ok(guard.includes('.worth-it-chat-window:not(.is-fullscreen)'));
     assert.ok(guard.includes('.worth-it-chat-overlay.is-fullscreen'));
+});
+
+test("Random palette gets a dedicated phone-only full-width touch target without changing desktop styles", () => {
+    const start = communityCss.indexOf("Phone-only polish for the Random palette action");
+    assert.ok(start >= 0, "phone-only Random palette polish exists");
+    const mobileRule = communityCss.slice(start);
+    assert.match(mobileRule, /@media \(max-width: 600px\)/);
+    assert.match(mobileRule, /#worthItThemeRandomPalette[\s\S]*?width: 100%/);
+    assert.match(mobileRule, /min-height: 40px/);
+    assert.match(mobileRule, /touch-action: manipulation/);
 });
 
 test("the stylesheet URL is versioned so responsive and theme safeguards are not hidden by browser cache", () => {

@@ -641,3 +641,27 @@ html[data-worth-it-custom-theme][data-worth-it-button-style="gradient"] :is(
  .worth-it-theme-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
  .worth-it-theme-editor-head strong{font-size:13px}
 }
+
+
+/* Phone-only polish for the Random palette action in the Custom Theme editor. */
+@media (max-width: 600px) {
+  .worth-it-theme-subhead #worthItThemeRandomPalette {
+    align-self: stretch;
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 10%, var(--card-solid));
+    border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+    touch-action: manipulation;
+  }
+  .worth-it-theme-subhead #worthItThemeRandomPalette:active {
+    background: color-mix(in srgb, var(--primary) 18%, var(--card-solid));
+    border-color: var(--primary);
+  }
+}
