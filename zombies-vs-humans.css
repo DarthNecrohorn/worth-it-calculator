@@ -174,3 +174,6 @@
  .zvh-mobile-joystick{left:10px;bottom:12px;width:100px;height:100px}
  .zvh-key-settings{grid-template-columns:1fr}
 }
+
+/* In-game PC key legend and class ability telegraphs. */
+.zvh-pc-key-guide{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 14px;margin:12px 0 4px;padding:10px 14px;border:1px solid rgba(161,190,177,.2);border-radius:10px;background:rgba(8,15,19,.58);color:#cbd7d2;font-size:11px;letter-spacing:.035em}.zvh-pc-key-guide>span{display:inline-flex;align-items:center;gap:6px}.zvh-pc-key-guide b{font-size:9px;color:#8eaaa0;letter-spacing:.08em}.zvh-pc-key-guide kbd{min-width:22px;padding:3px 6px;border:1px solid rgba(203,221,211,.28);border-bottom-width:2px;border-radius:5px;background:rgba(219,236,226,.09);color:#f1f4ed;font:700 10px ui-monospace,monospace;text-align:center}.zvh-pc-key-guide small{color:#84968f;font-size:10px}@media(max-width:600px){.zvh-pc-key-guide{display:none!important}}
