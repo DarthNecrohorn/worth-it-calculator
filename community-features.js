@@ -909,47 +909,54 @@ async function saveCustomTheme(){
  ++themeRequest;
  themeMutationInProgress=true;
  try{
-  if(themeRemoteAvailable===false){
-   savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
-   themePreviewActive=false;applyTheme(theme);
-   setThemeStatus("Your custom theme is saved on this device. Account sync will activate after the theme design migration is installed.",false);
-   toast("Your custom theme was saved on this device.");
-   return;
+  const auth=await sb().auth.getSession();
+  if(auth.error)throw auth.error;
+  const currentUserId=String(auth.data?.session?.user?.id||"");
+  if(!currentUserId||currentUserId!==themeUserId){
+   throw new Error("Your signed-in account changed. Reopen Appearance settings and try saving again.");
   }
-  const expectedConfig=themeConfig(theme);
-  const result=await sb().from("worth_it_user_themes").upsert({
-   user_id:themeUserId,theme_name:theme.name,
-   primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,header_color:theme.header,
-   theme_config:themeConfig(theme),updated_at:new Date().toISOString()
-  },{onConflict:"user_id"})
+
+  // One database function handles both the first insert and every later update.
+  // It rechecks Premium access server-side, so the browser cannot bypass the gate.
+  const saved=await sb().rpc("save_worth_it_custom_theme",{p_theme:theme});
+  if(saved.error)throw saved.error;
+
+  // Verify independently from the RPC response. This catches stale reads,
+  // rejected writes, and an older palette surviving a later Save.
+  const verified=await sb().from("worth_it_user_themes")
    .select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
-   .single();
-  if(result.error)throw result.error;
-  const persisted=result.data;
+   .eq("user_id",themeUserId).single();
+  if(verified.error)throw verified.error;
+
+  const persisted=verified.data;
+  const expectedConfig=themeConfig(theme);
   const confirmed=Boolean(persisted&&persisted.user_id===themeUserId&&persisted.theme_name===theme.name&&
    persisted.primary_color===theme.primary&&persisted.secondary_color===theme.secondary&&
    persisted.hover_color===theme.hover&&persisted.header_color===theme.header&&
    persisted.theme_config&&typeof persisted.theme_config==="object"&&
    Object.keys(expectedConfig).every(key=>persisted.theme_config[key]===expectedConfig[key]));
-  if(!confirmed)throw new Error("The database did not return the saved Custom Theme for verification.");
+  if(!confirmed)throw new Error("The account still returned an older or incomplete Custom Theme after saving.");
+
   themeRemoteAvailable=true;
   clearThemeResetPending(themeUserId);
-  savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
-  themePreviewActive=false;applyTheme(theme);
-  setThemeStatus("Your complete custom theme is saved and verified on your account. It will stay active across Worth It.",false);
-  toast("Custom Theme saved to your account.");
+  savedTheme=theme;
+  writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
+  themePreviewActive=false;
+  applyTheme(theme);
+  setThemeStatus("Your latest Custom Theme was saved and independently verified on your account. It will stay active across Worth It.",false);
+  toast("Latest Custom Theme saved to your account.");
  }catch(error){
-  if(isMissingCommunitySchema(error)){
-   themeRemoteAvailable=false;savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
-   themePreviewActive=false;applyTheme(theme);
-   setThemeStatus("Your custom theme is saved on this device only. Account storage is not available in this environment.",false);
-   toast("Custom Theme saved on this device only.");
-  }else{
-   themePreviewActive=true;applyTheme(theme);
-   setThemeStatus("Your new theme is only a preview. It was not confirmed as saved to your account. Please try Save again.",true);
-   toast("Custom Theme was not saved. Check the status message and try again.");
-   console.error("Could not save Worth It custom theme:",error);
-  }
+  themePreviewActive=true;
+  applyTheme(theme);
+  const code=String(error?.code||"");
+  const message=code==="PGRST202"||code==="42883"
+   ?"The secure Custom Theme save function is not installed in the database yet. The preview is active, but nothing was saved to your account."
+   :code==="42501"
+    ?"The database did not authorize this save. Check that Premium Lite or Premium is active for this account."
+    :"Your latest theme is only a preview. The account did not confirm that it was saved; your previous saved theme has been kept.";
+  setThemeStatus(message,true);
+  toast("Custom Theme was not saved. Your previous saved theme was kept.");
+  console.error("Could not save Worth It custom theme:",error);
  }finally{
   finishThemeMutation();
   if(button)button.disabled=false;
