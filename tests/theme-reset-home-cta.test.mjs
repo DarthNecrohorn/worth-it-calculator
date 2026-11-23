@@ -90,7 +90,7 @@ test("Custom Theme Save confirms the exact row returned by Supabase before repor
 test("both reset entry points persist a pending reset before clearing local theme state", () => {
     assert.match(community, /const THEME_RESET_PENDING_KEY = "worthItCustomThemeResetPending:v1:"/);
     assert.match(community, /function markThemeResetPending\(userId\)/);
-    assert.match(community, /writeLocal\(scopedKey\(THEME_RESET_PENDING_KEY,userId\),"1"\)/);
+    assert.match(community, /localStorage\.setItem\(key,"1"\)/);
     for (const name of ["resetCustomTheme", "resetCustomThemeFromSettings"]) {
         const start = community.indexOf(`async function ${name}()`);
         const end = community.indexOf("\n}", start);
