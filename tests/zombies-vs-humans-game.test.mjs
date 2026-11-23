@@ -38,8 +38,11 @@ test("the easter egg is random, unlocks once, and removes itself after the persi
     assert.match(js, /profile\.unlocked=true/);
     assert.match(js, /if\(profile\.unlocked\)return/);
     assert.ok(js.includes(String.raw`const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i`));
-    assert.ok(js.includes("if(IS_PAGES_PREVIEW&&!userId)return initial?4500+Math.random()*6500:8000+Math.random()*10000;"));
-    assert.ok(js.includes("IS_PAGES_PREVIEW&&!userId?14000:10500"));
+    assert.ok(js.includes("if(IS_PAGES_PREVIEW)return initial?3500+Math.random()*2500:6500+Math.random()*5500;"));
+    assert.ok(js.includes("IS_PAGES_PREVIEW?18000:10500"));
+    assert.ok(js.includes('document.addEventListener("visibilitychange"'));
+    assert.ok(html.includes("zvh-preview-egg-visible-20261123c"));
+    assert.ok(js.includes("button.style.zIndex=\"2147483000\""));
     assert.ok(js.includes("else scheduleEgg(nextEggDelay(true))"));
 
     assert.match(js, /STORAGE_PREFIX = "worthItZvhSave:v1:"/);
