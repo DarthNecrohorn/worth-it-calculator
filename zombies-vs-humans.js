@@ -5,13 +5,7 @@ const $ = id => document.getElementById(id);
 const TABLE = "worth_it_zvh_game_saves";
 const STORAGE_PREFIX = "worthItZvhSave:v1:";
 const ROUTE = "/zombiesvshumans";
-const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i.test(String(window.location.hostname||"")) &&
-  String(window.location.hostname||"").toLowerCase() !== "worth-it-calculator.pages.dev";
-function nextEggDelay(initial){
-  if(IS_PAGES_PREVIEW)return initial?3500+Math.random()*2500:6500+Math.random()*5500;
-  return initial?25000+Math.random()*40000:45000+Math.random()*85000;
-}
-const EGG_CLASS = "zvh-discovery-egg";
+const EGG_ID = "zvhDiscoveryEgg";
 const maps = {
   zombie: [
     {id:"city",name:"Downtown Outbreak",icon:"🏙️",cost:0,desc:"Wide streets, parked cars and panicked civilians.",palette:["#35463d","#5b6660","#23332d"]},
@@ -57,8 +51,6 @@ let selectedMode = "zombie";
 let run = null;
 let animationFrame = 0;
 let lastFrame = 0;
-let eggTimer = 0;
-let activeEgg = null;
 let pointerAim = null;
 let joystick = {active:false,x:0,y:0,pointerId:null};
 let keys = new Set();
@@ -129,6 +121,8 @@ function updateMenuUnlock(){
     const node=$(id);
     if(node)node.hidden=!visible;
   });
+  const discovery=$(EGG_ID);
+  if(discovery)discovery.hidden=visible;
 }
 function updateWallet(){
   ["zvhCoinBalance","zvhHudCoins"].forEach(id=>{const node=$(id);if(node)node.textContent=String(profile.coins+(run?.earned||0));});
@@ -207,16 +201,7 @@ async function loadProfileForSession(session){
   updateWallet();
   renderLobby();
   syncSettingsForm();
-  if(profile.unlocked){
-    window.clearTimeout(eggTimer);
-    if(activeEgg){activeEgg.remove();activeEgg=null;}
-  }else if(IS_PAGES_PREVIEW&&!userId){
-    // Preview guest QA: keep the discovery target visible until clicked.
-    if(!activeEgg)revealEgg();
-  }else{
-    if(activeEgg){activeEgg.remove();activeEgg=null;}
-    scheduleEgg(nextEggDelay(true));
-  }
+  // The discovery button is anchored in the hero badge and shown until unlocked.
   if(profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
     showGame({fromUrl:true});
   }else if(!profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
@@ -231,63 +216,9 @@ async function loadProfileForSession(session){
 function currentClientSession(){
   return window.supabaseClient?.auth?.getSession?.().then(result=>result?.data?.session||null).catch(()=>null)||Promise.resolve(null);
 }
-function isModalOpen(){
-  return Array.from(document.querySelectorAll('[aria-modal="true"],.worth-it-overlay.open,.modal.open')).some(node=>{
-    if(node.hidden||node.getAttribute("aria-hidden")==="true")return false;
-    const style=window.getComputedStyle?window.getComputedStyle(node):null;
-    return !style||style.display!=="none"&&style.visibility!=="hidden";
-  });
-}
-function scheduleEgg(delay){
-  if(profile.unlocked||activeEgg)return;
-  window.clearTimeout(eggTimer);eggTimer=0;
-  if(document.visibilityState==="hidden")return;
-  eggTimer=window.setTimeout(()=>{
-    eggTimer=0;
-    if(profile.unlocked||activeEgg)return;
-    const gameSection=$("zvhGameSection");
-    const gameVisible=Boolean(gameSection&&window.getComputedStyle&&window.getComputedStyle(gameSection).display!=="none");
-    if(document.visibilityState==="hidden"||isModalOpen()||$("navLinks")?.classList.contains("open")||gameVisible){
-      scheduleEgg(IS_PAGES_PREVIEW?1800+Math.random()*2200:18000);
-      return;
-    }
-    revealEgg();
-  },delay);
-}
-function revealEgg(){
-  if(profile.unlocked||activeEgg)return;
-  const button=document.createElement("button");
-  button.type="button";button.className=EGG_CLASS;button.textContent="🧟";
-  button.setAttribute("aria-label","A hidden zombie has appeared. Click to unlock Zombies vs Humans.");
-  const previewGuest=IS_PAGES_PREVIEW&&!userId;
-  if(previewGuest){
-    button.style.right="22px";
-    button.style.bottom="110px";
-    button.style.left="auto";
-    button.style.top="auto";
-    button.setAttribute("title","Preview test: click to unlock Zombies vs Humans");
-  }else{
-    const width=Math.max(320,window.innerWidth),height=Math.max(420,window.innerHeight);
-    const left=18+Math.random()*Math.max(10,width-90);
-    const top=90+Math.random()*Math.max(10,height-240);
-    button.style.left=Math.min(width-74,left)+"px";
-    button.style.top=Math.min(height-110,top)+"px";
-  }
-  button.style.zIndex="2147483000";
-  button.addEventListener("click",unlockGame,{once:true});
-  document.body.appendChild(button);
-  activeEgg=button;
-  if(!previewGuest){
-    window.setTimeout(()=>{
-      if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(nextEggDelay(false));}
-    },10500);
-  }
-}
 function unlockGame(){
   if(profile.unlocked)return;
   profile.unlocked=true;
-  if(activeEgg){activeEgg.remove();activeEgg=null;}
-  window.clearTimeout(eggTimer);
   persist();
   toast("Secret unlocked! Zombies vs Humans is now available in the hamburger menu.");
   updateMenuUnlock();
@@ -957,6 +888,7 @@ function bindUI(){
     renderLobby();
   }));
   document.querySelectorAll("[data-zvh-order]").forEach(button=>button.addEventListener("click",()=>setOrder(button.dataset.zvhOrder)));
+  $(EGG_ID)?.addEventListener("click",unlockGame);
   $("zvhStartRun")?.addEventListener("click",startRun);
   $("zvhBackButton")?.addEventListener("click",goHome);
   $("zvhPauseButton")?.addEventListener("click",togglePause);
@@ -969,12 +901,7 @@ function bindUI(){
 }
 function init(){
   bindUI();
-  document.addEventListener("visibilitychange",()=>{
-    if(document.visibilityState==="visible"&&!profile.unlocked&&!activeEgg&&!eggTimer){
-      scheduleEgg(nextEggDelay(false));
-    }
-  });
-  // Wait for auth/profile hydration before choosing Guest or account discovery behavior.
+  // Wait for auth/profile hydration before showing or hiding the permanent hero discovery button.
   void currentClientSession().then(session=>loadProfileForSession(session));
   if(window.supabaseClient?.auth?.onAuthStateChange){
     window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
