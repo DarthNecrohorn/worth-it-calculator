@@ -51,3 +51,41 @@ test("network and timeout fallbacks never reveal an expired or unverified custom
 test("the Custom Theme script cache key changes with the first-paint bootstrap", () => {
     assert.match(html, /theme-boot-snapshot=20261123a/);
 });
+
+
+
+test("saving a new preset invalidates older theme hydration and prevents concurrent loads", () => {
+    assert.match(community, /let themeMutationInProgress = false/);
+    assert.match(community, /let themeReloadAfterMutation = false/);
+    const loadStart = community.indexOf("async function loadThemeForSession()");
+    const loadBody = community.slice(loadStart, loadStart + 280);
+    assert.match(loadBody, /themeMutationInProgress/);
+    assert.match(loadBody, /themeReloadAfterMutation=true/);
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const saveBody = community.slice(saveStart, resetStart);
+    assert.match(saveBody, /\+\+themeRequest/);
+    assert.match(saveBody, /themeMutationInProgress=true/);
+    assert.match(saveBody, /finishThemeMutation\(\)/);
+});
+
+test("reset invalidates pending reads, removes both caches, and serializes with saves", () => {
+    const resetStart = community.indexOf("async function resetCustomTheme()");
+    const accountResetStart = community.indexOf("async function resetCustomThemeFromSettings()", resetStart);
+    const resetBody = community.slice(resetStart, accountResetStart);
+    assert.ok(resetBody.includes("++themeRequest"));
+    assert.ok(resetBody.includes("themeMutationInProgress=true"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("finishThemeMutation()"));
+
+    const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
+    assert.ok(accountReset.includes("sb()?.auth?.getSession?.()"));
+    assert.ok(accountReset.includes('.from("worth_it_user_themes").delete()'));
+    assert.ok(accountReset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,userId))"));
+    assert.ok(accountReset.includes("finishThemeMutation()"));
+});
+
+test("theme script cache key is refreshed for the save/reset race fix", () => {
+    assert.match(html, /theme-save-race=20261123a/);
+});

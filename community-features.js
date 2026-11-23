@@ -61,6 +61,8 @@ let themeRemoteAvailable = null;
 let themeEntitled = false;
 let themeEntitlementResolved = false;
 let themeBootAccess = null;
+let themeMutationInProgress = false;
+let themeReloadAfterMutation = false;
 let activeTheme = DEFAULT_THEME;
 let savedTheme = DEFAULT_THEME;
 let themeSettingsOpen = false;
@@ -75,6 +77,13 @@ let reportVisibilityTimer = null;
 let reportVisibilitySequence = 0;
 
 function toast(message){ if(typeof window.showToast === "function") window.showToast(String(message || "")); }
+function finishThemeMutation(){
+ themeMutationInProgress=false;
+ if(themeReloadAfterMutation){
+  themeReloadAfterMutation=false;
+  window.setTimeout(()=>{void loadThemeForSession();},0);
+ }
+}
 function readLocal(key){ try{return localStorage.getItem(key);}catch(_){return null;} }
 function writeLocal(key,value){ try{localStorage.setItem(key,value);}catch(_){} }
 function removeLocal(key){ try{localStorage.removeItem(key);}catch(_){} }
@@ -668,6 +677,8 @@ function persistThemeBootSnapshot(value){
  }));
 }
 async function loadThemeForSession(){
+ // Never let a stale hydration overwrite a theme while Save or Reset is in flight.
+ if(themeMutationInProgress){themeReloadAfterMutation=true;return;}
  const request=++themeRequest;let session=null,wallet=null,sessionResolved=false,walletResolved=false;
  const livePreview=themePreviewActive&&themeSettingsOpen?activeTheme:null;
  try{
@@ -806,10 +817,17 @@ async function saveCustomTheme(){
   window.openWorthItThemeUpgrade?.();
   return;
  }
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before saving.",true);
+  return;
+ }
  const theme=readThemeFromForm();
  if(!isCustomTheme(theme)){setThemeStatus("Choose at least one setting that differs from the default Worth It theme before saving.",true);return;}
  if(!themeUserId){setThemeStatus("Sign in with your Premium account to save and sync your custom theme.",true);return;}
  const button=$("worthItThemeSaveButton");if(button)button.disabled=true;
+ // Invalidate older reads and keep new reads out until this save settles.
+ ++themeRequest;
+ themeMutationInProgress=true;
  try{
   if(themeRemoteAvailable===false){
    savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
@@ -836,88 +854,124 @@ async function saveCustomTheme(){
    setThemeStatus("The preview is active, but your theme could not be saved to your account. Please try again.",true);
    console.error("Could not save Worth It custom theme:",error);
   }
- }finally{if(button)button.disabled=false;}
+ }finally{
+  finishThemeMutation();
+  if(button)button.disabled=false;
+ }
 }
 async function resetCustomTheme(){
  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to change Custom Themes.",true);return false;}
  if(!themeEntitlementResolved||!themeEntitled){
+  // Cancel a pending hydration so it cannot replace this explicit preview reset.
+  ++themeRequest;
   themePreviewActive=false;applyTheme(DEFAULT_THEME);
   setThemeStatus("Preview reset to the default Worth It colours. You can try another combination; nothing is saved.",false);
   return true;
  }
- applyTheme(DEFAULT_THEME);themePreviewActive=true;
- if(!themeUserId){setThemeStatus("Sign in with your Premium account to reset the saved theme.",true);return false;}
- if(themeRemoteAvailable===false){
-  removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
-  setThemeStatus("Default colours restored on this device.",false);return true;
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before resetting.",true);
+  return false;
  }
+ // Cancel old reads and keep new reads out until the remote delete completes.
+ ++themeRequest;
+ themeMutationInProgress=true;
+ themePreviewActive=true;
+ applyTheme(DEFAULT_THEME);
  try{
+  if(!themeUserId){
+   setThemeStatus("Sign in with your Premium account to reset the saved theme.",true);
+   return false;
+  }
+  if(themeRemoteAvailable===false){
+   removeLocal(scopedKey(THEME_KEY,themeUserId));
+   removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+   savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+   setThemeStatus("Default colours restored on this device.",false);return true;
+  }
   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",themeUserId);
   if(result.error)throw result.error;
-  removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+  removeLocal(scopedKey(THEME_KEY,themeUserId));
+  removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+  savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
   setThemeStatus("Default Worth It colours restored on your account.",false);
   return true;
  }catch(error){
   if(isMissingCommunitySchema(error)){
-   themeRemoteAvailable=false;removeLocal(scopedKey(THEME_KEY,themeUserId));savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
+   themeRemoteAvailable=false;
+   removeLocal(scopedKey(THEME_KEY,themeUserId));
+   removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId));
+   savedTheme=DEFAULT_THEME;themePreviewActive=false;applyTheme(DEFAULT_THEME);
    setThemeStatus("Default colours restored on this device.",false);return true;
   }
   setThemeStatus("The default colours are previewed, but the saved account theme could not be reset. Check your connection and try again.",true);
   console.error("Could not reset Worth It custom theme:",error);
   return false;
+ }finally{
+  finishThemeMutation();
  }
 }
 
 
 async function resetCustomThemeFromSettings(){
- // The account-wide Reset settings action must work even when the Appearance editor is not open.
- const resetRequest=++themeRequest;
- let session=null;
+ if(themeMutationInProgress){
+  setThemeStatus("A theme update is already in progress. Please wait for it to finish before resetting Settings.",true);
+  return false;
+ }
+ themeMutationInProgress=true;
+ ++themeRequest;
  try{
-  const sessionResult=await sb()?.auth?.getSession?.();
-  if(sessionResult?.error)throw sessionResult.error;
-  session=sessionResult?.data?.session||null;
- }catch(error){
-  setThemeStatus("Your account session could not be verified. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
-  console.error("Could not verify the account before resetting Worth It settings:",error);
-  return false;
- }
- const userId=String(session?.user?.id||"");
- if(!userId&&themeUserId){
-  setThemeStatus("Your account session could not be confirmed. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
-  return false;
- }
- if(userId){
+  // The account-wide Reset settings action must work even when the Appearance editor is not open.
+  const resetRequest=++themeRequest;
+  let session=null;
   try{
-   const result=await sb().from("worth_it_user_themes").delete().eq("user_id",userId);
-   if(result.error)throw result.error;
-   themeRemoteAvailable=true;
+   const sessionResult=await sb()?.auth?.getSession?.();
+   if(sessionResult?.error)throw sessionResult.error;
+   session=sessionResult?.data?.session||null;
   }catch(error){
-   if(isMissingCommunitySchema(error)){
-    themeRemoteAvailable=false;
-   }else{
-    setThemeStatus("The saved Custom Theme could not be removed from your account. Your current theme has been kept; check your connection and try Reset settings again.",true);
-    console.error("Could not permanently reset the Worth It Custom Theme:",error);
-    return false;
-   }
+   setThemeStatus("Your account session could not be verified. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+   console.error("Could not verify the account before resetting Worth It settings:",error);
+   return false;
   }
-  removeLocal(scopedKey(THEME_KEY,userId));
-  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
- }else{
-  themeRemoteAvailable=false;
+  const userId=String(session?.user?.id||"");
+  if(!userId&&themeUserId){
+   setThemeStatus("Your account session could not be confirmed. The saved Custom Theme has not been changed; reconnect and try Reset settings again.",true);
+   return false;
+  }
+  if(userId){
+   try{
+    const result=await sb().from("worth_it_user_themes").delete().eq("user_id",userId);
+    if(result.error)throw result.error;
+    themeRemoteAvailable=true;
+   }catch(error){
+    if(isMissingCommunitySchema(error)){
+     themeRemoteAvailable=false;
+    }else{
+     setThemeStatus("The saved Custom Theme could not be removed from your account. Your current theme has been kept; check your connection and try Reset settings again.",true);
+     console.error("Could not permanently reset the Worth It Custom Theme:",error);
+     return false;
+    }
+   }
+   removeLocal(scopedKey(THEME_KEY,userId));
+   removeLocal(scopedKey(THEME_BOOT_KEY,userId));
+  }else{
+   themeRemoteAvailable=false;
+  }
+  // Invalidate requests that started while the account row was being deleted.
+  themeRequest=Math.max(themeRequest,resetRequest)+1;
+  themeUserId=userId;
+  themeBootAccess=null;
+  savedTheme=DEFAULT_THEME;
+  themePreviewActive=false;
+  applyTheme(DEFAULT_THEME);
+  setThemeStatus(userId
+   ?"The saved Custom Theme was removed from your account. Standard Dark and Light appearance is available again."
+   :"The standard Worth It appearance has been restored.",false);
+  return true;
+ }finally{
+  finishThemeMutation();
  }
- // Invalidate requests that started while the account row was being deleted.
- themeRequest=Math.max(themeRequest,resetRequest)+1;
- themeUserId=userId;
- themeBootAccess=null;
- savedTheme=DEFAULT_THEME;
- themePreviewActive=false;
- applyTheme(DEFAULT_THEME);
- setThemeStatus(userId
-  ?"The saved Custom Theme was removed from your account. Standard Dark and Light appearance is available again."
-  :"The standard Worth It appearance has been restored.",false);
- return true;
 }
+
 
 // UGC cards must opt in explicitly. Built-in calculators do not get social actions.
 function ugcCalculatorId(card){
