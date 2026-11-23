@@ -177,5 +177,5 @@ test("Appearance/Custom Themes has only Back to Worth It while other Settings se
     assert.match(settings, /sectionNav\.hidden = overview \|\| section === "appearance"/);
     assert.match(settings, /setWorthItCustomThemeSettingsOpen\(overview \|\| section === "appearance"\)/);
     assert.match(html, /id="settingsSectionNav"[\s\S]*?Back to Settings/);
-    assert.match(html, /worth-it-settings-toolbar[\s\S]*?backFromWorthItRoute\('\\/'\)\">← Back to Worth It/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/'\)">← Back to Worth It/);
 });
