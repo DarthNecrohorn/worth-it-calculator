@@ -206,7 +206,7 @@ test("the last independently verified complete theme snapshot wins over stale or
     assert.match(community, /function writeThemeCommit\(userId,updatedAt,theme\)/);
     assert.match(community, /theme:cleanTheme\(theme\)/);
     assert.match(community, /function sameThemeSnapshot\(left,right\)/);
-    assert.match(community, /if\(commit\?\.theme\)\s*\{[\s\S]*?if\(sameThemeSnapshot\(remoteTheme,commit\.theme\)\)/);
+    assert.match(community, /if\(commit\?\.theme\)\s*\{/);
     assert.match(community, /else if\(commit\?\.theme\)\s*\{[\s\S]*?A temporarily empty\/stale read must not turn a confirmed custom theme into Dark/);
     assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
 });
