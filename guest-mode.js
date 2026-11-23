@@ -47,36 +47,6 @@
 
     const $ = id => document.getElementById(id);
 
-    function readTimestamp(key) {
-        try {
-            const value = Number(window.localStorage.getItem(key));
-            return Number.isFinite(value) && value > 0 ? value : 0;
-        } catch (_) {
-            return 0;
-        }
-    }
-
-    function writeTimestamp(key, timestamp) {
-        try {
-            window.localStorage.setItem(key, String(Math.max(0, Number(timestamp) || 0)));
-        } catch (_) {
-            // Guest Lite should still work when local storage is blocked.
-        }
-    }
-
-    function authOverlay() {
-        return $(AUTH_OVERLAY_ID);
-    }
-
-    function isAuthModalOpen() {
-        return Boolean(authOverlay()?.classList.contains("open"));
-    }
-
-    function isSignupModalOpen() {
-        const overlay = authOverlay();
-        return Boolean(overlay?.classList.contains("open") && overlay.classList.contains("signup-mode"));
-    }
-
     function closeNavMenus() {
         const nav = $("navLinks");
         if (nav) {
