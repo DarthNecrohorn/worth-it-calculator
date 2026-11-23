@@ -32,21 +32,21 @@ test("the game has its own routed app section, menu asset references and a canon
 });
 
 test("the zombie discovery button sits beside the hero slogan and unlocks the game", () => {
-    assert.match(html, /✦ Smart decisions made simple <button type="button" id="zvhDiscoveryEgg"/);
-    assert.match(html, /id="zvhDiscoveryEgg"[^>]*hidden>🧟<\\/button>/);
-    assert.match(css, /\\.zvh-discovery-egg\\{position:relative;display:inline-grid/);
-    assert.match(css, /\\.zvh-discovery-egg\\[hidden\\]\\{display:none!important\\}/);
-    assert.match(js, /function unlockGame\\(\\)/);
-    assert.match(js, /profile\\.unlocked=true/);
-    assert.match(js, /if\\(profile\\.unlocked\\)return/);
+    assert.ok(html.includes('✦ Smart decisions made simple <button type="button" id="zvhDiscoveryEgg"'));
+    assert.ok(html.includes('id="zvhDiscoveryEgg"') && html.includes("hidden>🧟</button>"));
+    assert.ok(css.includes(".zvh-discovery-egg{position:relative;display:inline-grid"));
+    assert.ok(css.includes(".zvh-discovery-egg[hidden]{display:none!important}"));
+    assert.ok(js.includes("function unlockGame()"));
+    assert.ok(js.includes("profile.unlocked=true"));
+    assert.ok(js.includes("if(profile.unlocked)return"));
     assert.ok(js.includes('const EGG_ID = "zvhDiscoveryEgg";'));
     assert.ok(js.includes("discovery.hidden=visible"));
     assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
     assert.ok(!js.includes("scheduleEgg("));
     assert.ok(!js.includes("IS_PAGES_PREVIEW"));
     assert.ok(html.includes("zvh-hero-inline-discovery-egg-20261123e"));
-    assert.match(js, /STORAGE_PREFIX = "worthItZvhSave:v1:"/);
-    assert.match(js, /zvhNavEntry","zvhMoreMenuEntry/);
+    assert.ok(js.includes('STORAGE_PREFIX = "worthItZvhSave:v1:"'));
+    assert.ok(js.includes('zvhNavEntry","zvhMoreMenuEntry'));
 });
 test("Zombie mode has orders and progressively stronger human military attackers", () => {
     for (const order of ["follow", "attack", "smash"]) assert.ok(html.includes('data-zvh-order="'+order+'"'));
