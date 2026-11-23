@@ -168,7 +168,8 @@ test("Custom Theme saves use one secure upsert RPC and independently verify the 
 test("secure Custom Theme save migration authorizes Premium and atomically updates existing rows", () => {
     const sql = readFileSync(new URL("../supabase/worth-it-community-theme-z-save-rpc.sql", import.meta.url), "utf8");
     assert.match(sql, /private\.worth_it_can_save_custom_theme\(\)/);
-    assert.match(sql, /security definer/);
+    assert.match(sql, /security invoker/);
+    assert.doesNotMatch(sql, /security definer/);
     assert.match(sql, /on conflict \(user_id\) do update set/);
     assert.match(sql, /theme_config = excluded\.theme_config/);
     assert.match(sql, /grant execute on function public\.save_worth_it_custom_theme\(jsonb\) to authenticated/);
