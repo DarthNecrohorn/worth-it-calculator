@@ -887,6 +887,54 @@ async function hydrateInitialThemeBeforePaint(){
   releaseInitialThemeCover();
  }
 }
+function customThemeRowMatches(row,userId,theme){
+ if(!row||row.user_id!==userId||row.theme_name!==theme.name||
+    row.primary_color!==theme.primary||row.secondary_color!==theme.secondary||
+    row.hover_color!==theme.hover||row.header_color!==theme.header)return false;
+ const expected=themeConfig(theme);
+ const actual=row.theme_config&&typeof row.theme_config==="object"?row.theme_config:null;
+ return Boolean(actual&&Object.keys(expected).every(key=>actual[key]===expected[key]));
+}
+async function persistCustomThemeRow(userId,theme){
+ const client=sb();
+ if(!client)throw new Error("The account database is not connected.");
+ const columns="user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config";
+ const payload={
+  user_id:userId,theme_name:theme.name,
+  primary_color:theme.primary,secondary_color:theme.secondary,
+  hover_color:theme.hover,header_color:theme.header,
+  theme_config:themeConfig(theme),updated_at:new Date().toISOString()
+ };
+ // UPDATE and INSERT are deliberately separate: the table has distinct RLS
+ // policies for existing rows and first-time saves. An upsert can obscure which
+ // policy rejected the write, especially when a row already exists.
+ let write=await client.from("worth_it_user_themes")
+  .update(payload).eq("user_id",userId).select("user_id").maybeSingle();
+ if(write.error)throw write.error;
+ if(!write.data){
+  const inserted=await client.from("worth_it_user_themes").insert(payload).select("user_id").maybeSingle();
+  if(inserted.error){
+   // Another tab may have created the row after our UPDATE. Retry the UPDATE
+   // once for that unique-key race; all RLS checks still apply.
+   if(String(inserted.error.code||"")!=="23505")throw inserted.error;
+   write=await client.from("worth_it_user_themes")
+    .update(payload).eq("user_id",userId).select("user_id").maybeSingle();
+   if(write.error)throw write.error;
+   if(!write.data)throw new Error("The existing Custom Theme row could not be updated under the account's save permissions.");
+  }else if(!inserted.data){
+   throw new Error("The database did not confirm creation of the Custom Theme row.");
+  }
+ }
+ // Read independently after the write. Never treat a successful HTTP response
+ // as proof that the latest selected palette/configuration is what was stored.
+ const verified=await client.from("worth_it_user_themes")
+  .select(columns).eq("user_id",userId).maybeSingle();
+ if(verified.error)throw verified.error;
+ if(!customThemeRowMatches(verified.data,userId,theme)){
+  throw new Error("The account database did not retain the exact latest Custom Theme. The previous saved theme has been left unchanged.");
+ }
+ return verified.data;
+}
 async function saveCustomTheme(){
  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to save a Custom Theme.",true);return;}
  if(!themeEntitlementResolved||!themeEntitled){
@@ -916,22 +964,7 @@ async function saveCustomTheme(){
    toast("Your custom theme was saved on this device.");
    return;
   }
-  const expectedConfig=themeConfig(theme);
-  const result=await sb().from("worth_it_user_themes").upsert({
-   user_id:themeUserId,theme_name:theme.name,
-   primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,header_color:theme.header,
-   theme_config:themeConfig(theme),updated_at:new Date().toISOString()
-  },{onConflict:"user_id"})
-   .select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
-   .single();
-  if(result.error)throw result.error;
-  const persisted=result.data;
-  const confirmed=Boolean(persisted&&persisted.user_id===themeUserId&&persisted.theme_name===theme.name&&
-   persisted.primary_color===theme.primary&&persisted.secondary_color===theme.secondary&&
-   persisted.hover_color===theme.hover&&persisted.header_color===theme.header&&
-   persisted.theme_config&&typeof persisted.theme_config==="object"&&
-   Object.keys(expectedConfig).every(key=>persisted.theme_config[key]===expectedConfig[key]));
-  if(!confirmed)throw new Error("The database did not return the saved Custom Theme for verification.");
+  await persistCustomThemeRow(themeUserId,theme);
   themeRemoteAvailable=true;
   clearThemeResetPending(themeUserId);
   savedTheme=theme;writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
