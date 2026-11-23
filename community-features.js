@@ -763,6 +763,8 @@ async function loadThemeForSession(){
    }else{
     if(request!==themeRequest||themeUserId!==userId)return;
     themeEntitled=false;themeEntitlementResolved=false;themeBootAccess=null;
+    clearLocalThemeState(userId);
+    updateThemeAccessUI();
     applyStandardDarkTheme();
     setThemeStatus("Your standard Dark theme is active. The account reset is still pending because the saved theme could not be removed; reconnect and it will be retried automatically.",true);
     console.error("Pending Worth It Custom Theme reset could not be confirmed:",error);
@@ -945,6 +947,7 @@ async function resetCustomTheme(){
  ++themeRequest;
  themeMutationInProgress=true;
  const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
+ let resetTargetUserId=knownUserId;
  if(knownUserId)markThemeResetPending(knownUserId);
  clearLocalThemeState("guest");
  applyStandardDarkTheme();
@@ -961,6 +964,7 @@ async function resetCustomTheme(){
    return false;
   }
   const userId=String(session?.user?.id||"");
+  resetTargetUserId=knownUserId||userId;
   if(knownUserId&&userId&&knownUserId!==userId){
    setThemeStatus("The signed-in account changed during reset. The standard Dark theme is active, and the previous account reset remains pending until that account signs in again.",true);
    return false;
@@ -985,7 +989,7 @@ async function resetCustomTheme(){
   return true;
  }catch(error){
   if(isMissingCommunitySchema(error)){
-   if(knownUserId)clearThemeResetPending(knownUserId);
+   clearThemeResetPending(resetTargetUserId);
    themeRemoteAvailable=false;
    savedTheme=DEFAULT_THEME;
    setThemeStatus("The standard Dark theme is active on this device. Account theme storage is unavailable here, so only the local theme cache could be cleared.",false);
@@ -1009,6 +1013,7 @@ async function resetCustomThemeFromSettings(){
  themeMutationInProgress=true;
  ++themeRequest;
  const knownUserId=String(themeUserId||document.documentElement?.dataset?.worthItBootUserId||"");
+ let resetTargetUserId=knownUserId;
  if(knownUserId)markThemeResetPending(knownUserId);
  clearLocalThemeState("guest");
  applyStandardDarkTheme();
@@ -1024,6 +1029,7 @@ async function resetCustomThemeFromSettings(){
    return false;
   }
   const userId=String(session?.user?.id||"");
+  resetTargetUserId=knownUserId||userId;
   if(knownUserId&&userId&&knownUserId!==userId){
    setThemeStatus("The signed-in account changed during reset. Standard Dark is active, and the previous account reset remains pending until that account signs in again.",true);
    return false;
@@ -1046,7 +1052,7 @@ async function resetCustomThemeFromSettings(){
   return true;
  }catch(error){
   if(isMissingCommunitySchema(error)){
-   if(knownUserId)clearThemeResetPending(knownUserId);
+   clearThemeResetPending(resetTargetUserId);
    themeRemoteAvailable=false;savedTheme=DEFAULT_THEME;themePreviewActive=false;
    setThemeStatus("Standard Dark is active on this device. Account theme storage is unavailable here, so only the local theme cache could be cleared.",false);
    return true;
