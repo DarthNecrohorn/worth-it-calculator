@@ -92,11 +92,21 @@ function removeLocal(key){ try{localStorage.removeItem(key);}catch(_){} }
 function scopedKey(prefix,userId){return prefix+(userId||"guest");}
 function readThemeCommit(userId){
  if(!userId)return null;
- try{const value=JSON.parse(readLocal(scopedKey(THEME_COMMIT_KEY,userId))||"null");const time=Date.parse(value?.updatedAt||"");return Number.isFinite(time)?{updatedAt:time}:null;}catch(_){return null;}
+ try{
+  const value=JSON.parse(readLocal(scopedKey(THEME_COMMIT_KEY,userId))||"null");
+  const time=Date.parse(value?.updatedAt||"");
+  if(!Number.isFinite(time))return null;
+  return {updatedAt:time,theme:value?.theme&&typeof value.theme==="object"?cleanTheme(value.theme):null};
+ }catch(_){return null;}
 }
-function writeThemeCommit(userId,updatedAt){
+function writeThemeCommit(userId,updatedAt,theme){
  const time=Date.parse(String(updatedAt||""));
- if(userId&&Number.isFinite(time))writeLocal(scopedKey(THEME_COMMIT_KEY,userId),JSON.stringify({updatedAt:new Date(time).toISOString()}));
+ if(userId&&Number.isFinite(time)&&theme&&typeof theme==="object"){
+  writeLocal(scopedKey(THEME_COMMIT_KEY,userId),JSON.stringify({updatedAt:new Date(time).toISOString(),theme:cleanTheme(theme)}));
+ }
+}
+function sameThemeSnapshot(left,right){
+ return Boolean(left&&right&&JSON.stringify(cleanTheme(left))===JSON.stringify(cleanTheme(right)));
 }
 function validHex(value){return /^#[0-9a-f]{6}$/i.test(String(value||""));}
 
@@ -598,6 +608,7 @@ function clearLocalThemeState(userId){
  if(!userId)return;
  removeLocal(scopedKey(THEME_KEY,userId));
  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
+ removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
 }
 function markThemeResetPending(userId){
  if(!userId)return true;
@@ -642,6 +653,7 @@ async function clearThemeAfterExpiry(userId,request){
  themeBootAccess=null;
  removeLocal(scopedKey(THEME_KEY,userId));
  removeLocal(scopedKey(THEME_BOOT_KEY,userId));
+ removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
  themeRemoteAvailable=userId?null:false;
  if(userId&&themeRemoteAvailable!==false){
   try{
@@ -841,20 +853,35 @@ async function loadThemeForSession(){
    .eq("user_id",userId).maybeSingle();
   if(request!==themeRequest||themeUserId!==userId)return;
   if(result.error)throw result.error;
+  const commit=readThemeCommit(userId);
   if(result.data){
-   const commit=readThemeCommit(userId);
-   const remoteUpdatedAt=Date.parse(String(result.data.updated_at||""));
-   if(commit&&Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt<commit.updatedAt){
-    // A lagging read replica/cache must never roll back a more recent confirmed save.
-    applyTheme(livePreview||savedTheme);
-    return;
-   }
-   if(commit&&Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt>=commit.updatedAt)removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
    const config=result.data.theme_config&&typeof result.data.theme_config==="object"?result.data.theme_config:{};
-   savedTheme=cleanTheme({
+   const remoteTheme=cleanTheme({
     name:result.data.theme_name,primary:result.data.primary_color,secondary:result.data.secondary_color,
     hover:result.data.hover_color,header:result.data.header_color,...config
    });
+   const remoteUpdatedAt=Date.parse(String(result.data.updated_at||""));
+   if(commit?.theme&&!sameThemeSnapshot(remoteTheme,commit.theme)){
+    // The last independently verified save is authoritative until the server
+    // returns that exact complete theme. Timestamp equality is not sufficient:
+    // Postgres transaction timestamps can collide at the application's precision.
+    savedTheme=commit.theme;
+    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
+    applyTheme(livePreview||savedTheme);
+    return;
+   }
+   if(commit&&!commit.theme&&Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt<commit.updatedAt){
+    savedTheme=readCachedCustomTheme(userId)||savedTheme;
+    applyTheme(livePreview||savedTheme);
+    return;
+   }
+   if(commit)removeLocal(scopedKey(THEME_COMMIT_KEY,userId));
+   savedTheme=remoteTheme;
+   writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
+   applyTheme(livePreview||savedTheme);
+  }else if(commit?.theme){
+   // A temporarily empty/stale read must not turn a confirmed custom theme into Dark.
+   savedTheme=commit.theme;
    writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
    applyTheme(livePreview||savedTheme);
   }else{
@@ -956,7 +983,7 @@ async function saveCustomTheme(){
 
   themeRemoteAvailable=true;
   clearThemeResetPending(themeUserId);
-  writeThemeCommit(themeUserId,persisted.updated_at||saved.data?.updated_at);
+  writeThemeCommit(themeUserId,persisted.updated_at||saved.data?.updated_at,theme);
   savedTheme=theme;
   writeLocal(scopedKey(THEME_KEY,themeUserId),JSON.stringify(theme));
   themePreviewActive=false;
