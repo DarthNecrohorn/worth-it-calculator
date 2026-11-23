@@ -193,7 +193,7 @@ test("confirmed Custom Theme saves verify and retain the database update timesta
     const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
     const save = community.slice(saveStart, resetStart);
     assert.match(save, /theme_config,updated_at/);
-    assert.match(save, /writeThemeCommit\(themeUserId,persisted\.updated_at,theme\)/);
+    assert.match(save, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
 });
 
 
