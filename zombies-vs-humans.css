@@ -54,7 +54,7 @@
 .zvh-save-note{margin:14px 2px 0;color:#77849a;font-size:10px;line-height:1.5}
 .zvh-game-view{display:grid;gap:10px}
 .zvh-game-view[hidden],.zvh-settings-overlay[hidden],.zvh-run-result[hidden]{display:none!important}
-.zvh-game-hud{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:8px;align-items:center;padding:10px;border:1px solid rgba(148,163,184,.2);border-radius:13px;background:#101a2b}
+.zvh-game-hud{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:8px;align-items:center;padding:10px;border:1px solid rgba(148,163,184,.2);border-radius:13px;background:#101a2b}
 .zvh-game-hud>div{display:grid;gap:3px;min-width:0;padding:2px 6px}
 .zvh-game-hud small{color:#92a0b7;font-size:8px;font-weight:900;letter-spacing:.12em}
 .zvh-game-hud strong{color:#f7f8ff;font-size:15px;font-variant-numeric:tabular-nums}
@@ -63,7 +63,7 @@
 .zvh-health-track span{display:block;width:100%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35c781,#b9e36a);transition:width .14s ease}
 .zvh-stage-wrap{position:relative;overflow:hidden;min-height:360px;aspect-ratio:16/9;border:1px solid rgba(148,163,184,.23);border-radius:16px;background:#0c1421;box-shadow:0 18px 45px rgba(0,0,0,.3)}
 #zvhCanvas{display:block;width:100%;height:100%;touch-action:none}
-.zvh-stage-message{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:rgba(5,9,17,.68);color:#fff;text-align:center;font-size:22px;font-weight:900;letter-spacing:.04em}
+.zvh-stage-message{position:absolute;z-index:5;top:12px;left:50%;transform:translateX(-50%);display:block;width:max-content;max-width:calc(100% - 24px);padding:9px 16px;border:1px solid rgba(221,194,143,.48);border-radius:8px;background:rgba(13,22,25,.92);box-shadow:0 5px 18px rgba(0,0,0,.28);color:#f4e6c8;text-align:center;font-size:11px;font-weight:950;letter-spacing:.095em;text-transform:uppercase;pointer-events:none}
 .zvh-stage-message[hidden]{display:none}
 .zvh-game-controls{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-height:48px;padding:10px 12px;border:1px solid rgba(148,163,184,.16);border-radius:13px;background:#101a2b}
 .zvh-zombie-commands,.zvh-human-commands{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
@@ -200,3 +200,16 @@
 .zvh-shop-item button{border-radius:5px;border-color:rgba(202,151,105,.42);background:rgba(145,93,59,.2);color:#e7c39b}
 .zvh-lobby-actions button{border-radius:7px;background:linear-gradient(115deg,#a85d46,#c18a55);text-transform:uppercase;letter-spacing:.07em}
 @media(max-width:700px){.zvh-mode-card{min-height:146px;padding:14px;gap:12px}.zvh-mode-art{flex-basis:72px;width:72px;height:90px;font-size:42px}.zvh-mode-copy strong{font-size:17px}}
+
+/* Field HUD: ammo, wave and combat messages stay compact and never veil the battlefield. */
+.zvh-game-hud{grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:6px;border-radius:9px;background:linear-gradient(90deg,#111b22,#17242a)}
+.zvh-game-hud>div{border-left:2px solid rgba(190,153,112,.25)}
+#zvhHudAmmoPanel[hidden]{display:none!important}
+#zvhHudAmmo{color:#f3cd7d}
+.zvh-stage-wrap{border-color:rgba(199,158,110,.25);border-radius:10px;box-shadow:0 20px 45px rgba(0,0,0,.34)}
+.zvh-mobile-actions button{box-shadow:0 5px 14px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
+@media(max-width:600px){
+  .zvh-game-hud{grid-template-columns:repeat(3,minmax(0,1fr)) auto}
+  .zvh-game-hud>div{padding:3px}
+  .zvh-game-hud strong{font-size:13px}
+}
