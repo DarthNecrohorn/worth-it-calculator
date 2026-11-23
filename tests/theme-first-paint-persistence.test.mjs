@@ -53,17 +53,20 @@ test("the Custom Theme script cache key changes with the first-paint bootstrap",
 });
 
 
+
 test("saving a new preset invalidates older theme hydration and prevents concurrent loads", () => {
     assert.match(community, /let themeMutationInProgress = false/);
+    assert.match(community, /let themeReloadAfterMutation = false/);
     const loadStart = community.indexOf("async function loadThemeForSession()");
-    const loadBody = community.slice(loadStart, loadStart + 260);
-    assert.match(loadBody, /if\(themeMutationInProgress\)return/);
+    const loadBody = community.slice(loadStart, loadStart + 280);
+    assert.match(loadBody, /themeMutationInProgress/);
+    assert.match(loadBody, /themeReloadAfterMutation=true/);
     const saveStart = community.indexOf("async function saveCustomTheme()");
     const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
     const saveBody = community.slice(saveStart, resetStart);
     assert.match(saveBody, /\+\+themeRequest/);
     assert.match(saveBody, /themeMutationInProgress=true/);
-    assert.match(saveBody, /finally\{themeMutationInProgress=false/);
+    assert.match(saveBody, /finishThemeMutation\(\)/);
 });
 
 test("reset invalidates pending reads, removes both caches, and serializes with saves", () => {
@@ -74,9 +77,9 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     assert.match(resetBody, /themeMutationInProgress=true/);
     assert.match(resetBody, /removeLocal\(scopedKey\(THEME_KEY,themeUserId\)\)/);
     assert.match(resetBody, /removeLocal\(scopedKey\(THEME_BOOT_KEY,themeUserId\)\)/);
-    assert.match(resetBody, /finally\{\s*themeMutationInProgress=false/);
+    assert.match(resetBody, /finishThemeMutation\(\)/);
     assert.match(community, /async function performResetCustomThemeFromSettings\(\)/);
-    assert.match(community, /async function resetCustomThemeFromSettings\(\)[\s\S]*?themeMutationInProgress=true[\s\S]*?finally\{\s*themeMutationInProgress=false/);
+    assert.match(community, /async function resetCustomThemeFromSettings\(\)[\s\S]*?themeMutationInProgress=true[\s\S]*?finishThemeMutation\(\)/);
 });
 
 test("theme script cache key is refreshed for the save/reset race fix", () => {
