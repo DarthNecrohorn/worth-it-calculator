@@ -122,7 +122,7 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
-    assert.match(html, /theme-stale-read-guard=20261123a/);
+    assert.match(html, /theme-committed-snapshot=20261123a/);
 });
 
 
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-save-atomic-readback=20261123e/);
+    assert.match(html, /theme-committed-snapshot=20261123a/);
 });
 
 
