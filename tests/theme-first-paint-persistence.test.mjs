@@ -149,3 +149,21 @@ test("pending reset always wins over cached themes when auth hydration fails or 
     assert.match(hydrate, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
     assert.match(hydrate, /applyTheme\(resetPending\?DEFAULT_THEME/);
 });
+
+
+test("Custom Theme saves update an existing account row or insert a first row, then independently verify the latest values", () => {
+    const helperStart = community.indexOf("async function persistCustomThemeRow(userId,theme)");
+    const helperEnd = community.indexOf("async function saveCustomTheme()", helperStart);
+    const helper = community.slice(helperStart, helperEnd);
+    assert.ok(helperStart >= 0 && helperEnd > helperStart);
+    assert.match(helper, /\.update\(payload\)\.eq\("user_id",userId\)\.select\("user_id"\)\.maybeSingle\(\)/);
+    assert.match(helper, /\.insert\(payload\)\.select\("user_id"\)\.maybeSingle\(\)/);
+    assert.match(helper, /String\(inserted\.error\.code\|\|""\)!=="23505"/);
+    assert.match(helper, /\.select\(columns\)\.eq\("user_id",userId\)\.maybeSingle\(\)/);
+    assert.match(helper, /customThemeRowMatches\(verified\.data,userId,theme\)/);
+    assert.doesNotMatch(helper, /\.upsert\(/);
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.match(save, /await persistCustomThemeRow\(themeUserId,theme\)/);
+});
