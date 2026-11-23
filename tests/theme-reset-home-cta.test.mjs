@@ -126,3 +126,16 @@ test("a pending account reset blocks a new save until the reset is resolved", ()
     assert.match(community.slice(saveStart, resetStart), /isThemeResetPending\(themeUserId\)/);
     assert.match(community, /clearThemeResetPending\(themeUserId\)/);
 });
+
+
+test("reset safeguard is verified in persistent or session storage before local caches are cleared", () => {
+    const helperStart = community.indexOf("function markThemeResetPending(userId)");
+    const helperEnd = community.indexOf("function clearThemeResetPending(userId)", helperStart);
+    const helper = community.slice(helperStart, helperEnd);
+    assert.match(helper, /localStorage\.setItem\(key,"1"\)/);
+    assert.match(helper, /localStorage\.getItem\(key\)==="1"/);
+    assert.match(helper, /sessionStorage\.setItem\(key,"1"\)/);
+    assert.match(helper, /if\(!persisted\)return false/);
+    assert.match(helper, /clearLocalThemeState\(userId\)/);
+    assert.match(html, /sessionStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\)/);
+});
