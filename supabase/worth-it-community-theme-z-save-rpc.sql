@@ -23,7 +23,7 @@ begin
         raise exception 'Authentication required' using errcode = '28000';
     end if;
 
-    if pg_catalog.jsonb_typeof(p_theme) <> 'object' then
+    if p_theme is null or pg_catalog.jsonb_typeof(p_theme) is distinct from 'object' then
         raise exception 'A Custom Theme object is required' using errcode = '22023';
     end if;
 
@@ -45,7 +45,7 @@ begin
        or v_secondary !~ '^#[0-9A-F]{6}$'
        or v_hover !~ '^#[0-9A-F]{6}$'
        or v_header !~ '^#[0-9A-F]{6}$'
-       or pg_catalog.jsonb_typeof(v_config) <> 'object' then
+       or pg_catalog.jsonb_typeof(v_config) is distinct from 'object' then
         raise exception 'Custom Theme contains invalid colours or settings' using errcode = '22023';
     end if;
 
@@ -81,5 +81,7 @@ $$;
 
 revoke all on function public.save_worth_it_custom_theme(jsonb) from public, anon;
 grant execute on function public.save_worth_it_custom_theme(jsonb) to authenticated;
+
+notify pgrst, 'reload schema';
 
 commit;
