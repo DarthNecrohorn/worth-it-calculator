@@ -122,7 +122,7 @@ test("Custom Theme reset clears snapshots and restores explicit standard Dark mo
 });
 
 test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
-    assert.match(html, /theme-committed-snapshot=20261123c/);
+    assert.match(html, /theme-committed-snapshot=20261123d/);
 });
 
 
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-committed-snapshot=20261123c/);
+    assert.match(html, /theme-committed-snapshot=20261123d/);
 });
 
 
@@ -216,4 +216,17 @@ test("reset and expired entitlement clear the committed theme snapshot", () => {
     assert.match(clear, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
     const expiry = community.match(/async function clearThemeAfterExpiry\(userId,request\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
     assert.match(expiry, /THEME_COMMIT_KEY/);
+});
+
+
+
+test("Custom Theme preview and save trust the visible Appearance editor, not a stale route flag", () => {
+    assert.match(community, /function isThemeEditorVisible\(\)/);
+    assert.match(community, /const page=\$\(\"settingsPage\"\),panel=\$\(\"appearanceSettingsPanel\"\),editor=\$\(\"worthItThemeEditor\"\)/);
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.match(save, /if\(!isThemeEditorVisible\(\)\)/);
+    assert.match(save, /themeSettingsOpen=true/);
+    assert.match(community, /if\(!isThemeEditorVisible\(\)\)\{setThemeStatus\(\"Open Settings → Appearance & Accessibility to preview Custom Themes/);
 });
