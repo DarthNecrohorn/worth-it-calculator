@@ -140,3 +140,10 @@ test("reset safeguard is verified in persistent or session storage before local 
     assert.match(helper, /clearLocalThemeState\(userId\)/);
     assert.match(html, /sessionStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\)/);
 });
+
+
+test("resetting an account theme removes the durable committed-snapshot safeguard", () => {
+    const clear = community.match(/function clearLocalThemeState\(userId\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(clear, /THEME_COMMIT_KEY/);
+    assert.match(community, /removeLocal\(scopedKey\(THEME_COMMIT_KEY,userId\)\)/);
+});
