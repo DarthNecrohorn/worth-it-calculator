@@ -108,4 +108,12 @@
  window.addEventListener("pageshow",()=>void load());
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>void load(),{once:true});else void load();
  window.addEventListener("worthitauthstatechange",()=>void load());
+ const auth=client()?.auth;
+ if(auth?.onAuthStateChange){
+  auth.onAuthStateChange((event,session)=>{
+   if(event==="SIGNED_IN"||event==="SIGNED_OUT"||event==="INITIAL_SESSION"){
+    window.setTimeout(()=>void load(),0);
+   }
+  });
+ }
 })();
