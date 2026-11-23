@@ -67,6 +67,7 @@ returns jsonb language plpgsql stable security definer set search_path=public
 as $$
 declare target_user uuid; found_keys jsonb;
 begin
+ if auth.uid() is null then raise exception 'Authentication required'; end if;
  if p_worth_it_id is null then raise exception 'Profile ID required'; end if;
  select user_id into target_user from public.worth_it_profiles where worth_it_id=p_worth_it_id;
  if target_user is null then return jsonb_build_object('success',false,'discoveries','[]'::jsonb); end if;
