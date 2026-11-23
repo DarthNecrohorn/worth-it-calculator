@@ -23,13 +23,16 @@ const upgradeCatalog = {
     {id:"health",name:"Undead resilience",desc:"+25 starting health per level",icon:"🛡️",base:75},
     {id:"damage",name:"Infection strength",desc:"Deal more damage when infecting or fighting",icon:"🦷",base:90},
     {id:"horde",name:"Horde capacity",desc:"More loyal zombies can follow you",icon:"🧟",base:130},
-    {id:"speed",name:"Predator sprint",desc:"Move faster when hunting",icon:"💨",base:110}
+    {id:"speed",name:"Predator sprint",desc:"Move faster when hunting",icon:"💨",base:110},
+    {id:"elite",name:"Elite horde strain",desc:"Your loyal zombies start tougher and hit harder",icon:"🧟‍♀️",base:165},
+    {id:"mutation",name:"Mutant starting form",desc:"Begin each run as a stronger zombie",icon:"🧬",base:210}
   ],
   human: [
     {id:"health",name:"Field medical training",desc:"+25 starting health per level",icon:"🩹",base:75},
     {id:"damage",name:"Weapon damage",desc:"Deal more damage per shot",icon:"🎯",base:95},
     {id:"fire",name:"Rapid fire training",desc:"Shorter time between shots",icon:"⚡",base:125},
-    {id:"squad",name:"Squad leadership",desc:"Recruit more survivor companions",icon:"🪖",base:160}
+    {id:"squad",name:"Squad leadership",desc:"Recruit more survivor companions",icon:"🪖",base:160},
+    {id:"skin",name:"Survivor uniforms",desc:"Unlock a new visual survivor outfit",icon:"🎖️",base:115}
   ]
 };
 const defaults = {
@@ -730,9 +733,10 @@ function drawActor(ctx,e,isPlayer){
     ctx.fillStyle="#657a70";ctx.beginPath();ctx.ellipse(0,0,28,16,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#d4dce0";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-36,-21);ctx.lineTo(36,-21);ctx.moveTo(0,-21);ctx.lineTo(0,21);ctx.stroke();
   }else{
     const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||e.team==="player"&&run.mode==="human";
-    let color=human?"#4b93c1":"#7fae67";\n    if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))color=["#4b93c1","#9173c9","#c18e56","#4f9b91"][profile.upgrades.human.skin%4];
+    let color=human?"#4b93c1":"#7fae67";
     if(e.type==="police")color="#4e78ce";if(e.type==="soldier"||e.type==="ally")color="#81916b";
     if(e.type==="runner")color="#86ad66";if(e.type==="brute")color="#697e54";if(e.type==="armored")color="#69717a";if(e.type==="boss")color="#9a6a87";
+    if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))color=["#4b93c1","#9173c9","#c18e56","#4f9b91"][profile.upgrades.human.skin%4];
     ctx.fillStyle="rgba(4,9,15,.32)";ctx.beginPath();ctx.ellipse(0,10,e.radius*1.25,e.radius*.62,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=human?"#c4a58d":"#b8e69b";ctx.beginPath();ctx.arc(0,-e.radius*.25,e.radius*.42,0,Math.PI*2);ctx.fill();
