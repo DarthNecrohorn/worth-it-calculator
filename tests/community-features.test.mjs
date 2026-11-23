@@ -10,6 +10,7 @@ const settings=read("settings.js"), routing=read("routing.js");
 const themeHoverMigration=read("supabase/worth-it-community-theme-hover.sql");
 const themeHeaderMigration=read("supabase/worth-it-community-theme-header.sql");
 const themeDesignMigration=read("supabase/worth-it-community-theme-design-system.sql");
+const themeSaveMigration=read("supabase/worth-it-community-theme-z-save-rpc.sql");
 const siteCss=read("style.css");
 const themeSystemCss=read("site-theme-system.css");
 const webShopCss=read("web-shop.css");
@@ -117,7 +118,8 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(css.includes('data-worth-it-hover-effect="glow"'));
 
  assert.ok(js.includes("--worth-it-hover-glow"));
- assert.ok(js.includes("hover_color:theme.hover"));
+ assert.ok(themeSaveMigration.includes("p_theme ->> 'hover'"));
+ assert.ok(themeSaveMigration.includes("hover_color = excluded.hover_color"));
  assert.ok(js.includes("window.resetWorthItCustomTheme=resetCustomTheme"));
  assert.ok(sql.includes("primary_color"));
  assert.ok(sql.includes("secondary_color"));
