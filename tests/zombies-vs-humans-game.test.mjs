@@ -23,7 +23,7 @@ test("the secret entry is positioned immediately after Ship Tracking in both nav
 });
 
 test("the game has its own routed app section, menu asset references and a canonical URL", () => {
-    assert.match(html, /id="zvhGameSection"[^>]*class="app zvh-section"/);
+    assert.match(html, /<section class="app zvh-section" id="zvhGameSection"/);
     assert.match(html, /zombies-vs-humans\.css\?v=/);
     assert.match(html, /zombies-vs-humans\.js\?v=/);
     assert.match(html, /id="zvhStartRun"/);
