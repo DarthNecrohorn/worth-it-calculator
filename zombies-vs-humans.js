@@ -21,7 +21,7 @@ const maps = {
 const upgradeCatalog = {
   zombie: [
     {id:"health",name:"Undead resilience",desc:"+25 starting health per level",icon:"🛡️",base:75},
-    {id:"damage",name:"Infection strength",desc+"",icon:"🦷",base:90},
+    {id:"damage",name:"Infection strength",desc:"Deal more damage when infecting or fighting",icon:"🦷",base:90},
     {id:"horde",name:"Horde capacity",desc:"More loyal zombies can follow you",icon:"🧟",base:130},
     {id:"speed",name:"Predator sprint",desc:"Move faster when hunting",icon:"💨",base:110}
   ],
@@ -68,7 +68,7 @@ function isMissingTable(error){
 function normaliseProfile(raw){
   const result=clone(defaults), value=raw&&typeof raw==="object"?raw:{};
   result.unlocked=Boolean(value.unlocked);
-  result.coins=Math.max(0,Math.min(10000000,Math.floor(Number(value.coins)||0)));
+  result.coins=value&&Object.prototype.hasOwnProperty.call(value,"coins")?Math.max(0,Math.min(10000000,Math.floor(Number(value.coins)||0))):defaults.coins;
   ["zombie","human"].forEach(mode=>{
     const valid=maps[mode].map(item=>item.id);
     const saved=Array.isArray(value.maps?.[mode])?value.maps[mode]:[];
@@ -497,7 +497,7 @@ function damageActor(actor,amount){
 function convertHuman(target,source){
   if(!target||target.dead)return;
   target.dead=true;run.enemies=run.enemies.filter(item=>item!==target);
-  run.infested++;profile.totalInfested++;
+  run.infested++;
   const limit=8+(profile.upgrades.zombie.horde||0)*2;
   if(run.friends.length<limit){
     run.friends.push(entity("friend","zombie",target.x,target.y,{hp:70,maxHp:70,speed:114,damage:14+profile.upgrades.zombie.damage*2,radius:13}));
