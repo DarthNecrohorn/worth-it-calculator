@@ -42,7 +42,7 @@ test("network and timeout fallbacks never reveal an expired or unverified custom
     const valid = community.match(/function readValidThemeBootSnapshot\(userId\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
     assert.ok(valid, "a validated Premium snapshot reader exists");
     assert.match(valid, /snapshot\.userId!==userId/);
-    assert.match(valid, /expires>Date\.now\(\)/);
+    assert.match(valid, /expiry>Date\.now\(\)/);
     assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(userId\)/);
     assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(bootstrapUserId\)/);
     assert.match(community, /validBootSnapshot\?readCachedCustomTheme\(/);
