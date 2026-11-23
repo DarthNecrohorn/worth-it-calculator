@@ -45,7 +45,7 @@ test("network and timeout fallbacks never reveal an expired or unverified custom
     assert.match(valid, /snapshot\.userId!==userId/);
     assert.match(valid, /expiry>Date\.now\(\)/);
     assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(userId\)/);
-    assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(bootstrapUserId\)/);
+    assert.match(community, /const validBootSnapshot=resetPending\?null:readValidThemeBootSnapshot\(bootstrapUserId\)/);
     assert.match(community, /validBootSnapshot\?readCachedCustomTheme\(/);
 });
 
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-reset-pending-confirm=20261123b/);
+    assert.match(html, /theme-reset-pending-confirm=20261123d/);
 });
 
 
