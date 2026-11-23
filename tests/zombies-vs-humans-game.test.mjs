@@ -44,7 +44,7 @@ test("the zombie discovery button sits beside the hero slogan and unlocks the ga
     assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
     assert.ok(!js.includes("scheduleEgg("));
     assert.ok(!js.includes("IS_PAGES_PREVIEW"));
-    assert.ok(html.includes("zvh-hero-inline-discovery-egg-20261123e"));
+    assert.ok(html.includes("zvh-controls-animation-map-20261123f"));
     assert.ok(js.includes('STORAGE_PREFIX = "worthItZvhSave:v1:"'));
     assert.ok(js.includes('zvhNavEntry","zvhMoreMenuEntry'));
 });
