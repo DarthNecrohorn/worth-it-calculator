@@ -207,8 +207,16 @@ async function loadProfileForSession(session){
   updateWallet();
   renderLobby();
   syncSettingsForm();
-  if(profile.unlocked){window.clearTimeout(eggTimer);if(activeEgg){activeEgg.remove();activeEgg=null;}}
-  else scheduleEgg(nextEggDelay(true));
+  if(profile.unlocked){
+    window.clearTimeout(eggTimer);
+    if(activeEgg){activeEgg.remove();activeEgg=null;}
+  }else if(IS_PAGES_PREVIEW&&!userId){
+    // Preview guest QA: keep the discovery target visible until clicked.
+    if(!activeEgg)revealEgg();
+  }else{
+    if(activeEgg){activeEgg.remove();activeEgg=null;}
+    scheduleEgg(nextEggDelay(true));
+  }
   if(profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
     showGame({fromUrl:true});
   }else if(!profile.unlocked&&window.location.pathname.replace(/\/$/,"")===ROUTE){
@@ -251,18 +259,29 @@ function revealEgg(){
   const button=document.createElement("button");
   button.type="button";button.className=EGG_CLASS;button.textContent="🧟";
   button.setAttribute("aria-label","A hidden zombie has appeared. Click to unlock Zombies vs Humans.");
-  const width=Math.max(320,window.innerWidth),height=Math.max(420,window.innerHeight);
-  const left=18+Math.random()*Math.max(10,width-90);
-  const top=90+Math.random()*Math.max(10,height-240);
-  button.style.left=Math.min(width-74,left)+"px";
-  button.style.top=Math.min(height-110,top)+"px";
+  const previewGuest=IS_PAGES_PREVIEW&&!userId;
+  if(previewGuest){
+    button.style.right="22px";
+    button.style.bottom="110px";
+    button.style.left="auto";
+    button.style.top="auto";
+    button.setAttribute("title","Preview test: click to unlock Zombies vs Humans");
+  }else{
+    const width=Math.max(320,window.innerWidth),height=Math.max(420,window.innerHeight);
+    const left=18+Math.random()*Math.max(10,width-90);
+    const top=90+Math.random()*Math.max(10,height-240);
+    button.style.left=Math.min(width-74,left)+"px";
+    button.style.top=Math.min(height-110,top)+"px";
+  }
   button.style.zIndex="2147483000";
   button.addEventListener("click",unlockGame,{once:true});
   document.body.appendChild(button);
   activeEgg=button;
-  window.setTimeout(()=>{
-    if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(nextEggDelay(false));}
-  },IS_PAGES_PREVIEW?18000:10500);
+  if(!previewGuest){
+    window.setTimeout(()=>{
+      if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(nextEggDelay(false));}
+    },10500);
+  }
 }
 function unlockGame(){
   if(profile.unlocked)return;
@@ -955,7 +974,7 @@ function init(){
       scheduleEgg(nextEggDelay(false));
     }
   });
-  if(IS_PAGES_PREVIEW&&!readLocal("guest").unlocked)scheduleEgg(nextEggDelay(true));
+  // Wait for auth/profile hydration before choosing Guest or account discovery behavior.
   void currentClientSession().then(session=>loadProfileForSession(session));
   if(window.supabaseClient?.auth?.onAuthStateChange){
     window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
