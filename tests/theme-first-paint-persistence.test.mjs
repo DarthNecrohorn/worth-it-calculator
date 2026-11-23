@@ -149,3 +149,28 @@ test("pending reset always wins over cached themes when auth hydration fails or 
     assert.match(hydrate, /const resetPending=isThemeResetPending\(bootstrapUserId\)/);
     assert.match(hydrate, /applyTheme\(resetPending\?DEFAULT_THEME/);
 });
+
+
+test("Custom Theme saves use one secure upsert RPC and independently verify the latest stored palette", () => {
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.match(save, /auth\.getSession\(\)/);
+    assert.match(save, /currentUserId!==themeUserId/);
+    assert.match(save, /rpc\("save_worth_it_custom_theme",\{p_theme:theme\}\)/);
+    assert.match(save, /\.select\("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config"\)/);
+    assert.match(save, /\.eq\("user_id",themeUserId\)\.single\(\)/);
+    assert.match(save, /The account still returned an older or incomplete Custom Theme after saving/);
+    assert.doesNotMatch(save, /themeRemoteAvailable===false/);
+    assert.doesNotMatch(save, /saved on this device only/);
+});
+
+test("secure Custom Theme save migration authorizes Premium and atomically updates existing rows", () => {
+    const sql = readFileSync(new URL("../supabase/worth-it-community-theme-z-save-rpc.sql", import.meta.url), "utf8");
+    assert.match(sql, /private\.worth_it_can_save_custom_theme\(\)/);
+    assert.match(sql, /security definer/);
+    assert.match(sql, /on conflict \(user_id\) do update set/);
+    assert.match(sql, /theme_config = excluded\.theme_config/);
+    assert.match(sql, /grant execute on function public\.save_worth_it_custom_theme\(jsonb\) to authenticated/);
+    assert.match(sql, /revoke all on function public\.save_worth_it_custom_theme\(jsonb\) from public, anon/);
+});
