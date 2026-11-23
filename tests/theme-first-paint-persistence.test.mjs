@@ -75,8 +75,8 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     const resetBody = community.slice(resetStart, accountResetStart);
     assert.ok(resetBody.includes("++themeRequest"));
     assert.ok(resetBody.includes("themeMutationInProgress=true"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,themeUserId))"));
-    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,knownUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
     assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
@@ -88,4 +88,37 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
 
 test("theme script cache key is refreshed for the save/reset race fix", () => {
     assert.match(html, /theme-save-race=20261123a/);
+});
+
+
+test("Custom Theme save requires a verified database row and reports unconfirmed writes", () => {
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.match(save, /\.select\("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config"\)/);
+    assert.match(save, /\.single\(\)/);
+    assert.match(save, /const confirmed=Boolean\(/);
+    assert.match(save, /if\(!confirmed\)throw new Error/);
+    assert.match(save, /Your new theme is only a preview\. It was not confirmed as saved to your account/);
+});
+
+test("Custom Theme reset clears snapshots and restores explicit standard Dark mode without a Premium gate", () => {
+    const helperStart = community.indexOf("function applyStandardDarkTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()");
+    const resetEnd = community.indexOf("async function resetCustomThemeFromSettings()", resetStart);
+    const helper = community.slice(helperStart, resetStart);
+    const reset = community.slice(resetStart, resetEnd);
+    assert.match(helper, /applyTheme\(DEFAULT_THEME\)/);
+    assert.match(helper, /root\.dataset\.theme="dark"/);
+    assert.match(helper, /writeLocal\("worthItTheme","dark"\)/);
+    assert.match(reset, /applyStandardDarkTheme\(\)/);
+    assert.match(reset, /sb\(\)\?\.auth\?\.getSession\?\.\(\)/);
+    assert.match(reset, /\.delete\(\)\.eq\("user_id",userId\)\.select\("user_id"\)/);
+    assert.doesNotMatch(reset, /if\(!themeEntitled/);
+    assert.doesNotMatch(reset, /if\(!themeSettingsOpen/);
+    assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,knownUserId\)\)/);
+});
+
+test("theme script cache key changes for the confirmed-save and unconditional-reset fix", () => {
+    assert.match(html, /theme-reset-save-confirm=20261123a/);
 });

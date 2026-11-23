@@ -51,3 +51,35 @@ test("resetting the theme re-enables Dark and Light controls", () => {
     assert.match(community, /button\.disabled=custom/);
     assert.match(settings, /window\.updateWorthItAppearanceModeControls\?\.\(\)/);
 });
+
+
+test("Restore default theme always applies standard Dark and removes the account theme", () => {
+    const helperStart = community.indexOf("function applyStandardDarkTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()");
+    const resetEnd = community.indexOf("async function resetCustomThemeFromSettings()", resetStart);
+    const helper = community.slice(helperStart, resetStart);
+    const reset = community.slice(resetStart, resetEnd);
+    assert.ok(helper.includes("applyTheme(DEFAULT_THEME)"));
+    assert.ok(helper.includes('root.dataset.theme="dark"'));
+    assert.ok(helper.includes('writeLocal("worthItTheme","dark")'));
+    assert.ok(reset.includes("applyStandardDarkTheme()"));
+    assert.ok(reset.includes("sb()?.auth?.getSession?.()"));
+    assert.ok(reset.includes('.from("worth_it_user_themes")'));
+    assert.ok(reset.includes('.delete().eq("user_id",userId).select("user_id")'));
+    assert.ok(!reset.includes("if(!themeEntitled"));
+    assert.ok(!reset.includes("if(!themeSettingsOpen"));
+    assert.ok(reset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,knownUserId))"));
+});
+
+test("Custom Theme Save confirms the exact row returned by Supabase before reporting success", () => {
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    const save = community.slice(saveStart, resetStart);
+    assert.ok(save.includes('.upsert({'));
+    assert.ok(save.includes('.select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")'));
+    assert.ok(save.includes('.single()'));
+    assert.ok(save.includes("const confirmed=Boolean("));
+    assert.ok(save.includes("if(!confirmed)throw new Error"));
+    assert.ok(save.includes("Custom Theme saved to your account."));
+    assert.ok(save.includes("Custom Theme was not saved."));
+});
