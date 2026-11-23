@@ -36,7 +36,7 @@ const defaults = {
   unlocked:false,coins:100,
   maps:{zombie:["city"],human:["safehouse"]},
   selected:{zombie:"city",human:"safehouse"},
-  upgrades:{zombie:{health:0,damage:0,horde:0,speed:0},human:{health:0,damage:0,fire:0,squad:0}},
+  upgrades:{zombie:{health:0,damage:0,horde:0,speed:0,elite:0,mutation:0},human:{health:0,damage:0,fire:0,squad:0,skin:0}},
   bestWave:{zombie:0,human:0},totalInfested:0,totalKills:0,
   settings:{effects:true,shake:false,mobile:true}
 };
@@ -388,13 +388,13 @@ function startRun(){
   const up=profile.upgrades[mode];
   run={
     mode,mapId,worldW:1900,worldH:1320,elapsed:0,wave:1,nextSpawn:2.5,
-    player:entity("player",mode,950,660,{hp:mode==="zombie"?145+up.health*25:125+up.health*25,maxHp:mode==="zombie"?145+up.health*25:125+up.health*25,speed:mode==="zombie"?176+up.speed*12:195,damage:mode==="zombie"?36+up.damage*16:24+up.damage*12,radius:17,attackCd:0,specialCd:0}),
+    player:entity("player",mode,950,660,{hp:mode==="zombie"?145+up.health*25+up.mutation*35:125+up.health*25,maxHp:mode==="zombie"?145+up.health*25+up.mutation*35:125+up.health*25,speed:mode==="zombie"?176+up.speed*12:195,damage:mode==="zombie"?36+up.damage*16+up.mutation*4:24+up.damage*12,radius:17,attackCd:0,specialCd:0}),
     friends:[],enemies:[],bullets:[],particles:[],props:[],earned:0,infested:0,kills:0,propCount:0,paused:false,finished:false,enemyCounter:0,spawnedBossWave:0
   };
   run.props=initProps();
   if(mode==="zombie"){
     const count=Math.min(2+up.horde,8+up.horde*2);
-    for(let i=0;i<count;i++)run.friends.push(entity("friend","zombie",930-i*25,680+(i%2)*24,{hp:68,maxHp:68,speed:112,damage:12+up.damage*2,radius:13}));
+    for(let i=0;i<count;i++)run.friends.push(entity("friend","zombie",930-i*25,680+(i%2)*24,{hp:68+up.elite*22,maxHp:68+up.elite*22,speed:112,damage:12+up.damage*2+up.elite*3,radius:13}));
     $("zvhZombieCommands").hidden=false;$("zvhHumanCommands").hidden=true;
     $("zvhControlHint").textContent="WASD / arrows to move · E or ATTACK to infect · command your horde";
   }else{
@@ -730,7 +730,7 @@ function drawActor(ctx,e,isPlayer){
     ctx.fillStyle="#657a70";ctx.beginPath();ctx.ellipse(0,0,28,16,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#d4dce0";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-36,-21);ctx.lineTo(36,-21);ctx.moveTo(0,-21);ctx.lineTo(0,21);ctx.stroke();
   }else{
     const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||e.team==="player"&&run.mode==="human";
-    let color=human?"#4b93c1":"#7fae67";
+    let color=human?"#4b93c1":"#7fae67";\n    if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))color=["#4b93c1","#9173c9","#c18e56","#4f9b91"][profile.upgrades.human.skin%4];
     if(e.type==="police")color="#4e78ce";if(e.type==="soldier"||e.type==="ally")color="#81916b";
     if(e.type==="runner")color="#86ad66";if(e.type==="brute")color="#697e54";if(e.type==="armored")color="#69717a";if(e.type==="boss")color="#9a6a87";
     ctx.fillStyle="rgba(4,9,15,.32)";ctx.beginPath();ctx.ellipse(0,10,e.radius*1.25,e.radius*.62,0,0,Math.PI*2);ctx.fill();
@@ -754,7 +754,7 @@ function drawGame(){
   const map=mapConfig(),palette=map.palette;
   ctx.fillStyle=palette[0];ctx.fillRect(0,0,w,h);
   const cameraX=run.player.x, cameraY=run.player.y;
-  ctx.save();ctx.translate(w/2-cameraX,h/2-cameraY);
+  ctx.save();const shakeX=run.shake?(Math.random()-.5)*run.shake:0,shakeY=run.shake?(Math.random()-.5)*run.shake:0;ctx.translate(w/2-cameraX+shakeX,h/2-cameraY+shakeY);
   const left=cameraX-w/2-70,top=cameraY-h/2-70;
   ctx.fillStyle=palette[1];
   for(let x=Math.floor(left/220)*220;x<left+w+260;x+=220)for(let y=Math.floor(top/220)*220;y<top+h+260;y+=220){
