@@ -1458,6 +1458,9 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
                 return;
             }
             applyPrivacyControls(prefs);
+            if (typeof window.loadWorthItEasterEggPreference === "function") {
+                await window.loadWorthItEasterEggPreference();
+            }
             loading.hidden = true; content.hidden = false;
             setSettingsControlsDisabled("privacySettingsContent", false);
             settingsStatus("privacySettingsStatus", "Privacy preferences are saved to your account and applied by Worth It profile and search queries.", "success");
@@ -1471,6 +1474,48 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
 
     window.savePrivacySettings = function() {
         return persistUserPreferences("privacy");
+    };
+
+    window.loadWorthItEasterEggPreference = async function() {
+        const control = $("showEasterEggs");
+        if (!control) return;
+        const client = window.supabaseClient;
+        const sessionResult = await client?.auth?.getSession?.();
+        if (sessionResult?.error) throw sessionResult.error;
+        if (!sessionResult?.data?.session?.user?.id) return;
+        const result = await client.rpc("get_worth_it_easter_egg_state");
+        if (result?.error) throw result.error;
+        control.checked = result?.data?.enabled !== false;
+        const status = $("showEasterEggsStatus");
+        if (status) status.textContent = "Your Easter Egg preference is saved to your account.";
+    };
+
+    window.saveWorthItEasterEggPreference = async function() {
+        const control = $("showEasterEggs"), status = $("showEasterEggsStatus");
+        if (!control) return;
+        control.disabled = true;
+        if (status) status.textContent = "Saving your preference…";
+        try {
+            const client = window.supabaseClient;
+            const sessionResult = await client?.auth?.getSession?.();
+            if (sessionResult?.error) throw sessionResult.error;
+            if (!sessionResult?.data?.session?.user?.id) throw new Error("Sign in to save this preference.");
+            const result = await client.rpc("set_worth_it_easter_eggs_enabled", { p_enabled: Boolean(control.checked) });
+            if (result?.error) throw result.error;
+            if (result?.data?.success === false) throw new Error("Could not save your Easter Egg preference.");
+            if (window.WorthItEasterEggs) {
+                const stateResult = await client.rpc("get_worth_it_easter_egg_state");
+                if (!stateResult?.error) {
+                    window.WorthItEasterEggs.load();
+                }
+            }
+            if (status) status.textContent = "Your Easter Egg preference was saved to your account.";
+        } catch (error) {
+            control.checked = !control.checked;
+            if (status) status.textContent = String(error?.message || "Could not save your preference.");
+        } finally {
+            control.disabled = false;
+        }
     };
 
     window.loadNotificationSettings = async function() {
