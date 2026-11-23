@@ -47,8 +47,8 @@ test("Random palette gets a dedicated phone-only full-width touch target without
     const start = communityCss.indexOf("Phone-only polish for the Random palette action");
     assert.ok(start >= 0, "phone-only Random palette polish exists");
     const mobileRule = communityCss.slice(start);
-    assert.match(mobileRule, /@media \\(max-width: 600px\\)/);
-    assert.match(mobileRule, /#worthItThemeRandomPalette[\\s\\S]*?width: 100%/);
+    assert.match(mobileRule, /@media \(max-width: 600px\)/);
+    assert.match(mobileRule, /#worthItThemeRandomPalette[\s\S]*?width: 100%/);
     assert.match(mobileRule, /min-height: 40px/);
     assert.match(mobileRule, /touch-action: manipulation/);
 });
