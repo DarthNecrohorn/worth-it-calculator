@@ -41,7 +41,7 @@ const defaults = {
   selected:{zombie:"city",human:"safehouse"},
   upgrades:{zombie:{health:0,damage:0,horde:0,speed:0,elite:0,mutation:0},human:{health:0,damage:0,fire:0,squad:0,skin:0}},
   bestWave:{zombie:0,human:0},totalInfested:0,totalKills:0,
-  settings:{effects:true,shake:false,mobile:true}
+  settings:{effects:true,shake:false,mobile:true,keys:{follow:"q",attack:"e",smash:"r",special:"2"}}
 };
 let profile = clone(defaults);
 let userId = "";
@@ -86,8 +86,11 @@ function normaliseProfile(raw){
   result.settings={
     effects:value.settings?.effects!==false,
     shake:Boolean(value.settings?.shake),
-    mobile:value.settings?.mobile!==false
+    mobile:value.settings?.mobile!==false,
+    keys:{follow:String(value.settings?.keys?.follow||"q").toLowerCase(),attack:String(value.settings?.keys?.attack||"e").toLowerCase(),smash:String(value.settings?.keys?.smash||"r").toLowerCase(),special:String(value.settings?.keys?.special||"2").toLowerCase()}
   };
+  const validKeys=["q","e","r","t","f","g","z","x","c","v","1","2","3","4","5"],names=["follow","attack","smash","special"],used=new Set();
+  names.forEach((name,index)=>{let key=result.settings.keys[name];if(!validKeys.includes(key)||used.has(key))key=["q","e","r","2"][index];while(used.has(key))key=validKeys.find(item=>!used.has(item))||"2";result.settings.keys[name]=key;used.add(key);});
   return result;
 }
 function mergeProfiles(left,right){
@@ -323,6 +326,8 @@ function syncSettingsForm(){
   if($("zvhGoreToggle"))$("zvhGoreToggle").checked=Boolean(settings.effects);
   if($("zvhShakeToggle"))$("zvhShakeToggle").checked=Boolean(settings.shake);
   if($("zvhMobileToggle"))$("zvhMobileToggle").checked=settings.mobile!==false;
+  const options=["q","e","r","t","f","g","z","x","c","v","1","2","3","4","5"];
+  [["follow","zvhKeyFollow"],["attack","zvhKeyAttack"],["smash","zvhKeySmash"],["special","zvhKeySpecial"]].forEach(([name,id])=>{const select=$(id);if(!select)return;select.innerHTML="";options.forEach(key=>{const option=document.createElement("option");option.value=key;option.textContent=key.toUpperCase();select.appendChild(option);});select.value=settings.keys?.[name]||({follow:"q",attack:"e",smash:"r",special:"2"}[name]);});
   applyMobileControlVisibility();
 }
 function applyMobileControlVisibility(){
@@ -348,7 +353,8 @@ function initProps(){
     if(map==="industrial")type=["crate","barrel","forklift","lamp","pallet"][i%5];
     if(map==="military")type=["barrier","crate","truck","lamp","barrel"][i%5];
     if(map==="metro")type=["bench","ticket","bin","crate","pillar"][i%5];
-    list.push({id:nextEntityId++,x,y,type,hp:type==="car"||type==="truck"||type==="forklift"?90:45,maxHp:type==="car"||type==="truck"||type==="forklift"?90:45,radius:type==="car"||type==="truck"||type==="forklift"?28:19,dead:false});
+    const vehicle=type==="car"||type==="truck"||type==="forklift";
+    list.push({id:nextEntityId++,x,y,type,hp:vehicle?90:45,maxHp:vehicle?90:45,radius:vehicle?28:19,dead:false,burning:vehicle&&Math.random()<.22,scorch:vehicle&&Math.random()<.34,heading:Math.random()*Math.PI*2});
   }
   return list;
 }
@@ -516,6 +522,12 @@ function specialAttack(){
   run.player.specialCd=15;
   const radius=run.mode==="zombie"?190:170;
   if(run.mode==="zombie"){
+    if((profile.upgrades.zombie.mutation||0)===0){
+      run.friends.filter(friend=>friend.type==="zombie"&&!friend.dead).forEach(friend=>{friend.rallyUntil=run.elapsed+3.5;});
+      spawnParticles(run.player.x,run.player.y,"#8ae38e",profile.settings.effects?16:5);
+      showStageMessage("WEAK HOWL · HORDE RALLY",750);
+      return;
+    }
     const victims=run.enemies.filter(e=>!e.dead&&Math.hypot(e.x-run.player.x,e.y-run.player.y)<radius);
     victims.forEach(target=>{
       target.hp-=run.player.damage*1.1;
@@ -676,9 +688,13 @@ function drawProp(ctx,p){
   ctx.save();ctx.translate(p.x,p.y);
   const dim=p.radius;
   if(p.type==="car"||p.type==="truck"||p.type==="forklift"){
-    ctx.fillStyle=p.type==="truck"?"#77899a":"#687783";ctx.fillRect(-dim,-dim*.55,dim*2,dim*1.1);
+    ctx.save();ctx.rotate(p.heading||0);ctx.fillStyle=p.type==="truck"?"#77899a":"#687783";ctx.fillRect(-dim,-dim*.55,dim*2,dim*1.1);
     ctx.fillStyle="#1b2733";ctx.fillRect(-dim*.55,-dim*.42,dim*1.1,dim*.84);
     ctx.fillStyle="#c0c9d1";ctx.fillRect(-dim*.7,-dim*.64,dim*.3,dim*.13);
+    ctx.fillStyle="#182129";ctx.fillRect(-dim*.8,-dim*.68,dim*.28,dim*.2);ctx.fillRect(dim*.5,-dim*.68,dim*.28,dim*.2);ctx.fillRect(-dim*.8,dim*.48,dim*.28,dim*.2);ctx.fillRect(dim*.5,dim*.48,dim*.28,dim*.2);
+    if(p.scorch){ctx.fillStyle="rgba(10,12,14,.65)";ctx.beginPath();ctx.ellipse(0,0,dim*1.25,dim*.8,0,0,Math.PI*2);ctx.fill();}
+    if(p.burning){const flame=.75+Math.sin(performance.now()*.018+p.id)*.2;ctx.fillStyle="rgba(255,104,34,.72)";ctx.beginPath();ctx.ellipse(0,-dim*.7,dim*.28,dim*.55*flame,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="rgba(255,211,91,.88)";ctx.beginPath();ctx.ellipse(0,-dim*.68,dim*.12,dim*.31*flame,0,0,Math.PI*2);ctx.fill();}
+    ctx.restore();
   }else if(p.type==="barrier"||p.type==="crate"||p.type==="pallet"||p.type==="barrel"){
     ctx.fillStyle=p.type==="barrel"?"#9b713d":"#8a7656";ctx.fillRect(-dim*.7,-dim*.65,dim*1.4,dim*1.3);
     ctx.strokeStyle="rgba(20,25,30,.45)";ctx.lineWidth=2;ctx.strokeRect(-dim*.7,-dim*.65,dim*1.4,dim*1.3);
@@ -694,6 +710,10 @@ function drawProp(ctx,p){
 }
 function drawActor(ctx,e,isPlayer){
   ctx.save();ctx.translate(e.x,e.y);
+  const moving=Math.hypot(e.vx||0,e.vy||0)>5,phase=performance.now()*.012+(e.id||0)*.7;
+  const stride=moving?Math.sin(phase)*Math.min(1,Math.hypot(e.vx||0,e.vy||0)/70):0;
+  const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||(e.team==="player"&&run.mode==="human");
+  const armed=e.type==="police"||e.type==="soldier"||e.type==="ally"||(isPlayer&&run.mode==="human");
   if(e.type==="tank"){
     ctx.rotate(e.angle||0);ctx.fillStyle="#56674b";ctx.fillRect(-29,-22,58,44);ctx.fillStyle="#27372b";ctx.fillRect(-20,-14,40,28);ctx.fillStyle="#9baf77";ctx.fillRect(0,-5,40,10);
   }else if(e.type==="heli"){
@@ -705,9 +725,14 @@ function drawActor(ctx,e,isPlayer){
     if(e.type==="runner")color="#86ad66";if(e.type==="brute")color="#697e54";if(e.type==="armored")color="#69717a";if(e.type==="boss")color="#9a6a87";
     if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))color=["#4b93c1","#9173c9","#c18e56","#4f9b91"][profile.upgrades.human.skin%4];
     ctx.fillStyle="rgba(4,9,15,.32)";ctx.beginPath();ctx.ellipse(0,10,e.radius*1.25,e.radius*.62,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=color;ctx.beginPath();ctx.arc(0,0,e.radius,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=human?"#273e50":"#46633e";ctx.lineWidth=Math.max(4,e.radius*.34);ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-e.radius*.28,e.radius*.38);ctx.lineTo(-e.radius*.42+stride*5,e.radius*1.02);ctx.moveTo(e.radius*.28,e.radius*.38);ctx.lineTo(e.radius*.42-stride*5,e.radius*1.02);ctx.stroke();
+    ctx.strokeStyle=human?"#c4a58d":"#a9d78e";ctx.lineWidth=Math.max(3,e.radius*.24);ctx.beginPath();
+    if(!human){ctx.moveTo(-e.radius*.55,-e.radius*.05);ctx.lineTo(-e.radius*1.05,-e.radius*.62+stride*2);ctx.moveTo(e.radius*.55,-e.radius*.05);ctx.lineTo(e.radius*1.05,-e.radius*.62-stride*2);}
+    else{ctx.moveTo(-e.radius*.55,0);ctx.lineTo(-e.radius,-stride*7);ctx.moveTo(e.radius*.55,0);ctx.lineTo(e.radius,stride*7);}ctx.stroke();
+    ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,0,e.radius*.78,e.radius,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=human?"#c4a58d":"#b8e69b";ctx.beginPath();ctx.arc(0,-e.radius*.25,e.radius*.42,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#18222c";ctx.beginPath();ctx.arc(-e.radius*.18,-e.radius*.28,2.1,0,Math.PI*2);ctx.arc(e.radius*.18,-e.radius*.28,2.1,0,Math.PI*2);ctx.fill();
+    if(armed){ctx.save();ctx.translate(e.radius*.55,-e.radius*.18);ctx.rotate(-.18);ctx.fillStyle="#26323b";ctx.fillRect(-1,-2,e.radius*1.2,4);ctx.fillStyle="#9aa7ad";ctx.fillRect(e.radius*.55,-1,e.radius*.42,2);ctx.fillStyle="#4b5960";ctx.fillRect(e.radius*.05,1,4,6);ctx.restore();}
     if(isPlayer){ctx.strokeStyle="#e3d8ff";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.radius+6,0,Math.PI*2);ctx.stroke();}
     if(e.team==="friend"||e.team==="player"){ctx.fillStyle="#b4ef93";ctx.fillRect(-6,e.radius+6,12,3);}
   }
@@ -732,13 +757,16 @@ function drawGame(){
     ctx.fillStyle=((Math.floor(x/220)+Math.floor(y/220))%2===0)?"rgba(16,26,28,.16)":"rgba(220,220,210,.025)";
     ctx.fillRect(x+8,y+8,204,204);
   }
+  // Broad asphalt avenues, sidewalks and dashed lane markings give the city a readable street grid.
+  for(let x=390;x<run.worldW;x+=620){ctx.fillStyle="#242d32";ctx.fillRect(x-82,0,164,run.worldH);ctx.fillStyle="#41484a";ctx.fillRect(x-89,0,7,run.worldH);ctx.fillRect(x+82,0,7,run.worldH);ctx.strokeStyle="rgba(235,208,130,.48)";ctx.lineWidth=3;ctx.setLineDash([24,22]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,run.worldH);ctx.stroke();ctx.setLineDash([]);}
+  for(let y=330;y<run.worldH;y+=570){ctx.fillStyle="#242d32";ctx.fillRect(0,y-68,run.worldW,136);ctx.fillStyle="#41484a";ctx.fillRect(0,y-75,run.worldW,7);ctx.fillRect(0,y+68,run.worldW,7);ctx.strokeStyle="rgba(235,208,130,.42)";ctx.lineWidth=3;ctx.setLineDash([24,22]);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(run.worldW,y);ctx.stroke();ctx.setLineDash([]);}
   ctx.strokeStyle="rgba(235,238,228,.08)";ctx.lineWidth=2;ctx.setLineDash([18,18]);
   for(let x=0;x<run.worldW;x+=440){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,run.worldH);ctx.stroke();}
   for(let y=0;y<run.worldH;y+=440){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(run.worldW,y);ctx.stroke();}
   ctx.setLineDash([]);
   ctx.strokeStyle="rgba(225,229,212,.13)";ctx.lineWidth=7;ctx.strokeRect(0,0,run.worldW,run.worldH);
   run.props.forEach(p=>{if(!p.dead)drawProp(ctx,p);});
-  run.bullets.forEach(b=>{ctx.fillStyle=b.team==="friendly"?"#a6d7ff":"#ffcb7d";ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.fill();});
+  run.bullets.forEach(b=>{ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy||0,b.vx||0));ctx.shadowBlur=12;ctx.shadowColor=b.team==="friendly"?"#7fd4ff":"#ff9c57";ctx.fillStyle=b.team==="friendly"?"#d9f5ff":"#ffe1a1";ctx.beginPath();ctx.ellipse(0,0,b.radius*2.6,b.radius*.72,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=b.team==="friendly"?"#5cbcff":"#ff713f";ctx.beginPath();ctx.arc(-b.radius*1.5,0,b.radius*.65,0,Math.PI*2);ctx.fill();ctx.restore();});
   run.enemies.forEach(e=>{if(!e.dead)drawActor(ctx,e,false);});
   run.friends.forEach(e=>{if(!e.dead)drawActor(ctx,e,false);});
   drawActor(ctx,run.player,true);
@@ -831,6 +859,7 @@ function bindSettings(){
   $("zvhGoreToggle")?.addEventListener("change",event=>{profile.settings.effects=Boolean(event.target.checked);persist();});
   $("zvhShakeToggle")?.addEventListener("change",event=>{profile.settings.shake=Boolean(event.target.checked);persist();});
   $("zvhMobileToggle")?.addEventListener("change",event=>{profile.settings.mobile=Boolean(event.target.checked);persist();applyMobileControlVisibility();});
+  [["follow","zvhKeyFollow"],["attack","zvhKeyAttack"],["smash","zvhKeySmash"],["special","zvhKeySpecial"]].forEach(([name,id])=>{$(id)?.addEventListener("change",event=>{const candidate=String(event.target.value||"").toLowerCase();const duplicate=Object.keys(profile.settings.keys).find(other=>other!==name&&profile.settings.keys[other]===candidate);if(duplicate){event.target.value=profile.settings.keys[name];toast("That key is already assigned to "+duplicate.toUpperCase()+". Choose a different key.");return;}profile.settings.keys[name]=candidate;persist();syncSettingsForm();});});
   $("zvhSettingsOpen")?.addEventListener("click",openSettings);
   $("zvhSettingsClose")?.addEventListener("click",closeSettings);
   $("zvhSettingsOverlay")?.addEventListener("click",event=>{if(event.target===$("zvhSettingsOverlay"))closeSettings();});
@@ -860,10 +889,13 @@ function bindJoystick(){
 function bindInput(){
   document.addEventListener("keydown",event=>{
     const key=String(event.key||"").toLowerCase();
-    if(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," ","e"].includes(key)&&$("zvhGameView")&&!$("zvhGameView").hidden){
-      keys.add(key);if(key.startsWith("arrow")||key===" ")event.preventDefault();
-      if(key===" "&&run?.mode==="human")shootAttack();
-      if(key==="e"&&run?.mode==="zombie")infectAttack();
+    if($("zvhGameView")&&!$("zvhGameView").hidden&&run&&!run.paused&&!run.finished){
+      if(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," "].includes(key)){keys.add(key);if(key.startsWith("arrow")||key===" ")event.preventDefault();if(key===" "&&run.mode==="human")shootAttack();}
+      const bindings=profile.settings.keys||{follow:"q",attack:"e",smash:"r",special:"2"};
+      if(key===bindings.follow&&run.mode==="zombie"){setOrder("follow");event.preventDefault();}
+      if(key===bindings.attack){if(run.mode==="zombie")setOrder("attack");else shootAttack();event.preventDefault();}
+      if(key===bindings.smash&&run.mode==="zombie"){setOrder("smash");event.preventDefault();}
+      if(key===bindings.special){specialAttack();event.preventDefault();}
     }
     if(key==="escape"&&run&&!run.finished)togglePause();
   });
@@ -877,7 +909,9 @@ function bindInput(){
     if(!run||event.pointerType==="touch")return;
     if(run.mode==="human")shootAttack();else infectAttack();
   });
-  $("zvhTouchAttack")?.addEventListener("pointerdown",event=>{event.preventDefault();if(run?.mode==="human")shootAttack();else infectAttack();});
+  $("zvhTouchAttack")?.addEventListener("pointerdown",event=>{event.preventDefault();if(run?.mode==="human")shootAttack();else setOrder("attack");});
+  $("zvhTouchFollow")?.addEventListener("pointerdown",event=>{event.preventDefault();setOrder("follow");});
+  $("zvhTouchSmash")?.addEventListener("pointerdown",event=>{event.preventDefault();setOrder("smash");});
   $("zvhTouchSpecial")?.addEventListener("pointerdown",event=>{event.preventDefault();specialAttack();});
   $("zvhCanvas")?.addEventListener("contextmenu",event=>event.preventDefault());
   bindJoystick();
