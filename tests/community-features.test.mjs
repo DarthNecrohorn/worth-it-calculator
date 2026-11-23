@@ -127,7 +127,8 @@ test("Custom Themes expose full-site colours, typography and button/card styles"
  assert.ok(themeHoverMigration.includes("worth_it_user_themes_hover_color_check"));
  assert.ok(themeHeaderMigration.includes("add column if not exists header_color"));
  assert.ok(themeHeaderMigration.includes("worth_it_user_themes_header_color_check"));
- assert.ok(js.includes("header_color:theme.header"));
+ assert.ok(themeSaveMigration.includes("p_theme ->> 'header'"));
+ assert.ok(themeSaveMigration.includes("header_color = excluded.header_color"));
  assert.ok(js.includes("--worth-it-header-background"));
  assert.ok(smoke.includes("hover_color"));
  assert.ok(smoke.includes("header_color"));
