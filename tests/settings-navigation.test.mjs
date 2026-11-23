@@ -171,3 +171,11 @@ test("Profile connection-list Back restores the prior profile entry without addi
     assert.match(profile, /window\.openWorthItProfileConnectionsBack = function\(\)/);
     assert.match(routing, /window\.backFromWorthItRoute = function \(fallbackPath\)/);
 });
+
+
+test("Appearance/Custom Themes has only Back to Worth It while other Settings sections keep Back to Settings", () => {
+    assert.match(settings, /sectionNav\.hidden = overview \|\| section === "appearance"/);
+    assert.match(settings, /setWorthItCustomThemeSettingsOpen\(overview \|\| section === "appearance"\)/);
+    assert.match(html, /id="settingsSectionNav"[\s\S]*?Back to Settings/);
+    assert.match(html, /onclick="backFromWorthItRoute\('\/'\)">← Back to Worth It/);
+});
