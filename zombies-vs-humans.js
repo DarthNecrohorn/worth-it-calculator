@@ -350,7 +350,7 @@ function updatePcKeyGuide(){
   if(run?.mode==="human"){
     node.innerHTML='<span><b>MOVE</b><kbd>W A S D</kbd><small>or arrow keys</small></span><span><b>SHOOT</b><kbd>CLICK / SPACE / '+key(keys.attack)+'</kbd></span>'+item("SPECIAL · GRENADE",keys.special);
   }else{
-    node.innerHTML='<span><b>MOVE</b><kbd>W A S D</kbd><small>or arrow keys</small></span>'+item("HORDE · FOLLOW",keys.follow)+item("HORDE · ATTACK",keys.attack)+item("HORDE · SMASH",keys.smash)+item("SPECIAL",keys.special)+'<span><b>INFECT</b><kbd>MOUSE CLICK</kbd></span>';
+    node.innerHTML='<span><b>MOVE</b><kbd>W A S D</kbd><small>or arrow keys</small></span>'+item("HORDE · FOLLOW",keys.follow)+item("HORDE · ATTACK",keys.attack)+item("HORDE · GUARD",keys.smash)+item("SPECIAL",keys.special)+'<span><b>INFECT</b><kbd>MOUSE CLICK</kbd></span>';
   }
 }
 
@@ -1336,8 +1336,8 @@ function bindInput(){
       if(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," "].includes(key)){keys.add(key);if(key.startsWith("arrow")||key===" ")event.preventDefault();if(key===" "&&run.mode==="human")shootAttack();}
       const bindings=profile.settings.keys||{follow:"q",attack:"e",smash:"r",special:"2"};
       if(key===bindings.follow&&run.mode==="zombie"){setOrder("follow");event.preventDefault();}
-      if(key===bindings.attack){if(run.mode==="zombie")setOrder("attack");else shootAttack();event.preventDefault();}
-      if(key===bindings.smash&&run.mode==="zombie"){setOrder("smash");event.preventDefault();}
+      if(key===bindings.attack){if(run.mode==="zombie"){setOrder("attack");infectAttack();}else shootAttack();event.preventDefault();}
+      if(key===bindings.smash&&run.mode==="zombie"){setOrder("guard");event.preventDefault();}
       if(key===bindings.special){specialAttack();event.preventDefault();}
     }
     if(key==="escape"&&run&&!run.finished)togglePause();
@@ -1352,9 +1352,9 @@ function bindInput(){
     if(!run||event.pointerType==="touch")return;
     if(run.mode==="human")shootAttack();else infectAttack();
   });
-  $("zvhTouchAttack")?.addEventListener("pointerdown",event=>{event.preventDefault();if(run?.mode==="human")shootAttack();else setOrder("attack");});
+  $("zvhTouchAttack")?.addEventListener("pointerdown",event=>{event.preventDefault();if(run?.mode==="human")shootAttack();else{setOrder("attack");infectAttack();}});
   $("zvhTouchFollow")?.addEventListener("pointerdown",event=>{event.preventDefault();setOrder("follow");});
-  $("zvhTouchSmash")?.addEventListener("pointerdown",event=>{event.preventDefault();setOrder("smash");});
+  $("zvhTouchSmash")?.addEventListener("pointerdown",event=>{event.preventDefault();setOrder("guard");});
   $("zvhTouchSpecial")?.addEventListener("pointerdown",event=>{event.preventDefault();specialAttack();});
   $("zvhCanvas")?.addEventListener("contextmenu",event=>event.preventDefault());
   bindJoystick();
