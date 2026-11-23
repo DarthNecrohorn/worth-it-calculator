@@ -102,7 +102,7 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
-    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+    assert.match(html, /guest-mode\\.js\\?v=guest-lite-dialog-polish-20261123a/);
     assert.match(workflow, /guest-mode\.js/);
 });
 
@@ -118,7 +118,7 @@ test("mobile calculator catalogue keeps three cards per row and Guest Lite conse
     assert.doesNotMatch(html, /worthItGuestConsentCheck|worthItGuestConsentStatus/);
     assert.doesNotMatch(css, /\.worth-it-guest-consent/);
     assert.match(html, /community-features\.css\?v=hamburger-instant-20261105a/);
-    assert.match(html, /guest-mode\.js\?v=guest-webshop-ugc-guards-20261031a/);
+    assert.match(html, /guest-mode\.js\?v=guest-lite-dialog-polish-20261123a/);
 });
 
 test("Guest Lite modal stacks above the sticky header while open", () => {
