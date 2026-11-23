@@ -184,7 +184,7 @@ test("a stale remote theme read cannot roll back a newer independently verified 
     assert.match(community, /writeThemeCommit\(themeUserId,persisted\.updated_at\|\|saved\.data\?\.updated_at,theme\)/);
     assert.match(community, /\.select\("theme_name,primary_color,secondary_color,hover_color,header_color,theme_config,updated_at"\)/);
     assert.match(community, /sameThemeSnapshot\(remoteTheme,commit\.theme\)/);
-    assert.match(community, /last independently verified save is authoritative/);
+    assert.match(community, /last independently verified Save is authoritative/);
     assert.match(community, /committedAt:Date\.now\(\)/);
     assert.doesNotMatch(community, /writeThemeCommit\(userId,result\.data\.updated_at,remoteTheme\)/);
     const hydrationStart = community.indexOf("async function loadThemeForSession()");
