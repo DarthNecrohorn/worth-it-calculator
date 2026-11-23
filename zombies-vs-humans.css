@@ -177,3 +177,26 @@
 
 /* In-game PC key legend and class ability telegraphs. */
 .zvh-pc-key-guide{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 14px;margin:12px 0 4px;padding:10px 14px;border:1px solid rgba(161,190,177,.2);border-radius:10px;background:rgba(8,15,19,.58);color:#cbd7d2;font-size:11px;letter-spacing:.035em}.zvh-pc-key-guide>span{display:inline-flex;align-items:center;gap:6px}.zvh-pc-key-guide b{font-size:9px;color:#8eaaa0;letter-spacing:.08em}.zvh-pc-key-guide kbd{min-width:22px;padding:3px 6px;border:1px solid rgba(203,221,211,.28);border-bottom-width:2px;border-radius:5px;background:rgba(219,236,226,.09);color:#f1f4ed;font:700 10px ui-monospace,monospace;text-align:center}.zvh-pc-key-guide small{color:#84968f;font-size:10px}@media(max-width:600px){.zvh-pc-key-guide{display:none!important}}
+
+/* Faction-select lobby treatment: tactical briefing, deployment zones and field armory. */
+.zvh-lobby{position:relative;padding:8px;background-image:linear-gradient(rgba(117,141,129,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(117,141,129,.025) 1px,transparent 1px);background-size:34px 34px}
+.zvh-hero{border-radius:11px;border-color:rgba(191,111,87,.4);background:linear-gradient(110deg,rgba(24,32,34,.98),rgba(17,30,36,.94) 65%,rgba(39,34,31,.96));box-shadow:inset 4px 0 rgba(197,111,81,.75),0 18px 42px rgba(0,0,0,.18)}
+.zvh-eyebrow{color:#d59a75}
+.zvh-hero h1{text-transform:uppercase;letter-spacing:.025em;font-weight:950}
+.zvh-hero:after{content:"☣";color:rgba(196,115,82,.075);font-size:clamp(110px,19vw,245px)}
+.zvh-mode-card{position:relative;overflow:hidden;min-height:196px;border-radius:10px;padding:20px 24px;background-color:#1a292d}
+.zvh-mode-card:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.035) 38.2%,transparent 38.6%),repeating-linear-gradient(0deg,transparent 0 23px,rgba(255,255,255,.025) 24px)}
+.zvh-zombie-mode{background:linear-gradient(115deg,rgba(40,78,55,.9),rgba(20,34,35,.98))}
+.zvh-human-mode{background:linear-gradient(115deg,rgba(39,68,98,.9),rgba(19,31,40,.98))}
+.zvh-mode-art{position:relative;z-index:1;flex-basis:104px;width:104px;height:132px;border-radius:8px;background:rgba(0,0,0,.26);font-size:62px}
+.zvh-mode-copy{position:relative;z-index:1}
+.zvh-mode-copy strong{text-transform:uppercase;letter-spacing:.035em}
+.zvh-mode-copy em{color:#e2b389}
+.zvh-panel{border-radius:9px;border-color:rgba(170,188,174,.17);background:linear-gradient(145deg,rgba(19,30,34,.97),rgba(13,22,29,.96))}
+.zvh-panel-heading h2{text-transform:uppercase;letter-spacing:.035em}
+.zvh-map-card,.zvh-shop-item{border-radius:7px;background:#18252b;border-color:rgba(173,188,179,.16)}
+.zvh-map-card.is-selected{border-color:#d49a70;background:rgba(160,104,70,.17);box-shadow:inset 3px 0 #d49a70}
+.zvh-map-card em{color:#dcb781}
+.zvh-shop-item button{border-radius:5px;border-color:rgba(202,151,105,.42);background:rgba(145,93,59,.2);color:#e7c39b}
+.zvh-lobby-actions button{border-radius:7px;background:linear-gradient(115deg,#a85d46,#c18a55);text-transform:uppercase;letter-spacing:.07em}
+@media(max-width:700px){.zvh-mode-card{min-height:146px;padding:14px;gap:12px}.zvh-mode-art{flex-basis:72px;width:72px;height:90px;font-size:42px}.zvh-mode-copy strong{font-size:17px}}
