@@ -94,16 +94,21 @@ function readThemeCommit(userId){
  if(!userId)return null;
  try{
   const value=JSON.parse(readLocal(scopedKey(THEME_COMMIT_KEY,userId))||"null");
-  const time=Date.parse(value?.updatedAt||"");
-  if(!Number.isFinite(time))return null;
-  return {updatedAt:time,theme:value?.theme&&typeof value.theme==="object"?cleanTheme(value.theme):null};
+  if(!value?.theme||typeof value.theme!=="object")return null;
+  const time=Date.parse(value.updatedAt||"");
+  return {updatedAt:Number.isFinite(time)?time:0,committedAt:Number(value.committedAt)||0,theme:cleanTheme(value.theme)};
  }catch(_){return null;}
 }
 function writeThemeCommit(userId,updatedAt,theme){
+ if(!userId||!theme||typeof theme!=="object")return;
  const time=Date.parse(String(updatedAt||""));
- if(userId&&Number.isFinite(time)&&theme&&typeof theme==="object"){
-  writeLocal(scopedKey(THEME_COMMIT_KEY,userId),JSON.stringify({updatedAt:new Date(time).toISOString(),theme:cleanTheme(theme)}));
- }
+ // Retain the last independently verified save even when the server timestamp
+ // is missing or loses sub-millisecond precision.
+ writeLocal(scopedKey(THEME_COMMIT_KEY,userId),JSON.stringify({
+  updatedAt:Number.isFinite(time)?new Date(time).toISOString():null,
+  committedAt:Date.now(),
+  theme:cleanTheme(theme)
+ }));
 }
 function sameThemeSnapshot(left,right){
  return Boolean(left&&right&&JSON.stringify(cleanTheme(left))===JSON.stringify(cleanTheme(right)));
@@ -862,24 +867,15 @@ async function loadThemeForSession(){
    });
    const remoteUpdatedAt=Date.parse(String(result.data.updated_at||""));
    if(commit?.theme){
-    if(sameThemeSnapshot(remoteTheme,commit.theme)){
-     // Keep the durable snapshot even after a matching read. A later request
-     // can hit a lagging replica/cache and return an older row again.
-     savedTheme=commit.theme;
-     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
-     applyTheme(livePreview||savedTheme);
-     return;
+    // This browser's last independently verified Save is authoritative.
+    // A later read may be cached, reordered, or associated with an older session;
+    // never replace the committed snapshot merely because its timestamp looks newer.
+    if(!sameThemeSnapshot(remoteTheme,commit.theme)){
+     console.warn("Ignoring a Custom Theme read that differs from this browser's last confirmed save.",{
+      committedAt:commit.committedAt,
+      remoteUpdatedAt:result.data.updated_at||null
+     });
     }
-    if(Number.isFinite(remoteUpdatedAt)&&remoteUpdatedAt>commit.updatedAt){
-     // A genuinely newer server save (for example, from another device) may
-     // replace this browser's committed snapshot.
-     savedTheme=remoteTheme;
-     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
-     writeThemeCommit(userId,result.data.updated_at,remoteTheme);
-     applyTheme(livePreview||savedTheme);
-     return;
-    }
-    // Different content with an equal/older timestamp is stale, not a new save.
     savedTheme=commit.theme;
     writeLocal(scopedKey(THEME_KEY,userId),JSON.stringify(savedTheme));
     applyTheme(livePreview||savedTheme);
