@@ -147,6 +147,15 @@ function readThemeFromForm(){
  THEME_SELECT_FIELDS.forEach(([id,key])=>{value[key]=$(id)?.value||DEFAULT_THEME[key];});
  return cleanTheme(value);
 }
+function isThemeEditorVisible(){
+ const page=$("settingsPage"),panel=$("appearanceSettingsPanel"),editor=$("worthItThemeEditor");
+ if(!page||!panel||!editor||page.hidden||panel.hidden||editor.hidden)return false;
+ const visible=node=>{
+  const style=window.getComputedStyle?window.getComputedStyle(node):null;
+  return node.style?.display!=="none"&&style?.display!=="none"&&style?.visibility!=="hidden";
+ };
+ return visible(page)&&visible(panel)&&visible(editor);
+}
 function setThemeFormValues(theme){
  THEME_COLOR_FIELDS.forEach(([id,key])=>{const node=$(id);if(node)node.value=theme[key];});
  THEME_SELECT_FIELDS.forEach(([id,key])=>{const node=$(id);if(node)node.value=theme[key];});
@@ -942,7 +951,9 @@ async function hydrateInitialThemeBeforePaint(){
  }
 }
 async function saveCustomTheme(){
- if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to save a Custom Theme.",true);return;}
+ if(!isThemeEditorVisible()){setThemeStatus("Open Settings → Appearance & Accessibility to save a Custom Theme.",true);return;}
+ // The visible editor is the source of truth; route changes can briefly desynchronise the flag.
+ themeSettingsOpen=true;
  if(!themeEntitlementResolved||!themeEntitled){
   setThemeStatus("You can try every colour and style for free. Saving your complete theme and keeping it active across Worth It requires Premium Lite or Premium.",true);
   window.openWorthItThemeUpgrade?.();
@@ -1472,7 +1483,8 @@ function init(){
  $("worthItThemePreviewSwitcher")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-preview-view]");if(!button)return;activeThemePreviewView=button.dataset.themePreviewView||"website";renderThemePreview();});
  document.querySelectorAll("[data-theme-reset-group]").forEach(button=>button.addEventListener("click",()=>resetThemeGroup(button.dataset.themeResetGroup)));
  const previewThemeFromForm=()=>{
-  if(!themeSettingsOpen){setThemeStatus("Open Settings → Appearance & Accessibility to preview Custom Themes.",false);return;}
+  if(!isThemeEditorVisible()){setThemeStatus("Open Settings → Appearance & Accessibility to preview Custom Themes.",false);return;}
+  themeSettingsOpen=true;
   const theme=readThemeFromForm();
   applyTheme(theme);themePreviewActive=true;
   setThemeStatus(themeEntitled
