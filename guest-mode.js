@@ -1,8 +1,7 @@
-/* Worth It Guest Lite: daily account prompt and explicit access limits. */
+/* Worth It Guest Lite: account choice and clear access limits. */
 (function () {
     "use strict";
 
-    const LAST_ACCEPTED_KEY = "worthItGuestLiteAcceptedAtV1";
     const AUTH_OVERLAY_ID = "authModalOverlay";
     const GUEST_OVERLAY_ID = "worthItGuestLimitsOverlay";
     const RESTRICTED_PATHS = [
@@ -197,22 +196,19 @@
     function showGuestLimits() {
         if (isAuthenticated) return;
         const overlay = $(GUEST_OVERLAY_ID);
-        const checkbox = $("worthItGuestConsentCheck");
         const continueButton = $("worthItGuestContinueButton");
-        if (!overlay || !checkbox || !continueButton) {
+        if (!overlay || !continueButton) {
             showSignupForRestrictedFeature("Guest access has account-based limitations.");
             return;
         }
 
         guestReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         guestLimitsOpen = true;
-        checkbox.checked = false;
-        continueButton.disabled = true;
+        continueButton.disabled = false;
         overlay.hidden = false;
         overlay.setAttribute("aria-hidden", "false");
         document.body.classList.add("worth-it-guest-dialog-open");
-        $("worthItGuestConsentStatus").textContent = "Review the available features and limitations, then check the box to continue.";
-        window.setTimeout(() => checkbox.focus(), 30);
+        window.setTimeout(() => continueButton.focus(), 30);
     }
 
     function closeGuestLimits(returnToSignup) {
@@ -248,14 +244,6 @@
             closeGuestLimits(false);
             return;
         }
-        const checkbox = $("worthItGuestConsentCheck");
-        if (!checkbox?.checked) {
-            const status = $("worthItGuestConsentStatus");
-            if (status) status.textContent = "Please agree to the Guest Lite limitations before continuing.";
-            return;
-        }
-
-        writeTimestamp(LAST_ACCEPTED_KEY, Date.now());
         closeGuestLimits(false);
     }
 
@@ -516,15 +504,6 @@
                 autoPromptActive = false;
             }
         }, true);
-
-        $("worthItGuestConsentCheck")?.addEventListener("change", event => {
-            const button = $("worthItGuestContinueButton");
-            if (button) button.disabled = !event.target.checked;
-            const status = $("worthItGuestConsentStatus");
-            if (status) status.textContent = event.target.checked
-                ? "Thanks. You can continue with the default calculators only."
-                : "Review the available features and limitations, then check the box to continue.";
-        });
 
         $("worthItGuestContinueButton")?.addEventListener("click", acceptGuestLimits);
         $("worthItGuestCloseBtn")?.addEventListener("click", () => closeGuestLimits(true));
