@@ -223,7 +223,8 @@ test("each of the 30 Custom Theme palettes supplies its own full-site typography
 });
 
 test("homepage hero badge follows live and saved Custom Theme text, accent and typography tokens", () => {
-    assert.match(html, /<div class="badge">✦ Smart decisions made simple<\/div>/);
+    assert.match(html, /<div class="badge">✦ Smart decisions made simple/);
+    assert.match(html, /id="zvhDiscoveryEgg"[^>]*>🧟<\/button>/);
     assert.match(siteThemeCss, /html\[data-worth-it-custom-theme\] #homePage \.hero \.badge/);
     assert.match(siteThemeCss, /color: var\(--worth-it-theme-page-text/);
     assert.match(siteThemeCss, /background: color-mix\(in srgb, var\(--bg\) 92%, var\(--primary\)\)/);
