@@ -37,6 +37,17 @@ test("lost Premium access and explicit resets remove the cached theme snapshot",
     assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,userId\)\)/);
 });
 
+
+test("network and timeout fallbacks never reveal an expired or unverified custom theme", () => {
+    const valid = community.match(/function readValidThemeBootSnapshot\(userId\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.ok(valid, "a validated Premium snapshot reader exists");
+    assert.match(valid, /snapshot\.userId!==userId/);
+    assert.match(valid, /expires>Date\.now\(\)/);
+    assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(userId\)/);
+    assert.match(community, /const validBootSnapshot=readValidThemeBootSnapshot\(bootstrapUserId\)/);
+    assert.match(community, /validBootSnapshot\?readCachedCustomTheme\(/);
+});
+
 test("the Custom Theme script cache key changes with the first-paint bootstrap", () => {
     assert.match(html, /theme-boot-snapshot=20261123a/);
 });
