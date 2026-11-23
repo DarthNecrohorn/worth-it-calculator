@@ -39,10 +39,11 @@ test("Reset settings permanently removes the current account's saved Custom Them
     const reset = community.match(/async function resetCustomThemeFromSettings\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
     assert.ok(reset, "settings reset handler is present");
     assert.match(reset, /sb\(\)\?\.auth\?\.getSession\?\.\(\)/);
-    assert.match(reset, /from\("worth_it_user_themes"\)\.delete\(\)\.eq\("user_id",userId\)/);
-    assert.match(reset, /removeLocal\(scopedKey\(THEME_KEY,userId\)\)/);
+    assert.match(reset, /deleteAndVerifySavedTheme\(userId\)/);
+    assert.match(reset, /clearLocalThemeState\(userId\)/);
+    assert.match(community, /async function deleteAndVerifySavedTheme\(userId\)/);
     assert.match(reset, /themePreviewActive=false/);
-    assert.match(reset, /applyTheme\(DEFAULT_THEME\)/);
+    assert.match(reset, /applyStandardDarkTheme\(\)/);
     assert.match(community, /window\.resetWorthItCustomThemeFromSettings=resetCustomThemeFromSettings/);
 });
 
