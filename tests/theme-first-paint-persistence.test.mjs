@@ -73,17 +73,17 @@ test("reset invalidates pending reads, removes both caches, and serializes with 
     const resetStart = community.indexOf("async function resetCustomTheme()");
     const accountResetStart = community.indexOf("async function resetCustomThemeFromSettings()", resetStart);
     const resetBody = community.slice(resetStart, accountResetStart);
-    assert.match(resetBody, /\\+\\+themeRequest/);
-    assert.match(resetBody, /themeMutationInProgress=true/);
-    assert.match(resetBody, /removeLocal\\(scopedKey\\(THEME_KEY,themeUserId\\)\\)/);
-    assert.match(resetBody, /removeLocal\\(scopedKey\\(THEME_BOOT_KEY,themeUserId\\)\\)/);
-    assert.match(resetBody, /finishThemeMutation\\(\\)/);
+    assert.ok(resetBody.includes("++themeRequest"));
+    assert.ok(resetBody.includes("themeMutationInProgress=true"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("removeLocal(scopedKey(THEME_BOOT_KEY,themeUserId))"));
+    assert.ok(resetBody.includes("finishThemeMutation()"));
 
     const accountReset = community.slice(accountResetStart, community.indexOf("// UGC cards", accountResetStart));
-    assert.match(accountReset, /sb\\(\\)\\?\\.auth\\?\\.getSession\\?\\.\\(\\)/);
-    assert.match(accountReset, /from\\("worth_it_user_themes"\\)\\.delete\\(\\)/);
-    assert.match(accountReset, /removeLocal\\(scopedKey\\(THEME_BOOT_KEY,userId\\)\\)/);
-    assert.match(accountReset, /finishThemeMutation\\(\\)/);
+    assert.ok(accountReset.includes("sb()?.auth?.getSession?.()"));
+    assert.ok(accountReset.includes('.from("worth_it_user_themes").delete()'));
+    assert.ok(accountReset.includes("removeLocal(scopedKey(THEME_BOOT_KEY,userId))"));
+    assert.ok(accountReset.includes("finishThemeMutation()"));
 });
 
 test("theme script cache key is refreshed for the save/reset race fix", () => {
