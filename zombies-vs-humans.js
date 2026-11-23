@@ -8,7 +8,7 @@ const ROUTE = "/zombiesvshumans";
 const IS_PAGES_PREVIEW = /\.worth-it-calculator\.pages\.dev$/i.test(String(window.location.hostname||"")) &&
   String(window.location.hostname||"").toLowerCase() !== "worth-it-calculator.pages.dev";
 function nextEggDelay(initial){
-  if(IS_PAGES_PREVIEW&&!userId)return initial?4500+Math.random()*6500:8000+Math.random()*10000;
+  if(IS_PAGES_PREVIEW)return initial?3500+Math.random()*2500:6500+Math.random()*5500;
   return initial?25000+Math.random()*40000:45000+Math.random()*85000;
 }
 const EGG_CLASS = "zvh-discovery-egg";
@@ -224,15 +224,23 @@ function currentClientSession(){
   return window.supabaseClient?.auth?.getSession?.().then(result=>result?.data?.session||null).catch(()=>null)||Promise.resolve(null);
 }
 function isModalOpen(){
-  return Boolean(document.querySelector('[aria-modal="true"]:not([hidden]),.worth-it-overlay.open,.modal.open'));
+  return Array.from(document.querySelectorAll('[aria-modal="true"],.worth-it-overlay.open,.modal.open')).some(node=>{
+    if(node.hidden||node.getAttribute("aria-hidden")==="true")return false;
+    const style=window.getComputedStyle?window.getComputedStyle(node):null;
+    return !style||style.display!=="none"&&style.visibility!=="hidden";
+  });
 }
 function scheduleEgg(delay){
-  if(profile.unlocked||document.visibilityState==="hidden")return;
-  window.clearTimeout(eggTimer);
+  if(profile.unlocked||activeEgg)return;
+  window.clearTimeout(eggTimer);eggTimer=0;
+  if(document.visibilityState==="hidden")return;
   eggTimer=window.setTimeout(()=>{
-    if(profile.unlocked)return;
-    if(document.visibilityState==="hidden"||isModalOpen()||$("navLinks")?.classList.contains("open")||$("zvhGameSection")?.style.display!=="none"){
-      scheduleEgg(IS_PAGES_PREVIEW&&!userId?3500+Math.random()*3500:18000);
+    eggTimer=0;
+    if(profile.unlocked||activeEgg)return;
+    const gameSection=$("zvhGameSection");
+    const gameVisible=Boolean(gameSection&&window.getComputedStyle&&window.getComputedStyle(gameSection).display!=="none");
+    if(document.visibilityState==="hidden"||isModalOpen()||$("navLinks")?.classList.contains("open")||gameVisible){
+      scheduleEgg(IS_PAGES_PREVIEW?1800+Math.random()*2200:18000);
       return;
     }
     revealEgg();
@@ -248,12 +256,13 @@ function revealEgg(){
   const top=90+Math.random()*Math.max(10,height-240);
   button.style.left=Math.min(width-74,left)+"px";
   button.style.top=Math.min(height-110,top)+"px";
+  button.style.zIndex="2147483000";
   button.addEventListener("click",unlockGame,{once:true});
   document.body.appendChild(button);
   activeEgg=button;
   window.setTimeout(()=>{
     if(activeEgg===button){button.remove();activeEgg=null;scheduleEgg(nextEggDelay(false));}
-  },IS_PAGES_PREVIEW&&!userId?14000:10500);
+  },IS_PAGES_PREVIEW?18000:10500);
 }
 function unlockGame(){
   if(profile.unlocked)return;
@@ -941,6 +950,12 @@ function bindUI(){
 }
 function init(){
   bindUI();
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible"&&!profile.unlocked&&!activeEgg&&!eggTimer){
+      scheduleEgg(nextEggDelay(false));
+    }
+  });
+  if(IS_PAGES_PREVIEW&&!readLocal("guest").unlocked)scheduleEgg(nextEggDelay(true));
   void currentClientSession().then(session=>loadProfileForSession(session));
   if(window.supabaseClient?.auth?.onAuthStateChange){
     window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
