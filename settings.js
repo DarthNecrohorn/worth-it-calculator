@@ -101,8 +101,10 @@ function renderWorthItSettingsView(sectionKey) {
 
     if (hero) hero.hidden = !overview;
     if (grid) grid.hidden = !overview;
-    if (sectionNav) sectionNav.hidden = overview;
-    if (sectionNavTitle) sectionNavTitle.textContent = overview ? "" : WORTH_IT_SETTINGS_SECTIONS[section].title;
+    // The dedicated Custom Themes/Appearance view keeps only the page-level
+    // "Back to Worth It" control; other Settings sections retain "Back to Settings".
+    if (sectionNav) sectionNav.hidden = overview || section === "appearance";
+    if (sectionNavTitle) sectionNavTitle.textContent = overview || section === "appearance" ? "" : WORTH_IT_SETTINGS_SECTIONS[section].title;
     if (roadmap) roadmap.hidden = !overview;
 
     Object.entries(WORTH_IT_SETTINGS_SECTIONS).forEach(([key, config]) => {
@@ -131,6 +133,12 @@ function renderWorthItSettingsView(sectionKey) {
     if (section) {
         const loader = WORTH_IT_SETTINGS_SECTIONS[section].loader;
         if (loader && typeof window[loader] === "function") window[loader]();
+    }
+
+    // Keep the Custom Theme editor state aligned with the actual section.
+    // The editor is also reachable from the compact Settings "Try Custom Themes" shortcut.
+    if (typeof window.setWorthItCustomThemeSettingsOpen === "function") {
+        window.setWorthItCustomThemeSettingsOpen(overview || section === "appearance");
     }
 
     window.scrollTo({ top: 0, behavior: "auto" });
