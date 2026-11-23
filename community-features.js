@@ -853,7 +853,7 @@ async function saveCustomTheme(){
   const result=await sb().from("worth_it_user_themes").upsert({
    user_id:themeUserId,theme_name:theme.name,
    primary_color:theme.primary,secondary_color:theme.secondary,hover_color:theme.hover,header_color:theme.header,
-   theme_config:expectedConfig,updated_at:new Date().toISOString()
+   theme_config:themeConfig(theme),updated_at:new Date().toISOString()
   },{onConflict:"user_id"})
    .select("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config")
    .single();
