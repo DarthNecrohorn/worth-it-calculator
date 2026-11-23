@@ -96,10 +96,10 @@ test("Custom Theme save requires a verified database row and reports unconfirmed
     const saveStart = community.indexOf("async function saveCustomTheme()");
     const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
     const save = community.slice(saveStart, resetStart);
-    assert.match(save, /\.select\("user_id,theme_name,primary_color,secondary_color,hover_color,header_color,theme_config"\)/);
-    assert.match(save, /\.single\(\)/);
-    assert.match(save, /const confirmed=Boolean\(/);
-    assert.match(save, /if\(!confirmed\)throw new Error/);
+    assert.match(save, /await persistCustomThemeRow\(themeUserId,theme\)/);
+    assert.match(community, /async function persistCustomThemeRow\(userId,theme\)/);
+    assert.match(community, /\.select\(columns\)\.eq\("user_id",userId\)\.maybeSingle\(\)/);
+    assert.match(community, /customThemeRowMatches\(verified\.data,userId,theme\)/);
     assert.match(save, /Your new theme is only a preview\. It was not confirmed as saved to your account/);
 });
 
@@ -134,7 +134,7 @@ test("first paint does not reveal a cached Custom Theme while its account reset 
 
 
 test("first-paint cache key changes for the durable pending-reset guard", () => {
-    assert.match(html, /theme-reset-pending-confirm=20261123d/);
+    assert.match(html, /theme-save-readback=20261123a/);
 });
 
 
