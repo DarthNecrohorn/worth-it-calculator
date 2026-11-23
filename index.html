@@ -187,6 +187,7 @@ html.worth-it-initial-paint::before {
     <link rel="stylesheet" href="web-shop.css?v=web-shop-heading-back-20261105a&amp;mobile-wallet-grid-20261108a&amp;phone-header-position=20261108b&amp;mobile-header-grid-layout=20261109a&amp;mobile-header-offsets=20261110e">
 <link rel="stylesheet" href="feedback-admin-overlays.css?v=feedback-admin-overlays-20261030b">
 <link rel="stylesheet" href="community-features.css?v=hamburger-instant-20261105a&amp;ugc-detail-favorite=20261106a&amp;mobile-theme-density-20261116a&amp;ugc-star-center-20261116a&amp;mobile-random-palette-20261123a">
+<link rel="stylesheet" href="easter-eggs.css?v=easter-eggs-20261123a">
 <link rel="stylesheet" href="ugc-calculators.css?v=opaque-community-pagination-20261104b&amp;owner-badge-emblem-20261116a&amp;rev=hide-basic-background-under-community-20261104a&amp;phone-creator-density-20261116a&amp;visibility-restore=20261105a&amp;maker-close-glyph=20261105b&amp;ugc-publish-notifications=20261105b&amp;ugc-square-cards-price=20261106b&amp;responsive-square-grid=20261106a&amp;card-stats-detail-meta=20261108a&amp;profile-ugc-card-design=20261108b&amp;catalogue-inline-tags=20261108a&amp;card-byline-lift=20261108b&amp;ugc-card-ellipsis-20261109a&amp;ugc-detail-layer-20261109a&amp;creator-discovery-header-actions=20261109a&amp;subscription-card-spacing=20261109b&amp;subscription-card-desktop=20261109a&amp;ugc-card-description-120=20261109b&amp;reaction-policy=20261110a&amp;mobile-mode-guide-drawer=20261116a&amp;ugc-description-layout-title-cooldown=20261116a&amp;profile-badge-vectors=20261116a&amp;badge-sizing=20261116a">
 <link rel="stylesheet" href="weather-compact.css?v=weather-compact-20261030b">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -2877,6 +2878,13 @@ html.worth-it-initial-paint::before {
         <div id="worthItProfileBadgesManage" class="worth-it-profile-badge-manage" hidden></div>
         <p id="worthItProfileBadgesStatus" class="ugc-detail-status" role="status" aria-live="polite"></p>
       </section>
+      <section id="worthItProfileEasterEggs" class="worth-it-profile-easter-eggs" aria-label="Easter Egg collection" hidden>
+        <div class="worth-it-profile-easter-eggs-head">
+          <div><h2>✦ Easter Egg Collection</h2><p>Discover the little secrets hidden around Worth It.</p></div>
+          <strong id="worthItProfileEasterEggCount">0/22 discovered</strong>
+        </div>
+        <div id="worthItProfileEasterEggGrid" class="worth-it-easter-egg-grid"></div>
+      </section>
       <section id="worthItProfileFavouritesSection" class="worth-it-profile-favourites" aria-label="Favorite calculators" hidden>
         <h2>Favorite Calculators</h2>
         <div id="worthItProfileFavouriteCalculators" class="worth-it-profile-favourite-grid"></div>
@@ -3196,6 +3204,13 @@ html.worth-it-initial-paint::before {
             <input type="checkbox" id="privacyShowOnlineStatus" onchange="savePrivacySettings()">
             <span><strong>Show online status and last seen</strong><small>When disabled, other users will not receive your online or last-seen timestamp in profile and chat presence data.</small></span>
           </label>
+        </div>
+        <div class="account-settings-field">
+          <label class="account-settings-toggle" for="showEasterEggs">
+            <input type="checkbox" id="showEasterEggs" checked onchange="saveWorthItEasterEggPreference()">
+            <span><strong>Show Easter Eggs</strong><small>Allow small, occasional Easter Egg encounters while you use Worth It. Your discoveries remain on your profile if you turn this off.</small></span>
+          </label>
+          <p id="showEasterEggsStatus" class="account-settings-help" role="status" aria-live="polite"></p>
         </div>
         <div class="account-settings-field">
           <label class="account-settings-toggle" for="privacyShowConnections">
@@ -4060,6 +4075,7 @@ try{
 <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script src="water-levels-ui.js?v=waterlevels62"></script>
 <script src="ship-tracking-ui.js?v=shiptrackingcache20261012a"></script>
+<script src="easter-eggs.js?v=easter-eggs-20261123a"></script>
 <script src="currencies-ui.js?v=currencies20261012a"></script>
 <script>
 
