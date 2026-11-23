@@ -47,6 +47,19 @@
 
     const $ = id => document.getElementById(id);
 
+    function authOverlay() {
+        return $(AUTH_OVERLAY_ID);
+    }
+
+    function isAuthModalOpen() {
+        return Boolean(authOverlay()?.classList.contains("open"));
+    }
+
+    function isSignupModalOpen() {
+        const overlay = authOverlay();
+        return Boolean(overlay?.classList.contains("open") && overlay.classList.contains("signup-mode"));
+    }
+
     function closeNavMenus() {
         const nav = $("navLinks");
         if (nav) {
