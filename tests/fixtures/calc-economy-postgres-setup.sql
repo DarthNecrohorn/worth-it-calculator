@@ -52,6 +52,7 @@ create table if not exists public.worth_it_user_themes (
     secondary_color text not null default '#38BDF8',
     hover_color text not null default '#8B5CF6',
     header_color text not null default '#0B1120',
+    theme_config jsonb not null default '{}'::jsonb,
     updated_at timestamptz not null default now()
 );
 alter table public.worth_it_user_themes enable row level security;
