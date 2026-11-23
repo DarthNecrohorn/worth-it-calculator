@@ -99,7 +99,7 @@ test("single-storey houses support locked doors, interiors and translucent roofs
 test("only Attack damages props and the horde Guard order is non-destructive",()=>{assert.match(html,/data-zvh-order="guard"/);assert.doesNotMatch(html,/data-zvh-order="smash"/);assert.match(js,/function attackNearbyObject\(/);assert.doesNotMatch(js,/friend\.order==="smash"/);assert.match(js,/setOrder\("guard"\)/);});
 test("Zombie Mode no longer ends quickly from its former low-health balance",()=>{assert.match(js,/hp:mode==="zombie"\?240\+up\.health\*28/);assert.match(js,/amount\*=\.42/);assert.match(js,/run\.player\.hp\+3\.8\*dt/);assert.match(js,/waveSeconds=run\.mode==="zombie"\?36:28/);});
 test("game combat messages are compact and do not dim the full canvas",()=>{assert.match(css,/top:12px;left:50%;transform:translateX\(-50%\)/);assert.doesNotMatch(css,/\.zvh-stage-message\{position:absolute;inset:0/);});
-\ntest("the cloud save table is private, row-scoped and explicitly exposed only to authenticated users", () => {
+test("the cloud save table is private, row-scoped and explicitly exposed only to authenticated users", () => {
     assert.match(sql, /enable row level security/i);
     assert.match(sql, /grant select, insert, update .* to authenticated/i);
     assert.match(sql, /revoke all privileges .* from public, anon, authenticated/i);
