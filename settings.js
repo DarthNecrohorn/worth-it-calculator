@@ -1483,11 +1483,16 @@ window.WORTH_IT_SETTINGS_SECTIONS = WORTH_IT_SETTINGS_SECTIONS;
         const sessionResult = await client?.auth?.getSession?.();
         if (sessionResult?.error) throw sessionResult.error;
         if (!sessionResult?.data?.session?.user?.id) return;
-        const result = await client.rpc("get_worth_it_easter_egg_state");
-        if (result?.error) throw result.error;
-        control.checked = result?.data?.enabled !== false;
         const status = $("showEasterEggsStatus");
-        if (status) status.textContent = "Your Easter Egg preference is saved to your account.";
+        try {
+            const result = await client.rpc("get_worth_it_easter_egg_state");
+            if (result?.error) throw result.error;
+            control.checked = result?.data?.enabled !== false;
+            if (status) status.textContent = "Your Easter Egg preference is saved to your account.";
+        } catch (error) {
+            if (status) status.textContent = "Easter Eggs need the one-time database setup before this preference can be saved.";
+            console.warn("Easter Egg preference is not available yet:", error);
+        }
     };
 
     window.saveWorthItEasterEggPreference = async function() {
