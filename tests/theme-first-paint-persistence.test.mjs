@@ -173,4 +173,5 @@ test("secure Custom Theme save migration authorizes Premium and atomically updat
     assert.match(sql, /theme_config = excluded\.theme_config/);
     assert.match(sql, /grant execute on function public\.save_worth_it_custom_theme\(jsonb\) to authenticated/);
     assert.match(sql, /revoke all on function public\.save_worth_it_custom_theme\(jsonb\) from public, anon/);
+    assert.match(sql, /notify pgrst, 'reload schema'/);
 });
