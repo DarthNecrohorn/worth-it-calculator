@@ -34,7 +34,8 @@ test("lost Premium access and explicit resets remove the cached theme snapshot",
     const expiry = community.match(/async function clearThemeAfterExpiry\(userId,request\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
     assert.match(expiry, /removeLocal\(scopedKey\(THEME_BOOT_KEY,userId\)\)/);
     const reset = community.match(/async function resetCustomThemeFromSettings\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
-    assert.match(reset, /removeLocal\(scopedKey\(THEME_BOOT_KEY,userId\)\)/);
+    assert.match(reset, /clearLocalThemeState\(userId\)/);
+    assert.match(reset, /markThemeResetPending\(knownUserId\)/);
 });
 
 
