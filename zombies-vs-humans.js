@@ -859,52 +859,117 @@ function drawProp(ctx,p){
 }
 function drawActor(ctx,e,isPlayer){
   ctx.save();ctx.translate(e.x,e.y);
-  if(Math.hypot(e.vx||0,e.vy||0)>5&&e.type!=="tank"&&e.type!=="heli")ctx.rotate(Math.atan2(e.vy,e.vx)+Math.PI/2);
-  const moving=Math.hypot(e.vx||0,e.vy||0)>5,phase=performance.now()*.012+(e.id||0)*.7;
-  const stride=moving?Math.sin(phase)*Math.min(1,Math.hypot(e.vx||0,e.vy||0)/70):0;
-  const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||(e.team==="player"&&run.mode==="human");
+  const velocity=Math.hypot(e.vx||0,e.vy||0);
+  const facing=velocity>5?Math.atan2(e.vy,e.vx)+Math.PI/2:(e.facingAngle||0);
+  if(e.type!=="tank"&&e.type!=="heli")ctx.rotate(facing);
+  const moving=velocity>5;
+  const phase=performance.now()*.014+(e.id||0)*.61;
+  const stride=moving?Math.sin(phase)*Math.min(1,velocity/78):0;
+  const bob=moving?Math.abs(Math.sin(phase*2))*1.25:0;
+  const zombie=e.type==="zombie"||(run.mode==="human"&&e.team==="enemy");
+  const runner=e.type==="runner";
+  const human=!zombie&&(e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||(isPlayer&&run.mode==="human"));
   const armed=e.type==="police"||e.type==="soldier"||e.type==="ally"||(isPlayer&&run.mode==="human");
+  const scale=e.type==="boss"?1.38:e.type==="brute"?1.18:e.type==="armored"?1.12:1;
+  const r=e.radius*scale,skin=human?"#c79f82":e.type==="runner"?"#a9d878":"#b7d58f";
+  let coat=human?"#4b7890":"#668451";
+  if(e.type==="police")coat="#334f8a";
+  if(e.type==="soldier"||e.type==="ally")coat="#677a54";
+  if(e.type==="runner")coat="#71934b";
+  if(e.type==="brute")coat="#455b3d";
+  if(e.type==="armored")coat="#59626a";
+  if(e.type==="boss")coat="#79485d";
+  if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))coat=["#4b7890","#8060a4","#b0794c","#438477"][profile.upgrades.human.skin%4];
   if(e.type==="tank"){
-    ctx.rotate(e.angle||0);ctx.fillStyle="#56674b";ctx.fillRect(-29,-22,58,44);ctx.fillStyle="#27372b";ctx.fillRect(-20,-14,40,28);ctx.fillStyle="#9baf77";ctx.fillRect(0,-5,40,10);
+    ctx.rotate(e.angle||0);
+    ctx.fillStyle="#18251f";ctx.fillRect(-31,-24,62,48);
+    ctx.fillStyle="#596d4f";ctx.fillRect(-26,-20,52,40);
+    ctx.fillStyle="#303c32";ctx.fillRect(-16,-14,32,28);
+    ctx.fillStyle="#97a77c";ctx.fillRect(0,-5,41,10);
+    ctx.fillStyle="#a9b48d";ctx.fillRect(-22,-18,8,36);ctx.fillRect(14,-18,8,36);
   }else if(e.type==="heli"){
-    ctx.fillStyle="#657a70";ctx.beginPath();ctx.ellipse(0,0,28,16,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#d4dce0";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-36,-21);ctx.lineTo(36,-21);ctx.moveTo(0,-21);ctx.lineTo(0,21);ctx.stroke();
+    ctx.fillStyle="rgba(0,0,0,.26)";ctx.beginPath();ctx.ellipse(0,8,33,20,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#405b52";ctx.beginPath();ctx.ellipse(0,0,28,16,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#9bb5b2";ctx.beginPath();ctx.ellipse(7,-2,12,9,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="#c9d5cc";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-36,-22);ctx.lineTo(36,-22);ctx.moveTo(0,-22);ctx.lineTo(0,22);ctx.moveTo(23,0);ctx.lineTo(38,8);ctx.stroke();
   }else{
-    const human=e.type==="civilian"||e.type==="police"||e.type==="soldier"||e.type==="ally"||e.team==="player"&&run.mode==="human";
-    let color=human?"#4b93c1":"#7fae67";
-    if(e.type==="police")color="#4e78ce";if(e.type==="soldier"||e.type==="ally")color="#81916b";
-    if(e.type==="runner")color="#86ad66";if(e.type==="brute")color="#697e54";if(e.type==="armored")color="#69717a";if(e.type==="boss")color="#9a6a87";
-    if(run.mode==="human"&&profile.upgrades.human.skin>0&&(e.team==="player"||e.type==="ally"))color=["#4b93c1","#9173c9","#c18e56","#4f9b91"][profile.upgrades.human.skin%4];
-    ctx.fillStyle="rgba(4,9,15,.32)";ctx.beginPath();ctx.ellipse(0,10,e.radius*1.25,e.radius*.62,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=human?"#273e50":"#46633e";ctx.lineWidth=Math.max(4,e.radius*.34);ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-e.radius*.28,e.radius*.38);ctx.lineTo(-e.radius*.42+stride*5,e.radius*1.02);ctx.moveTo(e.radius*.28,e.radius*.38);ctx.lineTo(e.radius*.42-stride*5,e.radius*1.02);ctx.stroke();
-    ctx.strokeStyle=human?"#c4a58d":"#a9d78e";ctx.lineWidth=Math.max(3,e.radius*.24);ctx.beginPath();
-    if(!human){ctx.moveTo(-e.radius*.55,-e.radius*.05);ctx.lineTo(-e.radius*1.05,-e.radius*.62+stride*2);ctx.moveTo(e.radius*.55,-e.radius*.05);ctx.lineTo(e.radius*1.05,-e.radius*.62-stride*2);}
-    else{ctx.moveTo(-e.radius*.55,0);ctx.lineTo(-e.radius,-stride*7);ctx.moveTo(e.radius*.55,0);ctx.lineTo(e.radius,stride*7);}ctx.stroke();
-    ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,0,e.radius*.78,e.radius,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=human?"#c4a58d":"#b8e69b";ctx.beginPath();ctx.arc(0,-e.radius*.25,e.radius*.42,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#18222c";ctx.beginPath();ctx.arc(-e.radius*.18,-e.radius*.28,2.1,0,Math.PI*2);ctx.arc(e.radius*.18,-e.radius*.28,2.1,0,Math.PI*2);ctx.fill();
-    if(armed){ctx.save();ctx.translate(e.radius*.55,-e.radius*.18);ctx.rotate(-.18);ctx.fillStyle="#26323b";ctx.fillRect(-1,-2,e.radius*1.2,4);ctx.fillStyle="#9aa7ad";ctx.fillRect(e.radius*.55,-1,e.radius*.42,2);ctx.fillStyle="#4b5960";ctx.fillRect(e.radius*.05,1,4,6);ctx.restore();}
-    if(isPlayer){ctx.strokeStyle="#e3d8ff";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.radius+6,0,Math.PI*2);ctx.stroke();}
-    if(e.team==="friend"||e.team==="player"){ctx.fillStyle="#b4ef93";ctx.fillRect(-6,e.radius+6,12,3);}
+    ctx.fillStyle="rgba(4,8,11,.34)";ctx.beginPath();ctx.ellipse(0,r*.53,r*.95,r*.43,0,0,Math.PI*2);ctx.fill();
+    // Humans and fast infected show a full stride; ordinary zombies have no visible legs.
+    if(human||runner){
+      const legY=r*.34,legDrop=r*.83;
+      ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle=human?"#273b48":"#40523b";ctx.lineWidth=Math.max(4,r*.29);
+      ctx.beginPath();
+      ctx.moveTo(-r*.28,legY);ctx.lineTo(-r*.35+stride*r*.42,legDrop+bob);
+      ctx.moveTo(r*.28,legY);ctx.lineTo(r*.35-stride*r*.42,legDrop-bob);
+      ctx.stroke();
+      ctx.strokeStyle=human?"#a88b72":"#8da96b";ctx.lineWidth=Math.max(3,r*.13);ctx.beginPath();
+      ctx.moveTo(-r*.35+stride*r*.42,legDrop+bob);ctx.lineTo(-r*.54+stride*r*.52,legDrop+bob+3);
+      ctx.moveTo(r*.35-stride*r*.42,legDrop-bob);ctx.lineTo(r*.54-stride*r*.52,legDrop-bob+3);ctx.stroke();
+      ctx.fillStyle=human?"#1e2931":"#394236";
+      ctx.fillRect(-r*.68+stride*r*.42,legDrop+bob+1,r*.38,5);
+      ctx.fillRect(r*.3-stride*r*.42,legDrop-bob+1,r*.38,5);
+    }
+    ctx.lineCap="round";ctx.lineJoin="round";
+    if(zombie){
+      // Zombies hold their arms forward; only a subtle movement sway is animated.
+      const reach=moving?stride*r*.11:0;
+      ctx.strokeStyle="#657b50";ctx.lineWidth=Math.max(5,r*.28);ctx.beginPath();
+      ctx.moveTo(-r*.53,-r*.06);ctx.lineTo(-r*.66-reach,-r*.7);ctx.lineTo(-r*.48-reach,-r*1.1);
+      ctx.moveTo(r*.53,-r*.06);ctx.lineTo(r*.66+reach,-r*.7);ctx.lineTo(r*.48+reach,-r*1.1);ctx.stroke();
+      ctx.fillStyle="#a9cc84";ctx.beginPath();
+      ctx.arc(-r*.48-reach,-r*1.12,r*.16,0,Math.PI*2);ctx.arc(r*.48+reach,-r*1.12,r*.16,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="#e0e8ba";ctx.lineWidth=1.5;ctx.beginPath();
+      for(let k=0;k<3;k++){ctx.moveTo(-r*.6+k*r*.1,-r*1.16);ctx.lineTo(-r*.64+k*r*.1,-r*1.31);ctx.moveTo(r*.4+k*r*.1,-r*1.16);ctx.lineTo(r*.44+k*r*.1,-r*1.31);}ctx.stroke();
+    }else{
+      // Human arms swing opposite the legs, and remain still while idle.
+      ctx.strokeStyle=human?"#c79f82":"#a9d3a0";ctx.lineWidth=Math.max(4,r*.22);ctx.beginPath();
+      ctx.moveTo(-r*.52,-r*.05);ctx.lineTo(-r*.82-stride*r*.38,-r*.01+stride*r*.18);
+      ctx.moveTo(r*.52,-r*.05);ctx.lineTo(r*.82+stride*r*.38,-r*.01-stride*r*.18);ctx.stroke();
+      ctx.fillStyle=skin;ctx.beginPath();
+      ctx.arc(-r*.82-stride*r*.38,-r*.01+stride*r*.18,r*.14,0,Math.PI*2);
+      ctx.arc(r*.82+stride*r*.38,-r*.01-stride*r*.18,r*.14,0,Math.PI*2);ctx.fill();
+    }
+    // Layered clothing and vest.
+    ctx.fillStyle=coat;ctx.beginPath();ctx.ellipse(0,bob,r*.65,r*.83,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="rgba(12,20,22,.62)";ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle="rgba(235,236,206,.12)";ctx.beginPath();ctx.ellipse(-r*.2,-r*.1,r*.17,r*.45,-.12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=human?"#344c58":"#3f4d39";ctx.fillRect(-r*.45,-r*.2,r*.9,r*.22);
+    ctx.fillStyle="rgba(236,215,163,.4)";ctx.fillRect(-r*.36,-r*.46,r*.16,r*.18);ctx.fillRect(r*.19,-r*.46,r*.16,r*.18);
+    if(human){ctx.fillStyle="#26383c";ctx.fillRect(-r*.49,r*.1,r*.28,r*.28);ctx.fillRect(r*.21,r*.1,r*.28,r*.28);ctx.fillStyle="#c4b18b";ctx.fillRect(-r*.4,r*.16,r*.11,r*.1);}
+    else{ctx.fillStyle="#b0d88b";ctx.fillRect(-r*.34,r*.06,r*.18,r*.14);ctx.fillStyle="#754d43";ctx.fillRect(r*.14,r*.19,r*.2,r*.11);}
+    // Head, face and hair / infected eyes.
+    ctx.fillStyle=skin;ctx.beginPath();ctx.arc(0,-r*.66-bob,r*.39,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=zombie?"#4a6643":"#a87f68";ctx.beginPath();ctx.arc(-r*.36,-r*.66-bob,r*.1,0,Math.PI*2);ctx.arc(r*.36,-r*.66-bob,r*.1,0,Math.PI*2);ctx.fill();
+    if(zombie){
+      ctx.fillStyle="#d9e68b";ctx.beginPath();ctx.arc(-r*.15,-r*.72-bob,r*.075,0,Math.PI*2);ctx.arc(r*.15,-r*.72-bob,r*.075,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="#532f2c";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-r*.17,-r*.47-bob);ctx.lineTo(r*.17,-r*.45-bob);ctx.stroke();
+      ctx.fillStyle="#d7d5b2";ctx.fillRect(-r*.16,-r*.43-bob,r*.07,3);ctx.fillRect(r*.07,-r*.43-bob,r*.07,3);
+    }else{
+      ctx.fillStyle="#26313a";ctx.beginPath();ctx.arc(-r*.13,-r*.7-bob,r*.045,0,Math.PI*2);ctx.arc(r*.13,-r*.7-bob,r*.045,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=coat;ctx.beginPath();ctx.arc(0,-r*.9-bob,r*.42,Math.PI,Math.PI*2);ctx.fill();
+    }
+    if(armed){
+      // Human player and armed NPCs hold a visible rifle.
+      ctx.save();ctx.translate(r*.25,-r*.2);ctx.rotate(-.08);
+      ctx.fillStyle="#202b2d";ctx.fillRect(-r*.02,-r*.95,r*.14,r*1.18);
+      ctx.fillStyle="#687a73";ctx.fillRect(-r*.08,-r*.94,r*.24,r*.18);
+      ctx.fillStyle="#a4b4a9";ctx.fillRect(-r*.035,-r*1.18,r*.06,r*.25);
+      ctx.fillStyle="#493d32";ctx.fillRect(-r*.16,-r*.12,r*.35,r*.28);
+      ctx.fillStyle="#8c9a91";ctx.fillRect(-r*.06,-r*.65,r*.11,r*.4);ctx.restore();
+    }
+    if(isPlayer){ctx.strokeStyle="#e5dcff";ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(0,0,r*.9,r*1.14,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle="#d5e9a7";ctx.beginPath();ctx.arc(0,r*1.25,2.5,0,Math.PI*2);ctx.fill();}
+    if(e.team==="friend"||e.team==="player"){ctx.fillStyle="#b4ef93";ctx.fillRect(-6,r*1.25,12,3);}
   }
   if(e.team!=="player"&&e.type!=="civilian"&&e.hp<e.maxHp){
-    ctx.fillStyle="#141a22";ctx.fillRect(-e.radius,-e.radius-9,e.radius*2,4);
-    ctx.fillStyle=e.team==="friend"?"#89d68c":"#e48e78";ctx.fillRect(-e.radius,-e.radius-9,e.radius*2*Math.max(0,e.hp/e.maxHp),4);
+    ctx.fillStyle="#141a22";ctx.fillRect(-r,-r-10,r*2,4);
+    ctx.fillStyle=e.team==="friend"?"#89d68c":"#e48e78";ctx.fillRect(-r,-r-10,r*2*Math.max(0,e.hp/e.maxHp),4);
   }
   if(run.mode==="human"&&e.team==="enemy"){
-    const labels={walker:"LUNGE BITE",runner:"RUSH",brute:"GROUND SLAM",armored:"IRON PLATING",boss:"SUMMON"};
-    if(e.type==="armored"&&run.elapsed<(e.armorUntil||0)){
-      ctx.strokeStyle="rgba(165,211,238,.9)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.radius+8,0,Math.PI*2);ctx.stroke();
-    }
-    if(e.type==="brute"&&e.slamWindup>0){
-      ctx.strokeStyle="rgba(255,145,80,.9)";ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,e.radius+10+(0.62-e.slamWindup)*80,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-    }
-    if(e.type==="boss"){
-      ctx.strokeStyle="rgba(196,91,117,.68)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,e.radius+9+Math.sin(performance.now()*.006)*3,0,Math.PI*2);ctx.stroke();
-    }
-    if(e.lungeTime>0){
-      ctx.strokeStyle=e.type==="runner"?"rgba(178,230,111,.75)":"rgba(151,207,130,.65)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-e.radius*.6,e.radius*.45);ctx.lineTo(-e.radius*1.7,e.radius*1.3);ctx.moveTo(e.radius*.6,e.radius*.45);ctx.lineTo(e.radius*1.7,e.radius*1.3);ctx.stroke();
-    }
-    ctx.font="bold 8px sans-serif";ctx.textAlign="center";ctx.fillStyle="#f4e6c8";ctx.fillText(labels[e.type]||"INFECTED",0,-e.radius-17);
+    const labels={walker:"WALKER",runner:"FAST RUNNER",brute:"BRUTE",armored:"ARMORED",boss:"MUTANT BOSS"};
+    if(e.type==="armored"&&run.elapsed<(e.armorUntil||0)){ctx.strokeStyle="rgba(165,211,238,.9)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r+8,0,Math.PI*2);ctx.stroke();}
+    if(e.type==="brute"&&e.slamWindup>0){ctx.strokeStyle="rgba(255,145,80,.9)";ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,r+10+(0.62-e.slamWindup)*80,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+    if(e.type==="boss"){ctx.strokeStyle="rgba(196,91,117,.68)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r+9+Math.sin(performance.now()*.006)*3,0,Math.PI*2);ctx.stroke();}
+    ctx.font="bold 8px sans-serif";ctx.textAlign="center";ctx.fillStyle="#f4e6c8";ctx.fillText(labels[e.type]||"INFECTED",0,-r-18);
   }
   ctx.restore();
 }
