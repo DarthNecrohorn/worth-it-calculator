@@ -83,3 +83,44 @@ test("Custom Theme Save confirms the exact row returned by Supabase before repor
     assert.ok(save.includes("Custom Theme saved to your account."));
     assert.ok(save.includes("Custom Theme was not saved."));
 });
+
+
+test("both reset entry points persist a pending reset before clearing local theme state", () => {
+    assert.match(community, /const THEME_RESET_PENDING_KEY = "worthItCustomThemeResetPending:v1:"/);
+    assert.match(community, /function markThemeResetPending\(userId\)/);
+    assert.match(community, /writeLocal\(scopedKey\(THEME_RESET_PENDING_KEY,userId\),"1"\)/);
+    for (const name of ["resetCustomTheme", "resetCustomThemeFromSettings"]) {
+        const start = community.indexOf(`async function ${name}()`);
+        const end = community.indexOf("\\n}", start);
+        const body = community.slice(start, end);
+        assert.match(body, /markThemeResetPending\(/);
+        assert.match(body, /clearLocalThemeState\(/);
+        assert.match(body, /applyStandardDarkTheme\(\)/);
+    }
+});
+
+test("pending reset is retried before any saved account theme can be hydrated", () => {
+    const loadStart = community.indexOf("async function loadThemeForSession()");
+    const loadEnd = community.indexOf("function releaseInitialThemeCover()", loadStart);
+    const load = community.slice(loadStart, loadEnd);
+    assert.match(load, /if\(isThemeResetPending\(userId\)\)/);
+    assert.match(load, /await deleteAndVerifySavedTheme\(userId\)/);
+    assert.match(load, /clearThemeResetPending\(userId\)/);
+    assert.match(load, /Pending Worth It Custom Theme reset could not be confirmed/);
+    assert.match(html, /const resetPending = localStorage\.getItem\("worthItCustomThemeResetPending:v1:" \+ sessionUserId\) === "1"/);
+    assert.match(html, /resetPending \? null : JSON\.parse/);
+});
+
+test("reset deletion is read-after-write verified instead of trusting an RLS-filtered empty delete", () => {
+    const helper = community.match(/async function deleteAndVerifySavedTheme\(userId\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+    assert.match(helper, /\.delete\(\)\.eq\("user_id",userId\)\.select\("user_id"\)/);
+    assert.match(helper, /\.select\("user_id"\)\.eq\("user_id",userId\)\.maybeSingle\(\)/);
+    assert.match(helper, /remaining\.data\?\.user_id===userId/);
+});
+
+test("a pending account reset blocks a new save until the reset is resolved", () => {
+    const saveStart = community.indexOf("async function saveCustomTheme()");
+    const resetStart = community.indexOf("async function resetCustomTheme()", saveStart);
+    assert.match(community.slice(saveStart, resetStart), /isThemeResetPending\(themeUserId\)/);
+    assert.match(community, /clearThemeResetPending\(themeUserId\)/);
+});
