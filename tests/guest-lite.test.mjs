@@ -101,6 +101,7 @@ test("Guest Lite dialog is responsive, theme-aware and the CI checks the new scr
     assert.match(css, /\.worth-it-guest-overlay\[hidden\]\{display:none!important\}/);
     assert.match(css, /@media\(max-width:650px\)/);
     assert.match(css, /\.worth-it-guest-list ul\{font-size:12px/);
+    assert.match(css, /\.worth-it-guest-actions\{[\s\S]*?padding:15px 0 0;/);
     assert.match(css, /html\[data-theme="light"\] \.worth-it-guest-card/);
     assert.match(html, /guest-mode\.js\?v=guest-lite-dialog-polish-20261123a/);
     assert.match(workflow, /guest-mode\.js/);
@@ -111,7 +112,7 @@ test("mobile calculator catalogue keeps three cards per row and Guest Lite conse
     const communityCss = readFileSync(new URL("../community-features.css", import.meta.url), "utf8");
     assert.ok(communityCss.includes("grid-template-columns:repeat(3,minmax(0,1fr)) !important"));
     assert.match(communityCss, /\.calc-favorite-icon\s*\{[^}]*translateY\(0px\)/);
-    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto auto auto!important"));
+    assert.ok(communityCss.includes("grid-template-rows:auto minmax(0,1fr) auto!important"));
     assert.ok(communityCss.includes("html[data-ui-scale] .worth-it-guest-card"));
     assert.ok(communityCss.includes("overflow-y:auto!important"));
     assert.ok(communityCss.includes("position:static!important"));
