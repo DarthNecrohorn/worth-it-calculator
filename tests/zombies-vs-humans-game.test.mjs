@@ -44,14 +44,14 @@ test("the zombie discovery button sits beside the hero slogan and unlocks the ga
     assert.ok(js.includes('$(EGG_ID)?.addEventListener("click",unlockGame)'));
     assert.ok(!js.includes("scheduleEgg("));
     assert.ok(!js.includes("IS_PAGES_PREVIEW"));
-    assert.ok(html.includes("zvh-survival-maps-20261123i"));
+    assert.ok(html.includes("zvh-characters-houses-ammo-20261123k"));
     assert.ok(js.includes('STORAGE_PREFIX = "worthItZvhSave:v1:"'));
     assert.ok(js.includes('zvhNavEntry","zvhMoreMenuEntry'));
 });
 test("Zombie mode has orders and progressively stronger human military attackers", () => {
-    for (const order of ["follow", "attack", "smash"]) assert.ok(html.includes('data-zvh-order="'+order+'"'));
+    for (const order of ["follow", "attack", "guard"]) assert.ok(html.includes('data-zvh-order="'+order+'"'));
     for (const type of ["civilian", "police", "soldier", "tank", "heli"]) assert.ok(js.includes(type+":{"));
-    assert.match(js, /Math\.floor\(run\.elapsed\/28\)\+1/);
+    assert.match(js, /waveSeconds=run\.mode==="zombie"\?36:28/);
     assert.match(js, /function updateAI\(dt\)/);
     assert.match(js, /function convertHuman/);
     assert.match(js, /function destroyProp/);
@@ -74,10 +74,10 @@ test("the game has separate mode maps, upgrade catalogues and local save isolati
 
 test("PC controls can be remapped uniquely and mobile horde commands are visible",()=>{
   for(const id of ["zvhKeyFollow","zvhKeyAttack","zvhKeySmash","zvhKeySpecial","zvhTouchFollow","zvhTouchAttack","zvhTouchSmash","zvhTouchSpecial"])assert.ok(html.includes('id="'+id+'"'));
-  assert.match(js,/const validKeys=/);assert.match(js,/That key is already assigned/);assert.match(js,/bindings\.special/);
+  assert.match(js,/const validKeys=/);assert.match(js,/That key is already assigned/);assert.match(js,/bindings\.special/);assert.match(js,/setOrder\("guard"\)/);
 });
 test("actors animate limbs, zombies reach forward, armed humans carry guns and projectiles glow",()=>{
-  assert.match(js,/const stride=moving\?Math\.sin\(phase\)/);assert.match(js,/if\(armed\)/);assert.match(js,/b\.radius\*2\.6/);assert.match(js,/WEAK HOWL/);
+  assert.match(js,/const moving=velocity>5/);assert.match(js,/if\(human\|\|runner\)/);assert.match(js,/actor\.vx=0;actor\.vy=0/);assert.match(js,/function drawHouses\(ctx\)/);assert.match(js,/if\(armed\)/);assert.match(js,/b\.radius\*2\.6/);assert.match(js,/WEAK HOWL/);
 });
 test("maps draw roads and spawn wrecked or burning vehicles",()=>{assert.match(js,/Broad asphalt avenues/);assert.match(js,/burning:vehicle/);assert.match(js,/p\.scorch/);});
 test("each battlefield has its own map details and indoor maps do not use the city road grid",()=>{assert.ok(js.includes("function drawMapDetails(ctx)"));for(const label of ["APARTMENTS","FOOD COURT","WAREHOUSE 01","SAFE ZONE · KEEP OUTBREAK OUT","LANDING ZONE","UNDERGROUND · PLATFORM 02"])assert.ok(js.includes(label));assert.ok(js.includes('run.mapId!=="mall"&&run.mapId!=="metro"'));});
@@ -94,7 +94,12 @@ test("the game contains touch controls and configurable visual effects", () => {
     assert.match(css, /@media\(max-width:600px\)/);
 });
 
-test("the cloud save table is private, row-scoped and explicitly exposed only to authenticated users", () => {
+test("Human Mode ammo, upgrades and house stashes work without CALC",()=>{assert.match(js,/id:"ammo",name:"Starting ammunition"/);assert.match(js,/ammo:mode==="human"\?30\+up\.ammo\*12/);assert.match(js,/OUT OF AMMO · SEARCH HOUSE INTERIORS/);assert.match(js,/function collectHouseAmmo\(/);assert.match(html,/id="zvhHudAmmo"/);});
+test("single-storey houses support locked doors, interiors and translucent roofs",()=>{assert.match(js,/function initHouses\(/);assert.match(js,/function houseMovementAllowed\(/);assert.match(js,/function attackNearbyObject\(/);assert.match(js,/function drawHouses\(ctx\)/);assert.match(js,/DOOR BROKEN · HOUSE OPEN/);assert.match(js,/const roofAlpha=inside\?\.12:1/);});
+test("only Attack damages props and the horde Guard order is non-destructive",()=>{assert.match(html,/data-zvh-order="guard"/);assert.doesNotMatch(html,/data-zvh-order="smash"/);assert.match(js,/function attackNearbyObject\(/);assert.doesNotMatch(js,/friend\.order==="smash"/);assert.match(js,/setOrder\("guard"\)/);});
+test("Zombie Mode no longer ends quickly from its former low-health balance",()=>{assert.match(js,/hp:mode==="zombie"\?240\+up\.health\*28/);assert.match(js,/amount\*=\.42/);assert.match(js,/run\.player\.hp\+3\.8\*dt/);assert.match(js,/waveSeconds=run\.mode==="zombie"\?36:28/);});
+test("game combat messages are compact and do not dim the full canvas",()=>{assert.match(css,/top:12px;left:50%;transform:translateX\(-50%\)/);assert.doesNotMatch(css,/\.zvh-stage-message\{position:absolute;inset:0/);});
+\ntest("the cloud save table is private, row-scoped and explicitly exposed only to authenticated users", () => {
     assert.match(sql, /enable row level security/i);
     assert.match(sql, /grant select, insert, update .* to authenticated/i);
     assert.match(sql, /revoke all privileges .* from public, anon, authenticated/i);
