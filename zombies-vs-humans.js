@@ -335,6 +335,10 @@ function applyMobileControlVisibility(){
   const joystickNode=$("zvhJoystick"),actions=$("zvhMobileActions");
   if(joystickNode)joystickNode.style.display=show?"grid":"none";
   if(actions)actions.style.display=show?"grid":"none";
+  const follow=$("zvhTouchFollow"),smash=$("zvhTouchSmash"),attack=$("zvhTouchAttack");
+  const zombie=run?.mode==="zombie";
+  if(follow)follow.hidden=!zombie;if(smash)smash.hidden=!zombie;
+  if(attack)attack.textContent=zombie?"ATTACK":"SHOOT";
 }
 
 function entity(team,type,x,y,extra){
@@ -442,6 +446,7 @@ function steerAroundProps(actor,dx,dy){
 }
 function moveActor(actor,dx,dy,dt){
   const vector=steerAroundProps(actor,dx,dy);
+  actor.vx=vector.x*actor.speed;actor.vy=vector.y*actor.speed;
   actor.x=Math.max(30,Math.min(run.worldW-30,actor.x+vector.x*actor.speed*dt));
   actor.y=Math.max(30,Math.min(run.worldH-30,actor.y+vector.y*actor.speed*dt));
 }
