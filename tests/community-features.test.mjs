@@ -269,7 +269,7 @@ test("community migration is designed for repeat execution and has postgres smok
 
 
 test("community slide and calculator pagination surfaces stay opaque and clearly paginated",()=>{
- assert.ok(html.includes("The catalogue shows 6 calculators per page on phones and 10 on computers."));
+ assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
  assert.ok(ugcCss.includes("#ugcCommunitySection.calculator-explore-panel"));
  assert.ok(ugcCss.includes("background-color:var(--bg)"));
  assert.match(ugcJs,/community calculators · .* per page\. Use the page controls to browse more/);
