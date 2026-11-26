@@ -2,13 +2,12 @@
 begin;
 
 create or replace function public.get_worth_it_ugc_catalog_page(
-    p_sort text default 'latest',
-    p_period text default '12y',
-    p_search text default '',
-    p_category text default 'all',
-    p_page integer default 1,
-    p_page_size integer
-)
+    p_sort text,
+    p_period text,
+    p_search text,
+    p_category text,
+    p_page integer,
+    p_page_size integer)
 returns jsonb
 language plpgsql
 stable
