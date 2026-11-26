@@ -1202,8 +1202,19 @@ window.refreshWorthItChatData = async function () {
         setWorthItChatFullscreen(wasFullscreen, {persist:false});
     }
 };
-function appendWorthItChatTextWithFlags(host, value) {
+function worthItChatFlagImageUrl(flagCode) {
+    const code = String(flagCode || "").toLowerCase();
+    if (!/^[a-z]{2}$/.test(code)) return "";
+    // Ascension Island (AC) is an exceptional emoji flag code and is not
+    // served by FlagCDN's standard two-letter country-flag catalogue.
+    if (code === "ac") {
+        return "https://cdn.jsdelivr.net/npm/country-flag-emoji-json@2.0.0/dist/images/AC.svg";
+    }
+    return "https://flagcdn.com/" + code + ".svg";
+}
+function appendWorthItChatTextWithFlags(host, value, options = {}) {
     const parts = String(value || "").split(/([\u{1F1E6}-\u{1F1FF}]{2})/u);
+    const loading = options.loading === "eager" ? "eager" : "lazy";
     for (const part of parts) {
         if (!part) continue;
         const flagCode = getWorthItChatFlagCode(part);
@@ -1213,10 +1224,10 @@ function appendWorthItChatTextWithFlags(host, value) {
         }
         const flag = document.createElement("img");
         flag.className = "worth-it-chat-message-flag";
-        flag.src = "https://flagcdn.com/" + flagCode + ".svg";
+        flag.src = worthItChatFlagImageUrl(flagCode);
         flag.alt = part;
         flag.title = part;
-        flag.loading = "lazy";
+        flag.loading = loading;
         flag.decoding = "async";
         flag.referrerPolicy = "no-referrer";
         flag.addEventListener("error", () => {
@@ -1279,11 +1290,11 @@ function renderWorthItChatComposerPreview() {
     } else {
         preview.classList.remove("is-empty");
         if (caretPosition < 0) {
-            appendWorthItChatTextWithFlags(preview, value);
+            appendWorthItChatTextWithFlags(preview, value, { loading: "eager" });
         } else {
-            appendWorthItChatTextWithFlags(preview, value.slice(0, caretPosition));
+            appendWorthItChatTextWithFlags(preview, value.slice(0, caretPosition), { loading: "eager" });
             appendCaret();
-            appendWorthItChatTextWithFlags(preview, value.slice(caretPosition));
+            appendWorthItChatTextWithFlags(preview, value.slice(caretPosition), { loading: "eager" });
         }
     }
     preview.scrollTop = input.scrollTop;
@@ -3626,9 +3637,9 @@ function renderWorthItChatEmojiGrid(search = "") {
         if (flagCode) {
             const flagImage = document.createElement("img");
             flagImage.className = "worth-it-chat-emoji-flag";
-            flagImage.src = "https://flagcdn.com/" + flagCode + ".svg";
+            flagImage.src = worthItChatFlagImageUrl(flagCode);
             flagImage.alt = "";
-            flagImage.loading = "lazy";
+            flagImage.loading = flagCode === "ac" ? "eager" : "lazy";
             flagImage.decoding = "async";
             flagImage.referrerPolicy = "no-referrer";
             flagImage.addEventListener("error", () => {
