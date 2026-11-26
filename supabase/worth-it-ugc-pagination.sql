@@ -7,7 +7,7 @@ create or replace function public.get_worth_it_ugc_catalog_page(
     p_search text default '',
     p_category text default 'all',
     p_page integer default 1,
-    p_page_size integer default 10
+    p_page_size integer
 )
 returns jsonb
 language plpgsql
@@ -220,7 +220,29 @@ begin
 end;
 $$;
 
+-- Keep the original five-argument RPC unambiguous for older clients and
+-- existing SQL smoke tests; new clients pass the required sixth page-size arg.
+create or replace function public.get_worth_it_ugc_catalog_page(
+    p_sort text default 'latest',
+    p_period text default '12y',
+    p_search text default '',
+    p_category text default 'all',
+    p_page integer default 1
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private, auth
+as $
+    select public.get_worth_it_ugc_catalog_page(
+        p_sort, p_period, p_search, p_category, p_page, 10
+    );
+$;
+
+revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) from public,anon;
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) from public,anon;
+grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) to authenticated;
 grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) to authenticated;
 
 commit;
