@@ -24616,3 +24616,50 @@ body.worth-it-chat-open > nav.nav #worthItChatOverlay:not([hidden]) { visibility
     transform-box: fill-box;
     transform-origin: center;
 }
+
+
+/* 2026-11-26: keep the mobile hamburger anchored while the navigation drawer
+   overlays the secondary wallet row and the page below it. */
+@media (max-width: 1000px) {
+    .nav-inner > .menu-btn {
+        flex: 0 0 auto !important;
+        position: relative !important;
+        z-index: 10001 !important;
+        transform: none !important;
+    }
+
+    .nav-links.open {
+        position: fixed !important;
+        top: 70px !important;
+        left: 10px !important;
+        right: 10px !important;
+        z-index: 10000 !important;
+        max-height: calc(100dvh - 86px) !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        background: var(--card-solid, #0c1322) !important;
+        box-shadow: 0 18px 48px rgba(0,0,0,.32) !important;
+    }
+}
+
+/* Password managers and Chromium autofill must not replace the dark auth
+   field with a white surface while retaining light text. */
+html[data-theme="dark"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill,
+html[data-theme="dark"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill:hover,
+html[data-theme="dark"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text) !important;
+    caret-color: var(--text) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--card-solid, #11192a) inset !important;
+    box-shadow: 0 0 0 1000px var(--card-solid, #11192a) inset !important;
+    transition: background-color 999999s ease-out 0s !important;
+}
+
+html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill,
+html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill:hover,
+html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="password"],[type="text"]):-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text) !important;
+    caret-color: var(--text) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--card-solid, #ffffff) inset !important;
+    box-shadow: 0 0 0 1000px var(--card-solid, #ffffff) inset !important;
+    transition: background-color 999999s ease-out 0s !important;
+}

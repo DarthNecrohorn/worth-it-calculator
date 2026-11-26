@@ -132,3 +132,15 @@ test("Create account modal removes its internal scrollbar and keeps email status
     assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?overflow-y:visible!important/);
     assert.match(css, /#authModalOverlay\.signup-mode \.auth-modal-card\{[\s\S]*?max-height:none!important/);
 });
+
+
+test("mobile navigation drawer overlays the wallet row without moving or covering its hamburger toggle", () => {
+    assert.match(css, /\.nav-inner > \.menu-btn\s*\{[^}]*flex:\s*0 0 auto[^}]*z-index:\s*10001/);
+    assert.match(css, /\.nav-links\.open\s*\{[^}]*position:\s*fixed[^}]*top:\s*70px[^}]*z-index:\s*10000/);
+    assert.match(app, /function toggleMenu\(\)[\s\S]*?navLinks\.classList\.toggle\("open"\)/);
+});
+
+test("dark and light auth password autofill preserve readable foreground and matching surfaces", () => {
+    assert.match(css, /html\[data-theme="dark"\] \.auth-modal-overlay \.auth-field input:is\(\[type="password"\],\[type="text"\]\):-webkit-autofill[\s\S]*?-webkit-text-fill-color:\s*var\(--text\)/);
+    assert.match(css, /html\[data-theme="light"\] \.auth-modal-overlay \.auth-field input:is\(\[type="password"\],\[type="text"\]\):-webkit-autofill[\s\S]*?-webkit-text-fill-color:\s*var\(--text\)/);
+});

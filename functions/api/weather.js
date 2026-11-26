@@ -140,6 +140,24 @@ export async function onRequestGet(context) {
             );
 
 
+        if (url.searchParams.get("action") === "location") {
+            const edgeLocation = context.request.cf || {};
+            const edgeLatitude = Number(edgeLocation.latitude);
+            const edgeLongitude = Number(edgeLocation.longitude);
+            if (
+                !Number.isFinite(edgeLatitude) || edgeLatitude < -90 || edgeLatitude > 90 ||
+                !Number.isFinite(edgeLongitude) || edgeLongitude < -180 || edgeLongitude > 180
+            ) {
+                return jsonResponse({ error: "Approximate network location is unavailable." }, 503);
+            }
+            return jsonResponse({
+                latitude: edgeLatitude,
+                longitude: edgeLongitude,
+                source: "network"
+            }, 200);
+        }
+
+
         /* =================================================
            COORDINATES
         ================================================= */

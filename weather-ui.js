@@ -1582,24 +1582,48 @@ function ensureForecastHeading(
    BROWSER GEOLOCATION
 ========================================================= */
 
+async function getApproximateNetworkWeatherLocation(){
+
+    const response = await fetch("/api/weather?action=location", {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok ||
+        !Number.isFinite(Number(payload?.latitude)) ||
+        !Number.isFinite(Number(payload?.longitude)) ||
+        Number(payload.latitude) < -90 || Number(payload.latitude) > 90 ||
+        Number(payload.longitude) < -180 || Number(payload.longitude) > 180) {
+        throw new Error(payload?.error || "Approximate network location is unavailable.");
+    }
+
+    const fallback = {
+        latitude: Number(payload.latitude),
+        longitude: Number(payload.longitude),
+        accuracy: null,
+        source: "network"
+    };
+
+    saveBrowserLocationCache(fallback);
+    return fallback;
+}
+
+
 function getBrowserLocation(){
 
     return new Promise((resolve, reject) => {
 
-        if(!navigator.geolocation){
-
-            reject(
-                new Error("Geolocation is not supported.")
-            );
-
-            return;
-        }
-
         const cached = readBrowserLocationCache();
 
         if(cached){
-
             resolve(cached);
+            return;
+        }
+
+        if(!navigator.geolocation){
+            getApproximateNetworkWeatherLocation().then(resolve).catch(reject);
             return;
         }
 
@@ -1622,14 +1646,19 @@ function getBrowserLocation(){
 
             },
 
-            error => {
+            async error => {
 
                 console.warn(
-                    "Browser geolocation failed:",
+                    "Browser geolocation failed; trying approximate network location:",
                     error
                 );
 
-                reject(error);
+                try {
+                    resolve(await getApproximateNetworkWeatherLocation());
+                } catch (fallbackError) {
+                    console.warn("Weather network-location fallback failed:", fallbackError);
+                    reject(error || fallbackError);
+                }
 
             },
 
