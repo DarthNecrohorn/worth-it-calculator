@@ -234,11 +234,11 @@ language sql
 stable
 security definer
 set search_path = pg_catalog, public, private, auth
-as $
+as $fn$
     select public.get_worth_it_ugc_catalog_page(
         p_sort, p_period, p_search, p_category, p_page, 10
     );
-$;
+$fn$;
 
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) from public,anon;
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) from public,anon;
