@@ -34,6 +34,7 @@ const uniqueViewsFixture = read("tests/fixtures/ugc-unique-views-pre-migration.s
 const sqlEnhancements = read("supabase/worth-it-ugc-enhancements.sql");
 const editDetailsSql = read("supabase/worth-it-ugc-edit-details.sql");
 const paginationSql = read("supabase/worth-it-ugc-pagination.sql");
+const paginationDesktopTwelveSql = read("supabase/worth-it-ugc-pagination-desktop-12.sql");
 const visibilitySql = read("supabase/worth-it-ugc-visibility-categories-drafts.sql");
 const paginationCss = read("ugc-calculators.css");
 const communityStyle = read("community-features.css");
@@ -352,7 +353,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(maker.includes("p_category:state.category"));
     assert.ok(maker.includes("p_page:currentCatalogPage()"));
     assert.ok(maker.includes("p_page_size:catalogPageSize()"));
-    assert.match(maker,/function catalogPageSize\(\).*?\?6:10/);
+    assert.match(maker,/function catalogPageSize\(.*?\?6:12/);
     assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
     assert.ok(maker.includes("switchCalculatorExploreView"));
     assert.ok(html.includes("ugcBackToBasicButton"));
@@ -464,7 +465,7 @@ test("UGC calculator cards hide origin badges while stored provenance remains in
     assert.match(manualBuilderSql,/values\(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories',v_source\)/);
     assert.match(manualBuilderSql,/a\.operation='generation'[\s\S]*?c\.creation_source='legacy'/);
     assert.match(paginationSql,/'creation_source',q\.creation_source/);
-    assert.match(paginationSql,/c\.category,c\.creation_source,c\.status/);
+    assert.match(paginationSql,/c\.description,c\.category,c\.creation_source,c\.subcategories,c\.visibility,c\.status/);
     assert.match(paginationSql,/'creation_source',creation_source/);
     assert.match(paginationFixture,/A Manual Builder save has incorrect provenance/);
     assert.match(paginationFixture,/database accepted a new AI-sourced UGC calculator/);
@@ -850,7 +851,7 @@ test("migration and browser scripts are included in CI parsing and regression ch
 });
 
 
-test("community calculators use secure 30-item server pagination for every view and category", () => {
+test("community calculators use responsive 6-phone and 12-desktop pagination for every view and category", () => {
     for (const id of ["ugcCategoryFilter","ugcPagination","ugcPagePrevious","ugcPageNext","ugcPageNumber","ugcPageTotal","ugcPageInput"]) {
         assert.ok(html.includes('id="' + id + '"'), id + " exists in the catalogue UI");
     }
@@ -876,8 +877,21 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(maker,/from\.style\.transform="translateX\("\+\(-direction\*100\)\+"%\)"/);
     assert.match(paginationCss,/\.calculator-explore-stage>\.calculator-explore-panel\[hidden\][\s\S]*?display:none!important/);
     assert.ok(html.indexOf('id="calculators"')<html.indexOf('id="ugcCommunitySection"'));
-    assert.match(paginationSql,/v_page_size integer := greatest\(1,least\(10,coalesce\(p_page_size,10\)\)\)/);
+    assert.match(paginationSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
+    assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
+    assert.match(paginationFixture,/first_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',1,12\)/);
+    assert.match(paginationFixture,/second_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',2,12\)/);
+    assert.match(paginationFixture,/third_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',3,12\)/);
+    assert.match(paginationFixture,/legacy_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',1\)/);
+    assert.match(paginationFixture,/legacy five-argument RPC must preserve its 10-item default/);
+    assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
+    assert.match(paginationDesktopTwelveSql,/p_page, 10/);
+    assert.ok(paginationDesktopTwelveSql.includes("'my-drafts'"),"draft catalogue remains supported");
+    assert.ok(paginationDesktopTwelveSql.includes("'car-ownership'"),"extended calculator categories remain supported");
+    assert.ok(paginationDesktopTwelveSql.includes("'visibility'"),"private/public visibility remains represented");
+    assert.match(paginationDesktopTwelveSql,/limit v_page_size offset v_offset/);
+    assert.ok(workflow.indexOf("supabase/worth-it-ugc-visibility-categories-drafts.sql") < workflow.lastIndexOf("supabase/worth-it-ugc-pagination-desktop-12.sql"), "the follow-up runs after the draft/category migration so it cannot be overwritten");
     assert.match(visibilitySql,/worth_it_ugc_category_matches/);
     assert.match(visibilitySql,/p_filter=any/);
     for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-favorites"]) {
@@ -890,7 +904,7 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.equal((mineBranch.match(/c\.status='published'/g)||[]).length,2,"My Calculators count and rows only include published calculators");
     assert.equal((draftBranch.match(/c\.status='draft'/g)||[]).length,2,"My Drafts count and rows only include drafts");
     assert.match(paginationSql,/grant execute on function public\.get_worth_it_ugc_catalog_page\(text,text,text,text,integer\) to authenticated/);
-    assert.match(paginationFixture,/The first UGC page must contain exactly 30 items/);
+    assert.match(paginationFixture,/The first desktop UGC page must contain exactly 12 items/);
     assert.match(paginationFixture,/UGC category filtering leaked calculators/);
     assert.match(paginationCss,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
     assert.match(paginationCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
@@ -1027,7 +1041,7 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
     const responsiveTileCss = paginationCss.slice(paginationCss.lastIndexOf("/* Responsive square UGC catalogue tiles"));
     assert.match(responsiveTileCss, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
     assert.match(responsiveTileCss, /@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
-    assert.match(responsiveTileCss, /@media\(max-width:640px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+    assert.match(responsiveTileCss, /@media\(max-width:700px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
     assert.match(responsiveTileCss, /min-height:0!important/);
     assert.match(responsiveTileCss, /aspect-ratio:1 \/ 1/);
     assert.match(maker, /const ownerUsername=String\(item\.owner_username\|\|\"\"\)\.trim\(\)\.replace\(\/\^@\+\/\,\"\"\)/);

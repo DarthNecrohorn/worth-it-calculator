@@ -370,7 +370,7 @@ function renderCatalog(rows){
  });
  window.refreshWorthItCommunityFeatures?.();
 }
-function catalogPageSize(){return window.matchMedia("(max-width: 700px)").matches?6:10;}
+function catalogPageSize(){return window.matchMedia("(max-width: 700px)").matches?6:12;}
 function catalogPageKey(){
  return [state.sort,state.category,state.period,state.search.toLocaleLowerCase()].join("|");
 }
