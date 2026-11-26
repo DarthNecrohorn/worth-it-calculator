@@ -353,7 +353,7 @@ test("the UGC gallery, detail route, maker modal and profile sections are wired"
     assert.ok(maker.includes("p_category:state.category"));
     assert.ok(maker.includes("p_page:currentCatalogPage()"));
     assert.ok(maker.includes("p_page_size:catalogPageSize()"));
-    assert.match(maker,/function catalogPageSize\\(\\).*?\\?6:12/);
+    assert.match(maker,/function catalogPageSize\(.*?\?6:12/);
     assert.ok(maker.includes("get_worth_it_ugc_creation_quota"));
     assert.ok(maker.includes("switchCalculatorExploreView"));
     assert.ok(html.includes("ugcBackToBasicButton"));
@@ -877,9 +877,10 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(maker,/from\.style\.transform="translateX\("\+\(-direction\*100\)\+"%\)"/);
     assert.match(paginationCss,/\.calculator-explore-stage>\.calculator-explore-panel\[hidden\][\s\S]*?display:none!important/);
     assert.ok(html.indexOf('id="calculators"')<html.indexOf('id="ugcCommunitySection"'));
-    assert.match(paginationSql,/v_page_size integer := greatest\\(1,least\\(12,coalesce\\(p_page_size,12\\)\\)\\)/);
+    assert.match(paginationSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
-    assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\\(1,least\\(12,coalesce\\(p_page_size,12\\)\\)\\)/);
+    assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
+    assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationDesktopTwelveSql,/p_page, 12/);
     assert.match(paginationDesktopTwelveSql,/limit v_page_size offset v_offset/);
     assert.match(visibilitySql,/worth_it_ugc_category_matches/);
