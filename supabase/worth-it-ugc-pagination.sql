@@ -6,7 +6,8 @@ create or replace function public.get_worth_it_ugc_catalog_page(
     p_period text default '12y',
     p_search text default '',
     p_category text default 'all',
-    p_page integer default 1
+    p_page integer default 1,
+    p_page_size integer default 10
 )
 returns jsonb
 language plpgsql
@@ -22,7 +23,7 @@ declare
     v_search text := left(btrim(coalesce(p_search,'')),80);
     v_cutoff timestamptz;
     v_page integer := greatest(1,least(10000,coalesce(p_page,1)));
-    v_page_size integer := 30;
+    v_page_size integer := greatest(1,least(10,coalesce(p_page_size,10)));
     v_total integer := 0;
     v_total_pages integer := 1;
     v_offset integer;
@@ -219,7 +220,7 @@ begin
 end;
 $$;
 
-revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) from public,anon;
+revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) from public,anon;
 grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) to authenticated;
 
 commit;
