@@ -24,7 +24,7 @@ create table if not exists private.worth_it_profile_id_repairs (
 alter table private.worth_it_profile_id_repairs enable row level security;
 revoke all on table private.worth_it_profile_id_repairs from public, anon, authenticated;
 
-do $
+do $repair$
 declare
     repair_user_id uuid;
     target_user_id uuid;
@@ -64,7 +64,7 @@ begin
         values (5, 4, repair_user_id);
     end if;
 end;
-$;
+$repair$;
 
 insert into private.worth_it_id_allocator(singleton, last_id)
 select true, greatest(coalesce(max(worth_it_id), 1), 1)
