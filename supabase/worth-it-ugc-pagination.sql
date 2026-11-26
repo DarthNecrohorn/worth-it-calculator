@@ -72,7 +72,7 @@ begin
 
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
-            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'category',q.category,'creation_source',q.creation_source,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
             'updated_at',q.updated_at,'published_at',q.published_at,
             'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
             'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
@@ -110,7 +110,7 @@ begin
 
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
-            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'category',q.category,'creation_source',q.creation_source,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
             'updated_at',q.updated_at,'published_at',q.published_at,
             'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
             'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
@@ -150,7 +150,7 @@ begin
 
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
-            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'category',q.category,'creation_source',q.creation_source,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
             'updated_at',q.updated_at,'published_at',q.published_at,
             'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
             'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
@@ -179,7 +179,7 @@ begin
     
     else
         with ranked as (
-            select c.id,c.calculator_number,c.title,c.description,c.category,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
+            select c.id,c.calculator_number,c.title,c.description,c.category,c.creation_source,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
                    c.created_at,c.updated_at,c.published_at,
                    p.worth_it_id,p.username,p.display_name,p.avatar_url,
                    (select count(*)::integer from private.worth_it_calculator_views v
@@ -208,7 +208,7 @@ begin
         v_offset := (v_page-1)*v_page_size;
 
         with ranked as (
-            select c.id,c.calculator_number,c.title,c.description,c.category,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
+            select c.id,c.calculator_number,c.title,c.description,c.category,c.creation_source,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
                    c.created_at,c.updated_at,c.published_at,
                    p.worth_it_id,p.username,p.display_name,p.avatar_url,
                    (select count(*)::integer from private.worth_it_calculator_views v
@@ -241,7 +241,7 @@ begin
         )
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',id,'calculator_number',calculator_number,'title',title,'description',description,
-            'category',category,'subcategories',subcategories,'visibility',visibility,'status',status,'spec',spec,'created_at',created_at,'updated_at',updated_at,
+            'category',category,'creation_source',creation_source,'subcategories',subcategories,'visibility',visibility,'status',status,'spec',spec,'created_at',created_at,'updated_at',updated_at,
             'published_at',published_at,'owner_worth_it_id',worth_it_id,'owner_username',username,
             'owner_display_name',display_name,'owner_avatar_url',avatar_url,
             'views',views,'likes',likes,'dislikes',dislikes,'favorites',favorites,
