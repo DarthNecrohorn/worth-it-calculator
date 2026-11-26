@@ -221,6 +221,6 @@ end;
 $$;
 
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) from public,anon;
-grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) to authenticated;
+grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) to authenticated;
 
 commit;
