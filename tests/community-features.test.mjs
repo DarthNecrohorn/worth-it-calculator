@@ -272,7 +272,7 @@ test("community slide and calculator pagination surfaces stay opaque and clearly
  assert.ok(html.includes("The catalogue shows up to 30 calculators per page, not 30 in total."));
  assert.ok(ugcCss.includes("#ugcCommunitySection.calculator-explore-panel"));
  assert.ok(ugcCss.includes("background-color:var(--bg)"));
- assert.ok(ugcJs.includes("This is not a 30-calculator total limit"));
+ assert.match(ugcJs,/community calculators · .* per page\. Use the page controls to browse more/);
 });
 
 
