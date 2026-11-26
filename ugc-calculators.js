@@ -370,6 +370,7 @@ function renderCatalog(rows){
  });
  window.refreshWorthItCommunityFeatures?.();
 }
+function catalogPageSize(){return window.matchMedia("(max-width: 700px)").matches?6:10;}
 function catalogPageKey(){
  return [state.sort,state.category,state.period,state.search.toLocaleLowerCase()].join("|");
 }
@@ -393,8 +394,9 @@ function renderPagination(payload){
  if(prev)prev.disabled=page<=1;
  if(next)next.disabled=page>=pages;
  if(summary){
-  const first=total?((page-1)*30+1):0, last=Math.min(total,page*30);
-  summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · 30 per page. This is not a 30-calculator total limit — use the page controls to browse more."):"";
+  const pageSize=catalogPageSize();
+  const first=total?((page-1)*pageSize+1):0, last=Math.min(total,page*pageSize);
+  summary.textContent=total?("Showing "+first+"–"+last+" of "+total+" community calculators · "+pageSize+" per page. Use the page controls to browse more."):"";
  }
 }
 function goToCatalogPage(value){
@@ -431,7 +433,8 @@ async function loadCatalog(){
    p_period:state.period,
    p_search:state.search,
    p_category:state.category,
-   p_page:currentCatalogPage()
+   p_page:currentCatalogPage(),
+   p_page_size:catalogPageSize()
   });
   if(result.error)throw result.error;
   if(request!==state.catalogRequest)return;
