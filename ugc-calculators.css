@@ -655,7 +655,7 @@ html[data-theme="light"]:not([data-worth-it-custom-theme]) :is(.ugc-catalog-tool
   grid-template-columns:repeat(3,minmax(0,1fr))!important;
  }
 }
-@media(max-width:640px){
+@media(max-width:700px){
  .ugc-calculator-grid{
   grid-template-columns:repeat(2,minmax(0,1fr))!important;
   gap:9px!important;
