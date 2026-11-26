@@ -1,4 +1,4 @@
--- Responsive server-side UGC pagination with category-aware page state (max 12).
+-- Responsive UGC catalogue pagination (6 items on phones, up to 12 on computers).
 begin;
 
 create or replace function public.get_worth_it_ugc_catalog_page(
@@ -7,7 +7,8 @@ create or replace function public.get_worth_it_ugc_catalog_page(
     p_search text,
     p_category text,
     p_page integer,
-    p_page_size integer)
+    p_page_size integer
+)
 returns jsonb
 language plpgsql
 stable
@@ -32,10 +33,15 @@ begin
         raise exception 'Sign in required to browse community calculators.' using errcode='28000';
     end if;
 
-    if v_sort not in ('latest','popular','liked','favorited','disliked','mine','my-favorites') then
+    if v_sort not in ('latest','popular','liked','favorited','disliked','mine','my-drafts','my-favorites') then
         v_sort := 'latest';
     end if;
-    if v_category not in ('all','cars','money','technology','home','other') then
+    if v_category not in ('all','cars','money','technology','home','other',
+          'car-ownership','ev-ownership','fuel-costs','vehicle-financing','car-insurance','car-maintenance','depreciation-resale','vehicle-comparison',
+          'budgeting','saving','investing','loans-debt','mortgages','taxes','income-salary','retirement',
+          'smartphones','computers','gaming','software-subscriptions','internet-connectivity','consumer-electronics','tech-comparison',
+          'utilities-energy','rent-housing','home-buying','renovation-repairs','home-appliances','home-maintenance','household-budget',
+          'travel','education-career','health-fitness','food-groceries','business','lifestyle','general-comparison') then
         v_category := 'all';
     end if;
 
@@ -56,7 +62,8 @@ begin
         select count(*)::integer into v_total
           from private.worth_it_user_calculators c
          where c.owner_user_id=v_user_id
-           and (v_category='all' or c.category=v_category)
+           and c.status='published'
+           and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
            and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%');
 
         v_total_pages := greatest(1,ceil(v_total::numeric/v_page_size)::integer);
@@ -65,7 +72,7 @@ begin
 
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
-            'category',q.category,'creation_source',q.creation_source,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
             'updated_at',q.updated_at,'published_at',q.published_at,
             'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
             'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
@@ -82,19 +89,19 @@ begin
               from private.worth_it_user_calculators c
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
              where c.owner_user_id=v_user_id
-               and (v_category='all' or c.category=v_category)
+               and c.status='published'
+               and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
              order by c.updated_at desc,c.id
              limit v_page_size offset v_offset
           ) q;
 
-    elsif v_sort='my-favorites' then
+        elsif v_sort='my-drafts' then
         select count(*)::integer into v_total
-          from public.worth_it_calculator_favorites f
-          join private.worth_it_user_calculators c
-            on f.calculator_key='ugc:'||c.id::text and c.status='published'
-         where f.user_id=v_user_id
-           and (v_category='all' or c.category=v_category)
+          from private.worth_it_user_calculators c
+         where c.owner_user_id=v_user_id
+           and c.status='draft'
+           and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
            and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%');
 
         v_total_pages := greatest(1,ceil(v_total::numeric/v_page_size)::integer);
@@ -103,7 +110,47 @@ begin
 
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
-            'category',q.category,'creation_source',q.creation_source,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
+            'updated_at',q.updated_at,'published_at',q.published_at,
+            'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
+            'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
+            'views',q.views,'likes',q.likes,'dislikes',q.dislikes,'favorites',q.favorites,
+            'is_owner',true,'is_favorite',false,'my_reaction',null
+        ) order by q.updated_at desc,q.id),'[]'::jsonb)
+          into v_items
+          from (
+            select c.*,p.worth_it_id,p.username,p.display_name,p.avatar_url,
+                (select count(*)::integer from private.worth_it_calculator_views v where v.calculator_id=c.id) as views,
+                (select count(*)::integer from private.worth_it_calculator_reactions r where r.calculator_id=c.id and r.reaction='like') as likes,
+                (select count(*)::integer from private.worth_it_calculator_reactions r where r.calculator_id=c.id and r.reaction='dislike') as dislikes,
+                (select count(*)::integer from public.worth_it_calculator_favorites f where f.calculator_key='ugc:'||c.id::text) as favorites
+              from private.worth_it_user_calculators c
+              join public.worth_it_profiles p on p.user_id=c.owner_user_id
+             where c.owner_user_id=v_user_id
+               and c.status='draft'
+               and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
+               and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
+             order by c.updated_at desc,c.id
+             limit v_page_size offset v_offset
+          ) q;
+
+    
+    elsif v_sort='my-favorites' then
+        select count(*)::integer into v_total
+          from public.worth_it_calculator_favorites f
+          join private.worth_it_user_calculators c
+            on f.calculator_key='ugc:'||c.id::text and c.status='published' and c.visibility='public'
+         where f.user_id=v_user_id
+           and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
+           and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%');
+
+        v_total_pages := greatest(1,ceil(v_total::numeric/v_page_size)::integer);
+        v_page := least(v_page,v_total_pages);
+        v_offset := (v_page-1)*v_page_size;
+
+        select coalesce(jsonb_agg(jsonb_build_object(
+            'id',q.id,'calculator_number',q.calculator_number,'title',q.title,'description',q.description,
+            'category',q.category,'subcategories',q.subcategories,'visibility',q.visibility,'status',q.status,'spec',q.spec,'created_at',q.created_at,
             'updated_at',q.updated_at,'published_at',q.published_at,
             'owner_worth_it_id',q.worth_it_id,'owner_username',q.username,
             'owner_display_name',q.display_name,'owner_avatar_url',q.avatar_url,
@@ -120,18 +167,19 @@ begin
                 (select r.reaction from private.worth_it_calculator_reactions r where r.calculator_id=c.id and r.user_id=v_user_id) as my_reaction
               from public.worth_it_calculator_favorites f
               join private.worth_it_user_calculators c
-                on f.calculator_key='ugc:'||c.id::text and c.status='published'
+                on f.calculator_key='ugc:'||c.id::text and c.status='published' and c.visibility='public'
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
              where f.user_id=v_user_id
-               and (v_category='all' or c.category=v_category)
+               and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
              order by f.created_at desc,c.id
              limit v_page_size offset v_offset
           ) q;
 
+    
     else
         with ranked as (
-            select c.id,c.calculator_number,c.title,c.description,c.category,c.creation_source,c.status,c.spec,c.owner_user_id,
+            select c.id,c.calculator_number,c.title,c.description,c.category,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
                    c.created_at,c.updated_at,c.published_at,
                    p.worth_it_id,p.username,p.display_name,p.avatar_url,
                    (select count(*)::integer from private.worth_it_calculator_views v
@@ -148,8 +196,8 @@ begin
                      where r.calculator_id=c.id and r.user_id=v_user_id) as my_reaction
               from private.worth_it_user_calculators c
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
-             where c.status='published'
-               and (v_category='all' or c.category=v_category)
+             where c.status='published' and c.visibility='public'
+               and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
                and (v_sort<>'latest' or c.published_at>=v_cutoff)
         )
@@ -160,7 +208,7 @@ begin
         v_offset := (v_page-1)*v_page_size;
 
         with ranked as (
-            select c.id,c.calculator_number,c.title,c.description,c.category,c.creation_source,c.status,c.spec,c.owner_user_id,
+            select c.id,c.calculator_number,c.title,c.description,c.category,c.subcategories,c.visibility,c.status,c.spec,c.owner_user_id,
                    c.created_at,c.updated_at,c.published_at,
                    p.worth_it_id,p.username,p.display_name,p.avatar_url,
                    (select count(*)::integer from private.worth_it_calculator_views v
@@ -177,8 +225,8 @@ begin
                      where r.calculator_id=c.id and r.user_id=v_user_id) as my_reaction
               from private.worth_it_user_calculators c
               join public.worth_it_profiles p on p.user_id=c.owner_user_id
-             where c.status='published'
-               and (v_category='all' or c.category=v_category)
+             where c.status='published' and c.visibility='public'
+               and private.worth_it_ugc_category_matches(c.category,c.subcategories,v_category)
                and (v_search='' or c.title ilike '%'||v_search||'%' or c.description ilike '%'||v_search||'%')
                and (v_sort<>'latest' or c.published_at>=v_cutoff)
         ), page_rows as (
@@ -193,7 +241,7 @@ begin
         )
         select coalesce(jsonb_agg(jsonb_build_object(
             'id',id,'calculator_number',calculator_number,'title',title,'description',description,
-            'category',category,'creation_source',creation_source,'status',status,'spec',spec,'created_at',created_at,'updated_at',updated_at,
+            'category',category,'subcategories',subcategories,'visibility',visibility,'status',status,'spec',spec,'created_at',created_at,'updated_at',updated_at,
             'published_at',published_at,'owner_worth_it_id',worth_it_id,'owner_username',username,
             'owner_display_name',display_name,'owner_avatar_url',avatar_url,
             'views',views,'likes',likes,'dislikes',dislikes,'favorites',favorites,
@@ -219,8 +267,8 @@ begin
 end;
 $$;
 
--- Keep the original five-argument RPC unambiguous for older clients and
--- existing SQL smoke tests; new clients pass the required sixth page-size arg.
+
+-- Keep the original five-argument RPC available for older clients.
 create or replace function public.get_worth_it_ugc_catalog_page(
     p_sort text default 'latest',
     p_period text default '12y',
@@ -243,5 +291,7 @@ revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,
 revoke all on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) from public,anon;
 grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer) to authenticated;
 grant execute on function public.get_worth_it_ugc_catalog_page(text,text,text,text,integer,integer) to authenticated;
+
+notify pgrst, 'reload schema';
 
 commit;
