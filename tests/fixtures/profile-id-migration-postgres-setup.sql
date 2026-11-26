@@ -25,13 +25,13 @@ create table public.worth_it_profiles (
     avatar_is_custom boolean not null default false
 );
 
+create sequence private.worth_it_user_calculator_number_seq;
 create table private.worth_it_user_calculators (
     id uuid primary key default gen_random_uuid(),
     calculator_number bigint not null unique default nextval('private.worth_it_user_calculator_number_seq'::regclass),
     owner_user_id uuid not null,
     title text not null
 );
-create sequence private.worth_it_user_calculator_number_seq;
 
 insert into public.worth_it_profiles(user_id,worth_it_id,username,display_name,avatar_url,avatar_is_custom)
 values
