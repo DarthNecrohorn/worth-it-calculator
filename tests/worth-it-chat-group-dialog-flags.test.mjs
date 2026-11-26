@@ -29,7 +29,7 @@ test("flag preview is painted above the transparent textarea without interceptin
 test("Ascension Island AC uses a dedicated SVG in the picker, composer, and sent messages", () => {
     assert.match(chat, /function worthItChatFlagImageUrl\(flagCode\)/);
     assert.match(chat, /if \(code === "ac"\)\s*\{\s*return "https:\/\/cdn\.jsdelivr\.net\/npm\/country-flag-emoji-json@2\.0\.0\/dist\/images\/AC\.svg";\s*\}/);
-    assert.equal((chat.match(/worthItChatFlagImageUrl\(flagCode\)/g) || []).length, 2);
+    assert.equal((chat.match(/worthItChatFlagImageUrl\(flagCode\)/g) || []).length, 3);
     assert.match(chat, /flagImage\.loading = flagCode === "ac" \? "eager" : "lazy";/);
     assert.match(chat, /addWorthItChatEmojiGroup\("flags",[\s\S]*?🇦🇨/);
 });
