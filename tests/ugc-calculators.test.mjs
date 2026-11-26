@@ -465,7 +465,7 @@ test("UGC calculator cards hide origin badges while stored provenance remains in
     assert.match(manualBuilderSql,/values\(v_user_id,v_title,v_description,v_category,v_subcategories,p_spec - 'subcategories',v_source\)/);
     assert.match(manualBuilderSql,/a\.operation='generation'[\s\S]*?c\.creation_source='legacy'/);
     assert.match(paginationSql,/'creation_source',q\.creation_source/);
-    assert.match(paginationSql,/c\.category,c\.creation_source,c\.status/);
+    assert.match(paginationSql,/c\.description,c\.category,c\.creation_source,c\.subcategories,c\.visibility,c\.status/);
     assert.match(paginationSql,/'creation_source',creation_source/);
     assert.match(paginationFixture,/A Manual Builder save has incorrect provenance/);
     assert.match(paginationFixture,/database accepted a new AI-sourced UGC calculator/);
