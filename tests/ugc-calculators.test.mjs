@@ -851,7 +851,7 @@ test("migration and browser scripts are included in CI parsing and regression ch
 });
 
 
-test("community calculators use secure 30-item server pagination for every view and category", () => {
+test("community calculators use responsive 6-phone and 12-desktop pagination for every view and category", () => {
     for (const id of ["ugcCategoryFilter","ugcPagination","ugcPagePrevious","ugcPageNext","ugcPageNumber","ugcPageTotal","ugcPageInput"]) {
         assert.ok(html.includes('id="' + id + '"'), id + " exists in the catalogue UI");
     }
@@ -880,6 +880,11 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(paginationSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
     assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
+    assert.match(paginationFixture,/first_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',1,12\)/);
+    assert.match(paginationFixture,/second_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',2,12\)/);
+    assert.match(paginationFixture,/third_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',3,12\)/);
+    assert.match(paginationFixture,/legacy_page:=public\.get_worth_it_ugc_catalog_page\('latest','12y','','all',1\)/);
+    assert.match(paginationFixture,/legacy five-argument RPC must preserve its 10-item default/);
     assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationDesktopTwelveSql,/p_page, 10/);
     assert.ok(paginationDesktopTwelveSql.includes("'my-drafts'"),"draft catalogue remains supported");
