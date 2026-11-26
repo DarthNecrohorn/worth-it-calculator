@@ -882,6 +882,9 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
     assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
     assert.match(paginationDesktopTwelveSql,/p_page, 12/);
+    assert.ok(paginationDesktopTwelveSql.includes("'my-drafts'"),"draft catalogue remains supported");
+    assert.ok(paginationDesktopTwelveSql.includes("'car-ownership'"),"extended calculator categories remain supported");
+    assert.ok(paginationDesktopTwelveSql.includes("'visibility'"),"private/public visibility remains represented");
     assert.match(paginationDesktopTwelveSql,/limit v_page_size offset v_offset/);
     assert.match(visibilitySql,/worth_it_ugc_category_matches/);
     assert.match(visibilitySql,/p_filter=any/);
@@ -1032,7 +1035,7 @@ test("UGC cards use four desktop columns and two phone columns with a true squar
     const responsiveTileCss = paginationCss.slice(paginationCss.lastIndexOf("/* Responsive square UGC catalogue tiles"));
     assert.match(responsiveTileCss, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
     assert.match(responsiveTileCss, /@media\(max-width:900px\)[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
-    assert.match(responsiveTileCss, /@media\(max-width:640px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+    assert.match(responsiveTileCss, /@media\(max-width:700px\)[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
     assert.match(responsiveTileCss, /min-height:0!important/);
     assert.match(responsiveTileCss, /aspect-ratio:1 \/ 1/);
     assert.match(maker, /const ownerUsername=String\(item\.owner_username\|\|\"\"\)\.trim\(\)\.replace\(\/\^@\+\/\,\"\"\)/);
