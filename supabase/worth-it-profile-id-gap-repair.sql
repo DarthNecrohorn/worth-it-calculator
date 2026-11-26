@@ -110,4 +110,58 @@ $$;
 
 revoke all on function public.sync_worth_it_profile_from_auth_user() from public, anon, authenticated;
 
+
+-- UGC public numbers use the same transactional allocation strategy.
+-- Built-in calculator numbers 1-50 remain reserved.
+create table if not exists private.worth_it_ugc_number_allocator (
+    singleton boolean primary key default true check (singleton),
+    last_number bigint not null check (last_number >= 50)
+);
+
+alter table private.worth_it_ugc_number_allocator enable row level security;
+revoke all on table private.worth_it_ugc_number_allocator from public, anon, authenticated;
+
+insert into private.worth_it_ugc_number_allocator(singleton, last_number)
+select true, greatest(50, coalesce(max(calculator_number), 50))
+  from private.worth_it_user_calculators
+on conflict (singleton) do update
+set last_number = greatest(
+    private.worth_it_ugc_number_allocator.last_number,
+    excluded.last_number
+);
+
+create or replace function private.assign_worth_it_ugc_calculator_number()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, private
+as $
+declare
+    allocated_number bigint;
+begin
+    update private.worth_it_ugc_number_allocator
+       set last_number = last_number + 1
+     where singleton = true
+     returning last_number into allocated_number;
+
+    if allocated_number is null then
+        raise exception 'Worth It UGC number allocator is not initialized.';
+    end if;
+
+    new.calculator_number := allocated_number;
+    return new;
+end;
+$;
+
+revoke all on function private.assign_worth_it_ugc_calculator_number() from public, anon, authenticated;
+alter table private.worth_it_user_calculators
+    alter column calculator_number drop default;
+
+drop trigger if exists assign_worth_it_ugc_calculator_number
+    on private.worth_it_user_calculators;
+create trigger assign_worth_it_ugc_calculator_number
+before insert on private.worth_it_user_calculators
+for each row execute function private.assign_worth_it_ugc_calculator_number();
+
+
 commit;
