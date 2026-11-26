@@ -1406,14 +1406,14 @@ $ugc_private_helper_privileges$;
 
 
 
--- The paginated catalogue always returns at most 30 items and preserves category filtering.
+-- Verify responsive UGC pagination: 12 rows per desktop page and a preserved 10-row legacy wrapper.
 insert into private.worth_it_user_calculators(
     owner_user_id,title,description,category,spec,status,visibility,published_at
 )
 select
     '33333333-3333-4333-8333-333333333333'::uuid,
     'Pagination fixture calculator '||g,
-    'Disposable row used to verify thirty-item community pages.',
+    'Disposable row used to verify twelve-item community pages.',
     case when g%2=0 then 'money' else 'cars' end,
     '{"inputs":[{"key":"amount","label":"Amount","min":0,"max":100,"default":10}],"results":[{"label":"Total","expression":"amount"}]}'::jsonb,
     'published',
@@ -1426,38 +1426,74 @@ do $ugc_pagination$
 declare
     first_page jsonb;
     second_page jsonb;
+    third_page jsonb;
+    legacy_page jsonb;
     cars_page jsonb;
+    mine_page jsonb;
+    favorites_page jsonb;
     count_first integer;
     count_second integer;
+    count_third integer;
 begin
-    first_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
-    second_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',2);
+    -- The current frontend uses the six-argument RPC for all responsive page sizes.
+    first_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1,12);
+    second_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',2,12);
+    third_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',3,12);
     count_first:=jsonb_array_length(first_page->'items');
     count_second:=jsonb_array_length(second_page->'items');
+    count_third:=jsonb_array_length(third_page->'items');
 
-    if (first_page->>'page_size')::integer<>30 or count_first<>30 then
-        raise exception 'The first UGC page must contain exactly 30 items: %',first_page;
+    if (first_page->>'page_size')::integer<>12 or count_first<>12 then
+        raise exception 'The first desktop UGC page must contain exactly 12 items: %',first_page;
     end if;
-    if (second_page->>'page')::integer<>2 or count_second<1 or count_second>30 then
-        raise exception 'Page two must return the remaining UGC items: %',second_page;
+    if (second_page->>'page')::integer<>2 or
+       (second_page->>'page_size')::integer<>12 or count_second<>12 then
+        raise exception 'Desktop page two must contain exactly 12 items: %',second_page;
     end if;
-    if (first_page->>'total_count')::integer<31 or (first_page->>'total_pages')::integer<2 then
-        raise exception 'UGC pagination total counts are incomplete: %',first_page;
+    if (third_page->>'page')::integer<>3 or
+       (third_page->>'page_size')::integer<>12 or count_third<>8 then
+        raise exception 'Desktop page three must contain the final 8 fixture items: %',third_page;
+    end if;
+    if (first_page->>'total_count')::integer<>32 or
+       (first_page->>'total_pages')::integer<>3 then
+        raise exception 'Desktop UGC page totals are incomplete: %',first_page;
     end if;
 
-    cars_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','cars',1);
+    -- No calculator can be repeated or skipped between consecutive pages.
+    if exists(
+        select 1
+          from jsonb_array_elements(first_page->'items') a
+          join jsonb_array_elements(second_page->'items') b on a->>'id'=b->>'id'
+    ) or exists(
+        select 1
+          from jsonb_array_elements(second_page->'items') a
+          join jsonb_array_elements(third_page->'items') b on a->>'id'=b->>'id'
+    ) then
+        raise exception 'A UGC calculator appeared on more than one page.';
+    end if;
+
+    cars_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','cars',1,12);
     if cars_page->>'category'<>'cars' or
+       (cars_page->>'page_size')::integer<>12 or
        exists(select 1 from jsonb_array_elements(cars_page->'items') item where item->>'category'<>'cars') then
-        raise exception 'UGC category filtering leaked calculators from another category: %',cars_page;
+        raise exception 'UGC category filtering leaked calculators or used an incorrect page size: %',cars_page;
     end if;
 
-    if (public.get_worth_it_ugc_catalog_page('mine','12y','','all',1)->>'page_size')::integer<>30
-       or (public.get_worth_it_ugc_catalog_page('my-favorites','12y','','all',1)->>'page_size')::integer<>30 then
-        raise exception 'Personal UGC catalogue views must use the same 30-item page size.';
+    mine_page:=public.get_worth_it_ugc_catalog_page('mine','12y','','all',1,12);
+    favorites_page:=public.get_worth_it_ugc_catalog_page('my-favorites','12y','','all',1,12);
+    if (mine_page->>'page_size')::integer<>12
+       or (favorites_page->>'page_size')::integer<>12 then
+        raise exception 'Personal UGC catalogue views must use the requested 12-item page size.';
+    end if;
+
+    -- Older clients omitting p_page_size keep the original 10-item default.
+    legacy_page:=public.get_worth_it_ugc_catalog_page('latest','12y','','all',1);
+    if (legacy_page->>'page_size')::integer<>10
+       or jsonb_array_length(legacy_page->'items')<>10 then
+        raise exception 'The legacy five-argument RPC must preserve its 10-item default: %',legacy_page;
     end if;
 end
 $ugc_pagination$;
-
 
 -- Removed: generation reservations/refunds are no longer part of the public UGC creation flow.
 
