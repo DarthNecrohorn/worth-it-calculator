@@ -904,7 +904,7 @@ test("community calculators use responsive 6-phone and 12-desktop pagination for
     assert.equal((mineBranch.match(/c\.status='published'/g)||[]).length,2,"My Calculators count and rows only include published calculators");
     assert.equal((draftBranch.match(/c\.status='draft'/g)||[]).length,2,"My Drafts count and rows only include drafts");
     assert.match(paginationSql,/grant execute on function public\.get_worth_it_ugc_catalog_page\(text,text,text,text,integer\) to authenticated/);
-    assert.match(paginationFixture,/The first UGC page must contain exactly 30 items/);
+    assert.match(paginationFixture,/The first desktop UGC page must contain exactly 12 items/);
     assert.match(paginationFixture,/UGC category filtering leaked calculators/);
     assert.match(paginationCss,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
     assert.match(paginationCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
