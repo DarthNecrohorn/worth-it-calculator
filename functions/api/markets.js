@@ -4416,17 +4416,30 @@ async function loadUSGSDatasetMultiSource(
     cache
 ) {
 
-    const release =
-        await getUSGSReleaseInfoMultiSource(
-            cache
-        );
+    let response = null;
+    let primaryError = null;
 
-
-    const response =
-        await fetchUSGSMultiSourceCSV(
-            cache,
-            release
-        );
+    try {
+        const release = await getUSGSReleaseInfoMultiSource(cache);
+        response = await fetchUSGSMultiSourceCSV(cache, release);
+    } catch (error) {
+        primaryError = error;
+        // Keep the catalogue usable if ScienceBase changes its release
+        // metadata or temporary file endpoint. This repository snapshot is
+        // the reviewed 2026 MCS dataset already shipped with the app.
+        const fallbackResponse = await fetch(USGS_MCS_SNAPSHOT_URL, {
+            method: "GET",
+            cache: "no-store",
+            headers: { "Accept": "text/csv,text/plain;q=0.9,*/*;q=0.5" }
+        });
+        if (!fallbackResponse.ok) {
+            throw new Error(
+                "USGS live feed failed (" + String(primaryError?.message || primaryError) +
+                "); bundled 2026 snapshot failed (HTTP " + fallbackResponse.status + ")."
+            );
+        }
+        response = fallbackResponse;
+    }
 
 
     const buffer =
