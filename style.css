@@ -19499,7 +19499,7 @@ html[data-theme="light"] .worth-it-presence-indicator{border-color:#fff}
 html[data-theme="light"] .worth-it-chat-message-name:hover{color:#4338ca}
 .worth-it-chat-manage-dialog,.worth-it-user-search-overlay{position:fixed;inset:0;z-index:12020;display:grid;place-items:center;padding:clamp(12px,3vw,26px);box-sizing:border-box;background:rgba(3,7,19,.76);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 /* This dialog is portaled to body, so it must out-rank the fixed nav stacking context (z-index 50000) that contains Chat. */
-.worth-it-chat-manage-dialog{z-index:60000!important}
+.worth-it-chat-manage-dialog { z-index: 60000 !important; }
 .worth-it-chat-manage-dialog[hidden],.worth-it-user-search-overlay[hidden]{display:none!important}
 .worth-it-chat-manage-card{width:min(450px,100%);max-height:min(90dvh,740px);overflow:auto;box-sizing:border-box;padding:clamp(22px,4.5vw,34px);border:1px solid rgba(129,140,248,.3);border-radius:23px;color:#edf1ff;text-align:center;background:radial-gradient(120% 110% at 0% 0%,rgba(101,82,232,.18),transparent 55%),linear-gradient(145deg,#0b1224,#111d3b);box-shadow:0 28px 100px rgba(0,0,0,.5)}
 .worth-it-chat-manage-icon{display:grid;place-items:center;width:55px;height:55px;margin:0 auto 15px;border:1px solid rgba(129,140,248,.35);border-radius:17px;background:linear-gradient(145deg,rgba(124,92,255,.2),rgba(41,111,221,.13));font-size:25px}
