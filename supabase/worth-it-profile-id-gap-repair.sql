@@ -12,22 +12,59 @@ create table if not exists private.worth_it_id_allocator (
 alter table private.worth_it_id_allocator enable row level security;
 revoke all on table private.worth_it_id_allocator from public, anon, authenticated;
 
-do $$
+create table if not exists private.worth_it_profile_id_repairs (
+    source_id bigint not null,
+    target_id bigint not null,
+    user_id uuid not null,
+    applied_at timestamptz not null default now(),
+    primary key (source_id, target_id),
+    unique (user_id)
+);
+
+alter table private.worth_it_profile_id_repairs enable row level security;
+revoke all on table private.worth_it_profile_id_repairs from public, anon, authenticated;
+
+do $
+declare
+    repair_user_id uuid;
+    target_user_id uuid;
 begin
-    if exists (select 1 from public.worth_it_profiles where worth_it_id = 4) then
-        raise exception 'Worth It ID 4 is already assigned; refusing to renumber accounts.';
-    end if;
+    select user_id into repair_user_id
+      from private.worth_it_profile_id_repairs
+     where source_id = 5 and target_id = 4;
 
-    if not exists (select 1 from public.worth_it_profiles where worth_it_id = 5) then
-        raise exception 'Worth It ID 5 was not found; refusing to guess which account should be renumbered.';
-    end if;
+    if repair_user_id is not null then
+        select user_id into target_user_id
+          from public.worth_it_profiles
+         where worth_it_id = 4;
 
-    update public.worth_it_profiles
-       set worth_it_id = 4,
-           updated_at = now()
-     where worth_it_id = 5;
+        if target_user_id is distinct from repair_user_id
+           or exists (select 1 from public.worth_it_profiles where worth_it_id = 5) then
+            raise exception 'The recorded Worth It ID repair no longer matches the profile table.';
+        end if;
+    else
+        if exists (select 1 from public.worth_it_profiles where worth_it_id = 4) then
+            raise exception 'Worth It ID 4 is already assigned; refusing to renumber accounts.';
+        end if;
+
+        select user_id into repair_user_id
+          from public.worth_it_profiles
+         where worth_it_id = 5;
+
+        if repair_user_id is null then
+            raise exception 'Worth It ID 5 was not found; refusing to guess which account should be renumbered.';
+        end if;
+
+        update public.worth_it_profiles
+           set worth_it_id = 4,
+               updated_at = now()
+         where user_id = repair_user_id;
+
+        insert into private.worth_it_profile_id_repairs(source_id, target_id, user_id)
+        values (5, 4, repair_user_id);
+    end if;
 end;
-$$;
+$;
 
 insert into private.worth_it_id_allocator(singleton, last_id)
 select true, greatest(coalesce(max(worth_it_id), 1), 1)
