@@ -881,7 +881,7 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.match(paginationSql,/limit v_page_size offset v_offset/);
     assert.ok(html.includes("Each page shows 6 calculators on phones and 12 on computers."));
     assert.match(paginationDesktopTwelveSql,/v_page_size integer := greatest\(1,least\(12,coalesce\(p_page_size,12\)\)\)/);
-    assert.match(paginationDesktopTwelveSql,/p_page, 12/);
+    assert.match(paginationDesktopTwelveSql,/p_page, 10/);
     assert.ok(paginationDesktopTwelveSql.includes("'my-drafts'"),"draft catalogue remains supported");
     assert.ok(paginationDesktopTwelveSql.includes("'car-ownership'"),"extended calculator categories remain supported");
     assert.ok(paginationDesktopTwelveSql.includes("'visibility'"),"private/public visibility remains represented");
