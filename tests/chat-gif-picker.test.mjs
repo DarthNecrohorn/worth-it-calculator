@@ -342,8 +342,9 @@ test("opening the emoji tab renders the existing emoji categories and grid", () 
 test("country flags render visually in the chat composer while typing", () => {
     assert.match(html, /id="worthItChatInputPreview"/);
     assert.match(html, /worth-it-chat-input-preview-wrap/);
+    assert.match(css, /\.worth-it-chat-input-preview \{[^}]*z-index: 2;[^}]*pointer-events: none/);
     assert.match(client, /function renderWorthItChatComposerPreview\(/);
-    assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\.slice\(0, caretPosition\)\)/);
+    assert.match(client, /appendWorthItChatTextWithFlags\(preview, value\.slice\(0, caretPosition\), \{ loading: "eager" \}\)/);
     assert.match(client, /worth-it-chat-composer-caret/);
     assert.match(client, /caretPosition > start && caretPosition < end/);
     assert.match(client, /Intl\.Segmenter/);
