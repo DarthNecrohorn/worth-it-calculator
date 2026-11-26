@@ -433,6 +433,8 @@ jobs:
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pagination.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-visibility-categories-drafts.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-visibility-categories-drafts.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pagination-desktop-12.sql
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-pagination-desktop-12.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-publish-notifications.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-publish-notifications.sql
           psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/worth-it-ugc-profile-cards.sql
