@@ -1,4 +1,4 @@
--- PR #194: server-side 30-item UGC pagination with category-aware page state.
+-- Responsive server-side UGC pagination with category-aware page state (max 12).
 begin;
 
 create or replace function public.get_worth_it_ugc_catalog_page(
@@ -22,7 +22,7 @@ declare
     v_search text := left(btrim(coalesce(p_search,'')),80);
     v_cutoff timestamptz;
     v_page integer := greatest(1,least(10000,coalesce(p_page,1)));
-    v_page_size integer := greatest(1,least(10,coalesce(p_page_size,10)));
+    v_page_size integer := greatest(1,least(12,coalesce(p_page_size,12)));
     v_total integer := 0;
     v_total_pages integer := 1;
     v_offset integer;
@@ -235,7 +235,7 @@ security definer
 set search_path = pg_catalog, public, private, auth
 as $fn$
     select public.get_worth_it_ugc_catalog_page(
-        p_sort, p_period, p_search, p_category, p_page, 10
+        p_sort, p_period, p_search, p_category, p_page, 12
     );
 $fn$;
 
