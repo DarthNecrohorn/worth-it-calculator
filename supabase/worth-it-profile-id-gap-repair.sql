@@ -43,7 +43,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private, auth
-as $$
+as $function$
 declare
     desired_username text;
     desired_display_name text;
@@ -64,12 +64,15 @@ begin
     );
 
     if tg_op = 'UPDATE' then
-        update public.worth_it_profiles
-           set username = coalesce(desired_username, username),
-               display_name = coalesce(desired_display_name, display_name),
-               avatar_url = coalesce(desired_avatar_url, avatar_url),
+        update public.worth_it_profiles as profile
+           set username = coalesce(desired_username, profile.username),
+               display_name = profile.display_name,
+               avatar_url = case
+                   when profile.avatar_is_custom then profile.avatar_url
+                   else coalesce(desired_avatar_url, profile.avatar_url)
+               end,
                updated_at = now()
-         where user_id = new.id;
+         where profile.user_id = new.id;
         if found then
             return new;
         end if;
@@ -78,9 +81,6 @@ begin
     if lower(coalesce(new.email, '')) = 'pedjasebez3545@gmail.com' then
         allocated_worth_it_id := 1;
     else
-        -- Updating this single allocator row serializes concurrent signups.
-        -- Because the increment is transactional, a rolled-back signup does
-        -- not burn an ID. Deleted accounts are not silently renumbered.
         update private.worth_it_id_allocator
            set last_id = last_id + 1
          where singleton = true
@@ -94,19 +94,22 @@ begin
     insert into public.worth_it_profiles(
         user_id, worth_it_id, username, display_name, avatar_url, created_at, updated_at
     )
-    values(
+    values (
         new.id, allocated_worth_it_id, desired_username, desired_display_name,
         desired_avatar_url, coalesce(new.created_at, now()), now()
     )
-    on conflict (user_id) do update
-       set username = coalesce(excluded.username, public.worth_it_profiles.username),
-           display_name = coalesce(excluded.display_name, public.worth_it_profiles.display_name),
-           avatar_url = coalesce(excluded.avatar_url, public.worth_it_profiles.avatar_url),
-           updated_at = now();
+    on conflict (user_id) do update set
+        username = coalesce(excluded.username, public.worth_it_profiles.username),
+        display_name = public.worth_it_profiles.display_name,
+        avatar_url = case
+            when public.worth_it_profiles.avatar_is_custom then public.worth_it_profiles.avatar_url
+            else coalesce(excluded.avatar_url, public.worth_it_profiles.avatar_url)
+        end,
+        updated_at = now();
 
     return new;
 end;
-$$;
+$function$;
 
 revoke all on function public.sync_worth_it_profile_from_auth_user() from public, anon, authenticated;
 
@@ -135,7 +138,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, private
-as $
+as $function$
 declare
     allocated_number bigint;
 begin
@@ -151,7 +154,7 @@ begin
     new.calculator_number := allocated_number;
     return new;
 end;
-$;
+$function$;
 
 revoke all on function private.assign_worth_it_ugc_calculator_number() from public, anon, authenticated;
 alter table private.worth_it_user_calculators
