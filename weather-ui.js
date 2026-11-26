@@ -1622,14 +1622,38 @@ function getBrowserLocation(){
 
             },
 
-            error => {
+            async error => {
 
                 console.warn(
-                    "Browser geolocation failed:",
+                    "Browser geolocation failed; trying approximate network location:",
                     error
                 );
 
-                reject(error);
+                try {
+                    const response = await fetch("/api/weather?action=location", {
+                        method: "GET",
+                        headers: { "Accept": "application/json" },
+                        cache: "no-store"
+                    });
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok ||
+                        !Number.isFinite(Number(payload?.latitude)) ||
+                        !Number.isFinite(Number(payload?.longitude))) {
+                        throw new Error(payload?.error || "Approximate network location is unavailable.");
+                    }
+
+                    const fallback = {
+                        latitude: Number(payload.latitude),
+                        longitude: Number(payload.longitude),
+                        accuracy: null,
+                        source: "network"
+                    };
+                    saveBrowserLocationCache(fallback);
+                    resolve(fallback);
+                } catch (fallbackError) {
+                    console.warn("Weather network-location fallback failed:", fallbackError);
+                    reject(error || fallbackError);
+                }
 
             },
 
