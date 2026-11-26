@@ -886,6 +886,7 @@ test("community calculators use secure 30-item server pagination for every view 
     assert.ok(paginationDesktopTwelveSql.includes("'car-ownership'"),"extended calculator categories remain supported");
     assert.ok(paginationDesktopTwelveSql.includes("'visibility'"),"private/public visibility remains represented");
     assert.match(paginationDesktopTwelveSql,/limit v_page_size offset v_offset/);
+    assert.ok(workflow.indexOf("supabase/worth-it-ugc-visibility-categories-drafts.sql") < workflow.lastIndexOf("supabase/worth-it-ugc-pagination-desktop-12.sql"), "the follow-up runs after the draft/category migration so it cannot be overwritten");
     assert.match(visibilitySql,/worth_it_ugc_category_matches/);
     assert.match(visibilitySql,/p_filter=any/);
     for (const sort of ["latest","popular","liked","favorited","disliked","mine","my-favorites"]) {
