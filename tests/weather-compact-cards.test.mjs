@@ -46,3 +46,14 @@ test("all existing forecast values and day selection stay present", () => {
     assert.match(weather, /selectForecastDay\(forecast, index\)/);
     assert.match(weather, /weather-forecast-card/);
 });
+
+
+test("Weather falls back to Cloudflare's approximate visitor location when browser geolocation is denied", () => {
+    const api = readFileSync(new URL("../functions/api/weather.js", import.meta.url), "utf8");
+    assert.match(weather, /trying approximate network location/);
+    assert.match(weather, /\/api\/weather\?action=location/);
+    assert.match(weather, /saveBrowserLocationCache\(fallback\)/);
+    assert.match(api, /url\.searchParams\.get\("action"\) === "location"/);
+    assert.match(api, /context\.request\.cf/);
+    assert.match(api, /Approximate network location is unavailable/);
+});
