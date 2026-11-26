@@ -1214,12 +1214,7 @@ begin
         raise exception 'A draft leaked into My Calculators.';
     end if;
     if not exists(select 1 from jsonb_array_elements(drafts->'items') x where x->>'id'=current_setting('test.ugc_draft_id')) then
-        raise exception 'My Drafts did not include the saved draft. expected_id=% row=% page=%',
-            current_setting('test.ugc_draft_id'),
-            (select jsonb_build_object('id',c.id,'owner',c.owner_user_id,'status',c.status,'category',c.category,'subcategories',c.subcategories)
-               from private.worth_it_user_calculators c
-              where c.id=current_setting('test.ugc_draft_id')::uuid),
-            drafts;
+        raise exception 'My Drafts did not include the saved draft.';
     end if;
     private_detail:=public.get_worth_it_ugc_calculator(current_setting('test.ugc_private_id')::uuid);
     if private_detail->>'visibility'<>'private' then raise exception 'Private visibility was not saved.'; end if;
