@@ -1208,7 +1208,7 @@ function worthItChatFlagImageUrl(flagCode) {
     // Ascension Island (AC) is an exceptional emoji flag code and is not
     // served by FlagCDN's standard two-letter country-flag catalogue.
     if (code === "ac") {
-        return "https://cdn.jsdelivr.net/npm/country-flag-emoji-json@2.0.0/dist/images/AC.svg";
+        return "/assets/chat-ac-flag-20261127.svg";
     }
     return "https://flagcdn.com/" + code + ".svg";
 }

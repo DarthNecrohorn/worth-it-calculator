@@ -535,7 +535,7 @@ async function loadWorthItProfileFavorites(worthItId){
 }
 
 function renderProfile(p,s,isOwn){
- const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);}
+ const profileSection=$("profileSection");if(profileSection){profileSection.classList.toggle("signed-out-profile-view",!currentUser);profileSection.classList.toggle("signed-in-other-profile-view",Boolean(currentUser)&&!isOwn);profileSection.classList.toggle("own-profile-view",Boolean(isOwn));}
  const id=Number(p.worth_it_id),name=String(p.display_name||p.username||"Worth It member"),username=String(p.username||""),link=BASE_URL+"/profile/"+id;currentProfileLink=link;
  renderAvatar(p.avatar_url,name,p);renderWorthItProfilePresence(p);renderBanner(p.banner_url,name);setText("worthItProfileName",name);setText("worthItProfileUsername",username?"@"+username:"Worth It member");const premiumBadge=$("worthItProfilePremiumBadge");if(premiumBadge){premiumBadge.hidden=true;premiumBadge.textContent="";}
  const displayNameEdit=$("worthItProfileDisplayNameEdit");if(displayNameEdit)displayNameEdit.hidden=!isOwn;

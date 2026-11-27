@@ -6,6 +6,7 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const html = read("index.html");
 const chat = read("chat-ui.js");
 const style = read("style.css");
+const acFlag = read("assets/chat-ac-flag-20261127.svg");
 
 test("group member settings stay above the Chat navigation stacking context", () => {
     assert.match(chat, /if \(dialog\.parentElement !== document\.body\) document\.body\.appendChild\(dialog\);/);
@@ -28,8 +29,12 @@ test("flag preview is painted above the transparent textarea without interceptin
 
 test("Ascension Island AC uses a dedicated SVG in the picker, composer, and sent messages", () => {
     assert.match(chat, /function worthItChatFlagImageUrl\(flagCode\)/);
-    assert.match(chat, /if \(code === "ac"\)\s*\{\s*return "https:\/\/cdn\.jsdelivr\.net\/npm\/country-flag-emoji-json@2\.0\.0\/dist\/images\/AC\.svg";\s*\}/);
+    assert.match(chat, /if \(code === "ac"\)\s*\{\s*return "\/assets\/chat-ac-flag-20261127\.svg";\s*\}/);
     assert.equal((chat.match(/worthItChatFlagImageUrl\(flagCode\)/g) || []).length, 3);
+    assert.match(acFlag, /viewBox="0 0 64 48"/);
+    assert.match(acFlag, /translate\(-4 -16\) scale\(1 1\.2\)/);
+    assert.match(style, /\.worth-it-chat-emoji-flag\s*\{[^}]*width:\s*1\.2em[^}]*height:\s*\.9em/);
+    assert.match(style, /\.worth-it-chat-message-flag\s*\{[^}]*width:\s*1\.2em[^}]*height:\s*\.9em/);
     assert.match(chat, /flagImage\.loading = flagCode === "ac" \? "eager" : "lazy";/);
     assert.match(chat, /addWorthItChatEmojiGroup\("flags",[\s\S]*?🇦🇨/);
 });
