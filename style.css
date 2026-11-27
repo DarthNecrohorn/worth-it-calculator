@@ -24670,6 +24670,12 @@ html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="passwor
 /* Owner-only desktop offset: 100px left and 40px down from the original profile position. */
 @media (min-width: 1051px) {
     #profileSection.own-profile-view .worth-it-profile-social-column .worth-it-profile-stats {
-        transform: translate(-30px, -110px);
+        transform: translate(-130px, -100px);
+    }
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit {
+        transform: translateY(10px);
+    }
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:has(.worth-it-owner-emblem) {
+        transform: translateY(10px);
     }
 }
