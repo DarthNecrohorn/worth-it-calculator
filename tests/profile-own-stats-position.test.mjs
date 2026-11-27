@@ -22,15 +22,26 @@ test("owner display-name edit control stays 10px lower without hover movement or
     for (const state of ["", ":hover", ":focus-visible", ":active"]) {
         assert.ok(style.includes(`#profileSection.own-profile-view #worthItProfileDisplayNameEdit${state}`));
     }
-    assert.match(style, /#profileSection\\.own-profile-view #worthItProfileDisplayNameEdit,[\\s\\S]*?transform: translateY\\(10px\\) !important/);
+    assert.ok(style.includes(`#profileSection.own-profile-view #worthItProfileDisplayNameEdit,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:hover,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:focus-visible,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:active {
+        transform: translateY(10px) !important;
+    }`));
 });
 
 test("every equipped badge on the owner's desktop profile stays 10px lower without hover movement or scaling", () => {
     for (const state of ["", ":hover", ":focus-visible", ":active"]) {
         assert.ok(style.includes(`#profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger${state}`));
     }
-    assert.match(style, /#profileSection\\.own-profile-view \\.worth-it-profile-name-badges \\.worth-it-profile-badge-trigger,[\\s\\S]*?transform: translateY\\(10px\\) !important/);
+    assert.ok(style.includes(`#profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:hover,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:focus-visible,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:active {
+        transform: translateY(10px) !important;
+    }`));
 });
+
 test("guest and other-member profile stat positions are preserved", () => {
     assert.match(style, /#profileSection\.signed-out-profile-view \.worth-it-profile-social-column \.worth-it-profile-stats\{transform:translate\(10px,10px\)\}/);
     assert.match(style, /#profileSection\.signed-in-other-profile-view \.worth-it-profile-social-column \.worth-it-profile-stats\{transform:translate\(170px,0px\)\}/);
