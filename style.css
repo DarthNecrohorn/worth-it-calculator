@@ -24665,3 +24665,11 @@ html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="passwor
     box-shadow: 0 0 0 1000px var(--card-solid, #ffffff) inset !important;
     transition: background-color 999999s ease-out 0s !important;
 }
+
+
+/* Owner-only desktop offset: 100px left and 40px down from the original profile position. */
+@media (min-width: 1051px) {
+    #profileSection.own-profile-view .worth-it-profile-social-column .worth-it-profile-stats {
+        transform: translate(-30px, -110px);
+    }
+}
