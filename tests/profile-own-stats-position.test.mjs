@@ -14,8 +14,13 @@ test("only the current owner's profile receives the dedicated profile state", ()
 });
 
 test("owner profile statistics move left 100px and down 40px only on desktop", () => {
-    assert.match(style, /@media \(min-width: 1051px\)\s*\{[\s\S]*?#profileSection\.own-profile-view \.worth-it-profile-social-column \.worth-it-profile-stats\s*\{\s*transform: translate\(-30px, -110px\)/);
+    assert.match(style, /@media \(min-width: 1051px\)\s*\{[\s\S]*?#profileSection\.own-profile-view \.worth-it-profile-social-column \.worth-it-profile-stats\s*\{\s*transform: translate\(-130px, -100px\)/);
     assert.match(style, /@media\(max-width:1050px\)[\s\S]*?\.worth-it-profile-social-column \.worth-it-profile-stats\{transform:none\}/);
+});
+
+test("owner badge and display-name edit button move down 10px only on the owner profile", () => {
+    assert.match(style, /#profileSection\.own-profile-view #worthItProfileDisplayNameEdit\s*\{\s*transform: translateY\(10px\)/);
+    assert.match(style, /#profileSection\.own-profile-view \.worth-it-profile-name-badges \.worth-it-profile-badge-trigger:has\(\.worth-it-owner-emblem\)\s*\{\s*transform: translateY\(10px\)/);
 });
 
 test("guest and other-member profile stat positions are preserved", () => {
