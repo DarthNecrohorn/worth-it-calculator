@@ -18,9 +18,28 @@ test("owner profile statistics move left 100px and down 40px only on desktop", (
     assert.match(style, /@media\(max-width:1050px\)[\s\S]*?\.worth-it-profile-social-column \.worth-it-profile-stats\{transform:none\}/);
 });
 
-test("owner badge and display-name edit button move down 10px only on the owner profile", () => {
-    assert.match(style, /#profileSection\.own-profile-view #worthItProfileDisplayNameEdit\s*\{\s*transform: translateY\(10px\)/);
-    assert.match(style, /#profileSection\.own-profile-view \.worth-it-profile-name-badges \.worth-it-profile-badge-trigger:has\(\.worth-it-owner-emblem\)\s*\{\s*transform: translateY\(10px\)/);
+test("owner display-name edit control stays 10px lower without hover movement or scaling", () => {
+    for (const state of ["", ":hover", ":focus-visible", ":active"]) {
+        assert.ok(style.includes(`#profileSection.own-profile-view #worthItProfileDisplayNameEdit${state}`));
+    }
+    assert.ok(style.includes(`#profileSection.own-profile-view #worthItProfileDisplayNameEdit,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:hover,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:focus-visible,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:active {
+        transform: translateY(10px) !important;
+    }`));
+});
+
+test("every equipped badge on the owner's desktop profile stays 10px lower without hover movement or scaling", () => {
+    for (const state of ["", ":hover", ":focus-visible", ":active"]) {
+        assert.ok(style.includes(`#profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger${state}`));
+    }
+    assert.ok(style.includes(`#profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:hover,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:focus-visible,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:active {
+        transform: translateY(10px) !important;
+    }`));
 });
 
 test("guest and other-member profile stat positions are preserved", () => {

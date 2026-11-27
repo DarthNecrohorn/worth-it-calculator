@@ -24672,10 +24672,20 @@ html[data-theme="light"] .auth-modal-overlay .auth-field input:is([type="passwor
     #profileSection.own-profile-view .worth-it-profile-social-column .worth-it-profile-stats {
         transform: translate(-130px, -100px);
     }
-    #profileSection.own-profile-view #worthItProfileDisplayNameEdit {
-        transform: translateY(10px);
+    /* Keep the own-profile edit control 10px lower without hover lift or scaling. */
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:hover,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:focus-visible,
+    #profileSection.own-profile-view #worthItProfileDisplayNameEdit:active {
+        transform: translateY(10px) !important;
     }
-    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:has(.worth-it-owner-emblem) {
-        transform: translateY(10px);
+
+    /* Apply the same 10px offset to every equipped badge, not only OWNER.
+       Lock the transform across interactive states so hover cannot move or enlarge it. */
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:hover,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:focus-visible,
+    #profileSection.own-profile-view .worth-it-profile-name-badges .worth-it-profile-badge-trigger:active {
+        transform: translateY(10px) !important;
     }
 }
