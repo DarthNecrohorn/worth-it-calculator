@@ -32,6 +32,7 @@ test("Ascension Island AC uses a dedicated SVG in the picker, composer, and sent
     assert.match(chat, /if \(code === "ac"\)\s*\{\s*return "\/assets\/chat-ac-flag-20261127\.svg";\s*\}/);
     assert.equal((chat.match(/worthItChatFlagImageUrl\(flagCode\)/g) || []).length, 3);
     assert.match(acFlag, /viewBox="0 0 64 48"/);
+    assert.match(acFlag, /CC BY-SA 4\\.0/);
     assert.match(acFlag, /translate\(-4 -16\) scale\(1 1\.2\)/);
     assert.match(style, /\.worth-it-chat-emoji-flag\s*\{[^}]*width:\s*1\.2em[^}]*height:\s*\.9em/);
     assert.match(style, /\.worth-it-chat-message-flag\s*\{[^}]*width:\s*1\.2em[^}]*height:\s*\.9em/);
